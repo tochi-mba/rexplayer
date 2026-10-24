@@ -72,8 +72,14 @@ public sealed partial class MainWindow
             foreach (var shelf in browse.Shelves)
             {
                 var continues = shelf.Title == "Continue watching";
+                // Featured and topical shelves have their own meaningful order. "All movies"
+                // is the ordinary browsable collection: honor its saved sort and Reverse here,
+                // just as List, Cards and Wall do.
+                var ordered = shelf.Title == "All movies"
+                    ? LibraryArrangement.Sort(shelf.Entries, choice.Sort, choice.Descending)
+                    : shelf.Entries;
                 shelves.Add((shelf.Title, continues ? LibrarySource.ContinueWatching : LibrarySource.Movies,
-                    [.. shelf.Entries.Select(EntryRow)], continues, "Movies-" + shelf.Title));
+                    [.. ordered.Select(EntryRow)], continues, "Movies-" + shelf.Title));
             }
         }
         else if (shows)
@@ -106,7 +112,10 @@ public sealed partial class MainWindow
 
             foreach (var shelf in browse.Shelves)
             {
-                shelves.Add((shelf.Title, LibrarySource.TvShows, [.. shelf.Groups.Select(GroupRow)], false, "TvShows-" + shelf.Title));
+                var ordered = shelf.Title == "All shows"
+                    ? LibraryArrangement.Sort(shelf.Groups, choice.Sort, choice.Descending)
+                    : shelf.Groups;
+                shelves.Add((shelf.Title, LibrarySource.TvShows, [.. ordered.Select(GroupRow)], false, "TvShows-" + shelf.Title));
             }
         }
         else
@@ -122,7 +131,9 @@ public sealed partial class MainWindow
             }
         }
 
-        ShowLibraryEmpty(shelves.Count == 0, false, _librarySource);
+        // A filtered Browse page needs the same clear-filter escape hatch as a List,
+        // Cards, Wall or Collage page, including when every shelf disappears.
+        ShowLibraryEmpty(shelves.Count == 0, false, _librarySource, choice);
         var shown = "Browse\n" + billboardArt?.Path + "\n" + billboardTitle + "\n" + billboardLine + "\n" + synopsis + "\n" + backdrop + "\n"
             + string.Join("\n", shelves.Select(shelf => shelf.Title + ":" + string.Join(",", shelf.Rows.Select(RowIdentity))));
         if (shown == _shownLibrary)
