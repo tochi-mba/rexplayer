@@ -62,12 +62,14 @@ public sealed class LibraryArtistsTests : IDisposable
     [Capability("LIB-05")]
     public void SimilarArtistNamesHaveSeparateOfflinePagesAndNoInventedBiography()
     {
-        _scene.Song("Short Name Track", "Demos", 2024, "Alternative", "Asa");
-        _scene.Song("Long Name Track", "Demos", 2024, "Afrobeats", "Asake");
+        var shortTrack = _scene.Song("Short Name Track", "Demos", 2024, "Alternative", "Asa");
+        var longTrack = _scene.Song("Long Name Track", "Demos", 2024, "Afrobeats", "Asake");
+        // An artist page's Top songs only lists songs actually played. Give
+        // both artists one play so the tested rows belong in that section.
         using var app = _scene.Ready(settings => settings with
         {
             Metadata = new Rex.Media.Settings.MetadataSettings { Music = false },
-        }).Start();
+        }, shortTrack, longTrack).Start();
 
         app.Visit("Artists");
         Assert.Equal(["Asa", "Asake"], app.Lines().Order(StringComparer.CurrentCultureIgnoreCase));
