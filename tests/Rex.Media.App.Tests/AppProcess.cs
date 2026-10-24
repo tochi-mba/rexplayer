@@ -29,6 +29,9 @@ internal sealed class AppProcess : IDisposable
 
     public AutomationElement Window { get; }
 
+    /// <summary>The tested app process, for compositor occlusion diagnostics.</summary>
+    public int ProcessId => _process.Id;
+
     /// <summary>The window's handle, for reading what it shows.</summary>
     public nint Handle
     {
@@ -109,6 +112,10 @@ internal sealed class AppProcess : IDisposable
             File.WriteAllText(settings, $$"""{ "firstRunDone": true, "lastSeenVersion": "{{Version}}", "updateChecks": "Off"{{(extraSettings is null ? "" : ", " + extraSettings)}} }""");
         }
 
+        // Decide before launching: reading a settings file during startup can race
+        // the app writing a new window placement after its first layout.
+        var keepSavedPlacement = File.Exists(settings)
+            && Rex.Media.Settings.SettingsStore.Load(settings).Window is not null;
         var start = StartInfo(arguments, root);
         foreach (var (name, value) in environment ?? new Dictionary<string, string>())
         {
@@ -129,7 +136,44 @@ internal sealed class AppProcess : IDisposable
             var candidate = AutomationElement.FromHandle(process.MainWindowHandle);
             return candidate.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, "PlayPauseButton")) is null ? null : candidate;
         });
-        return new AppProcess(process, root, window);
+        var app = new AppProcess(process, root, window);
+        // Desktop screenshots must never include pixels outside the visible virtual
+        // screen. Position the isolated test process before tests open modal popups,
+        // since moving an already opened flyout can dismiss it.
+        // Tests of persisted window placement must exercise the app's own
+        // recovery logic, not the screenshot harness's positioning helper.
+        if ((extraSettings is null || !extraSettings.Contains("\"window\"", StringComparison.Ordinal))
+            && !keepSavedPlacement)
+        {
+            app.FitOnDesktop();
+        }
+
+        return app;
+    }
+
+    private void FitOnDesktop()
+    {
+        // Even an initially visible window can end up clipped when a test later
+        // resizes it to 1000x760. Always anchor tests near the virtual desktop's
+        // upper-left corner, not only after an already-clipped startup.
+        var desktop = WindowPicture.DesktopBounds;
+        const int Padding = 8;
+        // Allow a fixed 1000x760 scene at (8,8) on a 1024x768 runner.
+        // Keeping a top-left inset avoids losing the invisible resize border.
+        var availableWidth = Math.Max(1, desktop.Width - Padding);
+        var availableHeight = Math.Max(1, desktop.Height - Padding);
+        var bounds = WindowPicture.Bounds(Handle);
+        var transform = (TransformPattern)Window.GetCurrentPattern(TransformPattern.Pattern);
+        if (bounds.Width > availableWidth || bounds.Height > availableHeight)
+        {
+            Assert.True(transform.Current.CanResize, "The app is too large for the capture desktop and cannot resize.");
+            transform.Resize(Math.Min(bounds.Width, availableWidth), Math.Min(bounds.Height, availableHeight));
+        }
+
+        Assert.True(transform.Current.CanMove, "The app cannot be moved fully onto the capture desktop.");
+        transform.Move(desktop.Left + Padding, desktop.Top + Padding);
+        Wait.For(() => WindowPicture.IsFullyOnDesktop(Handle),
+            "the test window to fit completely on the visible desktop");
     }
 
     /// <summary>
@@ -399,6 +443,19 @@ internal sealed class AppProcess : IDisposable
         {
             _process.Kill();
             _process.WaitForExit();
+        }
+
+        // Preserve a per-process log even if a test fails before it reaches
+        // Screenshots.Match. CI publishes this with the screenshot artifact.
+        try
+        {
+            var directory = RepoPaths.Combine("artifacts", "screenshots", Screenshots.Lane, "logs");
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(Path.Combine(directory, Path.GetFileName(Root) + ".log"), LogText);
+        }
+        catch (IOException)
+        {
+            // A locked log must not hide the test failure being diagnosed.
         }
 
         _process.Dispose();

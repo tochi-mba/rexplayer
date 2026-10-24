@@ -95,13 +95,15 @@ internal sealed class LibraryScene : IDisposable
     /// records as read with <paramref name="length"/> and the tags given, so the rules that weigh length
     /// and tags (a song, an audiobook, a podcast, a recording) see it.
     /// </summary>
-    public string Audio(string relative, TimeSpan length, string? artist = null, string? album = null, string? genre = null, int? year = null)
+    public string Audio(string relative, TimeSpan length, string? artist = null, string? album = null, string? genre = null, int? year = null,
+        string? author = null, string? narrator = null, IReadOnlyList<Chapter>? chapters = null)
     {
         var path = Path.Combine(Media, relative);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllBytes(path, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * 20])).Build());
         var tags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (key, value) in new[] { (MetadataKeys.Artist, artist), (MetadataKeys.Album, album), (MetadataKeys.Genre, genre), (MetadataKeys.Date, year?.ToString(System.Globalization.CultureInfo.InvariantCulture)) })
+        foreach (var (key, value) in new[] { (MetadataKeys.Artist, artist), (MetadataKeys.Album, album), (MetadataKeys.Genre, genre), (MetadataKeys.Date, year?.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            (MetadataKeys.Author, author), (MetadataKeys.Narrator, narrator) })
         {
             if (value is not null)
             {
@@ -115,6 +117,71 @@ internal sealed class LibraryScene : IDisposable
             Tracks = [new TrackInfo { Id = 1, Codec = CodecId.Pcm }],
             Duration = MediaTime.FromSeconds(length.TotalSeconds),
             Metadata = tags,
+            Chapters = chapters ?? [],
+        }));
+        return path;
+    }
+
+    /// <summary>A real MP3 with ID3 chapters for verifying audiobook stage actions.</summary>
+    public string ChapteredAudiobook(string part = "Part 1")
+    {
+        var path = Path.Combine(Media, "Audiobooks", "Chapter proof", part + ".mp3");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var tags = Id3Builder.V24().Text("TIT2", part).Text("TCON", "Audiobook")
+            .Chapter("opening", 0, "Opening").Chapter("continuation", 3000, "Continuation").Build();
+        var frames = File.ReadAllBytes(RepoPaths.Combine("tests", "fixtures", "mp3", "stereo-44k-128k-cbr.mp3"));
+        // Skip the encoder's Info/Xing header before repeating frames. Keeping it
+        // would falsely advertise the original fixture's subsecond duration and
+        // disable the later chapter jump despite the longer physical stream.
+        // Find two consecutive matching MPEG frames, skipping any leading ID3 tag.
+        // The fixture is encoder-produced, so never assume the first byte is a header.
+        var firstAt = -1;
+        Rex.Media.Codecs.Mpeg.MpegAudioHeader header = default;
+        for (var at = 0; at < Math.Min(4096, frames.Length - 8); at++)
+        {
+            if (!Rex.Media.Codecs.Mpeg.MpegAudioHeader.TryParse(frames.AsSpan(at), out var candidate)
+                || candidate.FrameLength <= 0 || at + candidate.FrameLength + 4 > frames.Length
+                || !Rex.Media.Codecs.Mpeg.MpegAudioHeader.TryParse(frames.AsSpan(at + candidate.FrameLength), out var next)
+                || !candidate.SameStreamAs(next))
+            {
+                continue;
+            }
+
+            firstAt = at;
+            header = candidate;
+            break;
+        }
+
+        if (firstAt < 0)
+        {
+            throw new InvalidDataException("The MP3 test fixture has no consecutive MPEG frames.");
+        }
+
+        var leadingTag = Rex.Media.Codecs.Mpeg.MpegInfoTag.Parse(
+            frames.AsSpan(firstAt, header.FrameLength), header);
+        var audio = frames[(firstAt + (leadingTag is null ? 0 : header.FrameLength))..];
+        // Repeat complete MPEG frames rather than relying on a subsecond fixture:
+        // real UI Automation needs time to open a menu and seek during playback.
+        var media = new byte[tags.Length + audio.Length * 32];
+        tags.CopyTo(media, 0);
+        for (var i = 0; i < 32; i++)
+        {
+            Buffer.BlockCopy(audio, 0, media, tags.Length + i * audio.Length, audio.Length);
+        }
+
+        File.WriteAllBytes(path, media);
+        _files.Add((path, LibraryKind.Music, new MediaInfo
+        {
+            FormatName = "MP3",
+            Tracks = [new TrackInfo { Id = 1, Codec = CodecId.Mp3 }],
+            Duration = MediaTime.FromSeconds(15),
+            Chapters = [new Chapter(MediaTime.Zero, "Opening"), new Chapter(MediaTime.FromSeconds(3), "Continuation")],
+            Metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [MetadataKeys.Title] = part,
+                [MetadataKeys.Genre] = "Audiobook",
+                [MetadataKeys.MediaType] = MetadataKeys.Audiobook,
+            },
         }));
         return path;
     }
@@ -126,13 +193,14 @@ internal sealed class LibraryScene : IDisposable
     public static MediaInfo VideoInfo(TimeSpan length) => new()
     {
         FormatName = "MPEG-4",
-        Tracks = [new TrackInfo { Id = 1, Codec = CodecId.H264 }, new TrackInfo { Id = 2, Codec = CodecId.Aac }],
+        Tracks = [new TrackInfo { Id = 1, Codec = CodecId.H264, Video = new VideoTrackInfo { Width = 1920, Height = 1080 } }, new TrackInfo { Id = 2, Codec = CodecId.Aac }],
         Duration = MediaTime.FromSeconds(length.TotalSeconds),
     };
 
     public string Picture(string name)
     {
         var path = Path.Combine(Media, name);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.Copy(RepoPaths.Combine("tests", "fixtures", "picture", "still.jpg"), path);
         _files.Add((path, LibraryKind.Picture, null));
         return path;

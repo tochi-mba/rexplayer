@@ -427,6 +427,7 @@ public sealed partial class AppWindowTests : IDisposable
         using var app = AppProcess.Start([song]);
 
         Wait.For(() => app.IsShown("Cover"), "the folder's cover");
+        Assert.Equal("Cover for Sungba", app.Find("Cover").Current.Name);
         Wait.For(() => app.IsShown("Lyrics"), "the lyrics");
         Assert.True(app.IsShown("Visualizer"));
 

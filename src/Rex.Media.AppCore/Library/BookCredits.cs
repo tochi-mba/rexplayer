@@ -54,6 +54,22 @@ public static partial class BookCredits
         return Credit(part.AlbumArtist, part.Narrator) ?? Credit(part.Artist, part.Narrator);
     }
 
+    /// <summary>
+    /// The narrator shared by the book's tagged parts, when unambiguous. Missing tags
+    /// do not supply a credit, and conflicting narrator tags never become a guess.
+    /// </summary>
+    public static string? Narrator(LibraryGroup book)
+    {
+        ArgumentNullException.ThrowIfNull(book);
+        var narrators = book.Entries.Select(part => part.Narrator is { } value
+                ? NarratorLabelPattern().Replace(value.Trim(), "").Trim() : null)
+            .OfType<string>().Where(name => name.Length > 0 && !Placeholder(name)
+                && !name.Equals("unknown narrator", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return narrators.Count == 1 ? narrators[0] : null;
+    }
+
     /// <summary>Remove only a trailing, explicit writer byline from the displayed title.</summary>
     public static string Title(string title)
     {
@@ -156,9 +172,15 @@ public static partial class BookCredits
             or "audiobook" or "audio book" or "books";
 
     private static bool GenericFolder(string name) =>
+        PartFolderPattern().IsMatch(name.Trim()) ||
         name.Trim().ToLowerInvariant() is "audiobooks" or "audio books" or "books"
-            or "disc 1" or "disc 2" or "cd1" or "cd2" or "part 1"
             or "collection" or "series" or "volume 1" or "volume 2";
+
+    // Every numbered disc/part folder is a container, not a claimed author.
+    // Restricting this to "Disc 1" and "Disc 2" misattributes later discs.
+    [GeneratedRegex(@"^(?:dis[ck]|cd|part)[ _-]*\d{1,6}$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex PartFolderPattern();
 
     private static bool PartFile(string file) => PartFilePattern().IsMatch(Path.GetFileNameWithoutExtension(file));
 

@@ -185,7 +185,10 @@ public sealed partial class MainWindow
             // enormous poster. WIC scales the decoded bitmap to the size needed by the cards.
             var file = await StorageFile.GetFileFromPathAsync(path).AsTask(token);
             using var stream = await file.OpenReadAsync().AsTask(token);
-            var image = new BitmapImage { DecodePixelWidth = decodeWidth };
+            var header = await BitmapDecoder.CreateAsync(stream).AsTask(token);
+            var limit = PictureDecodeLimit.For(header.OrientedPixelWidth, header.OrientedPixelHeight, decodeWidth);
+            stream.Seek(0);
+            var image = new BitmapImage { DecodePixelWidth = limit.Width, DecodePixelHeight = limit.Height };
             await image.SetSourceAsync(stream).AsTask(token);
             token.ThrowIfCancellationRequested();
             return image;
@@ -204,8 +207,17 @@ public sealed partial class MainWindow
     {
         try
         {
-            var bytes = await Task.Run(() => File.ReadAllBytes(PictureCachePath(key)), token);
-            return await DecodePictureAsync(bytes, decodeWidth, token);
+            var bytes = await Task.Run(() =>
+            {
+                var path = PictureCachePath(key);
+                if (!PictureDecodeLimit.CacheBytesAllowed(new FileInfo(path).Length))
+                {
+                    return null;
+                }
+
+                return File.ReadAllBytes(path);
+            }, token);
+            return bytes is null ? null : await DecodePictureAsync(bytes, decodeWidth, token);
         }
         catch (Exception ex) when (ex is COMException or IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or NotSupportedException)
         {
@@ -380,7 +392,10 @@ public sealed partial class MainWindow
 
         token.ThrowIfCancellationRequested();
         stream.Seek(0);
-        var image = new BitmapImage { DecodePixelWidth = decodeWidth };
+        var header = await BitmapDecoder.CreateAsync(stream).AsTask(token);
+        var limit = PictureDecodeLimit.For(header.OrientedPixelWidth, header.OrientedPixelHeight, decodeWidth);
+        stream.Seek(0);
+        var image = new BitmapImage { DecodePixelWidth = limit.Width, DecodePixelHeight = limit.Height };
         await image.SetSourceAsync(stream).AsTask(token);
         return image;
     }

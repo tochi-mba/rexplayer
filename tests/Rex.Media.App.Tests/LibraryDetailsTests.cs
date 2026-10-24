@@ -143,6 +143,7 @@ public sealed class LibraryDetailsTests : IDisposable
         Assert.True(app.IsShown("LibraryBack"), "Back remains available in the compact header.");
         detailsScroll.SetScrollPercent(ScrollPattern.NoScroll, 0);
         Wait.For(() => app.Find("LibraryHero").Current.Name == "Expanded library header", "the header to expand at the top");
+        Screenshots.PinViewport(app, 1000, 760);
         Screenshots.Match(app, "library-movie-details", "LibraryPane");
 
         // A cast member: everything in the library they appear in, as a view titled with their name.
@@ -272,6 +273,7 @@ public sealed class LibraryDetailsTests : IDisposable
         app.Line("Nick Berry", "LibraryCastRow");
         // The episodes sit under the season's overview and the cast, so the first may be below the fold.
         Assert.Equal("A new harbour master arrives in town and the crew meet him.", app.Text("LibraryEpisodeSummary"));
+        Screenshots.PinViewport(app, 1000, 760);
         Screenshots.Match(app, "library-show-header", "LibraryPane");
 
         // A cast member of the show finds it in their own view, and Back returns to the show.

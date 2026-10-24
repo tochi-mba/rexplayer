@@ -29,7 +29,23 @@ public sealed partial class AppWindowTests
         var edit = (ValuePattern)app.Find("TranscriptEditWord-0").GetCurrentPattern(ValuePattern.Pattern);
         Assert.Equal("original", edit.Current.Value);
 
-        edit.SetValue("corrected");
+        // Search works on saved words, rather than requiring the whole transcript to be
+        // materialized as editable controls; matching speech can also be sought precisely.
+        var search = (ValuePattern)app.Find("TranscriptEditSearch").GetCurrentPattern(ValuePattern.Pattern);
+        search.SetValue("words");
+        app.Press("TranscriptEditFindNext");
+        Wait.For(() => app.Text("TranscriptEditMatch").Contains("word 2 of 2", StringComparison.Ordinal),
+            "the transcript search to locate the second timed word");
+        Assert.True(app.IsShown("TranscriptEditJump"));
+        app.Press("TranscriptEditJump");
+        search.SetValue("absent phrase");
+        app.Press("TranscriptEditFindNext");
+        Wait.For(() => app.Text("TranscriptEditMatch").Contains("No matching speech", StringComparison.Ordinal),
+            "a clear empty search result");
+
+        // Find rebuilds the current page, so the old automation element is stale.
+        var revised = (ValuePattern)app.Find("TranscriptEditWord-0").GetCurrentPattern(ValuePattern.Pattern);
+        revised.SetValue("corrected");
         Wait.For(() => cache.LoadEdited(media, "base.en")?.Content.Words[0].Text == "corrected",
             "the corrected speech to be saved");
         Wait.For(() => File.Exists(editedSidecar) && File.ReadAllText(editedSidecar).Contains("corrected", StringComparison.Ordinal),

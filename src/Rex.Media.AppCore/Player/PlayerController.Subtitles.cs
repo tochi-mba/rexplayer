@@ -202,6 +202,9 @@ public sealed partial class PlayerController
         _subtitlesChosen = false;
         if (Uri.TryCreate(item.Location, UriKind.Absolute, out var uri) && !uri.IsFile)
         {
+            // Remote items have no local sidecars. Tell windows to remove the old
+            // subtitle cues immediately, just as we do for a local media switch.
+            SubtitlesChanged?.Invoke(this, EventArgs.Empty);
             return;
         }
 

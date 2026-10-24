@@ -55,6 +55,7 @@ public sealed class LibraryMusicTests : IDisposable
         Card(app, "JumpBackIn", "Mr. Money with the Vibe");
         Card(app, "NewArtists", "Asake");
         Card(app, "Mixes", "Afrobeats Mix");
+        Screenshots.PinViewport(app, 1000, 760);
         Screenshots.Match(app, "music-home", "LibraryHome");
 
         // A card's play button plays it without opening it.
@@ -139,6 +140,7 @@ public sealed class LibraryMusicTests : IDisposable
         Assert.True(Holds(app, "LibraryList", "Disc 2"), "A set of discs has headings.");
         Assert.True(Holds(app, "LibraryList", "feat. Travis Scott"), "A featured artist shows under the title.");
         Assert.True(Holds(app, "LibraryList", "More by Asake"), "More by the artist under the tracks.");
+        Screenshots.PinViewport(app, 1000, 760);
         Screenshots.Match(app, "album-page", "LibraryPane");
 
         // Playing a track marks it as playing.
@@ -249,6 +251,7 @@ public sealed class LibraryMusicTests : IDisposable
         // The playing line tells a screen reader it is playing, and its plays read as a number.
         Wait.For(() => app.Lines().Contains("Terminator, now playing"), "the playing line named as playing");
         Assert.NotNull(app.Line("Terminator, now playing").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Work of Art")));
+        Screenshots.PinViewport(app, 1000, 760);
         Screenshots.Match(app, "songs-table", "LibraryPane");
         Assert.Equal(0, app.Close());
     }

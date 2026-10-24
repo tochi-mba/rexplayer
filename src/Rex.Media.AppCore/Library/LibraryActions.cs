@@ -3,6 +3,9 @@ using Rex.Media.Library;
 
 namespace Rex.Media.AppCore.Library;
 
+/// <summary>One Explorer folder with its distinct files selected inside it.</summary>
+public sealed record RevealFolder(string Folder, IReadOnlyList<string> Files);
+
 /// <summary>What a confirmation dialog asks: its title and the words under it.</summary>
 public sealed record Prompt(string Title, string Body);
 
@@ -45,7 +48,19 @@ public static class LibraryActions
     {
         ArgumentNullException.ThrowIfNull(names);
         var title = names.Count == 1 ? $"Remove {names[0]} from the library?" : $"Remove {Count(names.Count, "item")} from the library?";
-        return new Prompt(title, Named(names) + (names.Count == 1 ? "The file stays" : "The files stay") + " where " + (names.Count == 1 ? "it is" : "they are") + "; the library stops showing " + (names.Count == 1 ? "it" : "them") + " until " + (names.Count == 1 ? "its folder is" : "their folders are") + " taken out of the library and added again.");
+        return new Prompt(title, Named(names) + (names.Count == 1 ? "The file stays" : "The files stay") + " where " + (names.Count == 1 ? "it is" : "they are") + "; the library stops showing " + (names.Count == 1 ? "it" : "them") + ". You can use Undo immediately while the " + (names.Count == 1 ? "file is" : "files are") + " still available; otherwise re-add the watched folder.");
+    }
+
+    /// <summary>Stopping a folder watch never deletes its files; make that explicit before acting.</summary>
+    public static Prompt StopWatchingPrompt(IReadOnlyList<string> folders)
+    {
+        ArgumentNullException.ThrowIfNull(folders);
+        var title = folders.Count == 1 ? "Stop watching this folder?" : "Stop watching " + Count(folders.Count, "folder") + "?";
+        var body = Named(folders) + (folders.Count == 1 ? folders[0] + "\n\n" : "")
+            + "No files will be deleted. " + (folders.Count == 1 ? "This folder" : "These folders")
+            + " will leave the library and stop being scanned. You can add "
+            + (folders.Count == 1 ? "the folder" : "them") + " again later.";
+        return new Prompt(title, body);
     }
 
     /// <summary>The confirmation before named playlists go.</summary>
@@ -54,6 +69,33 @@ public static class LibraryActions
         ArgumentNullException.ThrowIfNull(names);
         var title = names.Count == 1 ? $"Delete {names[0]}?" : $"Delete {Count(names.Count, "playlist")}?";
         return new Prompt(title, Named(names) + (names.Count == 1 ? "The playlist goes" : "The playlists go") + "; the files in " + (names.Count == 1 ? "it stay" : "them stay") + " where they are.");
+    }
+
+    /// <summary>Whether Explorer can reveal this safe local file path; never treat web URLs as disk files.</summary>
+    public static bool CanRevealFile(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || path.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
+        {
+            return false;
+        }
+
+        // Reject malformed paths explicitly. Path.IsPathFullyQualified and Uri.TryCreate
+        // are nonthrowing for the remaining strings; an unreachable catch hides bad
+        // filename inputs from deterministic tests and the required coverage gate.
+        return Path.IsPathFullyQualified(path)
+            && (!Uri.TryCreate(path, UriKind.Absolute, out var uri) || uri.IsFile);
+    }
+
+    /// <summary>Group existing selected file paths by folder, retaining order and duplicate-free selection.</summary>
+    public static IReadOnlyList<RevealFolder> RevealGroups(IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        return [.. paths.Where(CanRevealFile)
+            .Select(path => (Path: path, Folder: Path.GetDirectoryName(path)))
+            .Where(item => !string.IsNullOrWhiteSpace(item.Folder))
+            .GroupBy(item => item.Folder!, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new RevealFolder(group.Key,
+                [.. group.Select(item => item.Path).Distinct(StringComparer.OrdinalIgnoreCase)]))];
     }
 
     /// <summary>

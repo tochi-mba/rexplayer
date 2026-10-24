@@ -792,6 +792,30 @@ public sealed class PlayerControllerTests
 
     [Fact]
     [Capability("SUB-16")]
+    public void SwitchingFromAFileWithSubtitlesToAStreamClearsTheOldSubtitleSurface()
+    {
+        using var harness = new ControllerHarness(autoPlay: false,
+            sidecars: new() { ["a.wav"] = ["a.srt"] });
+        harness.Files["a.wav"] = Count(0, 40_000);
+        harness.Files["a.srt"] = Srt("1\n00:00:01,000 --> 00:00:03,000\nFrom the old file\n");
+        var controller = harness.Controller;
+        var updates = 0;
+        controller.SubtitlesChanged += (_, _) => updates++;
+        controller.Open(["a.wav"]);
+        harness.PumpUntil(current => current.Info is not null);
+        Assert.NotNull(controller.Subtitles);
+
+        var oldCount = updates;
+        controller.Open(["https://example.invalid/audio"]);
+        Assert.True(updates > oldCount, "The window must be told to clear previous captions.");
+        Assert.Null(controller.Subtitles);
+        Assert.Null(controller.SecondarySubtitles);
+        Assert.Empty(controller.SubtitleTracks);
+        Assert.Empty(controller.SubtitlesAt(TimeSpan.FromSeconds(2)));
+    }
+
+    [Fact]
+    [Capability("SUB-16")]
     public void SubtitlesDroppedWithAFilmPlayWithIt()
     {
         using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { TitleSeconds = 0 }, sidecars: new() { ["a.wav"] = ["a.srt"] });

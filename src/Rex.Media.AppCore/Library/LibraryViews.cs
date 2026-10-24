@@ -491,6 +491,29 @@ public static partial class LibraryViews
             .ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
 
     /// <summary>
+    /// Open a photograph with the other visible pictures in its containing folder, using
+    /// the gallery's order. A photo in a different watched folder must not accidentally turn
+    /// a local slideshow into a thousands-of-files playback across the entire library.
+    /// The selected entry comes back as a separate start index, preserving its identity.
+    /// </summary>
+    public static (IReadOnlyList<LibraryEntry> Items, int Start) PictureSlideshow(
+        IReadOnlyList<LibraryEntry> visible, LibraryEntry selected)
+    {
+        ArgumentNullException.ThrowIfNull(visible);
+        ArgumentNullException.ThrowIfNull(selected);
+        if (selected.Kind != LibraryKind.Picture)
+        {
+            return ([selected], 0);
+        }
+
+        var folder = Path.GetDirectoryName(selected.Path);
+        var related = visible.Where(entry => entry.Kind == LibraryKind.Picture
+            && string.Equals(Path.GetDirectoryName(entry.Path), folder, StringComparison.OrdinalIgnoreCase)).ToList();
+        var at = related.FindIndex(entry => string.Equals(entry.Path, selected.Path, StringComparison.OrdinalIgnoreCase));
+        return at < 0 ? ([selected], 0) : (related, at);
+    }
+
+    /// <summary>
     /// The show, season and episode a video's path identifies (<see cref="EpisodeNames"/>), or null for
     /// a movie. It is read from the path every time, never stored, so a library saved under older
     /// rules is classified by the current ones as soon as it loads.

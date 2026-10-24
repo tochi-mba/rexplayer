@@ -16,21 +16,29 @@ using Windows.Storage.Streams;
 namespace Rex.Media.App;
 
 /// <summary>
-/// Music without pictures (AU-19): its cover beside its title, artist and album, and its lyrics
-/// below with the line being sung marked (META-09). AppCore finds them; this shows them.
+/// Media-adaptive Windows presentation (AU-19): the AppCore policy chooses the
+/// supported stage, while this window arranges art, labels, lyrics and chapter actions.
 /// </summary>
 public sealed partial class MainWindow
 {
     private byte[]? _shownCover;
     private Lyrics? _shownLyrics;
+    private PlaylistItem? _shownLyricsItem;
+    private MediaInfo? _shownLyricsInfo;
+    private TimeSpan _shownLyricsDuration;
+    private bool _shownLyricsCanSeek;
     private int _shownLine = -1;
-    private bool _followCurrentLyric = true;
     private readonly List<TextBlock> _lyricTexts = [];
+    private bool _followCurrentLyric = true;
     private readonly Dictionary<int, List<Run>> _lyricWordRuns = [];
     private int _shownWordLine = -1;
     private int _shownWordIndex = -2;
     private readonly Windows.UI.ViewManagement.AccessibilitySettings _lyricAccessibility = new();
     private readonly Windows.UI.ViewManagement.UISettings _lyricSystemColors = new();
+    private PlaylistItem? _shownChapterItem;
+    private MediaInfo? _shownChapterInfo;
+    private TimeSpan _shownChapterDuration;
+    private MediaStageView _stageView;
 
     // High contrast takes precedence over translucent white lyric text and dark chips.
     private Brush LyricNeutralBrush() => _lyricAccessibility.HighContrast
@@ -169,38 +177,65 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>Brings the picture, the album and the lyrics on screen in line with what plays.</summary>
+    /// <summary>Synchronizes the stage, its accessible profile and available media-specific actions.</summary>
     private void ShowPresentation()
     {
-        var music = _player.Item is not null && !HasVideo && _player.Info is not null;
-        var entry = _player.Item?.Location is { } location ? _library?.Entry(location) : null;
+        var item = _player.Item;
+        var info = _player.Info;
+        var entry = item?.Location is { } location ? _library?.Entry(location) : null;
         var episode = entry is null ? null : LibraryViews.EpisodeOf(entry);
-        var kind = entry?.Kind switch
+        // Direct files may be tagged with a media type or a genre, but they
+        // have no library shelf. Resolve those hints in the pure stage policy.
+        AudioShelf? audioShelf = entry?.Kind == LibraryKind.Music ? ShelfOf(entry)
+            : MediaStagePolicy.ShelfFromTags(
+                info?.Metadata.GetValueOrDefault(MetadataKeys.MediaType),
+                info?.Metadata.GetValueOrDefault(MetadataKeys.Genre));
+        var stage = MediaStagePolicy.Resolve(new MediaStageContext(
+            HasItem: item is not null,
+            IsPicture: item is not null && MediaFiles.IsPicture(item.Location),
+            StreamsKnown: info is not null,
+            HasVideoTrack: info?.FirstTrack(MediaKind.Video) is not null,
+            HasAudioTrack: info?.FirstTrack(MediaKind.Audio) is not null,
+            CanSeek: _player.CanSeek,
+            Kind: entry?.Kind,
+            Shelf: audioShelf,
+            IsEpisode: episode is not null,
+            IsMovie: entry is { Kind: LibraryKind.Video } && episode is null && MovieRules.IsMovie(entry, MovieLookupOf),
+            HasLyrics: _settings.ShowLyrics && _player.Lyrics is not null,
+            // A lone zero-time chapter is just Start Over, not a useful chapter picker.
+            HasChapters: MediaStagePolicy.HasChapterJumps(info, _player.Duration),
+            HasCaptions: _player.Subtitles is not null || _player.SecondarySubtitles is not null,
+            HasFailure: _player.State == Rex.Media.Engine.SessionState.Faulted));
+        _stageView = stage;
+        var music = stage.ShowAudioPresentation;
+        // A picture or unsupported stream must not leave the previous item's seek controls active.
+        SubtitleLayer.Visibility = stage.ShowCaptions ? Visibility.Visible : Visibility.Collapsed;
+        SeekBar.IsEnabled = stage.CanSeek;
+        StartOverButton.IsEnabled = stage.CanSeek;
+        if (stage.Profile is MediaStageProfile.Error or MediaStageProfile.Unsupported)
         {
-            LibraryKind.Picture => "PICTURE",
-            LibraryKind.Video when episode is not null => "TV EPISODE",
-            LibraryKind.Video => "VIDEO",
-            LibraryKind.Music => ShelfOf(entry) switch
-            {
-                AudioShelf.Audiobooks => "AUDIOBOOK",
-                AudioShelf.Podcasts => "PODCAST",
-                AudioShelf.Recordings => "RECORDING",
-                AudioShelf.Sounds => "AUDIO",
-                _ => "NOW PLAYING",
-            },
-            _ when _player.Item is not null && HasVideo => "VIDEO",
-            _ when music => "NOW PLAYING",
-            _ => "WELCOME",
-        };
-        IdleKicker.Text = kind;
+            VideoBlankLayer.Visibility = Visibility.Visible;
+            Idle.Visibility = Visibility.Visible;
+            IdleScroller.Visibility = Visibility.Visible;
+        }
+
+        IdleKicker.Text = stage.Label;
+        // The video itself may hide the Idle panel; the always-present stage must still
+        // identify what is playing to keyboard and screen-reader users.
+        if (Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(Stage) != stage.AutomationName)
+        {
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(Stage, stage.AutomationName);
+        }
+
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(Stage, stage.AutomationHelpText);
 
         var album = music ? _player.Info!.Metadata.GetValueOrDefault(MetadataKeys.Album) : null;
         IdleAlbum.Text = album ?? "";
         IdleAlbum.Visibility = string.IsNullOrEmpty(album) ? Visibility.Collapsed : Visibility.Visible;
 
-        var context = episode is not null
+        var context = stage.ShowEpisodeContext && episode is not null
             ? string.Join(" · ", new[] { episode.Series, episode.Spoken }.Where(part => !string.IsNullOrWhiteSpace(part)))
-            : string.Join(" · ", new[] { _player.Artist, album }.Where(part => !string.IsNullOrWhiteSpace(part)));
+            : music ? string.Join(" · ", new[] { _player.Artist, album }.Where(part => !string.IsNullOrWhiteSpace(part))) : "";
         NowPlayingContext.Text = context;
         NowPlayingContext.Visibility = string.IsNullOrWhiteSpace(context) ? Visibility.Collapsed : Visibility.Visible;
 
@@ -217,13 +252,25 @@ public sealed partial class MainWindow
         IdleMeta.Visibility = facts.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
 
         var cover = music ? _player.CoverArt : null;
+        // The visual album art is decorative only when absent. If present, give
+        // screen readers the current item's identity rather than a generic "Cover".
+        var coverName = cover is null ? "Cover" : "Cover for " + _player.Title;
+        if (Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(CoverImage) != coverName)
+        {
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(CoverImage, coverName);
+        }
+
         if (!ReferenceEquals(cover, _shownCover))
         {
             _shownCover = cover;
+            // Clear immediately, before async decoding, so the previous item never flashes.
+            CoverImage.Source = null;
+            CoverBox.Visibility = Visibility.Collapsed;
+            _visualCover = null;
             Forget(ShowCoverAsync(cover));
         }
 
-        var lyrics = music && _settings.ShowLyrics ? _player.Lyrics : null;
+        var lyrics = stage.ShowLyrics ? _player.Lyrics : null;
         var lyricStatus = !_settings.ShowLyrics || _player.Item is null || HasVideo ? null
             : _player.Info is null ? "Loading lyrics from local media..."
             : lyrics?.DisplayMode switch
@@ -240,19 +287,38 @@ public sealed partial class MainWindow
         }
 
         LyricsStatus.Visibility = lyricStatus is null ? Visibility.Collapsed : Visibility.Visible;
-        if (!ReferenceEquals(lyrics, _shownLyrics))
+        // Growing media can report a slightly longer duration on each refresh.
+        // Rebuilding timed controls every time would repeatedly steal keyboard
+        // focus; only rebuild when some lyric becomes (un)seekable.
+        var lyricSeekEligibilityChanged = _shownLyricsDuration != _player.Duration
+            && lyrics?.Lines.Any(line => line.At is { } at
+                && MediaStagePolicy.IsPlayableTimeJump(at, _shownLyricsDuration)
+                != MediaStagePolicy.IsPlayableTimeJump(at, _player.Duration)) == true;
+        if (!ReferenceEquals(lyrics, _shownLyrics) || !ReferenceEquals(item, _shownLyricsItem)
+            || !ReferenceEquals(info, _shownLyricsInfo) || lyricSeekEligibilityChanged
+            || (lyrics is not null && _shownLyricsCanSeek != stage.CanSeek))
         {
-            // Refreshing playback content can remove the currently focused
-            // lyric button. Restore keyboard focus only when it was already
-            // inside the lyrics; never steal focus from the user's other tasks.
-            var focusedLyrics = HasFocusIn(LyricsBox);
-            _shownLyrics = lyrics;
-            _shownLine = -1;
+            _lyricWordRuns.Clear();
             _shownWordLine = -1;
             _shownWordIndex = -2;
-            _lyricWordRuns.Clear();
             _followCurrentLyric = true;
             LyricsFollowButton.Visibility = Visibility.Collapsed;
+            // Timed lyrics are focusable buttons. Removing the old lines must not
+            // strand keyboard/screen-reader focus on an element outside the tree.
+            if (_shownLyrics is not null && Content.XamlRoot is { } root
+                && Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(root) is DependencyObject focused
+                && Rex.Media.AppCore.Shell.FocusWithin.IsInside<DependencyObject>(
+                    focused, LyricsLines, Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent))
+            {
+                PlayPauseButton.Focus(FocusState.Programmatic);
+            }
+
+            _shownLyrics = lyrics;
+            _shownLyricsItem = item;
+            _shownLyricsInfo = info;
+            _shownLyricsDuration = _player.Duration;
+            _shownLyricsCanSeek = stage.CanSeek;
+            _shownLine = -1;
             LyricsLines.Children.Clear();
             _lyricTexts.Clear();
             foreach (var (index, line) in (lyrics?.Lines ?? []).Index())
@@ -283,7 +349,8 @@ public sealed partial class MainWindow
                 }
 
                 _lyricTexts.Add(text);
-                if (line.At is not { } at)
+                if (line.At is not { } at || !stage.CanSeek
+                    || !MediaStagePolicy.IsPlayableTimeJump(at, _player.Duration))
                 {
                     // Untimed lyric lines need the same close-fitting contrast as timed lines;
                     // never paint a broad translucent rectangle behind the whole stage.
@@ -299,7 +366,7 @@ public sealed partial class MainWindow
                     continue;
                 }
 
-                var when = TimeText.Format(at < TimeSpan.Zero ? TimeSpan.Zero : at, _player.Duration);
+                var when = TimeText.Format(at, _player.Duration);
                 var button = new Button
                 {
                     Content = text,
@@ -308,6 +375,8 @@ public sealed partial class MainWindow
                     BorderThickness = new Thickness(0),
                     CornerRadius = new CornerRadius(9),
                     Padding = new Thickness(12, 7, 12, 7),
+                    MinWidth = 44,
+                    MinHeight = 44,
                     MaxWidth = 640,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     HorizontalContentAlignment = HorizontalAlignment.Center,
@@ -317,6 +386,18 @@ public sealed partial class MainWindow
                 ToolTipService.SetToolTip(button, $"Go to {when}");
                 button.Click += (_, _) =>
                 {
+                    // A queued click from an old lyrics control must never seek a
+                    // replacement stream (or a stream that has lost seek support).
+                    if (!ReferenceEquals(_player.Item, item)
+                        || !ReferenceEquals(_player.Info, info)
+                        || !ReferenceEquals(_player.Lyrics, lyrics)
+                        || !MediaStagePolicy.IsPlayableTimeJump(at, _player.Duration)
+                        || !_stageView.ShowLyrics || !_stageView.CanSeek
+                        || !_settings.ShowLyrics || !_player.CanSeek)
+                    {
+                        return;
+                    }
+
                     _followCurrentLyric = true;
                     LyricsFollowButton.Visibility = Visibility.Collapsed;
                     _player.Seek(at);
@@ -326,33 +407,175 @@ public sealed partial class MainWindow
             }
 
             LyricsBox.Visibility = lyrics is null ? Visibility.Collapsed : Visibility.Visible;
-            LyricsBox.Height = Math.Max(120, Stage.ActualHeight * 0.45);
+            LyricsBox.Height = Math.Min(360, Math.Max(0, Stage.ActualHeight * 0.45));
             ShowLyricLine();
-            if (focusedLyrics && lyrics is not null)
-            {
-                DispatcherQueue.TryEnqueue(() =>
-                {
-                    if (_closed || !ReferenceEquals(lyrics, _shownLyrics))
-                    {
-                        return;
-                    }
-
-                    if (LyricsLines.Children.OfType<Button>().FirstOrDefault() is { } nextLine)
-                    {
-                        nextLine.Focus(FocusState.Keyboard);
-                    }
-                    else
-                    {
-                        LyricsBox.Focus(FocusState.Keyboard);
-                    }
-                });
-            }
         }
 
-        // The detached view owns only controls, never media. Keep its content
-        // in sync without recreating its window on a track or metadata change.
+        ShowStageChapters(stage, item, info);
+        LayOutMediaStage();
         LyricsDetachButton.Visibility = lyrics is null ? Visibility.Collapsed : Visibility.Visible;
         RefreshLyricsCompanion();
+    }
+
+    /// <summary>
+    /// Recompose the existing stage when the window narrows: no second player, no duplicated
+    /// controls and no new AutomationIDs. Moving elements keeps keyboard focus and transport state.
+    /// </summary>
+    private void LayOutMediaStage()
+    {
+        var width = Math.Max(0, Stage.ActualWidth);
+        var height = Math.Max(0, Stage.ActualHeight);
+        var compact = width < 760 || height < 450;
+        var tiny = width < 480 || height < 280;
+        var compactLyrics = compact && _shownLyrics is not null && LyricsBox.Visibility == Visibility.Visible;
+
+        // On small stages the old fixed top/bottom insets could leave the visualiser
+        // with no drawable height at all. Keep a meaningful canvas at every size.
+        Visualizer.Margin = tiny ? new Thickness(8)
+            : compact ? new Thickness(20, 36, 20, 12)
+            : new Thickness(48, 120, 48, 48);
+
+        Grid.SetColumn(IdleText, compact ? 0 : 1);
+        Grid.SetRow(IdleText, compact ? 1 : 0);
+        Idle.ColumnDefinitions[1].Width = compact ? new GridLength(0) : GridLength.Auto;
+        Idle.ColumnSpacing = compact ? 0 : 32;
+        Idle.RowSpacing = compact ? 10 : 0;
+        Idle.Margin = new Thickness(tiny ? 12 : compact ? 20 : 32);
+        IdleText.MaxWidth = compact ? Math.Max(160, width - 40) : 560;
+        IdleTitle.FontSize = tiny ? 24 : compact ? 32 : 44;
+
+        var artSize = Math.Min(240, Math.Max(0, Math.Min(width - 48,
+            compact ? height - 180 : height - 48)));
+        CoverBox.Width = artSize;
+        CoverBox.Height = artSize;
+        // Decoding is asynchronous. Never resurrect a stale cover after a stream switch.
+        CoverBox.Visibility = _shownCover is not null && CoverImage.Source is not null
+            && !tiny && !compactLyrics && artSize >= 80 ? Visibility.Visible : Visibility.Collapsed;
+        // Compact lyrics need their own bottom region, not overlap the album artwork.
+        Idle.VerticalAlignment = compactLyrics ? VerticalAlignment.Top : VerticalAlignment.Center;
+
+        LyricsBox.Height = Math.Min(360, Math.Max(0, height * (tiny ? 0.35 : 0.45)));
+        LyricsBox.Margin = compact ? new Thickness(12, 0, 12, 12) : new Thickness(48, 0, 48, 24);
+
+        // The transport itself scrolls, preserving all existing buttons and their focus order.
+        // On narrow windows the secondary tools move to their own row rather than overlap it.
+        var narrowControls = Root.ActualWidth < 820;
+        Grid.SetRow(AudioControlStrip, narrowControls ? 2 : 1);
+        Grid.SetColumn(AudioControlStrip, narrowControls ? 0 : 2);
+        Grid.SetColumnSpan(AudioControlStrip, narrowControls ? 3 : 1);
+        AudioControlStrip.HorizontalAlignment = narrowControls
+            ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+        var minimalControls = _settings.MinimalInterface && !IsFullScreen;
+        Controls.Padding = minimalControls ? new Thickness(12, 3, 12, 5)
+            : narrowControls ? new Thickness(12, 8, 12, 9) : new Thickness(20, 12, 20, 14);
+        Controls.ColumnSpacing = narrowControls ? 6 : 12;
+        Controls.RowSpacing = minimalControls ? 1 : narrowControls ? 4 : 8;
+    }
+
+    /// <summary>
+    /// Build chapter jumps only from the active, parsed audio stream. The menu belongs to the
+    /// same transport as Play/Pause; switching files clears actions that would seek an old item.
+    /// </summary>
+    private void ShowStageChapters(MediaStageView stage, PlaylistItem? item, MediaInfo? info)
+    {
+        if (!stage.ShowChapters || item is null || info is null)
+        {
+            // A hidden chapter button cannot keep keyboard focus. Return to the
+            // permanent playback action rather than dropping focus into the window.
+            if (StageChaptersButton.Visibility == Visibility.Visible && Content.XamlRoot is { } xamlRoot)
+            {
+                var focused = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(xamlRoot);
+                if (ReferenceEquals(focused, StageChaptersButton)
+                    || (focused is MenuFlyoutItemBase menuItem && StageChapterMenu.Items.Contains(menuItem)))
+                {
+                    PlayPauseButton.Focus(FocusState.Programmatic);
+                }
+            }
+
+            if (_shownChapterItem is not null || StageChaptersButton.Visibility == Visibility.Visible)
+            {
+                StageChapterMenu.Hide();
+            }
+
+            StageChaptersButton.Visibility = Visibility.Collapsed;
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(StageChaptersButton, "");
+            if (_shownChapterItem is not null)
+            {
+                StageChapterMenu.Items.Clear();
+                _shownChapterItem = null;
+                _shownChapterInfo = null;
+                _shownChapterDuration = default;
+            }
+
+            return;
+        }
+
+        // A growing spoken stream may update its duration without changing
+        // which chapters are actionable. Do not destroy a focused flyout on
+        // every such update; rebuild only when eligibility actually changes.
+        var chapterEligibilityChanged = _shownChapterDuration != _player.Duration
+            && info.Chapters.Any(chapter =>
+                MediaStagePolicy.IsPlayableChapter(chapter.Start, _shownChapterDuration)
+                != MediaStagePolicy.IsPlayableChapter(chapter.Start, _player.Duration));
+        if (!ReferenceEquals(item, _shownChapterItem) || !ReferenceEquals(info, _shownChapterInfo)
+            || chapterEligibilityChanged)
+        {
+            // Replacing a chaptered stream with another chaptered stream also
+            // replaces the flyout's items. Restore focus before removing the
+            // focused menu item, just as when chapters become unavailable.
+            if (Content.XamlRoot is { } xamlRoot
+                && Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(xamlRoot) is MenuFlyoutItemBase focusedChapter
+                && StageChapterMenu.Items.Contains(focusedChapter))
+            {
+                PlayPauseButton.Focus(FocusState.Programmatic);
+            }
+
+            StageChapterMenu.Hide();
+            StageChapterMenu.Items.Clear();
+            foreach (var (index, chapter) in info.Chapters.Index())
+            {
+                if (!MediaStagePolicy.IsPlayableChapter(chapter.Start, _player.Duration))
+                {
+                    continue;
+                }
+
+                var at = chapter.Start.ToTimeSpan();
+
+                var label = string.IsNullOrWhiteSpace(chapter.Title)
+                    ? $"Chapter {index + 1}" : chapter.Title.Trim();
+                var name = $"Go to {label} at {TimeText.Format(at, _player.Duration)}";
+                var button = new MenuFlyoutItem
+                {
+                    Text = $"{TimeText.Format(at, _player.Duration)} · {label}",
+                    MinWidth = 44,
+                    MinHeight = 44,
+                };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(button, $"StageChapter-{index}");
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, name);
+                button.Click += (_, _) =>
+                {
+                    if (ReferenceEquals(_player.Item, item)
+                        && ReferenceEquals(_player.Info, info)
+                        && _stageView.ShowChapters && _stageView.CanSeek && _player.CanSeek
+                        && MediaStagePolicy.IsPlayableChapter(chapter.Start, _player.Duration)
+                        && (!_settings.MinimalInterface || IsFullScreen))
+                    {
+                        _player.Seek(at);
+                    }
+                };
+                StageChapterMenu.Items.Add(button);
+            }
+
+            _shownChapterItem = item;
+            _shownChapterInfo = info;
+            _shownChapterDuration = _player.Duration;
+        }
+
+        StageChaptersButton.Visibility = StageChapterMenu.Items.Count > 0
+            && (!_settings.MinimalInterface || IsFullScreen)
+            ? Visibility.Visible : Visibility.Collapsed;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(StageChaptersButton,
+            $"{StageChapterMenu.Items.Count} chapter jumps are available for this audio stream.");
     }
 
     /// <summary>The cover beside the details, or the details alone, centred, when there is none (or it will not load).</summary>
@@ -366,7 +589,10 @@ public sealed partial class MainWindow
                 using var stream = new InMemoryRandomAccessStream();
                 await stream.WriteAsync(cover.AsBuffer());
                 stream.Seek(0);
-                var image = new BitmapImage { DecodePixelWidth = 400 };
+                var header = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(stream);
+                var limit = PictureDecodeLimit.For(header.OrientedPixelWidth, header.OrientedPixelHeight, 400);
+                stream.Seek(0);
+                var image = new BitmapImage { DecodePixelWidth = limit.Width, DecodePixelHeight = limit.Height };
                 await image.SetSourceAsync(stream);
                 if (!ReferenceEquals(cover, _shownCover))
                 {
@@ -409,6 +635,8 @@ public sealed partial class MainWindow
             text.HorizontalAlignment = alignment;
             text.TextAlignment = textAlignment;
         }
+
+        LayOutMediaStage();
     }
 
     /// <summary>A small BGRA copy of cover art for software-drawn visualisations.</summary>

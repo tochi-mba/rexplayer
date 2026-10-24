@@ -74,7 +74,8 @@ public sealed partial class MainWindow
     {
         var kinetic = _settings.KineticCaptions;
         var item = _player.Item?.Location;
-        var playing = item is not null && HasVideo && _player.State is not (SessionState.Idle or SessionState.Faulted);
+        var playing = item is not null && _stageView.SupportsKineticCaptions
+            && _player.State is not (SessionState.Idle or SessionState.Faulted);
         if (item != _captionItem)
         {
             _captionItem = item;
@@ -93,7 +94,8 @@ public sealed partial class MainWindow
         }
 
         KineticLayer.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        SubtitleLayer.Visibility = show && !kinetic.KeepSubtitles ? Visibility.Collapsed : Visibility.Visible;
+        SubtitleLayer.Visibility = _stageView.ShowCaptions && (!show || kinetic.KeepSubtitles)
+            ? Visibility.Visible : Visibility.Collapsed;
         var scanPictures = show && kinetic.AvoidPicture && item is not null && File.Exists(item);
         if (!scanPictures)
         {

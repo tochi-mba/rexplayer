@@ -13,6 +13,7 @@ public sealed class LibraryViewDefaultsTests
     [InlineData("TvShows", LibraryLook.Browse)]
     [InlineData("Songs", LibraryLook.List)]
     [InlineData("TvShows page", LibraryLook.List)]
+    [InlineData("Authors book", LibraryLook.List)]
     [InlineData("Search", LibraryLook.List)]
     [InlineData("Pictures", LibraryLook.Grid)]
     [InlineData("Videos", LibraryLook.Grid)]

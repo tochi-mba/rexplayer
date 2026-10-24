@@ -85,7 +85,12 @@ public sealed partial class MainWindow
 
     /// <summary>The key a view's choices are kept under: its name, or the kind of group opened in it, or the search.</summary>
     private string ViewKey(bool searching) => searching ? "Search"
-        : _librarySeason is not null ? (_librarySource == LibrarySource.Artists ? "Artists album" : "TvShows page")
+        : _librarySeason is not null ? _librarySource switch
+        {
+            LibrarySource.Artists => "Artists album",
+            LibrarySource.Authors => "Authors book",
+            _ => "TvShows page",
+        }
         : _libraryGroup is not null ? _librarySource + " group" : _librarySource.ToString();
 
     /// <summary>How the view is shown: as the user last set it, else as suits what it holds.</summary>
@@ -165,7 +170,11 @@ public sealed partial class MainWindow
         _songsTable = source == LibrarySource.Songs && _libraryGroup is null;
         if (!home && !musicHome)
         {
-            entries = LibraryArrangement.Filter(entries, choice, _player.LeftAt);
+            // Progress of an audiobook is a book-wide state. Keep the file-level
+            // filters for folder/download/kind but defer progress until grouping.
+            var effective = source is LibrarySource.Audiobooks or LibrarySource.Authors
+                ? choice with { Filter = LibraryFilter.All } : choice;
+            entries = LibraryArrangement.Filter(entries, effective, _player.LeftAt);
         }
 
         // The music views, and Home's music shelves, never hold audiobooks, podcasts or recordings.
@@ -356,7 +365,9 @@ public sealed partial class MainWindow
             {
                 options = false;
                 var rows = _librarySource == LibrarySource.Playlists
-                    ? _player.NamedPlaylists.Select(p => new LibraryRow(p.Name, null, Count(p.Items.Count, "item"), p)).ToList()
+                    ? _player.NamedPlaylists.Select(p => new LibraryRow(p.Name,
+                        SavedPlaylistFacts.For(p, path => library.Entry(path)).Label,
+                        Count(p.Items.Count, "item"), p)).ToList()
                     : [.. library.Folders.Select(folder => new LibraryRow(folder, Count(entries.Count(entry => MediaLibrary.Holds(folder, entry.Path)), "file"), "", folder))];
                 sections = [new LibraryRowGroup("", rows)];
                 subtitle = _librarySource == LibrarySource.Playlists ? Count(rows.Count, "playlist") : Count(rows.Count, "folder") + " watched";
@@ -382,6 +393,15 @@ public sealed partial class MainWindow
             ShowTitleExtras("", TitleSections.BookSynopsis(MetadataBook(book)), credit: null,
                 trailer: null, poster: false, backdrop: null);
         }
+        else if (search.Length == 0 && _librarySource == LibrarySource.Podcasts
+            && _libraryGroup is { } localPodcast)
+        {
+            ShowTitleExtras(localPodcast.Detail is { Length: > 0 } creator
+                    ? "Artist tag: " + creator + " · Local episodes only"
+                    : "Local episodes only",
+                synopsis: null, credit: null, trailer: null, poster: false, backdrop: null);
+            ShowText(LibraryOverview, PodcastDescription(localPodcast));
+        }
         else if (artistPage)
         {
             var artist = MetadataArtist(title);
@@ -401,10 +421,46 @@ public sealed partial class MainWindow
             }
         }
 
+        var authorDirectory = source == LibrarySource.Authors && _libraryGroup is null;
+        if (_librarySource == LibrarySource.Pictures && search.Length == 0)
+        {
+            LibraryPlayText.Text = "Start slideshow";
+            ToolTipService.SetToolTip(LibraryPlay,
+                "Play the selected photographs, or all visible photographs, in gallery order. Pause and Next control the show.");
+        }
+        else if (authorDirectory)
+        {
+            LibraryPlayText.Text = "Open author";
+            ToolTipService.SetToolTip(LibraryPlay, "Open one author's books, then choose a book to play.");
+        }
+        else
+        {
+            // A picture slideshow's text and tooltip must not leak into a later
+            // audiobook, music or author view when the same button is reused.
+            LibraryPlayText.Text = "Play";
+            ToolTipService.SetToolTip(LibraryPlay, source switch
+            {
+                LibrarySource.Audiobooks when _libraryGroup is null => "Play one selected audiobook in chapter order.",
+                LibrarySource.Audiobooks => "Resume this book or play a selected chapter.",
+                LibrarySource.Authors when _librarySeason is null => "Play one selected book from this author.",
+                LibrarySource.Authors => "Resume this book or play a selected chapter.",
+                _ => "Play the chosen items, or all of them (Enter)",
+            });
+        }
+
         ShowLibraryBack(_libraryGroup is not null && search.Length == 0);
         var folders = source == LibrarySource.Folders;
         LibraryFolderActions.Visibility = folders ? Visibility.Visible : Visibility.Collapsed;
-        LibraryPlay.Visibility = LibraryShuffle.Visibility = LibraryEnqueue.Visibility = folders || source == LibrarySource.Playlists || (source == LibrarySource.TvShows && _libraryGroup is null) ? Visibility.Collapsed : Visibility.Visible;
+        var noPlayback = folders || source == LibrarySource.Playlists
+            || (source == LibrarySource.TvShows && _libraryGroup is null);
+        LibraryPlay.Visibility = noPlayback ? Visibility.Collapsed : Visibility.Visible;
+        // An author's books and a book's chapters are ordered listening tasks,
+        // not a collection of tracks to shuffle. The book queue is scoped.
+        LibraryShuffle.Visibility = noPlayback
+            || source is LibrarySource.Authors or LibrarySource.Audiobooks
+            ? Visibility.Collapsed : Visibility.Visible;
+        LibraryEnqueue.Visibility = noPlayback || authorDirectory
+            ? Visibility.Collapsed : Visibility.Visible;
         ShowLibraryEmpty(rowsForView.Count == 0, search.Length > 0, source, options ? choice : null);
 
         // Scroll anchors are for rebuilding the same layout; a layout change (for
@@ -464,14 +520,6 @@ public sealed partial class MainWindow
             HoldSurvivingAnchor(anchors, collage: false);
         }
     }
-
-    private string SelectionIdentity(LibraryRow row) => row.Item switch
-    {
-        LibraryEntry entry => "file:" + entry.Path,
-        LibraryGroup group => "group:" + group.Name + "\n" + (_librarySource == LibrarySource.Albums ? group.Detail : null),
-        Rex.Media.AppCore.Player.NamedPlaylist playlist => "playlist:" + playlist.Id,
-        _ => "folder:" + row.Item,
-    };
 
     /// <summary>Updates every visible representation when playback changes without moving the view.</summary>
     private void ShowCurrentLibraryItem()
@@ -696,7 +744,7 @@ public sealed partial class MainWindow
             : choice.Look == LibraryLook.List ? ("LibrarySongTemplate", 0.0, 0.0, "Compact list")
             : kind == LibraryKind.Video && (_librarySource == LibrarySource.Movies || (_librarySource == LibrarySource.TvShows && _libraryGroup is null)) ? ("LibraryMovieTemplate", size + 12, (size * 1.5) + 68, "Movies and TV shows, poster grid")
             : kind == LibraryKind.Video ? ("LibraryVideoTemplate", (size * 1.45) + 12, (size * 1.45 * 9 / 16) + 64, "Episodes, thumbnail grid")
-            : kind == LibraryKind.Picture ? ("LibraryPhotoTemplate", size + 8, (size * 0.75) + 8, "Pictures, gallery grid")
+            : kind == LibraryKind.Picture ? ("LibraryPhotoTemplate", size + 8, (size * 0.75) + 52, "Pictures, gallery grid")
             : ("LibraryBrowseTemplate", size + 12, size + 78, "Cover grid");
         var look = $"{template}|{width:0}|{height:0}";
         if (look == _shownLook)
@@ -778,7 +826,9 @@ public sealed partial class MainWindow
         {
             LibraryShelves.Children.Add(Shelf(shelfTitle, see, rows, wide,
                 seeAll: shelfTitle != "Pinned albums",
-                id: shelfTitle == DownloadingShelf ? "Downloading" : shelfTitle == "Pinned albums" ? "PinnedAlbums" : null));
+                id: shelfTitle == DownloadingShelf ? "Downloading"
+                    : shelfTitle == "Podcast shows" ? "PodcastShows"
+                    : shelfTitle == "Pinned albums" ? "PinnedAlbums" : null));
         }
 
         if (place is not null)
@@ -890,9 +940,14 @@ public sealed partial class MainWindow
                 _libraryGroup = group;
                 ShowLibraryAtPlace();
                 break;
+            case LibraryEntry entry when entry.Kind == LibraryKind.Music && ShelfOf(entry) == AudioShelf.Podcasts:
+                // Continue listening and New episodes can mix several local shows in one shelf.
+                // Choosing an episode must not queue every other show's entries beside it.
+                PlayPodcastEpisode(entry);
+                break;
             case LibraryEntry entry:
                 var entries = EntriesOf(rows);
-                Play(entries, entries.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)), see is LibrarySource.ContinueWatching or LibrarySource.Audiobooks or LibrarySource.Podcasts);
+                Play(entries, entries.FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)), see is LibrarySource.ContinueWatching or LibrarySource.Audiobooks);
                 break;
         }
     }
@@ -900,22 +955,6 @@ public sealed partial class MainWindow
     /// <summary>What tells one row from another when a view is rebuilt; a download's progress is not in it, since the row shows that as it changes.</summary>
     private static string RowIdentity(LibraryRow row) => $"{PictureEntry(row.Item)?.Path}|{row.Name}|{row.PlainDetail}|{row.Extra}|{row.Progress:R}|{row.Summary}";
 
-    /// <summary>Plays the chosen items, or the whole view, in shuffled order.</summary>
-    private void OnLibraryShuffle(object sender, RoutedEventArgs e)
-    {
-        var entries = EntriesOf(ChosenRows());
-        if (entries.Count == 0)
-        {
-            Say("There is nothing here to play yet.");
-            return;
-        }
-
-        _player.Playlist.Shuffle = true;
-        Play(entries, Random.Shared.Next(entries.Count));
-        Say("Shuffle on");
-    }
-
-    /// <summary>A card shows its play mark while pointed at.</summary>
     /// <summary>
     /// A library item template by key: the window's own list templates, else the show page's episode
     /// lines or the card layouts, each dictionary created the first time one of its templates is needed.
@@ -940,47 +979,4 @@ public sealed partial class MainWindow
 
     private LibraryCardTemplates? _cardTemplates;
 
-    internal void OnCardPointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-    {
-        SetCardPlay(sender, 1);
-        if (sender is FrameworkElement { DataContext: LibraryRow row })
-        {
-            PrioritizeLibraryPicture(row);
-        }
-    }
-
-    internal void OnCardGettingFocus(object sender, Microsoft.UI.Xaml.Input.GettingFocusEventArgs e)
-    {
-        SetCardPlay(sender, 1);
-        if (sender is FrameworkElement { DataContext: LibraryRow row })
-        {
-            PrioritizeLibraryPicture(row);
-        }
-    }
-
-    internal void OnCardPointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e) => SetCardPlay(sender, 0);
-
-    internal void OnCardLosingFocus(object sender, Microsoft.UI.Xaml.Input.LosingFocusEventArgs e) => SetCardPlay(sender, 0);
-
-    /// <summary>
-    /// Pointing at a card, or focusing it with the keyboard, reveals its play mark and lifts it a
-    /// little. Both are composition transitions the GPU runs on its own: no timers, no per-frame code.
-    /// </summary>
-    private static void SetCardPlay(object card, double opacity)
-    {
-        if (card is not FrameworkElement element)
-        {
-            return;
-        }
-
-        if (element.FindName("CardPlay") is UIElement play)
-        {
-            play.OpacityTransition ??= new ScalarTransition { Duration = TimeSpan.FromMilliseconds(120) };
-            play.Opacity = opacity;
-        }
-
-        element.ScaleTransition ??= new Vector3Transition { Duration = TimeSpan.FromMilliseconds(140) };
-        element.CenterPoint = new System.Numerics.Vector3((float)(element.ActualWidth / 2), (float)(element.ActualHeight / 2), 0);
-        element.Scale = opacity > 0 ? new System.Numerics.Vector3(1.03f, 1.03f, 1f) : System.Numerics.Vector3.One;
-    }
 }

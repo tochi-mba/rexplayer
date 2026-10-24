@@ -39,6 +39,156 @@ public sealed class MediaLibraryTests
         }.Where(pair => pair.Value is not null).ToDictionary(pair => pair.Key, pair => pair.Value!),
     };
 
+    [Theory]
+    [InlineData(1600, 900, 0, 1600, 900)]
+    [InlineData(1600, 900, 90, 900, 1600)]
+    [InlineData(1600, 900, 270, 900, 1600)]
+    [InlineData(0, 900, 0, 0, 0)]
+    [Capability("LIB-05")]
+    public void PictureDimensionsPersistAndRespectOrientation(int width, int height, int rotation, int shownWidth, int shownHeight)
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var picture = In("photo.png");
+        Assert.True(library.AddFolder(Music));
+        library.Scan(Music, [File(picture)], path => Path.GetExtension(path) == ".png" ? LibraryKind.Picture : null);
+        library.SetDetails(picture, new MediaInfo
+        {
+            FormatName = "PNG",
+            Tracks = [new TrackInfo
+            {
+                Id = 0,
+                Codec = CodecId.Picture,
+                Video = new VideoTrackInfo { Width = width, Height = height, Rotation = rotation },
+            }],
+        });
+        var entry = library.Entry(picture)!;
+        Assert.Equal(shownWidth == 0 ? null : shownWidth, entry.PictureWidth);
+        Assert.Equal(shownHeight == 0 ? null : shownHeight, entry.PictureHeight);
+        var reopened = new MediaLibrary(store).Entry(picture)!;
+        Assert.Equal((entry.PictureWidth, entry.PictureHeight), (reopened.PictureWidth, reopened.PictureHeight));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void UndoLibraryOnlyRemovalRestoresSavedMetadataAndDoesNotOverrideOtherChanges()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var first = In("first.mp3");
+        var second = In("second.mp3");
+        Assert.True(library.AddFolder(Music));
+        library.Scan(Music, [File(first), File(second)], KindOf);
+        library.SetDetails(first, Song("Edited local title"));
+        var saved = library.Entries.ToArray();
+        Assert.Equal(2, library.Hide([first, second]));
+        Assert.Equal(0, library.RestoreHiddenEntries([]));
+        Assert.Equal(2, library.RestoreHiddenEntries(saved));
+        Assert.Empty(library.Hidden);
+        Assert.Equal("Edited local title", library.Entry(first)?.Title);
+        Assert.Equal(0, library.RestoreHiddenEntries(saved)); // Undo is not applied twice.
+        Assert.Equal(2, new MediaLibrary(store).Entries.Count);
+        Assert.Throws<ArgumentNullException>(() => library.RestoreHiddenEntries(null!));
+    }
+
+    [Fact]
+    public void UndoLibraryRemovalCannotReintroduceUnwatchedFolders()
+    {
+        var library = new MediaLibrary(RexStore.InMemory());
+        var file = In("unwatched.mp3");
+        library.AddFolder(Music);
+        library.Scan(Music, [File(file)], KindOf);
+        var before = library.Entry(file)!;
+        Assert.Equal(1, library.Hide([file]));
+        Assert.True(library.RemoveFolder(Music));
+        Assert.Equal(0, library.RestoreHiddenEntries([before]));
+        Assert.Null(library.Entry(file));
+    }
+
+    [Theory]
+    [InlineData(1920, 1080, 0, 1920, 1080)]
+    [InlineData(1080, 1920, 90, 1920, 1080)]
+    [InlineData(0, 1080, 0, 0, 0)]
+    [Capability("LIB-05")]
+    public void VideoDimensionsAreReliablePersistedAndRespectRotation(int width, int height, int rotation, int outWidth, int outHeight)
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var video = In("other.mp4");
+        library.AddFolder(Music);
+        library.Scan(Music, [File(video)], KindOf);
+        library.SetDetails(video, new MediaInfo
+        {
+            FormatName = "MP4",
+            Tracks = [new TrackInfo { Id = 1, Codec = CodecId.H264,
+                Video = new VideoTrackInfo { Width = width, Height = height, Rotation = rotation } }],
+        });
+        var entry = library.Entry(video)!;
+        Assert.Equal(outWidth == 0 ? null : outWidth, entry.VideoWidth);
+        Assert.Equal(outHeight == 0 ? null : outHeight, entry.VideoHeight);
+        Assert.Equal((entry.VideoWidth, entry.VideoHeight),
+            (new MediaLibrary(store).Entry(video)!.VideoWidth, new MediaLibrary(store).Entry(video)!.VideoHeight));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void VideoMetadataUpgradeReprobesOnlyVideosFromPriorRelease()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var music = In("song.mp3");
+        var video = In("movie.mp4");
+        library.AddFolder(Music);
+        library.Scan(Music, [File(music), File(video)], KindOf);
+        library.SetDetails(music, Song("Track"));
+        library.SetDetails(video, Song("Movie", video: true));
+        foreach (var (key, json) in store.WithPrefix("entry/").ToArray())
+        {
+            store.Set(key, json.Replace("\"TagReading\":5", "\"TagReading\":4", StringComparison.Ordinal));
+        }
+
+        var upgraded = new MediaLibrary(store);
+        Assert.Equal([video], upgraded.Unprobed.Select(item => item.Path));
+        upgraded.SetDetails(video, Song("Movie", video: true));
+        Assert.Empty(upgraded.Unprobed);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void PictureMetadataUpgradeDoesNotRereadAlreadyTaggedMusic()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var music = In("tagged.mp3");
+        var photo = In("photo.png");
+        library.AddFolder(Music);
+        library.Scan(Music, [File(music), File(photo)],
+            path => Path.GetExtension(path) == ".png" ? LibraryKind.Picture : LibraryKind.Music);
+        library.SetDetails(music, Song("Tagged"));
+        library.SetDetails(photo, new MediaInfo
+        {
+            FormatName = "PNG",
+            Tracks = [new TrackInfo { Id = 0, Codec = CodecId.Picture,
+                Video = new VideoTrackInfo { Width = 640, Height = 480 } }],
+        });
+
+        // Both kinds were read by the previous release, before oriented dimensions.
+        foreach (var (key, json) in store.WithPrefix("entry/").ToList())
+        {
+            store.Set(key, json.Replace("\"TagReading\":5", "\"TagReading\":3", StringComparison.Ordinal));
+        }
+
+        var upgraded = new MediaLibrary(store);
+        Assert.Equal([photo], upgraded.Unprobed.Select(entry => entry.Path));
+        upgraded.SetDetails(photo, new MediaInfo
+        {
+            FormatName = "PNG",
+            Tracks = [new TrackInfo { Id = 0, Codec = CodecId.Picture,
+                Video = new VideoTrackInfo { Width = 640, Height = 480 } }],
+        });
+        Assert.Empty(upgraded.Unprobed);
+    }
+
     [Fact]
     [Capability("LIB-05")]
     public void AScanAddsNewFilesReadsChangedOnesAgainAndForgetsGoneOnes()
@@ -318,7 +468,7 @@ public sealed class MediaLibraryTests
         Assert.Equal([In("d.mp3")], library.Unprobed.Select(entry => entry.Path));
 
         // Read before the readers kept every artist: the songs are read again after the never-read
-        // file, videos are not, and a song that cannot be read again is not tried a second time.
+        // file, followed by videos, and a song that cannot be read again is not tried a second time.
         foreach (var (key, json) in store.WithPrefix("entry/").ToList())
         {
             store.Set(key, json.Replace("\"TagReading\":" + MediaLibrary.TagReading.ToString(System.Globalization.CultureInfo.InvariantCulture), "\"TagReading\":0", StringComparison.Ordinal));
@@ -326,9 +476,9 @@ public sealed class MediaLibraryTests
 
         var older = new MediaLibrary(store);
 
-        Assert.Equal([In("d.mp3"), In("a.mp3"), In("b.mp3")], older.Unprobed.Select(entry => entry.Path));
+        Assert.Equal([In("d.mp3"), In("a.mp3"), In("b.mp3"), In("c.mp4")], older.Unprobed.Select(entry => entry.Path));
         older.SetReadDetails([(In("a.mp3"), listed, null), (In("b.mp3"), null, "Gone bad")]);
-        Assert.Equal([In("d.mp3")], older.Unprobed.Select(entry => entry.Path));
+        Assert.Equal([In("d.mp3"), In("c.mp4")], older.Unprobed.Select(entry => entry.Path));
     }
 
     [Fact]

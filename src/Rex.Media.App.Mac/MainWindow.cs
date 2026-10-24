@@ -71,6 +71,7 @@ public sealed partial class MainWindow : IDisposable
         _seek = NSSlider.FromValue(0, 0, 1, () => SeekToSlider());
         _volume = NSSlider.FromValue(_player.Volume, 0, _settings.MaxVolumePercent / 100.0, () => _player.SetVolume(_volume!.DoubleValue));
         _window.ContentView = Layout();
+        InitializeLibrary();
         InitializeQueue();
         InitializeLibrary();
         NSApplication.SharedApplication.MainMenu = BuildMenus();
@@ -163,6 +164,68 @@ public sealed partial class MainWindow : IDisposable
                     break;
                 case "status":
                     break;
+                case "ui.add-folder":
+                    answered.SetResult(_libraryWindow?.IsVisible == true
+                        ? AddLibraryFolders(request.Paths)
+                        : AutomationReply.Failed("Open the library before adding watched folders."));
+                    return;
+                case "ui.keyboard":
+                    answered.SetResult(ProbeLibraryKeyboard());
+                    return;
+                case "ui.verify-layout":
+                    answered.SetResult(VerifyLibraryResultLayout());
+                    return;
+                case "ui.tree":
+                    answered.SetResult(LibraryControlTree());
+                    return;
+                case "ui.press":
+                    answered.SetResult(PressLibraryControl(request.Target));
+                    return;
+                case "ui.set" when request.Target == "LibraryCategory":
+                    answered.SetResult(ChangeLibraryCategory(request.Value));
+                    return;
+                case "ui.set" when request.Target == "LibraryWidth":
+                    answered.SetResult(ResizeLibraryWindow(request.Value));
+                    return;
+                case "ui.text" when request.Target == "LibrarySummary":
+                    answered.SetResult(_libraryWindow?.IsVisible == true
+                        ? new AutomationReply { Ok = true, Text = _librarySummary?.StringValue }
+                        : AutomationReply.Failed("Open the library to read its summary."));
+                    return;
+                case "ui.text" when request.Target == "LibraryPage":
+                    answered.SetResult(_libraryWindow?.IsVisible == true
+                        ? new AutomationReply { Ok = true, Text = _libraryPageSummary?.StringValue }
+                        : AutomationReply.Failed("Open the library to read its page."));
+                    return;
+                case "ui.search":
+                    if (_libraryWindow?.IsVisible != true || _librarySearch is null || request.Target is null)
+                    {
+                        answered.SetResult(AutomationReply.Failed("Open the library and supply a search query."));
+                        return;
+                    }
+
+                    _librarySearch.StringValue = request.Target;
+                    ChangeLibraryView();
+                    answered.SetResult(new AutomationReply { Ok = true, Text = _librarySummary?.StringValue });
+                    return;
+                case "ui.snapshot":
+                    if (string.IsNullOrWhiteSpace(request.Path))
+                    {
+                        answered.SetResult(AutomationReply.Failed("ui.snapshot needs a path."));
+                        return;
+                    }
+
+                    try
+                    {
+                        CaptureLibraryScreenshot(request.Path);
+                        answered.SetResult(new AutomationReply { Ok = true, Text = request.Path });
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+                    {
+                        answered.SetResult(AutomationReply.Failed("Could not capture the library: " + ex.Message));
+                    }
+
+                    return;
                 default:
                     answered.SetResult(AutomationReply.Failed($"\"{request.Command}\" is not a request on this Mac yet; try open, run or status."));
                     return;
@@ -175,7 +238,7 @@ public sealed partial class MainWindow : IDisposable
                 Title = request.Command == "mac-queue"
                     ? (_queueSummary?.StringValue ?? "") + " | " + (_queueShuffle?.Title ?? "")
                     : request.Command == "mac-library"
-                        ? _librarySummary?.StringValue
+                        ? LibrarySmokeTitle()
                         : _player.Item is null ? null : _player.Title,
                 Position = _player.Position.TotalSeconds,
                 Duration = _player.Duration > TimeSpan.Zero ? _player.Duration.TotalSeconds : null,
@@ -233,6 +296,8 @@ public sealed partial class MainWindow : IDisposable
         var stop = NSButton.CreateButton("Stop", () => Run(CommandCatalog.Stop));
         var next = NSButton.CreateButton("Next", () => Run(CommandCatalog.Next));
         var open = NSButton.CreateButton("Open file", () => Run(CommandCatalog.OpenFile));
+        var library = NSButton.CreateButton("Library", ShowLibrary);
+        library.ToolTip = "Browse your local folders and media";
         var queue = NSButton.CreateButton("Up Next", ShowQueue);
         var library = NSButton.CreateButton("Library", ShowLibrary);
         library.ToolTip = "Browse your own local library and watched folders";
@@ -273,8 +338,8 @@ public sealed partial class MainWindow : IDisposable
         welcomeHint.TextColor = NSColor.LightGray;
         var welcomeOpen = NSButton.CreateButton("Open file", () => Run(CommandCatalog.OpenFile));
         var welcomeFolder = NSButton.CreateButton("Open folder", () => Run(CommandCatalog.OpenFolder));
+        var welcomeLibrary = NSButton.CreateButton("Browse library", ShowLibrary);
         var welcomeQueue = NSButton.CreateButton("Up Next", ShowQueue);
-        var welcomeLibrary = NSButton.CreateButton("Library", ShowLibrary);
         var welcomeActions = NSStackView.FromViews([welcomeOpen, welcomeFolder, welcomeLibrary, welcomeQueue]);
         welcomeActions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
         welcomeActions.Spacing = 12;
@@ -306,6 +371,7 @@ public sealed partial class MainWindow : IDisposable
         app.AddItem(NSMenuItem.SeparatorItem);
         app.AddItem(Entry(CommandCatalog.Preferences, "Settings…"));
         app.AddItem(new NSMenuItem("Playback tools…", (_, _) => ShowPlaybackTools()));
+        app.AddItem(new NSMenuItem("Your library…", (_, _) => Run(CommandCatalog.ToggleLibrary)));
         app.AddItem(new NSMenuItem("Up Next…", (_, _) => ShowQueue()));
         // Reuse the shared command and its customizable keyboard equivalent.
         app.AddItem(Entry(CommandCatalog.ToggleLibrary, "Library…"));
@@ -388,6 +454,17 @@ public sealed partial class MainWindow : IDisposable
                 return true;
             case CommandCatalog.Quit:
                 NSApplication.SharedApplication.Terminate(null);
+                return true;
+            case CommandCatalog.ToggleLibrary:
+                if (_libraryWindow?.IsVisible == true)
+                {
+                    HideLibrary();
+                }
+                else
+                {
+                    ShowLibrary();
+                }
+
                 return true;
             case CommandCatalog.ToggleFullScreen:
                 _window.ToggleFullScreen(null);
@@ -514,6 +591,7 @@ public sealed partial class MainWindow : IDisposable
     /// <summary>Whether what an on-and-off command switches is on now, for its tick.</summary>
     private bool IsOn(string command) => command switch
     {
+        CommandCatalog.ToggleLibrary => _libraryWindow?.IsVisible == true,
         CommandCatalog.ToggleShuffle => _player.Playlist.Shuffle,
         CommandCatalog.CycleRepeat => _player.Playlist.Repeat != RepeatMode.Off,
         CommandCatalog.Mute => _player.Muted,

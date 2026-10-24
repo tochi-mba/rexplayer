@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Rex.Media.AppCore.Commands;
@@ -59,8 +60,11 @@ public sealed partial class MainWindow
             var sub = new MenuFlyoutSubItem { Text = $"{playlist.Name} ({playlist.Items.Count})" };
             AutomationProperties.SetAutomationId(sub, "NamedPlaylist-" + playlist.Name);
             sub.Items.Add(MenuItem("Play", "PlayNamed-" + playlist.Name, () => _player.PlayPlaylist(id)));
+            sub.Items.Add(MenuItem("Shuffle play", "ShuffleNamed-" + playlist.Name, () => _player.PlayPlaylist(id, shuffle: true)));
             sub.Items.Add(MenuItem("Add to the end of this playlist", null, () => _player.PlayPlaylist(id, enqueue: true)));
             sub.Items.Add(new MenuFlyoutSeparator());
+            sub.Items.Add(MenuItem("Edit contents...", "EditNamed-" + playlist.Name, () => Forget(EditPlaylistAsync(id))));
+            sub.Items.Add(MenuItem("Add files...", "AddFilesNamed-" + playlist.Name, () => Forget(AddFilesToNamedPlaylistAsync(id))));
             sub.Items.Add(MenuItem("Rename...", null, () => Forget(RenamePlaylistAsync(id))));
             sub.Items.Add(MenuItem("Duplicate", null, () => _player.DuplicatePlaylist(id)));
             sub.Items.Add(MenuItem("Delete...", "DeleteNamed-" + playlist.Name, () => Forget(DeletePlaylistAsync(id))));
@@ -94,6 +98,16 @@ public sealed partial class MainWindow
         }
 
         menu.Items.Add(MenuItem("Play", "EntryPlay", () => _player.PlayAt(_player.Playlist.Items.ToList().IndexOf(chosen[0]))));
+        var playNext = MenuItem("Move to Play next", "EntryPlayNext", () => QueueChosenNext(chosen));
+        playNext.IsEnabled = chosen.Any(item => !ReferenceEquals(item, _player.Playlist.Current));
+        menu.Items.Add(playNext);
+        var local = chosen.Select(item => item.Location)
+            .Where(LibraryActions.CanRevealFile)
+            .ToArray();
+        var reveal = MenuItem(local.Length == 1 ? "Reveal in File Explorer" : "Reveal files in File Explorer",
+            "EntryRevealInExplorer", () => Forget(RevealFilesInExplorerAsync(local)));
+        reveal.IsEnabled = local.Length > 0;
+        menu.Items.Add(reveal);
         var addTo = new MenuFlyoutSubItem { Text = "Add to a playlist" };
         AutomationProperties.SetAutomationId(addTo, "EntryAddTo");
         foreach (var playlist in _player.NamedPlaylists)
@@ -131,7 +145,30 @@ public sealed partial class MainWindow
         menu.Items.Add(MenuItem("Remove", "EntryRemove", RemoveSelected));
     }
 
-    /// <summary>Asks where a missing entry's file is now (LIB-09).</summary>
+    /// <summary>Moves actual queue entries: their identity and cue marks are never duplicated.</summary>
+    private void QueueChosenNext(IReadOnlyList<PlaylistItem> chosen)
+    {
+        var before = _player.Playlist.Items.ToArray();
+        _player.Playlist.QueueNext(chosen);
+        if (!before.SequenceEqual(_player.Playlist.Items))
+        {
+            OfferQueueUndo(before);
+        }
+
+        PlaylistView.SelectedItems.Clear();
+        foreach (var item in chosen)
+        {
+            var index = _player.Playlist.IndexOf(item);
+            if (index >= 0 && !ReferenceEquals(item, _player.Playlist.Current))
+            {
+                PlaylistView.SelectedItems.Add(_playlistRows[index]);
+            }
+        }
+
+        Say("Moved selected entries to Play next");
+    }
+
+    /// <summary>Asks where a missing active queue entry has moved (LIB-09).</summary>
     private async Task LocateAsync(int index)
     {
         var picker = Prepared(new Windows.Storage.Pickers.FileOpenPicker { ViewMode = Windows.Storage.Pickers.PickerViewMode.List });
@@ -173,6 +210,160 @@ public sealed partial class MainWindow
         if (await Ask("New playlist", box, "Make") && !string.IsNullOrWhiteSpace(box.Text))
         {
             _player.CreatePlaylist(box.Text, items);
+        }
+    }
+
+    /// <summary>Add multiple supported media files to a saved playlist without changing the playing queue.</summary>
+    private async Task AddFilesToNamedPlaylistAsync(string id)
+    {
+        var picker = Prepared(new Windows.Storage.Pickers.FileOpenPicker
+        {
+            SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.MusicLibrary,
+            ViewMode = Windows.Storage.Pickers.PickerViewMode.List,
+        });
+        foreach (var extension in MediaFiles.Audio.Concat(MediaFiles.Video).Concat(MediaFiles.Pictures)
+            .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            picker.FileTypeFilter.Add(extension);
+        }
+
+        if (await picker.PickMultipleFilesAsync() is { Count: > 0 } picked)
+        {
+            _player.AddToPlaylist(id, picked.Select(file => new PlaylistItem(file.Path)));
+        }
+    }
+
+    /// <summary>
+    /// Edits a snapshot of a named playlist. Cancel discards all changes; Save persists once, and
+    /// no edit touches the active playback queue. Row position identifies duplicate file entries.
+    /// </summary>
+    private async Task EditPlaylistAsync(string id)
+    {
+        if (_player.NamedPlaylists.FirstOrDefault(p => p.Id == id) is not { } playlist)
+        {
+            return;
+        }
+
+        var staged = playlist.Items.ToList();
+        var facts = new TextBlock { Text = SavedPlaylistFacts.For(playlist, path => _library?.Entry(path)).Label };
+        AutomationProperties.SetAutomationId(facts, "NamedPlaylistFacts");
+        var editorOpen = true;
+        var labels = new ObservableCollection<string>(staged.Select(item =>
+            (item.Title ?? PlaylistItem.TitleOf(item.Location)) + " · " + (PlaylistItem.SourceOf(item.Location) ?? item.Location)));
+        var list = new ListView
+        {
+            ItemsSource = labels,
+            MinWidth = 360,
+            MaxHeight = 320,
+            SelectionMode = ListViewSelectionMode.Single,
+        };
+        AutomationProperties.SetAutomationId(list, "NamedPlaylistEntries");
+        AutomationProperties.SetName(list, "Saved playlist entries in playback order");
+
+        var up = new Button { Content = "Move up" };
+        var down = new Button { Content = "Move down" };
+        var remove = new Button { Content = "Remove entry" };
+        var locate = new Button { Content = "Locate file..." };
+        var locationInfo = new TextBlock { TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap, MaxWidth = 460 };
+        AutomationProperties.SetAutomationId(locate, "NamedPlaylistLocateEntry");
+        AutomationProperties.SetAutomationId(locationInfo, "NamedPlaylistEntryPath");
+        AutomationProperties.SetAutomationId(up, "NamedPlaylistMoveUp");
+        AutomationProperties.SetAutomationId(down, "NamedPlaylistMoveDown");
+        AutomationProperties.SetAutomationId(remove, "NamedPlaylistRemoveEntry");
+        void RefreshFacts()
+        {
+            facts.Text = SavedPlaylistFacts.For(playlist with { Items = staged.ToArray() },
+                path => _library?.Entry(path)).Label;
+        }
+
+
+        void RefreshActions()
+        {
+            up.IsEnabled = list.SelectedIndex > 0;
+            down.IsEnabled = list.SelectedIndex >= 0 && list.SelectedIndex < staged.Count - 1;
+            remove.IsEnabled = list.SelectedIndex >= 0;
+            locate.IsEnabled = list.SelectedIndex >= 0;
+            locationInfo.Text = list.SelectedIndex >= 0 ? staged[list.SelectedIndex].Location : "Select an entry to see its file location.";
+        }
+
+        void Move(int direction)
+        {
+            var from = list.SelectedIndex;
+            var to = from + direction;
+            if (from < 0 || to < 0 || to >= staged.Count)
+            {
+                return;
+            }
+
+            var item = staged[from];
+            staged.RemoveAt(from);
+            staged.Insert(to, item);
+            labels.Move(from, to);
+            list.SelectedIndex = to;
+            RefreshActions();
+        }
+
+        up.Click += (_, _) => Move(-1);
+        down.Click += (_, _) => Move(1);
+        remove.Click += (_, _) =>
+        {
+            var index = list.SelectedIndex;
+            if (index < 0 || index >= staged.Count)
+            {
+                return;
+            }
+
+            staged.RemoveAt(index);
+            labels.RemoveAt(index);
+            RefreshFacts();
+            list.SelectedIndex = staged.Count == 0 ? -1 : Math.Min(index, staged.Count - 1);
+            RefreshActions();
+        };
+        locate.Click += async (_, _) =>
+        {
+            var index = list.SelectedIndex;
+            if (index < 0 || index >= staged.Count)
+            {
+                return;
+            }
+
+            var prior = staged[index];
+            var picker = Prepared(new Windows.Storage.Pickers.FileOpenPicker
+            {
+                ViewMode = Windows.Storage.Pickers.PickerViewMode.List,
+            });
+            picker.FileTypeFilter.Add("*");
+            if (await picker.PickSingleFileAsync() is { } file && editorOpen
+                && index < staged.Count && ReferenceEquals(prior, staged[index]))
+            {
+                var changed = PlayerController.RelocatedPlaylistEntry(prior, file.Path);
+                staged[index] = changed;
+                labels[index] = (changed.Title ?? PlaylistItem.TitleOf(changed.Location))
+                    + " · " + (PlaylistItem.SourceOf(changed.Location) ?? changed.Location);
+                RefreshFacts();
+                RefreshActions();
+            }
+        };
+        list.SelectionChanged += (_, _) => RefreshActions();
+        list.SelectedIndex = staged.Count > 0 ? 0 : -1;
+        RefreshActions();
+
+        var actions = new StackPanel { Orientation = Microsoft.UI.Xaml.Controls.Orientation.Horizontal, Spacing = 8 };
+        actions.Children.Add(up);
+        actions.Children.Add(down);
+        actions.Children.Add(remove);
+        actions.Children.Add(locate);
+        var content = new StackPanel { Spacing = 8 };
+        content.Children.Add(new TextBlock { Text = "Move, remove or locate saved entries. Files stay on disk; Cancel discards edits.", TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap });
+        content.Children.Add(facts);
+        content.Children.Add(list);
+        content.Children.Add(locationInfo);
+        content.Children.Add(actions);
+        var saved = await Ask("Edit " + playlist.Name, content, "Save changes", "Cancel");
+        editorOpen = false;
+        if (saved)
+        {
+            _player.ReplacePlaylistItems(id, staged);
         }
     }
 

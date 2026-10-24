@@ -19,7 +19,9 @@ public partial class LibraryRow(
     string picturePlaceholder = "",
     string badge = "",
     double progress = 0,
-    bool isPlaying = false) : INotifyPropertyChanged
+    bool isPlaying = false,
+    string accessibilitySuffix = "",
+    bool showProgress = false) : INotifyPropertyChanged
 {
     [ThreadStatic]
     private static Brush? s_defaultTile;
@@ -30,6 +32,7 @@ public partial class LibraryRow(
     private string _transcriptGlyph = "";
     private string _transcriptText = "";
     private string? _downloadText;
+    private string? _notesPreview;
     private bool _isPlaying = isPlaying;
     private bool _summaryOpen;
 
@@ -52,7 +55,8 @@ public partial class LibraryRow(
         : PlainDetail;
 
     /// <summary>What the line says under its name; while its file is still downloading, how far that is.</summary>
-    public string Detail => _downloadText ?? PlainDetail;
+    public string Detail => _downloadText ??
+        (_notesPreview is { Length: > 0 } note ? PlainDetail + " · Notes: " + note : PlainDetail);
 
     /// <summary>What the line says under its name once its file is whole.</summary>
     public string PlainDetail { get; } = detail ?? "";
@@ -84,14 +88,19 @@ public partial class LibraryRow(
     /// <summary>How far through a video left part-way it was stopped, 0 to 1; 0 for the rest.</summary>
     public double Progress { get; } = progress;
 
-    public Visibility ProgressVisibility => Progress > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility ProgressVisibility => showProgress || Progress > 0 ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>Whether this row is another representation of the item currently in the player.</summary>
     public bool IsPlaying => _isPlaying;
 
     public Visibility PlayingVisibility => _isPlaying ? Visibility.Visible : Visibility.Collapsed;
 
-    public string AccessibilityName => _isPlaying ? $"{Name}, now playing" : Name;
+    public string AccessibilityName => _isPlaying ? $"{Name}{accessibilitySuffix}, now playing" : Name + accessibilitySuffix;
+
+    /// <summary>Supporting author, chapter, progress and time for screen readers without
+    /// changing the item name used for selection and keyboard navigation.</summary>
+    public string AccessibilityDetails => string.Join(". ",
+        new[] { Detail, Extra }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
     /// <summary>The transcription badge's icon (SUB-20), or empty for none.</summary>
     public string TranscriptGlyph => _transcriptGlyph;
@@ -169,6 +178,21 @@ public partial class LibraryRow(
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TranscriptGlyph)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TranscriptText)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TranscriptVisibility)));
+    }
+
+    /// <summary>Sets an optional, keyboard-readable summary of local podcast notes.</summary>
+    public void SetNotesPreview(string? preview)
+    {
+        if (_notesPreview == preview)
+        {
+            return;
+        }
+
+        _notesPreview = preview;
+        foreach (var property in new[] { nameof(Detail), nameof(DetailVisibility) })
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+        }
     }
 
     /// <summary>

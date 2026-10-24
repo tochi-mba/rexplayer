@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
+using Rex.Media.Settings;
 
 namespace Rex.Media.AppCore.Library;
 
@@ -16,7 +17,7 @@ public sealed record ListeningShelves(
     IReadOnlyList<LibraryEntry> Sounds);
 
 /// <summary>One chapter of a book: in which part it is, where in that part it starts, and its title.</summary>
-public sealed record BookChapter(LibraryEntry Part, TimeSpan Start, string Title);
+public sealed record BookChapter(LibraryEntry Part, TimeSpan Start, string Title, int SameMarkIndex = 0);
 
 /// <summary>Where a book is up to: which of its parts, and how far into it.</summary>
 public readonly record struct BookPlace(int Part, TimeSpan At);
@@ -86,7 +87,40 @@ public static partial class ListeningViews
             .ThenBy(book => book.Detail ?? "", ByName)];
     }
 
+    /// <summary>
+    /// Rebind an opened book after scanning or filtering using its file identity, not
+    /// just its title and author: two different editions may share both credits.
+    /// A missing book stays open with an empty chapter list rather than playing another.
+    /// </summary>
+    public static LibraryGroup RefreshBook(IReadOnlyList<LibraryGroup> books, LibraryGroup opened)
+    {
+        ArgumentNullException.ThrowIfNull(books);
+        ArgumentNullException.ThrowIfNull(opened);
+        var paths = opened.Entries.Select(part => part.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return books.FirstOrDefault(book => book.Entries.Any(part => paths.Contains(part.Path)))
+            ?? opened with { Entries = [] };
+    }
+
     public const string UnknownAuthor = "Unknown author";
+
+    /// <summary>
+    /// Progress filters apply to a whole audiobook, not to any one chapter file.
+    /// Explicitly completed books stay completed even when part resume points remain.
+    /// </summary>
+    public static IReadOnlyList<LibraryGroup> FilterBooks(IReadOnlyList<LibraryGroup> books, LibraryFilter filter,
+        Func<string, TimeSpan?> leftAt, Func<LibraryGroup, bool> finished)
+    {
+        ArgumentNullException.ThrowIfNull(books);
+        ArgumentNullException.ThrowIfNull(leftAt);
+        ArgumentNullException.ThrowIfNull(finished);
+        return filter switch
+        {
+            LibraryFilter.Unwatched => [.. books.Where(book => !finished(book) && !Started(book, leftAt))],
+            LibraryFilter.InProgress => [.. books.Where(book => !finished(book) && Started(book, leftAt))],
+            LibraryFilter.Finished => [.. books.Where(finished)],
+            _ => books,
+        };
+    }
 
     /// <summary>
     /// One author card per distinct credited author, holding their books' parts. Unknown authors
@@ -127,13 +161,26 @@ public static partial class ListeningViews
     public static IReadOnlyList<LibraryEntry> Episodes(IReadOnlyList<LibraryEntry> episodes, bool oldestFirst)
     {
         ArgumentNullException.ThrowIfNull(episodes);
-        var newestFirst = episodes.OrderByDescending(EpisodeDate).ThenByDescending(episode => episode.Track ?? 0).ThenByDescending(episode => episode.Path, NaturalOrder.Instance).ToList();
-        if (oldestFirst)
-        {
-            newestFirst.Reverse();
-        }
+        // Sort in the requested direction rather than reversing an already sorted list: reversing
+        // would also reverse the episode-number and path tie breakers on undated shows.
+        return oldestFirst
+            ? [.. episodes.OrderBy(EpisodeDate).ThenBy(episode => episode.Track ?? 0).ThenBy(episode => episode.Path, NaturalOrder.Instance)]
+            : [.. episodes.OrderByDescending(EpisodeDate).ThenByDescending(episode => episode.Track ?? 0).ThenByDescending(episode => episode.Path, NaturalOrder.Instance)];
+    }
 
-        return newestFirst;
+    /// <summary>
+    /// A selected show episode's available local queue, oldest to newest. Call the availability
+    /// predicate on a worker, not the window thread, when it checks files on disk.
+    /// A missing or incomplete selected episode is never replaced by a different first item.
+    /// </summary>
+    public static (IReadOnlyList<LibraryEntry> Queue, int StartIndex) AvailableEpisodeQueue(
+        IReadOnlyList<LibraryEntry> episodes, string selectedPath, Func<LibraryEntry, bool> available)
+    {
+        ArgumentNullException.ThrowIfNull(episodes);
+        ArgumentException.ThrowIfNullOrWhiteSpace(selectedPath);
+        ArgumentNullException.ThrowIfNull(available);
+        var queue = Episodes(episodes, oldestFirst: true).Where(available).ToList();
+        return (queue, queue.FindIndex(episode => LibraryViews.SameLocation(episode.Path, selectedPath)));
     }
 
     /// <summary>
@@ -143,7 +190,7 @@ public static partial class ListeningViews
     public static DateTime EpisodeDate(LibraryEntry episode)
     {
         ArgumentNullException.ThrowIfNull(episode);
-        if (episode.Year is { } year)
+        if (episode.Year is { } year && year is >= 1 and <= 9999)
         {
             return episode.Modified.Year == year ? episode.Modified : new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         }
@@ -155,7 +202,7 @@ public static partial class ListeningViews
     public static DateTime NewestEpisode(LibraryGroup show)
     {
         ArgumentNullException.ThrowIfNull(show);
-        return show.Entries.Max(EpisodeDate);
+        return show.Entries.Count == 0 ? DateTime.MinValue : show.Entries.Max(EpisodeDate);
     }
 
     /// <summary>How many of a show's episodes are unplayed: never played, and not left part-way.</summary>
@@ -175,11 +222,15 @@ public static partial class ListeningViews
     }
 
     /// <summary>"Play unplayed in order": the show's unplayed episodes, oldest first.</summary>
-    public static IReadOnlyList<LibraryEntry> UnplayedInOrder(LibraryGroup show, Func<string, TimeSpan?> leftAt)
+    public static IReadOnlyList<LibraryEntry> UnplayedInOrder(LibraryGroup show, Func<string, TimeSpan?> leftAt,
+        Func<LibraryEntry, bool>? available = null)
     {
         ArgumentNullException.ThrowIfNull(show);
         ArgumentNullException.ThrowIfNull(leftAt);
-        return [.. Episodes(show.Entries, oldestFirst: true).Where(episode => IsUnplayed(episode, leftAt))];
+        // Availability is checked by the caller at the moment playback is requested. A missing
+        // local file must not become the next autoplay target just because it is still indexed.
+        return [.. Episodes(show.Entries, oldestFirst: true)
+            .Where(episode => IsUnplayed(episode, leftAt) && (available?.Invoke(episode) ?? true))];
     }
 
     /// <summary>What a book is known by in the person's own records (its speed, "Mark as finished"): its name and author, however cased.</summary>
@@ -189,13 +240,208 @@ public static partial class ListeningViews
         return (book.Name + "\n" + book.Detail).ToUpperInvariant();
     }
 
-    /// <summary>A book's chapters: those its parts mark (an .m4b's chapter atoms), and a part with none is one chapter by itself.</summary>
+    /// <summary>
+    /// Identity for book-scoped settings. Title and author alone are insufficient when
+    /// two distinct editions have the same credits. The shared parent directory is
+    /// stable while chapters and disc files are added or reordered; loose one-file
+    /// books use their own full path rather than the entire Audiobooks root.
+    /// </summary>
+    public static string BookIdentity(LibraryGroup book)
+    {
+        ArgumentNullException.ThrowIfNull(book);
+        var key = BookKey(book);
+        if (book.Entries.Count == 0)
+        {
+            return key;
+        }
+
+        var first = book.Entries[0];
+        var folder = BookFolderOf(first);
+        var name = Path.GetFileName(folder);
+        var locator = folder.Length == 0 || name.EndsWith(':')
+            || BooksFolderPattern().IsMatch(name) || LooseFolderPattern().IsMatch(name)
+            ? first.Path : folder;
+        return key + "\n" + locator.Replace('\\', '/').ToUpperInvariant();
+    }
+
+    /// <summary>A concise, human-visible location label to distinguish editions with identical title and author.</summary>
+    public static string? EditionLabel(LibraryGroup book)
+    {
+        ArgumentNullException.ThrowIfNull(book);
+        if (book.Entries.Count == 0)
+        {
+            return null;
+        }
+
+        var folder = BookFolderOf(book.Entries[0]);
+        var name = Path.GetFileName(folder);
+        return name.Length > 0 && !name.EndsWith(':') && !BooksFolderPattern().IsMatch(name)
+            && !LooseFolderPattern().IsMatch(name)
+            ? name : Path.GetFileNameWithoutExtension(book.Entries[0].Path);
+    }
+
+    /// <summary>
+    /// Give identically credited editions distinct names even when their immediate
+    /// directories are both named "Book" or "Edition". Add only as much parent
+    /// context as is needed to distinguish their paths.
+    /// </summary>
+    public static string? EditionLabel(LibraryGroup book, IReadOnlyList<LibraryGroup> catalogue)
+    {
+        ArgumentNullException.ThrowIfNull(catalogue);
+        var label = EditionLabel(book);
+        if (label is null)
+        {
+            return null;
+        }
+
+        var peers = catalogue.Where(other => other.Entries.Count > 0
+            && BookKey(other) == BookKey(book)
+            && BookIdentity(other) != BookIdentity(book)).ToList();
+        if (peers.All(other => !ByName.Equals(label, EditionLabel(other))))
+        {
+            return label;
+        }
+
+        static string[] Location(LibraryGroup entry)
+        {
+            var folder = BookFolderOf(entry.Entries[0]);
+            var last = Path.GetFileName(folder);
+            var locator = folder.Length == 0 || last.EndsWith(':')
+                || BooksFolderPattern().IsMatch(last) || LooseFolderPattern().IsMatch(last)
+                ? entry.Entries[0].Path : folder;
+            return locator.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        }
+
+        var parts = Location(book);
+        var otherPaths = peers.Select(Location).ToList();
+        for (var count = 2; count < parts.Length; count++)
+        {
+            var suffix = string.Join(" / ", parts.TakeLast(count));
+            if (otherPaths.All(path => !ByName.Equals(suffix, string.Join(" / ", path.TakeLast(count)))))
+            {
+                return suffix;
+            }
+        }
+
+        return string.Join(" / ", parts);
+    }
+
+    /// <summary>A book's chapters in time order within each part; a part with no markers is one chapter by itself.</summary>
     public static IReadOnlyList<BookChapter> Chapters(LibraryGroup book)
     {
         ArgumentNullException.ThrowIfNull(book);
-        return [.. book.Entries.SelectMany(part => part.Chapters is { Count: > 0 } marked
-            ? marked.Select(chapter => new BookChapter(part, chapter.Start, chapter.Title.Length > 0 ? chapter.Title : part.Title))
-            : [new BookChapter(part, TimeSpan.Zero, part.Title)])];
+        var chapters = book.Entries.SelectMany<LibraryEntry, BookChapter>(part => part.Chapters is { Count: > 0 } marked
+            ? marked.Select(chapter => new BookChapter(part,
+                    chapter.Start < TimeSpan.Zero ? TimeSpan.Zero
+                    : part.Duration is { Ticks: > 0 } length && chapter.Start > length ? length : chapter.Start,
+                    string.IsNullOrWhiteSpace(chapter.Title) ? part.Title : chapter.Title))
+                .OrderBy(chapter => chapter.Start)
+            : [new BookChapter(part, TimeSpan.Zero, part.Title)]).ToList();
+
+        // Two real markers can share the same timestamp and title. Their occurrence
+        // within that exact part/mark is stable when unrelated chapters are inserted
+        // earlier, unlike a global row number. Assign it in one linear pass.
+        // Selection identities are compared without case, so duplicate numbering
+        // must use that same comparison or case-variant titles would collide.
+        // Keep the path/title as tuple fields rather than allocating a joined
+        // string for each of the 10,000 chapter markers on a large book page.
+        var seen = new Dictionary<(string Path, long Start, string Title), int>(ChapterMarkComparer.Instance);
+        for (var index = 0; index < chapters.Count; index++)
+        {
+            var chapter = chapters[index];
+            var key = (chapter.Part.Path, chapter.Start.Ticks, chapter.Title);
+            seen.TryGetValue(key, out var occurrence);
+            if (occurrence > 0)
+            {
+                chapters[index] = chapter with { SameMarkIndex = occurrence };
+            }
+
+            seen[key] = occurrence + 1;
+        }
+
+        return chapters;
+    }
+
+    /// <summary>
+    /// The single chapter active at a logical book position, or -1 when none can be identified.
+    /// Done once per book page, rather than rescanning every chapter for each displayed row.
+    /// </summary>
+    public static int CurrentChapterIndex(IReadOnlyList<BookChapter> chapters, LibraryGroup book, BookPlace place)
+    {
+        ArgumentNullException.ThrowIfNull(chapters);
+        ArgumentNullException.ThrowIfNull(book);
+        if (place.Part < 0 || place.Part >= book.Entries.Count)
+        {
+            return -1;
+        }
+
+        var path = book.Entries[place.Part].Path;
+        var current = -1;
+        var latestStart = TimeSpan.MinValue;
+        for (var index = 0; index < chapters.Count; index++)
+        {
+            var chapter = chapters[index];
+            if (string.Equals(chapter.Part.Path, path, StringComparison.OrdinalIgnoreCase)
+                && chapter.Start <= place.At && chapter.Start >= latestStart)
+            {
+                current = index;
+                latestStart = chapter.Start;
+            }
+        }
+
+        return current;
+    }
+
+    /// <summary>
+    /// The next or previous seekable chapter in reading order, or -1 at the edge.
+    /// Different markers at an identical position are distinct for accessibility,
+    /// but pressing chapter transport must not repeatedly seek to the same instant.
+    /// Previous restarts the current chapter when more than three seconds into it.
+    /// </summary>
+    public static int AdjacentChapterIndex(IReadOnlyList<BookChapter> chapters, LibraryGroup book, BookPlace place, bool next)
+    {
+        ArgumentNullException.ThrowIfNull(chapters);
+        ArgumentNullException.ThrowIfNull(book);
+        if (place.Part < 0 || place.Part >= book.Entries.Count || chapters.Count == 0)
+        {
+            return -1;
+        }
+
+        var active = CurrentChapterIndex(chapters, book, place);
+        if (active < 0)
+        {
+            // Before the first marker of a physical part: Next starts that part,
+            // Previous moves to the preceding part, never to book chapter zero.
+            var partPath = book.Entries[place.Part].Path;
+            var first = -1;
+            for (var index = 0; index < chapters.Count; index++)
+            {
+                if (string.Equals(chapters[index].Part.Path, partPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    first = index;
+                    break;
+                }
+            }
+
+            return first < 0 ? -1 : next ? first : first - 1;
+        }
+
+        if (!next && place.At - chapters[active].Start > TimeSpan.FromSeconds(3))
+        {
+            return active;
+        }
+
+        var step = next ? 1 : -1;
+        for (var index = active + step; index >= 0 && index < chapters.Count; index += step)
+        {
+            if (!string.Equals(chapters[index].Part.Path, chapters[active].Part.Path, StringComparison.OrdinalIgnoreCase)
+                || chapters[index].Start != chapters[active].Start)
+            {
+                return index;
+            }
+        }
+
+        return -1;
     }
 
     /// <summary>Where the book is up to: the part played last, at the point it was left (its start when there is none); the first part for a book never played.</summary>
@@ -203,16 +449,30 @@ public static partial class ListeningViews
     {
         ArgumentNullException.ThrowIfNull(book);
         ArgumentNullException.ThrowIfNull(leftAt);
-        var latest = 0;
-        for (var index = 1; index < book.Entries.Count; index++)
+        if (book.Entries.Count == 0)
         {
-            if (book.Entries[index].LastPlayed is { } played && played >= (book.Entries[latest].LastPlayed ?? DateTime.MinValue))
-            {
-                latest = index;
-            }
+            return default;
         }
 
-        return new BookPlace(latest, leftAt(book.Entries[latest].Path) ?? TimeSpan.Zero);
+        // Resume markers are a stronger signal than a play count. Restored libraries
+        // may retain their markers while some or all LastPlayed dates are missing.
+        // Among marked parts use the newest available date; with no dates, take
+        // the furthest part in reading order, deterministically.
+        var parts = book.Entries.Select((entry, index) =>
+            (Entry: entry, Index: index, Marker: leftAt(entry.Path))).ToList();
+        var marked = parts.Where(part => part.Marker is not null).ToList();
+        var candidates = marked.Count > 0 ? marked : parts;
+        var timed = candidates.Where(part => part.Entry.LastPlayed is not null).ToList();
+        var selected = timed.Count > 0
+            ? timed.OrderByDescending(part => part.Entry.LastPlayed).ThenByDescending(part => part.Index).First()
+            : marked.Count > 0 ? marked[^1]
+            // Imported libraries may retain play counts after losing both
+            // timestamps and resume markers. Do not send them back to part one.
+            : parts[Math.Max(0, parts.FindLastIndex(part => part.Entry.Plays > 0))];
+        var marker = selected.Marker ?? TimeSpan.Zero;
+        var at = marker < TimeSpan.Zero ? TimeSpan.Zero
+            : selected.Entry.Duration is { Ticks: > 0 } length && marker > length ? length : marker;
+        return new BookPlace(selected.Index, at);
     }
 
     /// <summary>Whether the book has been started: a part played, or left part-way.</summary>
@@ -220,21 +480,69 @@ public static partial class ListeningViews
     {
         ArgumentNullException.ThrowIfNull(book);
         ArgumentNullException.ThrowIfNull(leftAt);
-        return book.Entries.Any(part => part.LastPlayed is not null || leftAt(part.Path) is not null);
+        return book.Entries.Any(part => part.Plays > 0 || part.LastPlayed is not null || leftAt(part.Path) is not null);
     }
 
     /// <summary>How far through the book <paramref name="place"/> is, 0 to 1, by the parts' running times (by parts while those are unknown).</summary>
     public static double Progress(LibraryGroup book, BookPlace place)
     {
         ArgumentNullException.ThrowIfNull(book);
-        var total = book.Entries.Sum(part => (part.Duration ?? TimeSpan.Zero).Ticks);
-        if (total == 0)
+        if (book.Entries.Count == 0)
         {
-            return Math.Clamp((double)place.Part / book.Entries.Count, 0, 1);
+            return 0;
         }
 
-        var before = book.Entries.Take(place.Part).Sum(part => (part.Duration ?? TimeSpan.Zero).Ticks);
-        return Math.Clamp((before + place.At.Ticks) / (double)total, 0, 1);
+        if (place.Part < 0)
+        {
+            return 0;
+        }
+
+        if (place.Part >= book.Entries.Count)
+        {
+            return 1;
+        }
+
+        var index = place.Part;
+        var lengths = book.Entries.Select(part => part.Duration ?? TimeSpan.Zero).ToList();
+        var current = lengths[index];
+        var fraction = current > TimeSpan.Zero
+            ? Math.Clamp(place.At.Ticks / (double)current.Ticks, 0, 1) : 0;
+        if (lengths.Any(length => length <= TimeSpan.Zero))
+        {
+            // An unknown or zero-length part cannot count as zero time: that made a
+            // later part look finished before it even started. Fall back to part units.
+            return Math.Clamp((index + fraction) / book.Entries.Count, 0, 1);
+        }
+
+        var total = lengths.Sum(length => (double)length.Ticks);
+        var before = lengths.Take(index).Sum(length => (double)length.Ticks);
+        return Math.Clamp((before + fraction * current.Ticks) / total, 0, 1);
+    }
+
+    /// <summary>
+    /// Listening time left from a book position, or null if any part has an unknown or
+    /// nonpositive duration. Partial sums must never be shown as a misleading estimate.
+    /// Out-of-range positions are bounded to the beginning or end of the book.
+    /// </summary>
+    public static TimeSpan? Remaining(LibraryGroup book, BookPlace place)
+    {
+        ArgumentNullException.ThrowIfNull(book);
+        if (book.Entries.Count == 0 || book.Entries.Any(part => part.Duration is not { Ticks: > 0 }))
+        {
+            return null;
+        }
+
+        var partIndex = Math.Clamp(place.Part, 0, book.Entries.Count);
+        var seconds = book.Entries.Skip(partIndex).Sum(part => part.Duration!.Value.TotalSeconds);
+        if (partIndex < book.Entries.Count)
+        {
+            seconds -= place.Part < 0 ? 0
+                : Math.Clamp(place.At.TotalSeconds, 0, book.Entries[partIndex].Duration!.Value.TotalSeconds);
+        }
+
+        // A malformed library must not overflow TimeSpan even for an enormous book.
+        return seconds >= TimeSpan.MaxValue.TotalSeconds ? TimeSpan.MaxValue
+            : TimeSpan.FromSeconds(Math.Max(0, seconds));
     }
 
     /// <summary>
@@ -261,15 +569,26 @@ public static partial class ListeningViews
         ArgumentNullException.ThrowIfNull(shelves);
         ArgumentNullException.ThrowIfNull(leftAt);
         return [.. shelves.Podcasts.SelectMany(show => show.Entries)
-            .Where(episode => IsUnplayed(episode, leftAt) && nowUtc - episode.Added <= NewFor)
+            .Where(episode => IsUnplayed(episode, leftAt) && episode.Added <= nowUtc && nowUtc - episode.Added <= NewFor)
             .OrderByDescending(EpisodeDate).ThenBy(episode => episode.Path, NaturalOrder.Instance)];
     }
 
     /// <summary>When a recording was made: the date and time in its name, else the file's date; null when neither says.</summary>
-    public static DateTime? RecordedAt(LibraryEntry recording)
+    public static DateTime? RecordedAt(LibraryEntry recording) => RecordingDateEvidence(recording)?.At;
+
+    /// <summary>
+    /// A timestamp parsed from the filename is not the same as a file's last-modified time.
+    /// Keep the source so the recording details never present a file update as captured speech.
+    /// </summary>
+    public static (DateTime At, bool FromFilename)? RecordingDateEvidence(LibraryEntry recording)
     {
         ArgumentNullException.ThrowIfNull(recording);
-        return DateInName(MediaLibrary.TitleOf(recording.Path)) ?? (recording.Modified != default ? recording.Modified : null);
+        if (DateInName(MediaLibrary.TitleOf(recording.Path)) is { } named)
+        {
+            return (named, true);
+        }
+
+        return recording.Modified != default ? (recording.Modified, false) : null;
     }
 
     /// <summary>
@@ -317,9 +636,14 @@ public static partial class ListeningViews
     /// <summary>The book a part belongs to: its album, else its folder (above a disc or part folder), else its title without a part number.</summary>
     private static string BookNameOf(LibraryEntry part)
     {
-        if (part.Album is { } album)
+        // Disc and generic downloader album tags describe containers, not
+        // titles. Prefer the stable book folder for those mixed-tag chapter sets.
+        if (part.Album is { } album && !string.IsNullOrWhiteSpace(album)
+            && !PartFolderPattern().IsMatch(album.Trim())
+            && !BooksFolderPattern().IsMatch(album.Trim())
+            && !LooseFolderPattern().IsMatch(album.Trim()))
         {
-            return album;
+            return album.Trim();
         }
 
         var folder = Path.GetFileName(BookFolderOf(part));
@@ -370,7 +694,9 @@ public static partial class ListeningViews
 
     /// <summary>The value most of the files give, the first on a tie; null when none gives one.</summary>
     private static string? MostCommon(IEnumerable<string?> values) =>
-        values.OfType<string>().GroupBy(value => value, ByName).OrderByDescending(group => group.Count()).Select(group => group.Key).FirstOrDefault();
+        values.OfType<string>().GroupBy(value => value, ByName).OrderByDescending(group => group.Count())
+            .ThenBy(group => group.Key, ByName).ThenBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group => group.Key).FirstOrDefault();
 
     /// <summary>A date, then perhaps a time, in a name.</summary>
     [GeneratedRegex(@"(?<!\d)(?<y>(?:19|20)\d{2})[\-_.]?(?<mo>[01]\d)[\-_.]?(?<d>[0-3]\d)(?:[ _\-T](?<h>[0-2]\d)[\-_.:]?(?<mi>[0-5]\d)(?:[\-_.:]?(?<s>[0-5]\d))?)?(?!\d)", RegexOptions.CultureInvariant)]
@@ -399,6 +725,23 @@ public static partial class ListeningViews
     /// <summary>A part's number at the end of its title: " - Part 01", " (Disc 2)", " CD3", ", Chapter 4", " 07", " Part 3 of 12".</summary>
     [GeneratedRegex(@"[ _\-,.(\[]*(?:(?:part|pt|dis[ck]|cd|chapter|ch)[ _\-.]*)?\d+(?:[ _\-]*of[ _\-]*\d+)?[)\]]?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex PartNumberPattern();
+
+    /// <summary>
+    /// Compare repeated chapter marks without allocating a large concatenated
+    /// path/time/title string, while preserving Windows' case-insensitive keys.
+    /// </summary>
+    private sealed class ChapterMarkComparer : IEqualityComparer<(string Path, long Start, string Title)>
+    {
+        public static readonly ChapterMarkComparer Instance = new();
+
+        public bool Equals((string Path, long Start, string Title) x, (string Path, long Start, string Title) y) =>
+            x.Start == y.Start && StringComparer.OrdinalIgnoreCase.Equals(x.Path, y.Path)
+            && StringComparer.OrdinalIgnoreCase.Equals(x.Title, y.Title);
+
+        public int GetHashCode((string Path, long Start, string Title) obj) =>
+            HashCode.Combine(StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Path), obj.Start,
+                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Title));
+    }
 
     /// <summary>Books' keys compared without case.</summary>
     private sealed class BookKeyComparer : IEqualityComparer<(string Name, string Folder)>

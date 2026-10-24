@@ -255,6 +255,34 @@ public sealed class LibraryViewsTests
     }
 
     [Fact]
+    [Capability("FMT-C19")]
+    public void ClickingAPhotoStartsOnlyItsVisibleFolderInTheChosenGalleryOrder()
+    {
+        var photos = new[]
+        {
+            Picture(Path.Combine("D:", "Trip"), "photo 10.jpg"),
+            Picture(Path.Combine("D:", "Other"), "unrelated.jpg"),
+            Picture(Path.Combine("D:", "Trip"), "photo 2.png"),
+            Picture(Path.Combine("D:", "Trip"), "photo 1.jpg"),
+            Picture(Path.Combine("D:", "Trip", "subfolder"), "nested.png"),
+        };
+        var visible = LibraryViews.Pictures(photos);
+        var selection = LibraryViews.PictureSlideshow(visible, photos[2]);
+        Assert.Equal(["photo 1.jpg", "photo 2.png", "photo 10.jpg"],
+            selection.Items.Select(photo => Path.GetFileName(photo.Path)));
+        Assert.Equal(1, selection.Start);
+        Assert.Same(photos[2], selection.Items[selection.Start]);
+        Assert.DoesNotContain(photos[1], selection.Items);
+        Assert.DoesNotContain(photos[4], selection.Items);
+
+        Assert.Equal(0, LibraryViews.PictureSlideshow([], photos[0]).Start);
+        Assert.Equal([photos[0]], LibraryViews.PictureSlideshow([], photos[0]).Items);
+        Assert.Equal([Entries[0]], LibraryViews.PictureSlideshow([], Entries[0]).Items);
+        Assert.Throws<ArgumentNullException>(() => LibraryViews.PictureSlideshow(null!, photos[0]));
+        Assert.Throws<ArgumentNullException>(() => LibraryViews.PictureSlideshow(visible, null!));
+    }
+
+    [Fact]
     [Capability("LIB-05")]
     public void PicturesHaveTheirOwnNaturallyOrderedViewAndSearch()
     {

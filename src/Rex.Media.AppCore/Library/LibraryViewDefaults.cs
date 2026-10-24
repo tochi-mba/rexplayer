@@ -14,7 +14,7 @@ public static class LibraryViewDefaults
     public static LibraryViewChoice For(string key) => key switch
     {
         "Songs" or "RecentlyAdded" or "Search" or "Albums group" or "Artists group" or "Artists album" or "Genres group" or "TvShows page"
-            or "Recordings" or "Audiobooks group" or "Authors group" or "Podcasts group" => new LibraryViewChoice(LibraryLook.List),
+            or "Recordings" or "Audiobooks group" or "Authors group" or "Authors book" or "Podcasts group" => new LibraryViewChoice(LibraryLook.List),
         "Pictures" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 200, Grouping: LibraryGrouping.Folder),
         "Movies" or "TvShows" => new LibraryViewChoice(LibraryLook.Browse, CardSize: 200),
         "Videos" or "OtherVideos" or "ContinueWatching" or "TvShows group" => new LibraryViewChoice(LibraryLook.Grid, CardSize: 180),
