@@ -67,6 +67,15 @@ public sealed partial class MainWindow
             LibraryFolderButtons.Children.Add(clear);
         }
 
+        if (state.OffersRescan)
+        {
+            var retry = new Button { Content = "Try scanning again" };
+            AutomationProperties.SetAutomationId(retry, "LibraryEmptyRetryScan");
+            AutomationProperties.SetName(retry, "Try scanning the library folder again");
+            retry.Click += (_, _) => _scanner?.Request();
+            LibraryFolderButtons.Children.Add(retry);
+        }
+
         if (!state.OffersFolders)
         {
             return;
