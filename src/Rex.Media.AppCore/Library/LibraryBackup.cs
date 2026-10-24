@@ -85,7 +85,7 @@ public static class LibraryBackup
         {
             if (!SafeRelativePath(path) || !names.Add(path) || bytes is null)
             {
-                throw new FormatException("The backup contains an unsafe or duplicate file name.");
+                throw new FormatException("The backup contains an invalid or duplicate file name.");
             }
         }
 
