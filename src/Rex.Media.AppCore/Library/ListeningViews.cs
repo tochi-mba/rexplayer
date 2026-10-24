@@ -17,7 +17,7 @@ public sealed record ListeningShelves(
     IReadOnlyList<LibraryEntry> Sounds);
 
 /// <summary>One chapter of a book: in which part it is, where in that part it starts, and its title.</summary>
-public sealed record BookChapter(LibraryEntry Part, TimeSpan Start, string Title);
+public sealed record BookChapter(LibraryEntry Part, TimeSpan Start, string Title, int SameMarkIndex = 0);
 
 /// <summary>Where a book is up to: which of its parts, and how far into it.</summary>
 public readonly record struct BookPlace(int Part, TimeSpan At);
@@ -330,13 +330,32 @@ public static partial class ListeningViews
     public static IReadOnlyList<BookChapter> Chapters(LibraryGroup book)
     {
         ArgumentNullException.ThrowIfNull(book);
-        return [.. book.Entries.SelectMany<LibraryEntry, BookChapter>(part => part.Chapters is { Count: > 0 } marked
+        var chapters = book.Entries.SelectMany<LibraryEntry, BookChapter>(part => part.Chapters is { Count: > 0 } marked
             ? marked.Select(chapter => new BookChapter(part,
                     chapter.Start < TimeSpan.Zero ? TimeSpan.Zero
                     : part.Duration is { Ticks: > 0 } length && chapter.Start > length ? length : chapter.Start,
                     string.IsNullOrWhiteSpace(chapter.Title) ? part.Title : chapter.Title))
                 .OrderBy(chapter => chapter.Start)
-            : [new BookChapter(part, TimeSpan.Zero, part.Title)])];
+            : [new BookChapter(part, TimeSpan.Zero, part.Title)]).ToList();
+
+        // Two real markers can share the same timestamp and title. Their occurrence
+        // within that exact part/mark is stable when unrelated chapters are inserted
+        // earlier, unlike a global row number. Assign it in one linear pass.
+        var seen = new Dictionary<(string Path, long Start, string Title), int>();
+        for (var index = 0; index < chapters.Count; index++)
+        {
+            var chapter = chapters[index];
+            var key = (chapter.Part.Path, chapter.Start.Ticks, chapter.Title);
+            seen.TryGetValue(key, out var occurrence);
+            if (occurrence > 0)
+            {
+                chapters[index] = chapter with { SameMarkIndex = occurrence };
+            }
+
+            seen[key] = occurrence + 1;
+        }
+
+        return chapters;
     }
 
     /// <summary>
