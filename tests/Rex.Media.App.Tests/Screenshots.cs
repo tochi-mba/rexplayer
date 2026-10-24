@@ -156,15 +156,29 @@ internal static class Screenshots
         // A bounded retry permits initial WinUI layout animations to finish without
         // silently treating permanently moving or stale content as deterministic.
         (int Width, int Height, byte[] Bgra) repeat = default;
+        (int Width, int Height, byte[] Bgra) repeatedWindow = default;
         var repeatDifference = 1.0;
+        var advanceFrame = false;
+        // Compare consecutive captures, not every future capture against the first
+        // frame. The initial UIA-ready frame can still be mid-transition; once the
+        // compositor settles, two successive frames must independently agree.
+        // A continuously animated or changing scene still fails this strict gate.
         var repeatable = rendered && Wait.Within(TimeSpan.FromSeconds(4), () =>
         {
             try
             {
+                if (advanceFrame && repeat.Bgra is { Length: > 0 })
+                {
+                    picture = repeat;
+                    fullWindow = repeatedWindow;
+                    advanceFrame = false;
+                }
+
                 var captured = scene.CaptureMode == "desktop"
                     ? WindowPicture.TakeDesktop(app.Handle)
                     : WindowPicture.Take(app.Handle);
                 repeat = captured;
+                repeatedWindow = captured;
                 if (automationId is not null && !TryCropControl(app, captured, automationId, out repeat))
                 {
                     repeat = captured;
@@ -173,12 +187,19 @@ internal static class Screenshots
 
                 if (repeat.Width != picture.Width || repeat.Height != picture.Height)
                 {
+                    advanceFrame = true;
                     return false;
                 }
 
                 var (different, _) = Difference(picture, repeat, pixelThreshold);
                 repeatDifference = different / (double)(picture.Width * picture.Height);
-                return repeatDifference <= maxDifferingRatio;
+                if (repeatDifference <= maxDifferingRatio)
+                {
+                    return true;
+                }
+
+                advanceFrame = true;
+                return false;
             }
             catch (Exception error)
             {
