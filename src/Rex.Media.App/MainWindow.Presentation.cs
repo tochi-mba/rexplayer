@@ -27,6 +27,9 @@ public sealed partial class MainWindow
     private MediaInfo? _shownLyricsInfo;
     private TimeSpan _shownLyricsDuration;
     private bool _shownLyricsCanSeek;
+    // Keep keyboard navigation within the lyrics when a new timed track
+    // replaces the previously focused line buttons.
+    private bool _restoreLyricFocusAfterTrackChange;
     private int _shownLine = -1;
     private readonly List<TextBlock> _lyricTexts = [];
     private bool _followCurrentLyric = true;
@@ -319,6 +322,10 @@ public sealed partial class MainWindow
                 && Rex.Media.AppCore.Shell.FocusWithin.IsInside<DependencyObject>(
                     focused, LyricsLines, Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent))
             {
+                _restoreLyricFocusAfterTrackChange = true;
+                // Preserve a safe focus target until the replacement lyric
+                // controls have been loaded, rather than leaving a detached
+                // button as the keyboard-focus owner.
                 PlayPauseButton.Focus(FocusState.Programmatic);
             }
 
@@ -417,6 +424,21 @@ public sealed partial class MainWindow
 
             LyricsBox.Visibility = lyrics is null ? Visibility.Collapsed : Visibility.Visible;
             LyricsBox.Height = Math.Min(360, Math.Max(0, Stage.ActualHeight * 0.45));
+            if (_restoreLyricFocusAfterTrackChange
+                && LyricsLines.Children.OfType<Button>().FirstOrDefault() is { } firstLyric)
+            {
+                // A track transition may briefly have no decoded lyrics. Only
+                // consume the request when the new timed button actually exists.
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (!_closed && firstLyric.Parent is not null
+                        && firstLyric.Focus(FocusState.Programmatic))
+                    {
+                        _restoreLyricFocusAfterTrackChange = false;
+                    }
+                });
+            }
+
             ShowLyricLine();
         }
 
