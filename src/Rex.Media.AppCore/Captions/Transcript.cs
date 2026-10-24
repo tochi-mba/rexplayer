@@ -196,8 +196,15 @@ public sealed record Transcript(string Language, string Model, IReadOnlyList<Tra
         return text.ToString();
     }
 
+    // Export is a UTF-8 file, not an HTML script: keep speech in its original
+    // writing system instead of JSON-escaping every non-ASCII character.
+    private static readonly TranscriptJson ExportJson = new(new JsonSerializerOptions(TranscriptJson.Default.Options)
+    {
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    });
+
     /// <summary>The transcript as JSON, for the cache.</summary>
-    public string ToJson() => JsonSerializer.Serialize(new TranscriptFile(Language, Model, [.. Words.Select(word => new TranscriptFileWord(word.Text, word.Start.TotalSeconds, word.End.TotalSeconds, word.Confidence))]), TranscriptJson.Default.TranscriptFile);
+    public string ToJson() => JsonSerializer.Serialize(new TranscriptFile(Language, Model, [.. Words.Select(word => new TranscriptFileWord(word.Text, word.Start.TotalSeconds, word.End.TotalSeconds, word.Confidence))]), ExportJson.TranscriptFile);
 
     /// <summary>A transcript from its JSON, or null when the text is not one.</summary>
     public static Transcript? FromJson(string json)
