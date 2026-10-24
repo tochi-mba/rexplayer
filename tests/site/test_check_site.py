@@ -178,7 +178,7 @@ class CheckSiteTests(unittest.TestCase):
         self.assertEqual([], check_site.check(site, "Thing"))
 
         shot.write_bytes(good[:-10])
-        self.assertIn("windows-view.png: truncated PNG chunk.", check_site.check(site, "Thing"))
+        self.assertIn("windows-view.png: incomplete PNG: missing IEND chunk.", check_site.check(site, "Thing"))
         altered = bytearray(good)
         altered[20] ^= 0x01
         shot.write_bytes(altered)
