@@ -358,7 +358,8 @@ public sealed class AudiobookPresentationTests : IDisposable
         // scene, records a diagnostic frame if readiness fails, and compares real
         // pixels. A separate pre-capture wait would discard the crucial evidence
         // from an unresponsive 10,000-chapter page.
-        Screenshots.Match(app, "audiobook-huge-virtualized-chapters", "LibraryList");
+        Screenshots.Match(app, "audiobook-huge-virtualized-chapters", "LibraryList",
+            extraReadiness: () => app.Lines().Contains("Chapter 0"));
         Wait.For(() => app.Text("LibraryKicker") == "AUDIOBOOK"
             && app.Text("LibrarySubtitle").Contains("chapters", StringComparison.Ordinal)
             && app.Lines().Contains("Chapter 0"), "the first virtualized chapters");
