@@ -166,6 +166,9 @@ internal sealed class AppProcess : IDisposable
 
         start.Environment["REXPLAYER_ROOT"] = root;
         start.Environment["REXPLAYER_FAKE_AUDIO"] = "1";
+        // Freeze time-driven Browse animation while keeping real WinUI and media fixtures.
+        // Actual PNGs are still captured and compared by Screenshots.Match.
+        start.Environment["REXPLAYER_UI_CAPTURE"] = "1";
         start.Environment["REXPLAYER_PIPE_NAME"] = "rexplayer-test-" + Path.GetFileName(root);
         return start;
     }
