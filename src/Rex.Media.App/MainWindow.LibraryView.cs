@@ -498,10 +498,10 @@ public sealed partial class MainWindow
         LibraryGroup group => "group:" + group.Name + "\n"
             + (_librarySource is LibrarySource.Albums or LibrarySource.Audiobooks or LibrarySource.Authors ? group.Detail : null)
             + (_librarySource is LibrarySource.Audiobooks or LibrarySource.Authors ? "\n" + group.Entries.FirstOrDefault()?.Path : ""),
-        // Record.ToString() includes every marker in the chapter's LibraryEntry,
-        // making 10,000 chapter identities quadratic. The row's 1-based badge
-        // distinguishes different marks at the same timestamp (even identical titles).
-        BookChapter chapter => $"chapter:{chapter.Part.Path}\n{chapter.Start.Ticks}\n{row.Badge}",
+        // Never serialize the whole LibraryEntry (and all 10,000 markers) here.
+        // SameMarkIndex distinguishes duplicate marks without tying this chapter's
+        // remembered selection to its shifting 1-based display number.
+        BookChapter chapter => $"chapter:{chapter.Part.Path}\n{chapter.Start.Ticks}\n{chapter.Title}\n{chapter.SameMarkIndex}",
         Rex.Media.AppCore.Player.NamedPlaylist playlist => "playlist:" + playlist.Id,
         _ => "folder:" + row.Item,
     };
