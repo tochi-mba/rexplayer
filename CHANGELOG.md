@@ -4,115 +4,88 @@ Every version of rexplayer that reaches users, newest first. A version is publis
 pipeline the moment its number reaches `main`.
 
 ## Unreleased
-
 ### Improved
-
 - Find Windows Preferences by category, setting label or choice, with a persistent category list on wide windows and readable no-results feedback (#467). Reject blank and nearly uniform UI screenshots before accepting visual baselines.
 
 ## 0.30.8 - 2026-10-24
-
 ### Added
-
 - **Native Mac library browsing.** A local-first AppKit library window lists watched folders, songs, videos and pictures, with search, safe pagination, Play and Add to Up Next. Add and stop watching folders without deleting the original media; rescan available folders periodically.
 - **Mac Up Next interactions.** Browse, reorder, shuffle and remove queue entries in the native window, including recovery when the last queue page becomes empty. Queue and library windows expose descriptive names to assistive technology.
 - **More useful local Home shelves.** Pin real music albums, browse matching movies and shows, continue listening and watching, and return to the correct library view after narrowing a search or filter.
 
 ### Improved
-
 - **Music and lyrics.** Distinguish missing, plain, line-timed, partly word-timed and word-timed local lyrics. Seek by a source-provided line time, keep manual scrolling under the user's control and use readable system colors and word-weight emphasis in high contrast.
 - **Adaptive Windows library.** Keep useful Home content width in compact windows, restore desktop navigation when widened, explain disconnected folders and offer an immediate scan retry. Movie and TV Browse respect ordinary saved sort order on their All items shelves.
 - **Movie and show discovery.** Present accessible feature actions and native detail pages without mixing up Play and More info. High-contrast settings replace photographic hero backgrounds with system colors and suppress decorative fades.
 - **Visualisation and app responsiveness.** Rebuild visualisation backing pixels when display scale changes; preserve the chosen mode through pause, seek, track changes, resizing and window minimization.
 
 ### Fixed
-
 - **Featured media controls.** Clicking Play or More info on a movie/TV feature no longer also activates its parent card.
 - **Empty library recovery.** Clearing a search or filter returns keyboard focus to the surviving control, while a disconnected folder is explained instead of being mistaken for an empty library.
 - **Mac queue page removal.** Deleting items from the final queue page returns to a valid remaining page.
 - **Website previews and image provenance.** Pre-publication checks catch broken or undersized PNG assets; any future finalized native release screenshot must carry matching platform, source-version, reviewer and SHA-256 evidence rather than being relabeled from a test fixture. Responsive browser checks verify decoded screenshots and narrow-width layout. The Pages workflow also checks the actual deployed commit and retains browser captures after publication.
 
 ## 0.30.7 - 2026-10-23
-
 ### Fixed
-
 - **Mac playback tools and release builds (#460).** Use the saved bookmark time field and connect the new Playback tools window to the Mac application menu, automatic state refresh and cleanup, restoring the Intel and Apple Silicon builds.
 - **Warnings-as-errors compliance (#460).** Remove an unfinished, unused native media-list prototype rather than suppressing the unused-type analyzer; existing playback functionality stays intact.
 
 ### Improved
-
 - Refresh the Windows library with soft light and dark surfaces, clearer navigation, a persistent Add folder action, and a dedicated search row. View and library actions scroll at smaller window sizes.
 - Make playback easier to discover with a prominent play/pause button, transport hints, and direct welcome-screen actions. Separate the macOS timeline from its playback controls and add file/folder welcome actions.
 - Offer a Clear search action when no media matches, and make empty-library folder suggestions fit narrow windows.
 
 ## 0.30.6 - 2026-10-23
-
 ### Fixed
-
 - **Season 0 detection (#458).** Recognise S00, Season 00 and Specials folders with quality labels, including the Simpsons S00-S09 collection and its original shorts. Keep unnumbered clips and bonus folders with their show rather than losing them to Movies or separate series.
 - **TV season selection (#458).** Show “Season 0 (Specials)” explicitly in the season picker; preserve numbered-season playback and the usual Specials grouping.
 
 ## 0.30.5 - 2026-10-23
-
 ### Added
-
 - **Audiobook controls (#455).** Audiobooks have their own transcription preference and default visualisation, independent of songs and other audio. Camera-based defaults still require consent and classification changes take effect with the item that is actually playing.
 - **Browse throughout the media library (#455).** Songs, albums, artists, genres, audiobooks, authors, podcasts, recordings, videos, pictures and recent views can use horizontal Browse shelves as well as their existing layouts.
 - **Completed media (#455).** A dedicated library view gathers finished audiobooks, watched movies and episodes, played podcast episodes, music and recordings, while keeping anything with a resume point in progress.
 
 ### Improved
-
 - **Media parsing against real libraries (#455).** Recognise dotted and bracketed audiobook collections, author/title/part filenames, audiobook genre variants and season-labelled TV specials more reliably, while keeping albums together when only some chapters carry useful tags.
 - **Richer discovery (#455).** Fill missing genre groupings from fetched album metadata and search audiobook credits, movie and show genres, cast, directors, writers and creators in addition to local tags.
 - **Collapsed library navigation (#455).** Use a purpose-built centred icon rail with consistent touch targets, selection styling, tooltips and accessible names instead of clipping the expanded sidebar.
 
 ### Fixed
-
 - **Audiobook shelf leaks (#455).** Keep audiobook intros and chapters, including the Chronicles of Narnia, Roald Dahl collections and spoken-word releases tagged as non-fiction audiobooks, out of Songs and genre shelves.
 - **Library scrolling stalls (#455).** In Balanced and Fastest modes, background transcription and intro or credit analysis yield while browsing so artwork and navigation stay responsive. Best quality leaves that background work running; Automatic follows the selected tier.
 
 ## 0.30.4 - 2026-10-23
-
 ### Fixed
-
 - **Mac launch on Sequoia (#454).** Ad-hoc-signed Intel, Apple Silicon and universal app bundles include the .NET JIT entitlement needed to prevent a runtime abort before the window opens.
 - **Mac bundle validation (#454).** Parse the actual code-signing entitlements separately from diagnostic output, retaining strict checks for signed entitlements, supported architectures, minimum macOS version and package layout.
 - **Mac media information (#454).** Restore codec display names in the Mac media-information window.
 
 ### Improved
-
 - **Sequoia launch verification (#454).** The final signed universal download is launched and tested for video playback and clean shutdown on a macOS 15 CI runner, in addition to per-architecture build checks.
 - **Finder integration and parity tracking (#454).** Expand supported Open With file associations, clarify actual Mac feature coverage and update the generated parity and capability documents without claiming unfinished features are complete.
 
 ## 0.30.3 - 2026-10-22
-
 ### Improved
-
 - **Mac compatibility.** The Mac app now ships as one universal download for Intel and Apple Silicon, explicitly supports macOS 12 and later, and verifies every release bundle against macOS Sequoia 15.8.1 before publishing.
 - **The right download for each computer.** The website detects Windows and macOS, offers the matching current release automatically, and keeps the other supported downloads available when needed.
 
 ## 0.30.2 - 2026-10-22
-
 ### Improved
-
 - **Audiobook writer credits (#445).** Prefer dedicated author tags over performer or narrator credits, recognize explicit written-by bylines and author/book folders, and carry a single confirmed writer across a book's untagged chapters.
 - **Conservative book matching (#445).** Use an exact-title catalogue match to fill in a missing author only when a complete Open Library response confirms one work and one writer; keep ambiguous books under Unknown author and cache credited book information across restarts.
 
 ### Fixed
-
 - **Disc and part folders (#446).** Keep book titles intact and avoid mistaking disc or chapter folders for writers, while keeping conflicting author credits separate.
 
 ## 0.30.1 - 2026-10-22
-
 ### Improved
-
 - **A calmer library during downloads.** Bursts of file changes are batched so large download queues do not repeatedly rebuild the library. New, renamed and removed files still appear, while growing downloads keep their progress and become playable as usable data arrives.
 - **Reversible library navigation.** The sidebar expands with one click even in a narrow window with a saved collapsed preference. Widening the window restores the desktop preference without losing your place.
 - **Minimal interface controls stay within reach.** A visible Restore full interface button makes minimal mode easy to leave. Library and fullscreen controls remain available, compact volume controls fit beside playback, and long titles are bounded so they cannot push essential actions out of view.
 
 ## 0.30.0 - 2026-10-22
-
 ### Added
-
 - **Subject tracking (#419).** Improved selected-subject tracking and its controls, making it easier to follow the intended subject across video frames.
 - **Featured artists (#436).** Songs with multiple or featured performers now credit and group their artists more accurately, including featured appearances on artist pages.
 - **Audiobook recognition (#437).** Better separation of audiobooks, podcasts, recordings and music, with audiobook-oriented library browsing.
@@ -127,9 +100,7 @@ pipeline the moment its number reaches `main`.
 - **Edited transcript preservation (#421).** Preserve user-edited transcript content instead of overwriting those edits during subsequent processing.
 
 ## 0.29.0 - 2026-10-22
-
 ### Added
-
 - **A library that always gives you a way back.** Movie, show, season, episode, artist and album pages have a persistent, labelled Back button and Alt+Left support. Back restores the exact source, search, selection, focus and scroll position that opened the page instead of rebuilding a similar-looking view somewhere else. Browse keeps Sort and Filter available, so changing what is shown never requires switching layouts.
 - **An immersive library rail.** The sidebar can collapse to a 64-pixel icon rail, remembers the choice and compacts automatically in narrow windows. Every icon keeps its name in a tooltip and to assistive technology, while Browse and details expand into the reclaimed space.
 - **A varied Browse showcase.** Movies and TV Shows curate five distinct features from the library and rotate them slowly with a restrained fade. Rotation pauses during interaction, stops while hidden or outside Browse and becomes an immediate swap when animations are disabled. The billboard opens rich details; its separate Play or Resume action names the actual next episode when there is one. It never starts a trailer, network request or video by itself.
