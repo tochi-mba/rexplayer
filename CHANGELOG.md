@@ -23,7 +23,7 @@ pipeline the moment its number reaches `main`.
 - **Featured media controls.** Clicking Play or More info on a movie/TV feature no longer also activates its parent card.
 - **Empty library recovery.** Clearing a search or filter returns keyboard focus to the surviving control, while a disconnected folder is explained instead of being mistaken for an empty library.
 - **Mac queue page removal.** Deleting items from the final queue page returns to a valid remaining page.
-- **Website previews.** Pre-publication checks catch broken or undersized PNG assets, and responsive browser checks verify decoded screenshots and narrow-width layout. The Pages workflow also checks the actual deployed commit and retains browser captures after publication.
+- **Website previews and image provenance.** Pre-publication checks catch broken or undersized PNG assets; any future finalized native release screenshot must carry matching platform, source-version, reviewer and SHA-256 evidence rather than being relabeled from a test fixture. Responsive browser checks verify decoded screenshots and narrow-width layout. The Pages workflow also checks the actual deployed commit and retains browser captures after publication.
 
 ## 0.30.7 - 2026-10-23
 
