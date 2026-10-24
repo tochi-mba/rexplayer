@@ -421,7 +421,11 @@ public sealed partial class MainWindow
             }
         }
 
-        var authorDirectory = source == LibrarySource.Authors && _libraryGroup is null;
+        // Searching the Authors directory does not change _librarySource, only
+        // the effective route (source becomes null). Search results can still
+        // be author cards; their primary action must remain navigation.
+        var authorDirectory = _librarySource == LibrarySource.Authors
+            && _libraryGroup is null && _librarySeason is null;
         if (_librarySource == LibrarySource.Pictures && search.Length == 0)
         {
             LibraryPlayText.Text = "Start slideshow";
