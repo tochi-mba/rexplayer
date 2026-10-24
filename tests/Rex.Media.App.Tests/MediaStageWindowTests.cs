@@ -305,8 +305,11 @@ public sealed class MediaStageWindowTests : IDisposable
             "the second direct audio file to replace the first file's timed lyrics");
         Assert.Equal("AUDIO playback stage", app.Find("Stage").Current.Name);
         Assert.DoesNotContain("First stream line", app.Find("LyricLine-0").Current.Name, StringComparison.Ordinal);
-        Wait.For(() => app.Find("PlayPauseButton").Current.HasKeyboardFocus,
-            "focus to move to stable transport when the focused lyric line disappears");
+        // A new timed stream supplies replacement buttons, so focus returns
+        // to its first seekable lyric rather than staying on the transport.
+        // When there are no replacement lyrics, the transport is the fallback.
+        Wait.For(() => app.Find("LyricLine-0").Current.HasKeyboardFocus,
+            "the focused lyric navigation to return on the replacement song");
         Assert.Equal(0, app.Close());
     }
 
