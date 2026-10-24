@@ -181,6 +181,37 @@ public sealed class AudiobookPresentationTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void CompletedBookCardCanBeMarkedUnfinishedWithoutTouchingItsPart()
+    {
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Undo Me", "Whole.wav"),
+            TimeSpan.FromMinutes(50), author: "Ann Writer", album: "Undo Me");
+
+        using var app = _scene.Ready().Start();
+        app.Visit("Audiobooks");
+        app.Open("Undo Me");
+        Pointer.RightClick(app, app.Line("Whole"));
+        Wait.For(() => app.IsShown("LibraryMenuBookFinished"), "the initial book completion action");
+        app.Press("LibraryMenuBookFinished");
+
+        app.Visit("Completed");
+        Wait.For(() => app.Lines().Contains("Undo Me"), "the completed book card");
+        Pointer.RightClick(app, app.Line("Undo Me"));
+        Wait.For(() => app.IsShown("LibraryMenuBookUnfinished"),
+            "the book-scoped unfinished action directly on its Completed card");
+        app.Press("LibraryMenuBookUnfinished");
+        Wait.For(() => !app.IsListed("Completed"),
+            "the only completed book to leave the Completed sidebar");
+
+        app.Visit("Audiobooks");
+        Wait.For(() => app.Lines().Contains("Undo Me")
+            && app.Line("Undo Me").Current.HelpText.Contains("Not started", StringComparison.Ordinal),
+            "undoing explicit completion without marking the physical file played");
+        Assert.Empty(app.Queue());
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void CompletedSameTitleEditionsReplayOnlyTheExactSelectedBook()
     {
         _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Edition A", "Alpha.wav"),
