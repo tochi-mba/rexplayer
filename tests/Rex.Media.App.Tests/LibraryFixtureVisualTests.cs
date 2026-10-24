@@ -152,7 +152,7 @@ public sealed class LibraryFixtureVisualTests
         var pane = app.Find("LibraryPane").Current.BoundingRectangle;
         Assert.True(sources.Width > 0 && pane.Width > sources.Width + 100,
             $"The {size} window needs usable content beside the navigation rail.");
-        var compact = width < 900;
+        var compact = width < 760; // LibraryNavigationNarrowBreakpoint, in XAML.
         Assert.Equal(compact ? "Expand library navigation" : "Collapse library navigation",
             app.Find("LibraryNavigationToggle").Current.Name);
         Screenshots.Match(app, "library-home-shell-" + size, "LibraryPane");
