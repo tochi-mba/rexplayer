@@ -352,9 +352,11 @@ public sealed partial class MainWindow
         {
             var play = FindLibrarySmokeButton("Play: ");
             var add = FindLibrarySmokeButton("Add to Up Next");
-            return play?.AccessibilityLabel?.StartsWith("Play: ", StringComparison.Ordinal) == true
-                && add?.AccessibilityLabel?.StartsWith("Add ", StringComparison.Ordinal) == true
-                && add.AccessibilityLabel.EndsWith(" to Up Next", StringComparison.Ordinal)
+            return play?.AccessibilityLabel is { } playLabel
+                && playLabel.StartsWith("Play: ", StringComparison.Ordinal)
+                && add?.AccessibilityLabel is { } queueLabel
+                && queueLabel.StartsWith("Add ", StringComparison.Ordinal)
+                && queueLabel.EndsWith(" to Up Next", StringComparison.Ordinal)
                 && _librarySearch?.AccessibilityLabel == "Search the local library"
                 && _libraryKind.ToolTip?.Contains("local library", StringComparison.Ordinal) == true;
         }
