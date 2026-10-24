@@ -180,6 +180,11 @@ public sealed partial class MainWindow
 
     private void CloseLibrary()
     {
+        // Focus loss and recycling happen during WinUI teardown. Neither should
+        // animate an already closing row or launch new asynchronous picture work.
+        LibraryList.ContainerContentChanging -= OnLibraryRowShown;
+        UnwireRowFocus();
+
         var sections = _backgroundSections;
         _backgroundSections = null;
         if (sections is not null)
@@ -546,6 +551,11 @@ public sealed partial class MainWindow
     /// <summary>A visible media line asks for its picture once; recycled, off-screen rows ask for nothing.</summary>
     private void OnLibraryRowShown(ListViewBase sender, ContainerContentChangingEventArgs args)
     {
+        if (_closing)
+        {
+            return;
+        }
+
         if (args.ItemContainer is { } realized)
         {
             // The row's title remains a concise screen-reader name; a secondary
