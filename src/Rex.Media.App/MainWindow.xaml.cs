@@ -150,8 +150,14 @@ public sealed partial class MainWindow : Window
         Video.CompositionScaleChanged += (_, _) => ResizeVideo();
         Closed += OnClosed;
 
-        // A dialog still open when the window goes would be torn down with it, which WinUI does not survive.
-        AppWindow.Closing += (_, _) => _dialog?.Hide();
+        // WinUI can raise focus and container events while tearing down the visual tree.
+        // Mark the window as closing at the first native notification, before those
+        // callbacks can schedule fresh artwork or composition transitions.
+        AppWindow.Closing += (_, _) =>
+        {
+            _closing = true;
+            _dialog?.Hide();
+        };
 
         RestorePlacement();
 
