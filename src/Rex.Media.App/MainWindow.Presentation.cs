@@ -126,8 +126,15 @@ public sealed partial class MainWindow
         }
 
         var lyrics = stage.ShowLyrics ? _player.Lyrics : null;
+        // Growing media can report a slightly longer duration on each refresh.
+        // Rebuilding timed controls every time would repeatedly steal keyboard
+        // focus; only rebuild when some lyric becomes (un)seekable.
+        var lyricSeekEligibilityChanged = _shownLyricsDuration != _player.Duration
+            && lyrics?.Lines.Any(line => line.At is { } at
+                && MediaStagePolicy.IsPlayableTimeJump(at, _shownLyricsDuration)
+                != MediaStagePolicy.IsPlayableTimeJump(at, _player.Duration)) == true;
         if (!ReferenceEquals(lyrics, _shownLyrics) || !ReferenceEquals(item, _shownLyricsItem)
-            || !ReferenceEquals(info, _shownLyricsInfo) || _shownLyricsDuration != _player.Duration)
+            || !ReferenceEquals(info, _shownLyricsInfo) || lyricSeekEligibilityChanged)
         {
             // Timed lyrics are focusable buttons. Removing the old lines must not
             // strand keyboard/screen-reader focus on an element outside the tree.
