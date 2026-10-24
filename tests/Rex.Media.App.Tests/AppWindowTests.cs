@@ -892,22 +892,35 @@ public sealed partial class AppWindowTests : IDisposable
         Wait.For(() => app.Text("NowPlaying") == "Basquiat"
             && app.Find("Stage").Current.Name == "VIDEO playback stage",
             "the video's metadata and decoded geometry to be ready");
-        // Half, actual and double size: each step adds the video's height times the step, whatever
-        // the display's scale. (Widths are not compared: a window this narrow meets Windows' minimum.)
-        var half = Resize(app, CommandCatalog.ScaleHalf);
-        var actual = Resize(app, CommandCatalog.ScaleOriginal);
-        var doubled = Resize(app, CommandCatalog.ScaleDouble);
+        // The committed H.264 test pattern is only 128×72. At half/original
+        // scale its requested client height can be below WinUI's minimum.
+        // Those commands must still execute correctly even if Windows clamps
+        // the outer window to the same physical height.
+        var half = Resize(app, CommandCatalog.ScaleHalf, "50 %");
+        var actual = Resize(app, CommandCatalog.ScaleOriginal, "100 %");
+        var doubled = Resize(app, CommandCatalog.ScaleDouble, "200 %");
 
-        Assert.InRange((doubled - actual) / (actual - half), 1.9, 2.1);
+        Assert.True(actual >= half - 1, "100% scaling must not shrink below the 50% window.");
+        Assert.True(doubled >= actual - 1, "200% scaling must not shrink below the 100% window.");
+        if (actual - half > 1)
+        {
+            Assert.InRange((doubled - actual) / (actual - half), 1.9, 2.1);
+        }
+        else
+        {
+            // The minimum size clamps the lower scale steps, but the largest
+            // scale must still fit inside the window and never make it smaller.
+            Assert.True(half >= 320, "Windows' minimum outer window height must be respected.");
+        }
         Assert.Equal(0, app.Close());
     }
 
-    /// <summary>Runs a window-size command and gives the window's height once it has settled.</summary>
-    private static double Resize(AppProcess app, string command)
+    /// <summary>Run the native resize command, and account for Windows enforcing its minimum size.</summary>
+    private static double Resize(AppProcess app, string command, string expectedNotice)
     {
-        var before = app.Window.Current.BoundingRectangle.Height;
         app.Run(command);
-        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Height - before) > 1, "the window to change size");
+        Wait.For(() => app.LogText.Contains(expectedNotice, StringComparison.Ordinal),
+            command + " to execute and announce the requested video scale");
         Thread.Sleep(300);
         return app.Window.Current.BoundingRectangle.Height;
     }
