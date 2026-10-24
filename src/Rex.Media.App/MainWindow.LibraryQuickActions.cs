@@ -24,9 +24,26 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>Detach native focus handlers before the focused library rows are destroyed.</summary>
+    private void UnwireRowFocus()
+    {
+        foreach (var container in _rowFocusWired)
+        {
+            container.GotFocus -= OnRowContainerGotFocus;
+            container.LostFocus -= OnRowContainerLostFocus;
+        }
+
+        _rowFocusWired.Clear();
+    }
+
     /// <summary>Keyboard focus behaves exactly like hover: the line's actions show and its artwork jumps the queue.</summary>
     private void OnRowContainerGotFocus(object sender, RoutedEventArgs e)
     {
+        if (_closing)
+        {
+            return;
+        }
+
         if (sender is SelectorItem { ContentTemplateRoot: FrameworkElement root } container)
         {
             SetCardPlay(root, 1);
@@ -39,6 +56,11 @@ public sealed partial class MainWindow
 
     private void OnRowContainerLostFocus(object sender, RoutedEventArgs e)
     {
+        if (_closing)
+        {
+            return;
+        }
+
         if (sender is SelectorItem { ContentTemplateRoot: FrameworkElement root })
         {
             SetCardPlay(root, 0);
