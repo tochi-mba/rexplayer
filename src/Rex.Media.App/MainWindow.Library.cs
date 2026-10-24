@@ -676,7 +676,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (TryAddAuthorNavigationMenu(menu, chosen))
+        if (TryAddScopedAudiobookMenu(menu, chosen))
         {
             return;
         }
