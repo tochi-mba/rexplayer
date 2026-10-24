@@ -87,7 +87,12 @@ class PageParser(HTMLParser):
         # and its spoken description must also be checked before Pages publication.
         if "data-tour-src" in values:
             source = values["data-tour-src"]
-            if not source.strip() or source.startswith(REMOTE):
+            # Walkthrough sources are plain relative asset paths, not external URLs,
+            # absolute site paths or paths escaping the published site directory.
+            segments = source.split("/")
+            if (not source.strip() or source.startswith(REMOTE) or source.startswith("/")
+                    or any(segment in ("", ".", "..") for segment in segments)
+                    or "?" in source or "#" in source or "\\" in source):
                 self.invalid_tour_sources.append(source)
             else:
                 self.assets.append(source)
