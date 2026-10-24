@@ -434,6 +434,44 @@ public sealed class LibraryListeningTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void OpeningABookAfterShuffledMusicRestoresChapterOrder()
+    {
+        _scene.WithAsake();
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Ordered Book", "Part 1.wav"),
+            TimeSpan.FromMinutes(50), author: "Ann Writer", album: "Ordered Book");
+        _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Ordered Book", "Part 2.wav"),
+            TimeSpan.FromMinutes(50), author: "Ann Writer", album: "Ordered Book");
+
+        using var app = _scene.Ready(settings => settings with
+        {
+            ShowPlayerWhenLibraryMediaStarts = false,
+        }).Start();
+        app.Visit("Songs");
+        app.Open("Sungba");
+        Wait.For(() => app.Text("NowPlaying") == "Sungba", "music to begin playing");
+        app.Press("ShuffleButton");
+        Wait.For(() => ((System.Windows.Automation.TogglePattern)app.Find("ShuffleButton")
+                .GetCurrentPattern(System.Windows.Automation.TogglePattern.Pattern)).Current.ToggleState
+                == System.Windows.Automation.ToggleState.On, "music queue shuffle to be on");
+
+        app.Visit("Audiobooks");
+        app.Open("Ordered Book");
+        app.Press("LibraryPlay");
+        Wait.For(() => app.Text("NowPlaying") == "Part 1",
+            "book playback to start from its first physical part");
+        Wait.For(() => ((System.Windows.Automation.TogglePattern)app.Find("ShuffleButton")
+                .GetCurrentPattern(System.Windows.Automation.TogglePattern.Pattern)).Current.ToggleState
+                == System.Windows.Automation.ToggleState.Off,
+            "book playback to disable the inherited music shuffle");
+        var queue = app.Queue();
+        Assert.Equal(2, queue.Length);
+        Assert.Contains("Part 1", queue[0], StringComparison.Ordinal);
+        Assert.Contains("Part 2", queue[1], StringComparison.Ordinal);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void AuthorCardsCannotFinishAWholeCatalogueAndBookCardPlayIsScoped()
     {
         _scene.Audio(Path.Combine("Audiobooks", "Ann Writer", "Alpha", "Opening Alpha.wav"),
