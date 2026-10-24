@@ -187,10 +187,14 @@ public sealed class LibraryListeningTests : IDisposable
         Pointer.RightClick(app, app.Line("Ep 1"));
         Wait.For(() => app.IsShown("LibraryMenuPodcastNotes"), "local notes menu for a podcast episode");
         app.Press("LibraryMenuPodcastNotes");
-        var notes = (System.Windows.Automation.ValuePattern)app.Find("PodcastNotesText")
-            .GetCurrentPattern(System.Windows.Automation.ValuePattern.Pattern);
-        Assert.Contains("<script>", notes.Current.Value, StringComparison.Ordinal);
-        Assert.Contains("Chapter one", notes.Current.Value, StringComparison.Ordinal);
+        // WinUI's multiline read-only TextBox can expose only the first
+        // paragraph through ValuePattern. TextPattern is the text reader's
+        // full accessible document, including literal unexecuted markup.
+        var notes = (System.Windows.Automation.TextPattern)app.Find("PodcastNotesText")
+            .GetCurrentPattern(System.Windows.Automation.TextPattern.Pattern);
+        var document = notes.DocumentRange.GetText(-1);
+        Assert.Contains("<script>", document, StringComparison.Ordinal);
+        Assert.Contains("Chapter one", document, StringComparison.Ordinal);
         Assert.Equal(0, app.Close());
     }
 
