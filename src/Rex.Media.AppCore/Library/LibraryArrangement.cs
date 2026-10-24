@@ -218,15 +218,10 @@ public static class LibraryArrangement
             return "#";
         }
 
-        foreach (var rune in first.ToString().Normalize(NormalizationForm.FormD).EnumerateRunes())
-        {
-            if (Rune.IsLetter(rune))
-            {
-                return rune.ToString().ToUpper(CultureInfo.CurrentCulture);
-            }
-        }
-
-        return "#";
+        // A letter's canonical decomposition starts with its base letter.
+        // The following combining accents do not affect the grouping key.
+        var baseLetter = Rune.GetRuneAt(first.ToString().Normalize(NormalizationForm.FormD), 0);
+        return baseLetter.ToString().ToUpper(CultureInfo.CurrentCulture);
     }
 
     /// <summary>When it was added, as a person would say it: today, this week, this month, this year, or the year.</summary>

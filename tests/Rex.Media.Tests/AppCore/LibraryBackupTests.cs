@@ -193,6 +193,58 @@ public sealed class LibraryBackupTests
     }
 
     [Fact]
+    [Capability("LIB-10")]
+    public void PublishedManifestRejectsMalformedMissingAndEscapingEntries()
+    {
+        var root = Directory.CreateTempSubdirectory("rexplayer-verify-manifest-").FullName;
+        try
+        {
+            var published = LibraryBackup.PublishSnapshot(root,
+                [(LibraryBackup.FileName, "{}"u8.ToArray())],
+                cancellationToken: TestContext.Current.CancellationToken);
+            var path = Path.Combine(published, LibraryBackup.FileName);
+            var marker = Path.Combine(published, LibraryBackup.CompletionName);
+            var valid = File.ReadAllText(marker);
+            void Reject(string text)
+            {
+                File.WriteAllText(marker, text);
+                Assert.Throws<FormatException>(() => LibraryBackup.ReadFromFile(path));
+            }
+
+            Reject("{ not json");
+            Reject("""{"format":0,"files":[]}""");
+
+            foreach (var missingOrInvalid in new[] { "../outside.json", "missing.txt" })
+            {
+                var completion = System.Text.Json.Nodes.JsonNode.Parse(valid)!.AsObject();
+                var entry = completion["files"]!.AsArray()[0]!.DeepClone().AsObject();
+                entry["path"] = missingOrInvalid;
+                completion["files"]!.AsArray().Add(entry);
+                Reject(completion.ToJsonString());
+            }
+
+            File.WriteAllText(marker, valid);
+            var other = Path.Combine(published, "other.json");
+            File.WriteAllText(other, "{}");
+            Assert.Throws<FormatException>(() => LibraryBackup.ReadFromFile(other));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void PreviewCountsNewNamedPlaylistsBeforeImport()
+    {
+        using var harness = Harness();
+        var backup = new LibraryBackupData(LibraryBackup.CurrentVersion, [], [],
+            [new NamedPlaylist("new-playlist", "My favourites", [])]);
+        Assert.Equal(new BackupSummary(0, 0, 1),
+            LibraryBackup.Preview(backup, new MediaLibrary(RexStore.InMemory()), harness.Controller));
+    }
+
+    [Fact]
     public void WhatIsNoBackupIsRefusedAndNamesAreMadeSafe()
     {
         Assert.Throws<FormatException>(() => LibraryBackup.Read("not json"u8.ToArray()));

@@ -182,6 +182,31 @@ public sealed class DetailOverrideTests
         Assert.Throws<ArgumentNullException>(() => DetailsForm.Provenance([read], null!));
     }
 
+    [Fact]
+    public void ProvenanceRecognizesEveryIndividuallyOverriddenTag()
+    {
+        var entry = Song("song.mp3", "Song") with
+        {
+            Probed = true,
+            Override = new DetailOverride
+            {
+                Title = "Song", Artist = "Asake", Album = "Album", AlbumArtist = "Various",
+                Track = "2", Disc = "1", Year = "2024", Genre = "Afrobeats",
+            },
+        };
+        foreach (var key in new[]
+        {
+            MetadataKeys.Title, MetadataKeys.Artist, MetadataKeys.Album, MetadataKeys.AlbumArtist,
+            MetadataKeys.Track, MetadataKeys.Disc, MetadataKeys.Date, MetadataKeys.Genre,
+        })
+        {
+            Assert.Equal("Locally overridden in rexplayer", DetailsForm.Provenance([entry], key));
+        }
+
+        Assert.Equal("From the local media scan; tags and filename fallback may both contribute",
+            DetailsForm.Provenance([entry], "unrecognized field"));
+    }
+
     [Theory]
     [InlineData("1", "2", "2026")]
     [InlineData("3/12", "1/2", "2024-11")]

@@ -222,6 +222,27 @@ public sealed class PresentationTests
     }
 
     [Fact]
+    [Capability("META-09")]
+    public void UnreadableLocalLyricsAndCoverDoNotAbortAudioPlayback()
+    {
+        using var harness = new ControllerHarness(autoPlay: false,
+            settings: new PlayerSettings { TitleSeconds = 0 },
+            readFile: _ => throw new IOException("An inaccessible media sidecar"));
+        var song = Path.Combine("music", "album", "song.wav");
+        harness.Files[song] = Count(0, 400);
+        // The folder listing finds these files, but reading either one fails.
+        harness.Files[Path.Combine("music", "album", "cover.jpg")] = [1, 2, 3];
+        harness.Files[Path.Combine("music", "album", "song.lrc")] = Encoding.UTF8.GetBytes("[00:01.00]hello");
+
+        harness.Controller.Open([song]);
+        harness.PumpUntil(controller => controller.State == SessionState.Ready);
+
+        Assert.Null(harness.Controller.CoverArt);
+        Assert.Null(harness.Controller.Lyrics);
+        Assert.Equal("The lyrics file could not be read.", harness.Controller.LyricsProblem);
+    }
+
+    [Fact]
     [Capability("AU-19")]
     public void TheControllerFindsThePictureAndTheLyricsOfWhatPlays()
     {

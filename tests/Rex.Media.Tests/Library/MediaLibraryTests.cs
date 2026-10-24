@@ -554,6 +554,34 @@ public sealed class MediaLibraryTests
     }
 
     [Fact]
+    [Capability("PRIV-03")]
+    public void ClearingHistoryOfMissingFilesRetainsExplicitEditsButNoPlayCounts()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var edited = In("edited.mp3");
+        var plain = In("plain.mp3");
+        Assert.True(library.AddFolder(Music));
+        library.Scan(Music, [File(edited), File(plain)], KindOf);
+        library.MarkPlayed([edited, plain]);
+        library.SetOverride([edited], new Rex.Media.Library.DetailOverride { Title = "My title" });
+        library.Scan(Music, [], KindOf);
+        Assert.Equal(2, store.WithPrefix("absent/").Count);
+
+        library.ClearPlays();
+        Assert.Single(store.WithPrefix("absent/"));
+        var reopened = new MediaLibrary(store);
+        reopened.Scan(Music, [File(edited)], KindOf);
+        Assert.Equal(0, reopened.Entry(edited)!.Plays);
+        Assert.Equal("My title", reopened.Entry(edited)!.Title);
+
+        // A removed watched folder also clears remembered missing-file history.
+        reopened.Scan(Music, [], KindOf);
+        Assert.True(reopened.RemoveFolder(Music));
+        Assert.Empty(store.WithPrefix("absent/"));
+    }
+
+    [Fact]
     public void WhatNoLongerReadsIsLeftOutAndArgumentsAreChecked()
     {
         var store = RexStore.InMemory();
