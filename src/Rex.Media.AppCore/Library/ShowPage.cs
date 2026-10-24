@@ -59,7 +59,7 @@ public static partial class ShowPage
                     ? through : first;
                 for (var n = first; n <= last; n++)
                 {
-                    Record($"{ShowNames.Key(episode.Series)}\u001f{episode.Season}\u001f{n}");
+                    Record($"{ShowNames.Key(episode.Series)}\u001f{episode.Season}\u001f{episode.SpecialOf}\u001f{n}");
                 }
             }
             else
