@@ -42,6 +42,7 @@ BitReader.cs
 BitWriter.cs
 BlockPacketizer.cs
 BorrowedPresenter.cs
+BrowseHeroPresentation.cs
 BoundedQueue.cs
 ByteCursor.cs
 CameraSight.cs
@@ -158,6 +159,7 @@ LibraryArrangement.cs
 LibraryBackup.cs
 LibraryEmptyState.cs
 LibraryOpening.cs
+LibraryPageSlice.cs
 LibraryPlaces.cs
 LibraryScanner.cs
 LibrarySearchText.cs
