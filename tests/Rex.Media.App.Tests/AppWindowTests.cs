@@ -857,6 +857,7 @@ public sealed partial class AppWindowTests : IDisposable
     {
         using var app = AppProcess.Start([Song(30)]);
 
+        Screenshots.PinViewport(app, 1000, 700);
         app.Run(CommandCatalog.MinimalInterface);
         Wait.For(() => app.IsShown("SeekBar") && app.IsShown("PlayPauseButton")
             && app.IsShown("Elapsed") && app.IsShown("Remaining")
