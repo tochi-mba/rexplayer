@@ -150,6 +150,21 @@ public sealed class LibraryControllerTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void UndoWithoutAnOpenLibraryIsHarmlessAndStillSignalsTheWindow()
+    {
+        using var harness = new ControllerHarness(autoPlay: false);
+        var controller = harness.Controller;
+        Assert.Null(controller.Library);
+        var notifications = 0;
+        controller.Changed += (_, _) => notifications++;
+
+        Assert.Equal(0, controller.RestoreToLibrary([Entry("Sungba.wav")]));
+        Assert.Equal(1, notifications);
+        Assert.Empty(controller.Playlist.Items);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void WithoutHistoryPlaysAreNotCounted()
     {
         var (harness, library) = Harness(keepHistory: false);
