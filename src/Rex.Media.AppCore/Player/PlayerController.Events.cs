@@ -355,9 +355,11 @@ public sealed partial class PlayerController
                 break;
             case PositionEvent position:
                 // The event pump coalesces position notifications independently
-                // of discrete seek completion. A tick from the old generation
-                // may otherwise replace the target while playback is paused.
-                if (_seekAwaitingCompletion)
+                // of discrete seek completion. A tick from the old generation can
+                // arrive after the seek-completed event and overwrite the paused
+                // target. While paused, only an explicit seek/completion should
+                // move Position; there is no advancing playback clock to follow.
+                if (_seekAwaitingCompletion || State == SessionState.Paused)
                 {
                     break;
                 }
