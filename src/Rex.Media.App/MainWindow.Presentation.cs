@@ -448,6 +448,20 @@ public sealed partial class MainWindow
         RefreshLyricsCompanion();
     }
 
+    /// <summary>Keep the slideshow picker inside narrow windows without shortening its accessible name.</summary>
+    private void ShowPictureIntervalLabel()
+    {
+        var seconds = _settings.PictureSeconds;
+        var label = Root.ActualWidth is > 0 and < 560 ? $"{seconds} s" : $"Slideshow · {seconds} s";
+        if (!Equals(PictureIntervalButton.Content, label))
+        {
+            PictureIntervalButton.Content = label;
+        }
+
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(PictureIntervalButton,
+            $"Slideshow interval, {seconds} seconds per picture");
+    }
+
     /// <summary>
     /// Recompose the existing stage when the window narrows: no second player, no duplicated
     /// controls and no new AutomationIDs. Moving elements keeps keyboard focus and transport state.
