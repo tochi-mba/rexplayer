@@ -25,6 +25,7 @@ public sealed partial class MainWindow
     private IReadOnlyList<SubtitleCue> _shownCues = [];
     private IReadOnlyList<SubtitleCue> _shownSecondary = [];
     private SubtitleLook? _look;
+    private readonly Windows.UI.ViewManagement.AccessibilitySettings _subtitleAccessibility = new();
 
     private void WireSubtitles()
     {
@@ -35,7 +36,26 @@ public sealed partial class MainWindow
         Stage.SizeChanged += (_, _) => LayOutSubtitles();
         Controls.SizeChanged += (_, _) => LayOutSubtitles();
         Controls.RegisterPropertyChangedCallback(UIElement.VisibilityProperty, (_, _) => LayOutSubtitles());
+        _subtitleAccessibility.HighContrastChanged += OnSubtitleContrastChanged;
     }
+
+    private void OnSubtitleContrastChanged(Windows.UI.ViewManagement.AccessibilitySettings sender, object args)
+    {
+        OnWindowThread(() =>
+        {
+            if (_closed || _closing)
+            {
+                return;
+            }
+
+            LayOutSubtitles();
+            ShowSubtitles(redraw: true);
+            UpdateKineticCaptionsForContrast();
+        });
+    }
+
+    private void UnwireSubtitleContrast() =>
+        _subtitleAccessibility.HighContrastChanged -= OnSubtitleContrastChanged;
 
     /// <summary>Shows the cues due now, drawing them again only when they changed.</summary>
     private void ShowSubtitles(bool redraw)
@@ -67,7 +87,8 @@ public sealed partial class MainWindow
         }
 
         var area = SubtitleLook.SubtitleArea(picture, height, _settings.SubtitlesInBars);
-        var look = SubtitleLook.For(_settings, picture.Height);
+        var look = SubtitleLook.For(_settings, picture.Height,
+            _subtitleAccessibility.HighContrast);
         var underControls = IsFullScreen && Controls.Visibility == Visibility.Visible ? Controls.ActualHeight : 0;
         var below = Math.Max(height - area.Y - area.Height + look.Margin, underControls + 8);
         SubtitleLayer.Margin = new Thickness(area.X, area.Y + look.Margin, Math.Max(0, width - area.X - area.Width), Math.Max(0, below));
@@ -78,6 +99,14 @@ public sealed partial class MainWindow
             _look = look;
             DrawSubtitles();
         }
+    }
+
+    // Force the kinetic caption layer to reread its style after an OS
+    // accessibility palette change, even when playback is paused.
+    private void UpdateKineticCaptionsForContrast()
+    {
+        _captionGate.Reset();
+        KeepCaptionsDrawing();
     }
 
     private void DrawSubtitles()

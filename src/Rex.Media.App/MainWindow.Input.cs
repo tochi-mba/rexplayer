@@ -75,6 +75,38 @@ public sealed partial class MainWindow
             return;
         }
 
+        // WinUI already moves gamepad focus between buttons/cards with its
+        // directional keys and invokes the focused control with A. Handle
+        // only B here, consistently with Alt+Left/Escape: return from a
+        // nested library route before leaving the whole browsing surface.
+        if (e.Key == VirtualKey.GamepadB)
+        {
+            if (LibraryOpen)
+            {
+                if (_details.Count > 0 || _libraryParents.Count > 0
+                    || _librarySeason is not null || _libraryGroup is not null)
+                {
+                    OnLibraryBack(sender, e);
+                }
+                else
+                {
+                    Run(CommandCatalog.ToggleLibrary);
+                }
+            }
+            else if (IsFullScreen)
+            {
+                Run(CommandCatalog.LeaveFullScreen);
+            }
+            else
+            {
+                return;
+            }
+
+            e.Handled = true;
+            _shortcutKeys.Add(e.Key);
+            return;
+        }
+
         if (VirtualKeys.Chord((int)e.Key, IsDown(VirtualKey.Control), IsDown(VirtualKey.Menu), IsDown(VirtualKey.Shift)) is not { } chord)
         {
             return;

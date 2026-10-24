@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Rex.Media.AppCore.Library;
 using Rex.Media.Containers.Tags;
 using Rex.Media.Library;
@@ -46,16 +47,43 @@ public sealed partial class MainWindow
                 PlaceholderText = field.Several ? DetailsForm.SeveralValues : "",
             };
             AutomationProperties.SetAutomationId(box, "EditDetails_" + field.Key);
+            AutomationProperties.SetName(box, field.Label);
+            AutomationProperties.SetHelpText(box, "Source: " + DetailsForm.Provenance(songs, field.Key)
+                + ". Unchanged mixed-value fields are preserved. Save keeps a local override and writes supported tags only when Preferences allows it.");
             boxes[field.Key] = box;
             panel.Children.Add(box);
         }
 
+        var validation = new TextBlock { TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed };
+        AutomationProperties.SetAutomationId(validation, "EditDetailsValidation");
+        AutomationProperties.SetName(validation, "Metadata validation");
+        void ValidateFields()
+        {
+            var candidate = DetailsForm.Change(fields,
+                boxes.ToDictionary(pair => pair.Key, pair => pair.Value.Text, StringComparer.Ordinal));
+            var errors = DetailsForm.Problems(candidate);
+            validation.Text = string.Join(" ", errors);
+            validation.Visibility = errors.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        foreach (var box in boxes.Values)
+        {
+            box.TextChanged += (_, _) => ValidateFields();
+        }
+
+        panel.Children.Add(validation);
         PictureBlock? cover = null;
         var removeCover = new CheckBox { Content = "Remove the cover" };
+        AutomationProperties.SetAutomationId(removeCover, "EditDetailsRemoveCover");
+        AutomationProperties.SetHelpText(removeCover, "Explicitly remove the embedded cover when writing supported files. It does not remove the original unless you save.");
         if (writable.Count > 0)
         {
             var coverLine = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-            var chosen = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7 };
+            var chosen = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7, TextWrapping = TextWrapping.Wrap };
+            AutomationProperties.SetAutomationId(chosen, "EditDetailsCoverStatus");
+            var preview = new Image { Width = 112, Height = 112, Stretch = Stretch.UniformToFill, Visibility = Visibility.Collapsed };
+            AutomationProperties.SetAutomationId(preview, "EditDetailsCoverPreview");
+            AutomationProperties.SetName(preview, "New album cover preview");
             var choose = new Button { Content = "Change cover..." };
             AutomationProperties.SetAutomationId(choose, "EditDetailsCover");
             choose.Click += async (_, _) =>
@@ -66,17 +94,61 @@ public sealed partial class MainWindow
                     picker.FileTypeFilter.Add(type);
                 }
 
-                if (await picker.PickSingleFileAsync() is { } file
-                    && DetailWrite.CoverFrom(file.Path, await File.ReadAllBytesAsync(file.Path)) is { } picked)
+                if (await picker.PickSingleFileAsync() is not { } file)
                 {
+                    return;
+                }
+
+                try
+                {
+                    if (new FileInfo(file.Path).Length > DetailWrite.MaxCoverBytes)
+                    {
+                        chosen.Text = "The chosen cover is too large (maximum 10 MB).";
+                        return;
+                    }
+
+                    var bytes = await File.ReadAllBytesAsync(file.Path);
+                    if (DetailWrite.CoverFrom(file.Path, bytes) is not { } picked)
+                    {
+                        chosen.Text = "Choose a valid JPEG or PNG cover.";
+                        return;
+                    }
+
+                    // A tag is changed only after the native decoder verifies
+                    // and previews the exact bytes that would be embedded.
+                    var decoded = await DecodePictureAsync(bytes, 112, CancellationToken.None);
+                    if (decoded is null)
+                    {
+                        chosen.Text = "The cover image could not be decoded.";
+                        return;
+                    }
+
+                    using var imageStream = await file.OpenReadAsync();
+                    var picture = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(imageStream);
+                    if (picture.PixelWidth == 0 || picture.PixelHeight == 0)
+                    {
+                        chosen.Text = "That cover has invalid dimensions.";
+                        return;
+                    }
+
+                    var ratio = picture.PixelWidth / (double)picture.PixelHeight;
+                    var shape = ratio > 1.1 ? "landscape" : ratio < 0.9 ? "portrait" : "square";
                     cover = picked;
-                    chosen.Text = file.Name;
+                    preview.Source = decoded;
+                    preview.Visibility = Visibility.Visible;
+                    chosen.Text = $"{file.Name} ({picture.PixelWidth} x {picture.PixelHeight}, {shape}); save to write";
                     removeCover.IsChecked = false;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException
+                    or System.Runtime.InteropServices.COMException or InvalidOperationException or NotSupportedException)
+                {
+                    chosen.Text = "That cover could not be opened: " + ex.Message;
                 }
             };
             coverLine.Children.Add(choose);
             coverLine.Children.Add(chosen);
             panel.Children.Add(coverLine);
+            panel.Children.Add(preview);
             panel.Children.Add(removeCover);
         }
 
@@ -93,6 +165,12 @@ public sealed partial class MainWindow
         }
 
         var change = DetailsForm.Change(fields, boxes.ToDictionary(pair => pair.Key, pair => pair.Value.Text, StringComparer.Ordinal));
+        if (DetailsForm.Problems(change) is { Count: > 0 } problems)
+        {
+            Say("The details were not saved: " + string.Join(" ", problems));
+            return;
+        }
+
         var changesCover = cover is not null || removeCover.IsChecked == true;
         if (change.IsEmpty && !changesCover)
         {
@@ -144,7 +222,15 @@ public sealed partial class MainWindow
 
         if (results.FirstOrDefault(item => item.Result.Status == TagWriteStatus.Refused) is { Write: { } refused, Result: { } why })
         {
-            Say($"Kept the details of {Path.GetFileName(refused.Path)} in rexplayer: {why.Message}");
+            Say($"Saved {written.Count} file edits; kept the details of {Path.GetFileName(refused.Path)} in rexplayer: {why.Message}");
+        }
+        else if (_detailWrites.Count > 0)
+        {
+            Say($"Updated {written.Count} files. {_detailWrites.Count} still waiting for a file to be free.");
+        }
+        else if (written.Count > 0)
+        {
+            Say($"Updated the embedded details of {written.Count} {(written.Count == 1 ? "file" : "files")}.");
         }
     }
 

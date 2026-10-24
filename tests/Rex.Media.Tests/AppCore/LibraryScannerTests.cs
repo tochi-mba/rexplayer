@@ -71,6 +71,38 @@ public sealed class LibraryScannerTests
 
         Assert.Equal(2, library.Entries.Count);
         Assert.Contains(log.Tail(100), entry => entry.Message.Contains("could not be looked in", StringComparison.Ordinal));
+        Assert.Contains("Reconnect its drive", scanner.Problem, StringComparison.Ordinal);
+        scanner.Request(Music);
+        Assert.Null(scanner.Problem);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void ASubfolderAccessFailureMidEnumerationNeverDeletesKnownMediaOrHistory()
+    {
+        var library = new MediaLibrary(RexStore.InMemory());
+        library.AddFolder(Music);
+        library.Scan(Music, Files(3), _ => LibraryKind.Music);
+        library.Played(Files(3)[1].Path);
+        var log = RexLog.InMemory();
+
+        IEnumerable<LibraryFile> IncompleteListing(string _)
+        {
+            yield return Files(3)[0];
+            // A nested unreadable folder must abort the scan rather than make
+            // every media item under it appear to have vanished.
+            throw new UnauthorizedAccessException("subfolder not accessible");
+        }
+
+        using var scanner = new LibraryScanner(library, IncompleteListing,
+            (_, _) => null, log, background: false);
+        scanner.Request(Music);
+        scanner.RunPending(TestContext.Current.CancellationToken);
+
+        Assert.Equal(3, library.Entries.Count);
+        Assert.Equal(1, library.Entry(Files(3)[1].Path)!.Plays);
+        Assert.Contains(log.Tail(100), entry => entry.Message.Contains("could not be looked in", StringComparison.Ordinal));
+        Assert.NotNull(scanner.Problem);
     }
 
     [Fact]

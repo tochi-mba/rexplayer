@@ -794,7 +794,8 @@ public sealed partial class MainWindow
     {
         if (!_settings.FirstRunDone)
         {
-            var updates = Check("Look for new versions every day and download them in the background", true);
+            // Network access is an explicit choice; merely completing the welcome does not opt in.
+            var updates = Check("Look for new versions every day and download them in the background", false);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(updates, "WelcomeUpdates");
             var welcome = new StackPanel { Spacing = 12, MaxWidth = 480 };
             welcome.Children.Add(new TextBlock
@@ -802,11 +803,13 @@ public sealed partial class MainWindow
                 TextWrapping = TextWrapping.Wrap,
                 Text = "Drop media on the window, or press Ctrl+O to open a file. Every command and its shortcut is in the menus, and F1 opens the help.",
             });
-            welcome.Children.Add(new TextBlock
+            var privacy = new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Text = "rexplayer has no account and sends nothing about you. The only time it goes online by itself is to look for a new version, and only if you allow it.",
-            });
+                Text = "rexplayer needs no account and plays local files offline. Optional metadata lookups and update checks contact online services only when enabled. This update choice starts turned off.",
+            };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(privacy, "WelcomePrivacy");
+            welcome.Children.Add(privacy);
             welcome.Children.Add(updates);
             await Ask("Welcome to rexplayer", welcome, null, "Start");
             _settings = _settings with { FirstRunDone = true, UpdateChecks = updates.IsChecked == true ? UpdateCadence.Daily : UpdateCadence.Off, LastSeenVersion = Version };

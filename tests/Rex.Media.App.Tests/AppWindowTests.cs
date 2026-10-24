@@ -441,6 +441,32 @@ public sealed partial class AppWindowTests : IDisposable
         Assert.Equal(0, app.Close());
     }
 
+    [Theory]
+    [Capability("META-09")]
+    [InlineData(null, "No lyrics found in this song or beside it.")]
+    [InlineData("A line without source timings", "Untimed lyrics; no line or word times were supplied.")]
+    [InlineData("[00:01.00]Line one\n[00:02.00]Line two", "Timed lyrics; only line starts were supplied.")]
+    [InlineData("[00:01.00]<00:01.00>First <00:01.40>word\n[00:02.00]Line two", "Partly word-timed lyrics; untimed words are shown without invented timing.")]
+    [InlineData("[00:01.00]<00:01.00>First <00:01.40>word\n[00:02.00]<00:02.00>Last", "Word-timed lyrics; highlights follow exact source timestamps.")]
+    public void PlayerAnnouncesTheActualLyricsMode(string? lrc, string expected)
+    {
+        var song = Song(30);
+        var sidecar = Path.ChangeExtension(song, ".lrc");
+        if (lrc is null)
+        {
+            File.Delete(sidecar);
+        }
+        else
+        {
+            File.WriteAllText(sidecar, lrc);
+        }
+
+        using var app = AppProcess.Start([song]);
+        Wait.For(() => app.Text("LyricsStatus") == expected, "the factual lyrics mode to be announced");
+        Assert.Equal(expected, app.Text("LyricsStatus"));
+        Assert.Equal(0, app.Close());
+    }
+
     [Fact]
     [Capability("META-09")]
     public void AClickOnATimedLyricGoesToThatPartOfTheSong()
@@ -455,6 +481,58 @@ public sealed partial class AppWindowTests : IDisposable
         ((InvokePattern)lyric.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
         var position = (RangeValuePattern)app.Find("SeekBar").GetCurrentPattern(RangeValuePattern.Pattern);
         Wait.For(() => position.Current.Value >= 19.5, "the song to seek to the lyric");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("META-09")]
+    public void KeyboardScrollingTimedLyricsPausesFollowingUntilExplicitlyResumed()
+    {
+        var song = Song(40);
+        File.WriteAllText(Path.ChangeExtension(song, ".lrc"),
+            "[00:00.00]First line\n[00:10.00]Second line\n[00:20.00]Third line\n[00:30.00]Fourth line\n");
+        using var app = AppProcess.Start([song]);
+        Wait.For(() => app.IsShown("LyricLine-1"), "the timed lyrics to be available");
+        Input.Focus(app);
+        app.Find("LyricLine-1").SetFocus();
+        Input.Press("PageDown");
+        Wait.For(() => app.IsShown("LyricsFollow"), "manual scroll to reveal Return to current lyric line");
+
+        var resume = app.Find("LyricsFollow");
+        Assert.Contains("Return to current lyric line", resume.Current.Name, StringComparison.Ordinal);
+        app.Press("LyricsFollow");
+        Wait.For(() => !app.IsShown("LyricsFollow"), "resuming line following to hide the button");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("META-09")]
+    public void MovingToAnotherTimedSongPreservesFocusedLyricNavigation()
+    {
+        var first = Song(30);
+        var next = Path.Combine(_media, "Next.wav");
+        File.WriteAllBytes(next, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * 30])).Build());
+        File.WriteAllText(Path.ChangeExtension(first, ".lrc"), "[00:00.00]First song\n[00:20.00]Later line");
+        File.WriteAllText(Path.ChangeExtension(next, ".lrc"), "[00:00.00]Next song\n[00:20.00]Last line");
+        var playlist = Path.Combine(_media, "Focus.m3u8");
+        File.WriteAllText(playlist, "Sungba.wav\nNext.wav\n");
+        using var app = AppProcess.Start([playlist]);
+
+        Wait.For(() => app.IsShown("LyricLine-0"), "the first track's timed lyrics");
+        Input.Focus(app);
+        app.Find("LyricLine-0").SetFocus();
+        Wait.For(() => app.Find("LyricLine-0").Current.HasKeyboardFocus, "focused initial lyrics");
+        app.Run(CommandCatalog.Faster);
+        app.Run(CommandCatalog.PlayPause);
+        Assert.True(app.Find("LyricLine-0").Current.HasKeyboardFocus);
+        Assert.Equal("Timed lyrics; only line starts were supplied.", app.Text("LyricsStatus"));
+        app.Run(CommandCatalog.PlayPause);
+        app.Run(CommandCatalog.Next);
+        Wait.For(() => app.Text("NowPlaying") == "Next", "the next song to load");
+        Wait.For(() => app.Text("LyricLine-0") == "Go to 0:00: Next song",
+            "the second track's lyric control to replace the first");
+        Wait.For(() => app.Find("LyricLine-0").Current.HasKeyboardFocus,
+            "the focus to return inside lyric navigation after a track change");
         Assert.Equal(0, app.Close());
     }
 
@@ -817,10 +895,19 @@ public sealed partial class AppWindowTests : IDisposable
             && !app.IsShown("StopButton") && !app.IsShown("ShuffleButton"),
             "the timeline and essential controls to remain in compact mode");
         Assert.True(app.Find("SeekBar").Current.IsEnabled);
+        Screenshots.Match(app, "native-minimal-interface-playing");
+        var nativeSize = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
+        nativeSize.Resize(720, 640);
+        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 720) < 2 &&
+            Math.Abs(app.Window.Current.BoundingRectangle.Height - 640) < 2,
+            "the minimal player to honor native compact resizing");
+        Assert.True(app.Find("SeekBar").Current.IsEnabled);
+        Screenshots.Match(app, "native-minimal-interface-compact");
         app.Press("MinimalInterfaceButton");
         Wait.For(() => app.IsShown("SeekBar") && app.IsShown("PlayPauseButton")
             && app.IsShown("StopButton") && app.IsShown("ShuffleButton")
             && app.IsShown("Menu") && !app.IsShown("MinimalInterfaceButton"), "the complete controls to come back");
+        Screenshots.Match(app, "native-minimal-interface-restored");
         Assert.Equal(0, app.Close());
     }
 

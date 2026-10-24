@@ -19,6 +19,9 @@ public sealed partial class MainWindow
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _browseHeroTimer;
     private int _browseHeroIndex;
     private string _browseHeroSet = "";
+    // Visual regression tests capture the actual native UI; they only freeze the
+    // rotating hero and fade animation so a slow runner cannot change the frame.
+    private static bool FixedBrowseFixture => Environment.GetEnvironmentVariable("REXPLAYER_UI_CAPTURE") == "1";
     private bool _browseHeroHeld;
     private bool _browseHeroPointerHeld;
     private bool _browseHeroFocusHeld;
@@ -72,8 +75,14 @@ public sealed partial class MainWindow
             foreach (var shelf in browse.Shelves)
             {
                 var continues = shelf.Title == "Continue watching";
+                // Featured and topical shelves have their own meaningful order. "All movies"
+                // is the ordinary browsable collection: honor its saved sort and Reverse here,
+                // just as List, Cards and Wall do.
+                var ordered = shelf.Title == "All movies"
+                    ? LibraryArrangement.Sort(shelf.Entries, choice.Sort, choice.Descending)
+                    : shelf.Entries;
                 shelves.Add((shelf.Title, continues ? LibrarySource.ContinueWatching : LibrarySource.Movies,
-                    [.. shelf.Entries.Select(EntryRow)], continues, "Movies-" + shelf.Title));
+                    [.. ordered.Select(EntryRow)], continues, "Movies-" + shelf.Title));
             }
         }
         else if (shows)
@@ -106,7 +115,10 @@ public sealed partial class MainWindow
 
             foreach (var shelf in browse.Shelves)
             {
-                shelves.Add((shelf.Title, LibrarySource.TvShows, [.. shelf.Groups.Select(GroupRow)], false, "TvShows-" + shelf.Title));
+                var ordered = shelf.Title == "All shows"
+                    ? LibraryArrangement.Sort(shelf.Groups, choice.Sort, choice.Descending)
+                    : shelf.Groups;
+                shelves.Add((shelf.Title, LibrarySource.TvShows, [.. ordered.Select(GroupRow)], false, "TvShows-" + shelf.Title));
             }
         }
         else
@@ -122,7 +134,9 @@ public sealed partial class MainWindow
             }
         }
 
-        ShowLibraryEmpty(shelves.Count == 0, false, _librarySource);
+        // A filtered Browse page needs the same clear-filter escape hatch as a List,
+        // Cards, Wall or Collage page, including when every shelf disappears.
+        ShowLibraryEmpty(shelves.Count == 0, false, _librarySource, choice);
         var shown = "Browse\n" + billboardArt?.Path + "\n" + billboardTitle + "\n" + billboardLine + "\n" + synopsis + "\n" + backdrop + "\n"
             + string.Join("\n", shelves.Select(shelf => shelf.Title + ":" + string.Join(",", shelf.Rows.Select(RowIdentity))));
         if (shown == _shownLibrary)
@@ -259,12 +273,12 @@ public sealed partial class MainWindow
 
         _browseHeroTimer ??= Timer(TimeSpan.FromSeconds(12), AdvanceBrowseHero);
         _browseHeroTimer.IsRepeating = true;
-        Run(_browseHeroTimer, count > 1 && !_browseHeroHeld && AppWindow.IsVisible);
+        Run(_browseHeroTimer, count > 1 && !_browseHeroHeld && AppWindow.IsVisible && !FixedBrowseFixture);
     }
 
     private void AdvanceBrowseHero()
     {
-        if (_browseHeroHeld || !AppWindow.IsVisible || !BrowseOffered)
+        if (FixedBrowseFixture || _browseHeroHeld || !AppWindow.IsVisible || !BrowseOffered)
         {
             return;
         }
@@ -297,7 +311,7 @@ public sealed partial class MainWindow
         {
             StopBrowseHeroRotation();
         }
-        else if (_browseHeroTimer is not null && AppWindow.IsVisible && BrowseOffered)
+        else if (!FixedBrowseFixture && _browseHeroTimer is not null && AppWindow.IsVisible && BrowseOffered)
         {
             _browseHeroTimer.Start();
         }
@@ -310,10 +324,37 @@ public sealed partial class MainWindow
     /// </summary>
     private Grid Billboard(string kicker, string title, string line, Description? synopsis, LibraryEntry art, Uri? wide, string playLabel, Action play, Action more)
     {
-        var frame = new Grid { Height = 320, CornerRadius = new CornerRadius(12), Background = (Brush)Application.Current.Resources["LayerFillColorDefaultBrush"] };
+        // Respect the user's system text colors instead of drawing white text
+        // over a dark photograph while high contrast is on.
+        var highContrast = _libraryContrastSettings.HighContrast;
+        var policy = BrowseHeroPresentation.For(highContrast, _budget.Animations);
+        var colors = policy.UsesSystemColors ? new Windows.UI.ViewManagement.UISettings() : null;
+        var systemText = colors is null ? null : new SolidColorBrush(colors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Foreground));
+        var standardLabel = systemText ?? new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xDC, 0xE3, 0xED));
+        var standardTitle = systemText ?? new SolidColorBrush(Microsoft.UI.Colors.White);
+        var background = colors is null
+            ? (Brush)Application.Current.Resources["LayerFillColorDefaultBrush"]
+            : new SolidColorBrush(colors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Background));
+        var frame = new Grid { Height = 320, CornerRadius = new CornerRadius(12), Background = background };
         AutomationProperties.SetAutomationId(frame, "LibraryBillboard");
         AutomationProperties.SetName(frame, title);
-        frame.Tapped += (_, _) => more();
+        frame.Tapped += (_, args) =>
+        {
+            // Routed Tapped also bubbles out of the hero's Play, More info and
+            // Wikipedia actions. These buttons own their action: a Play tap
+            // must not also navigate to the movie/show information screen.
+            for (var target = args.OriginalSource as DependencyObject;
+                target is not null && !ReferenceEquals(target, frame);
+                target = VisualTreeHelper.GetParent(target))
+            {
+                if (target is Microsoft.UI.Xaml.Controls.Primitives.ButtonBase)
+                {
+                    return;
+                }
+            }
+
+            more();
+        };
         frame.PointerEntered += (_, _) =>
         {
             _browseHeroPointerHeld = true;
@@ -339,7 +380,7 @@ public sealed partial class MainWindow
                 UpdateBrowseHeroHold();
             });
         };
-        if (_budget.Animations)
+        if (policy.FadesIn && !FixedBrowseFixture)
         {
             frame.Opacity = 0;
             var fade = new DoubleAnimation { To = 1, Duration = TimeSpan.FromMilliseconds(240), EasingFunction = new QuadraticEase() };
@@ -349,20 +390,24 @@ public sealed partial class MainWindow
             transition.Children.Add(fade);
             frame.Loaded += (_, _) => transition.Begin();
         }
-        var backdrop = new Image { Stretch = Stretch.UniformToFill };
-        frame.Children.Add(backdrop);
-        var token = _libraryPictures.Token;
-        Forget(ShowPictureAsync(art.Path, art.Kind, art.Duration, picture => backdrop.Source ??= picture, token));
-        if (wide is not null)
+        if (policy.DrawsBackdrop)
         {
-            // The backdrop, once it comes, takes the place of the artwork shown meanwhile.
-            ShowRemotePicture(wide, ShownWidth(LibraryShelves), picture => backdrop.Source = picture, token);
-        }
+            // A system-colored solid frame is the correct fallback under high contrast.
+            var backdrop = new Image { Stretch = Stretch.UniformToFill };
+            frame.Children.Add(backdrop);
+            var token = _libraryPictures.Token;
+            Forget(ShowPictureAsync(art.Path, art.Kind, art.Duration, picture => backdrop.Source ??= picture, token));
+            if (wide is not null)
+            {
+                // The backdrop, once it comes, takes the place of the artwork shown meanwhile.
+                ShowRemotePicture(wide, ShownWidth(LibraryShelves), picture => backdrop.Source = picture, token);
+            }
 
-        var shade = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 1), EndPoint = new Windows.Foundation.Point(0.9, 0) };
-        shade.GradientStops.Add(new GradientStop { Color = Windows.UI.Color.FromArgb(0xD8, 0x10, 0x14, 0x1B), Offset = 0 });
-        shade.GradientStops.Add(new GradientStop { Color = Windows.UI.Color.FromArgb(0x00, 0x10, 0x14, 0x1B), Offset = 1 });
-        frame.Children.Add(new Microsoft.UI.Xaml.Shapes.Rectangle { Fill = shade });
+            var shade = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 1), EndPoint = new Windows.Foundation.Point(0.9, 0) };
+            shade.GradientStops.Add(new GradientStop { Color = Windows.UI.Color.FromArgb(0xD8, 0x10, 0x14, 0x1B), Offset = 0 });
+            shade.GradientStops.Add(new GradientStop { Color = Windows.UI.Color.FromArgb(0x00, 0x10, 0x14, 0x1B), Offset = 1 });
+            frame.Children.Add(new Microsoft.UI.Xaml.Shapes.Rectangle { Fill = shade });
+        }
 
         var words = new StackPanel { Spacing = 6, VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(28, 0, 28, 24), MaxWidth = 720 };
         words.Children.Add(new TextBlock
@@ -371,14 +416,14 @@ public sealed partial class MainWindow
             FontSize = 12,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             CharacterSpacing = 80,
-            Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xDC, 0xE3, 0xED)),
+            Foreground = standardLabel,
         });
-        var name = new TextBlock { Text = title, Style = (Style)Application.Current.Resources["TitleLargeTextBlockStyle"], TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 2, Foreground = new SolidColorBrush(Microsoft.UI.Colors.White) };
+        var name = new TextBlock { Text = title, Style = (Style)Application.Current.Resources["TitleLargeTextBlockStyle"], TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 2, Foreground = standardTitle };
         AutomationProperties.SetAutomationId(name, "LibraryBillboardTitle");
         words.Children.Add(name);
         if (line.Length > 0)
         {
-            var facts = new TextBlock { Text = line, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xDC, 0xE3, 0xED)) };
+            var facts = new TextBlock { Text = line, Foreground = standardLabel };
             AutomationProperties.SetAutomationId(facts, "LibraryBillboardLine");
             words.Children.Add(facts);
         }
@@ -392,7 +437,7 @@ public sealed partial class MainWindow
                 MaxLines = 3,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 Margin = new Thickness(0, 2, 0, 0),
-                Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
+                Foreground = standardTitle,
             };
             AutomationProperties.SetAutomationId(about, "LibraryBillboardSynopsis");
             words.Children.Add(about);
@@ -404,7 +449,7 @@ public sealed partial class MainWindow
                     NavigateUri = synopsis.Link,
                     Padding = new Thickness(0),
                     FontSize = 11,
-                    Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xDC, 0xE3, 0xED)),
+                    Foreground = standardLabel,
                 };
                 AutomationProperties.SetAutomationId(credit, "LibraryBillboardCredit");
                 AutomationProperties.SetName(credit, Rex.Media.AppCore.Metadata.Wikipedia.DescriptionCredit);
@@ -421,6 +466,7 @@ public sealed partial class MainWindow
             Children = { new FontIcon { Glyph = "", FontSize = 14 }, new TextBlock { Text = playLabel } },
         };
         AutomationProperties.SetAutomationId(playButton, "LibraryBillboardPlay");
+        AutomationProperties.SetName(playButton, playLabel + " " + title);
         playButton.Click += (_, _) => play();
         actions.Children.Add(playButton);
         var moreButton = new Button
@@ -433,6 +479,7 @@ public sealed partial class MainWindow
             },
         };
         AutomationProperties.SetAutomationId(moreButton, "LibraryBillboardMore");
+        AutomationProperties.SetName(moreButton, "More info about " + title);
         moreButton.Click += (_, _) => more();
         actions.Children.Add(moreButton);
         words.Children.Add(actions);

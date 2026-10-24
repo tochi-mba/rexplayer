@@ -22,17 +22,31 @@ public sealed record DetailWrite(string Path, DetailOverride Change, PictureBloc
     };
 
     /// <summary>A front cover from an image file's bytes, or null when the file is not a JPEG or PNG image.</summary>
+    public const int MaxCoverBytes = 10 * 1024 * 1024;
+
     public static PictureBlock? CoverFrom(string path, byte[] data)
     {
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(data);
-        var mime = System.IO.Path.GetExtension(path).ToUpperInvariant() switch
+        if (data.Length is 0 or > MaxCoverBytes)
         {
-            ".PNG" => "image/png",
-            ".JPG" or ".JPEG" => "image/jpeg",
-            _ => null,
-        };
-        return mime is null || data.Length == 0 ? null : new PictureBlock(PictureBlock.FrontCover, mime, data);
+            return null;
+        }
+
+        // A misleading extension cannot make arbitrary bytes safe to embed in
+        // the user's music file. The native image decoder performs full validation
+        // before showing the preview; these headers reject obviously wrong files.
+        var extension = System.IO.Path.GetExtension(path);
+        ReadOnlySpan<byte> pngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
+        ReadOnlySpan<byte> jpegSignature = [0xFF, 0xD8, 0xFF];
+        var png = extension.Equals(".png", StringComparison.OrdinalIgnoreCase)
+            && data.AsSpan().StartsWith(pngSignature);
+        var jpeg = (extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase)
+                || extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase))
+            && data.AsSpan().StartsWith(jpegSignature);
+        return png ? new PictureBlock(PictureBlock.FrontCover, "image/png", data)
+            : jpeg ? new PictureBlock(PictureBlock.FrontCover, "image/jpeg", data)
+            : null;
     }
 
     /// <summary>This write followed by <paramref name="later"/> for the same file, as one write.</summary>

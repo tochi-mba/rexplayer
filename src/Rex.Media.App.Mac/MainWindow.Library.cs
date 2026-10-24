@@ -12,6 +12,7 @@ public sealed partial class MainWindow
 {
     private Rex.Media.Library.MediaLibrary? _mediaLibrary;
     private LibraryScanner? _libraryScanner;
+    private NSTimer? _libraryPeriodicScan;
     private NSWindow? _libraryWindow;
     private NSSearchField? _librarySearch;
     private NSPopUpButton? _libraryCategory;
@@ -62,6 +63,8 @@ public sealed partial class MainWindow
         // Status-only changes do not require sorting the entire catalogue on the UI thread.
         _libraryScanner.StatusChanged += (_, _) => OnWindowThread(UpdateLibraryStatus);
         _libraryScanner.Request();
+        _libraryPeriodicScan = NSTimer.CreateRepeatingScheduledTimer(TimeSpan.FromMinutes(5),
+            _ => _libraryScanner?.Request());
     }
 
     private void ShowLibrary()
@@ -107,7 +110,7 @@ public sealed partial class MainWindow
             _librarySearch.AccessibilityLabel = "Search library";
 
             _libraryCategory = new NSPopUpButton(new CGRect(0, 0, 220, 30), false);
-            foreach (var name in new[] { "All media", "Music", "Videos", "Pictures", "Recently added", "Recently played" })
+            foreach (var name in new[] { "All media", "Music", "Videos", "Pictures", "Recently added", "Recently played", "Folders" })
             {
                 _libraryCategory.AddItem(name);
             }
@@ -297,13 +300,18 @@ public sealed partial class MainWindow
         IReadOnlyList<LibraryEntry> candidates = string.IsNullOrEmpty(query)
             ? all
             : LibraryViews.Search(all, query, entry => [Path.GetFileName(Path.GetDirectoryName(entry.Path))]);
-        var entries = (int)(_libraryCategory?.IndexOfSelectedItem ?? 0) switch
+        var category = (int)(_libraryCategory?.IndexOfSelectedItem ?? 0);
+        var watchedFolders = category == 6
+            ? _mediaLibrary.Folders.OrderBy(folder => folder, StringComparer.CurrentCultureIgnoreCase).ToArray()
+            : Array.Empty<string>();
+        IReadOnlyList<LibraryEntry> entries = category switch
         {
             1 => LibraryViews.Songs(candidates),
             2 => LibraryViews.Videos(candidates),
             3 => LibraryViews.Pictures(candidates),
             4 => LibraryViews.RecentlyAdded(candidates),
             5 => LibraryViews.RecentlyPlayed(candidates),
+            6 => Array.Empty<LibraryEntry>(),
             _ => candidates.OrderBy(entry => entry.Title, StringComparer.CurrentCultureIgnoreCase).ToList(),
         };
 
@@ -318,15 +326,17 @@ public sealed partial class MainWindow
             _libraryPageSummary.AccessibilityLabel = "Library results " + _libraryPageSummary.StringValue;
         }
         _libraryCurrentSelection = entries;
-        var emptyLabel = shown.Count == 0
-            ? all.Count == 0 ? "No media yet. Add a music, video or picture folder to get started."
-                : "Nothing matches this view. Try another category or search."
-            : null;
+        var emptyLabel = category == 6
+            ? watchedFolders.Length == 0 ? "No watched folders. Add a folder to get started." : null
+            : shown.Count == 0
+                ? all.Count == 0 ? "No media yet. Add a music, video or picture folder to get started."
+                    : "Nothing matches this view. Try another category or search."
+                : null;
         // Scanner progress and unrelated catalogue changes should not destroy focused
         // native buttons or reset scrolling when this page still contains the same rows.
         if (_libraryRenderedPage != _libraryPageIndex ||
             _libraryRenderedEmptyLabel != emptyLabel ||
-            !_libraryRenderedEntries.SequenceEqual(shown))
+            !_libraryRenderedEntries.SequenceEqual(shown) || category == 6)
         {
             _libraryRenderedPage = _libraryPageIndex;
             _libraryRenderedEmptyLabel = emptyLabel;
@@ -335,13 +345,36 @@ public sealed partial class MainWindow
             _libraryFirstPlay = null;
             _libraryFirstQueue = null;
             _libraryResultKeyViews.Clear();
-            if (shown.Count == 0)
+            if (shown.Count == 0 && watchedFolders.Length == 0)
             {
                 var hint = NSTextField.CreateLabel(emptyLabel!);
                 hint.TextColor = NSColor.SecondaryLabel;
                 views.Add(hint);
             }
     
+            foreach (var folder in watchedFolders)
+            {
+                var name = NSTextField.CreateLabel(folder);
+                name.LineBreakMode = NSLineBreakMode.TruncatingMiddle;
+                name.ToolTip = folder;
+                name.WidthAnchor.ConstraintLessThanOrEqualTo(370).Active = true;
+                var stop = NSButton.CreateButton("Stop watching: " + Path.GetFileName(folder), () =>
+                {
+                    if (_mediaLibrary.RemoveFolder(folder))
+                    {
+                        _libraryScanner?.Request();
+                        RefreshLibrary(force: true);
+                    }
+                });
+                ((NSView)stop).AccessibilityLabel = "Stop watching folder: " + folder;
+                stop.ToolTip = "Stop watching this folder without deleting its files";
+                _libraryResultKeyViews.Add(stop);
+                var row = NSStackView.FromViews([name, stop]);
+                row.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
+                row.Spacing = 12;
+                views.Add(row);
+            }
+
             foreach (var entry in shown)
             {
                 var title = entry.Title;
@@ -350,7 +383,7 @@ public sealed partial class MainWindow
                 _libraryFirstPlay ??= play;
                 _libraryResultKeyViews.Add(play);
                 play.ToolTip = entry.Path;
-                ((NSView)play).AccessibilityLabel = "Play " + entry.Title;
+                ((NSView)play).AccessibilityLabel = "Play: " + entry.Title;
                 play.Alignment = NSTextAlignment.Left;
                 play.LineBreakMode = NSLineBreakMode.TruncatingTail;
                 play.WidthAnchor.ConstraintGreaterThanOrEqualTo(250).Active = true;
@@ -382,7 +415,7 @@ public sealed partial class MainWindow
                 _libraryFirstQueue ??= queue;
                 _libraryResultKeyViews.Add(queue);
                 queue.ToolTip = "Add to Up Next without replacing what is playing";
-                ((NSView)queue).AccessibilityLabel = "Queue " + entry.Title;
+                ((NSView)queue).AccessibilityLabel = "Add " + entry.Title + " to Up Next";
                 var row = NSStackView.FromViews([words, queue]);
                 row.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
                 row.Spacing = 14;
@@ -394,7 +427,7 @@ public sealed partial class MainWindow
             // top-anchored stack keep the first result and empty state at the top of the list.
             var document = new TopAlignedLibraryDocument
             {
-                Frame = new CGRect(0, 0, Math.Max(510, _libraryScroll.ContentSize.Width), Math.Max(340, shown.Count * 59 + 35)),
+                Frame = new CGRect(0, 0, Math.Max(510, _libraryScroll.ContentSize.Width), Math.Max(340, (shown.Count + watchedFolders.Length) * 59 + 35)),
             };
             var content = NSStackView.FromViews([.. views]);
             content.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
@@ -408,7 +441,7 @@ public sealed partial class MainWindow
             _libraryScroll.DocumentView = document;
             WireLibraryKeyViews();
         }
-        _libraryMatchingCount = entries.Count;
+        _libraryMatchingCount = category == 6 ? watchedFolders.Length : entries.Count;
         _libraryTotalCount = all.Count;
         _libraryFolderCount = _mediaLibrary.Folders.Count;
         _libraryVisibleResultCount = shown.Count;
@@ -704,9 +737,127 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>Compatibility actions for native AppKit fixture tests, never enabled in release sessions.</summary>
+    private bool LibrarySmokeAction(string? action, IReadOnlyList<string> paths)
+    {
+        if (Environment.GetEnvironmentVariable("REXPLAYER_MAC_LIBRARY_TESTS") != "1")
+        {
+            return false;
+        }
+
+        if (action == "show")
+        {
+            ShowLibrary();
+            return true;
+        }
+
+        if (action == "status" && _libraryWindow is not null)
+        {
+            RefreshLibrary(force: true);
+            return true;
+        }
+
+        if (action == "add-folder")
+        {
+            return AddLibraryFolders(paths.ToList()).Ok;
+        }
+
+        if (_libraryWindow?.IsVisible != true || _libraryCategory is null || _librarySearch is null)
+        {
+            return false;
+        }
+
+        if (action is "songs" or "videos" or "folders")
+        {
+            _librarySearch.StringValue = "";
+            _libraryCategory.SelectItem(action switch { "songs" => 1, "videos" => 2, _ => 6 });
+            ChangeLibraryView();
+            return true;
+        }
+
+        if (action is "search-song" or "search-missing")
+        {
+            _librarySearch.StringValue = action == "search-song" ? "Sample Song" : "No fixture with this name";
+            ChangeLibraryView();
+            return true;
+        }
+
+        if (action == "clear-search")
+        {
+            _librarySearch.StringValue = "";
+            ChangeLibraryView();
+            return true;
+        }
+
+        if (action == "verify-accessibility")
+        {
+            return _libraryFirstPlay?.AccessibilityLabel?.StartsWith("Play: ", StringComparison.Ordinal) == true
+                && _libraryFirstQueue?.AccessibilityLabel?.EndsWith(" to Up Next", StringComparison.Ordinal) == true
+                && _librarySearch.AccessibilityLabel == "Search library"
+                && _libraryCategory.AccessibilityLabel == "Media category";
+        }
+
+        if (action == "remove-folder" && _mediaLibrary?.Folders.FirstOrDefault() is { } folder)
+        {
+            if (!_mediaLibrary.RemoveFolder(folder))
+            {
+                return false;
+            }
+
+            _libraryScanner?.Request();
+            RefreshLibrary(force: true);
+            return true;
+        }
+
+        if (action == "play-first" && _libraryFirstPlay?.Enabled == true)
+        {
+            _libraryFirstPlay.PerformClick(_libraryFirstPlay);
+            return true;
+        }
+
+        if (action == "minimum")
+        {
+            return ResizeLibraryWindow(_libraryWindow.MinSize.Width).Ok;
+        }
+
+        if (action is "capture-empty" or "capture-populated" or "capture-videos" or "capture-minimum"
+            or "capture-folders" or "capture-cleared" or "capture-search-empty")
+        {
+            var output = Environment.GetEnvironmentVariable("REXPLAYER_MAC_LIBRARY_SCREENSHOTS");
+            if (string.IsNullOrWhiteSpace(output))
+            {
+                return false;
+            }
+
+            Directory.CreateDirectory(output);
+            File.WriteAllText(Path.Combine(output, "provenance.txt"),
+                "Capture origin: native AppKit content view" + Environment.NewLine
+                + "Platform: native macOS AppKit" + Environment.NewLine
+                + "Application version: " + typeof(MainWindow).Assembly.GetName().Version + Environment.NewLine
+                + "Source: automated smoke test, synthetic local media fixtures" + Environment.NewLine
+                + "Status: not a finalized-release screenshot; do not publish as release media" + Environment.NewLine);
+            CaptureLibraryScreenshot(Path.Combine(output, action["capture-".Length..] + ".png"));
+            return true;
+        }
+
+        return false;
+    }
+
+    private string LibrarySmokeTitle()
+    {
+        var items = _libraryMatchingCount;
+        var folders = _libraryFolderCount;
+        var query = _librarySearch?.StringValue.Trim();
+        return $"{items} {(items == 1 ? "item" : "items")} · {folders} {(folders == 1 ? "folder" : "folders")}"
+            + (string.IsNullOrEmpty(query) ? "" : " · Search: " + query);
+    }
+
     private void CloseLibrary()
     {
         _closingLibrary = true;
+        _libraryPeriodicScan?.Invalidate();
+        _libraryPeriodicScan?.Dispose();
+        _libraryPeriodicScan = null;
         _libraryScanner?.Dispose();
         _libraryScanner = null;
         _libraryWindow?.Close();

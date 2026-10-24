@@ -161,6 +161,28 @@ public sealed class SectionDetectionAlgorithmsTests
     }
 
     [Fact]
+    public void MultiEpisodeFilesDoNotClaimTheSameEpisodeAsSeparateSiblings()
+    {
+        var doubleEpisode = EpisodeGrouping.Identify("Show.S01E01E02.mkv")!;
+        var second = EpisodeGrouping.Identify("Show.S01E02.mkv")!;
+        var third = EpisodeGrouping.Identify("Show.S01E03.mkv")!;
+
+        Assert.False(EpisodeGrouping.AreSiblings(doubleEpisode, second));
+        Assert.False(EpisodeGrouping.AreSiblings(second, doubleEpisode));
+        Assert.True(EpisodeGrouping.AreSiblings(doubleEpisode, third));
+        Assert.Equal(["Show.S01E03.mkv"], EpisodeGrouping.Siblings(
+            "Show.S01E01E02.mkv",
+            ["Show.S01E01.mkv", "Show.S01E02.mkv", "Show.S01E03.mkv", "Show.S00E01.mkv"]));
+
+        // Even if the target does not overlap either file, a combined candidate
+        // and its single-episode duplicate cannot both occupy the sibling list.
+        Assert.Equal(["Show.S01E06.mkv", "Show.S01E04.mkv"], EpisodeGrouping.Siblings(
+            "Show.S01E07.mkv",
+            ["Show.S01E05E06.mkv", "Show.S01E06.mkv", "Show.S01E04.mkv"]));
+        Assert.Empty(EpisodeGrouping.Siblings("Show.S01E07.mkv", ["Show.S01E06.mkv"], limit: 0));
+    }
+
+    [Fact]
     public void TheNextEpisodeFollowsTheLastNumberInTheSameSeason()
     {
         var folder = new[] { "Show.S01E01E02.mkv", "Show.S01E03.mkv", "Show.S01E05.mkv", "Show.S01E04.mkv",

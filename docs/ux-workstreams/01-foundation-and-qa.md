@@ -14,6 +14,10 @@ This is one of **four evenly partitioned draft implementation workstreams**, car
 
 **Out of scope:** unrelated audio/video decoding, analytics/network additions, breaking AutomationIDs or hotkeys, unverifiable macOS parity claims, and sister-PR tasks. Shared source changes must be coordinated before merge.
 
+## Follow-up PR #488: source evidence (not native acceptance)
+
+The [implementation evidence map](implemented-library-shell-evidence.md) lists the specific shipped source behavior and tests for local Music Home pinning, library scanning/missing history recovery, show navigation, and existing Home/shell routes. It explicitly distinguishes source functionality from missing high-DPI, high-contrast, controller, keyboard, and screenshot acceptance. The [69-task recovery ledger](merged-pr-followup-audit.md) keeps those broader gates unchecked until independently verified. No macOS parity claim is added and the generated capability/parity documents are untouched.
+
 ## Implementation progress and evidence (2026-10-23)
 
 - Initial audit recorded in [foundation evidence audit](https://github.com/tochi-mba/rexplayer/blob/ux/windows-foundation-and-ui-qa/docs/ux-workstreams/01-foundation-evidence-audit.md): starting commit, #467 files, CI and reviews, real routes/transients, automation owners, existing capability IDs and unverified states.

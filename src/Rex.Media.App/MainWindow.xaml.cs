@@ -68,6 +68,9 @@ public sealed partial class MainWindow : Window
 
     // While the seek bar is dragged, the thumb follows the pointer, not the playing position.
     private bool _scrubbing;
+    private long _lastScrubSeekAt;
+    private long _accessibleSeekSecond = long.MinValue;
+    private long _accessibleSeekDurationTicks = long.MinValue;
     private readonly System.Collections.ObjectModel.ObservableCollection<PlaylistRow> _playlistRows = [];
     private PlaylistItem? _queueLastFollowed;
     private bool _queuePaneWasVisible;
@@ -99,12 +102,15 @@ public sealed partial class MainWindow : Window
         _player.Changed += (_, _) => ShowState();
         _player.PositionChanged += (_, _) => ShowPosition();
         _player.PositionChanged += (_, _) => ShowLyricLine();
+        _player.PositionChanged += (_, _) => RefreshLyricsCompanion();
+        _player.Changed += (_, _) => RefreshLyricsCompanion();
         _player.Message += (_, text) => Say(text);
         _player.Playlist.Changed += (_, _) => ShowPlaylist();
         WireSubtitles();
         WireKineticCaptions();
         WireTranscription();
         WireVisualizer();
+        WireLyricNavigation();
         WireLibrary();
         ApplyTooltips();
         ApplyGlobalShortcuts();
@@ -596,21 +602,33 @@ public sealed partial class MainWindow : Window
     private void ShowPosition()
     {
         var duration = _player.Duration;
-        Elapsed.Text = TimeText.Format(_player.Position, duration);
-        Remaining.Text = duration <= TimeSpan.Zero ? "--:--"
-            : _showRemaining ? "-" + TimeText.Format(duration - _player.Position, duration)
+        var timeline = TimeText.Timeline(_player.Position, duration);
+        Elapsed.Text = TimeText.Format(timeline.Elapsed, duration);
+        Remaining.Text = timeline.Remaining is not { } left ? "--:--"
+            : _showRemaining ? "-" + TimeText.Format(left, duration)
             : TimeText.Format(duration);
         _updatingControls = true;
-        SeekBar.Maximum = Math.Max(1, duration.TotalSeconds);
+        SeekBar.Maximum = timeline.SliderMaximum;
         if (!_scrubbing)
         {
-            SeekBar.Value = Math.Min(SeekBar.Maximum, _player.Position.TotalSeconds);
+            SeekBar.Value = timeline.SliderValue;
         }
 
         _updatingControls = false;
         if (_player.Playlist.CurrentIndex is >= 0 and var currentIndex && currentIndex < _playlistRows.Count)
         {
             _playlistRows[currentIndex].SetProgress(_player.Position, duration);
+        }
+
+        var wholeSecond = (long)Math.Floor(timeline.Elapsed.TotalSeconds);
+        if (wholeSecond != _accessibleSeekSecond || duration.Ticks != _accessibleSeekDurationTicks)
+        {
+            _accessibleSeekSecond = wholeSecond;
+            _accessibleSeekDurationTicks = duration.Ticks;
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(SeekBar,
+                timeline.Remaining is { } remaining
+                    ? $"Position {TimeText.Format(timeline.Elapsed, duration)} of {TimeText.Format(duration)}; {TimeText.Format(remaining, duration)} remaining. Use arrow keys or drag to seek."
+                    : "The duration is not known; seeking is unavailable.");
         }
 
         ShowEpisodeSkip();
@@ -854,10 +872,12 @@ public sealed partial class MainWindow : Window
         var failures = _teardown.Run(
         [
             ("the clocks", StopClocksAndFrames),
+            ("the subtitle contrast observer", UnwireSubtitleContrast),
             ("the performance watch", UnwirePerformance),
             // The seek area can still see the pointer leave while the window goes, so its work is
             // cancelled, not disposed; and the visualisation stops drawing (and the camera stops) first.
             ("the seek preview", ResetSeekPreview),
+            ("the detached lyrics window", CloseLyricsCompanion),
             ("the subject models", () => _ = CloseSubjectModels()),
             ("the visualisation", StopVisualizing),
             ("the update", InstallAsWeClose),
@@ -917,6 +937,16 @@ public sealed partial class MainWindow : Window
         if (_scrubbing)
         {
             Elapsed.Text = TimeText.Format(TimeSpan.FromSeconds(e.NewValue), _player.Duration);
+            // Update the visible preview immediately, but bound expensive
+            // decoder seeks while the pointer generates many ValueChanged events.
+            // EndScrub always seeks to the exact final destination.
+            var now = Environment.TickCount64;
+            if (now - _lastScrubSeekAt < 80)
+            {
+                return;
+            }
+
+            _lastScrubSeekAt = now;
         }
 
         _player.Seek(TimeSpan.FromSeconds(e.NewValue));
@@ -938,6 +968,7 @@ public sealed partial class MainWindow : Window
         }
 
         _scrubbing = false;
+        _lastScrubSeekAt = 0;
         _player.Seek(TimeSpan.FromSeconds(SeekBar.Value));
         ShowPosition();
     }

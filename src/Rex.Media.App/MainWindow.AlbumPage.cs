@@ -176,6 +176,8 @@ public sealed partial class MainWindow
         }
 
         var menu = new MenuFlyout();
+        menu.Items.Add(MenuItem(AlbumIsPinned(album) ? "Unpin from Music Home" : "Pin to Music Home",
+            "LibraryMorePinAlbum", () => ToggleAlbumPin(album)));
         foreach (var name in artists)
         {
             menu.Items.Add(MenuItem("Go to " + name, "LibraryMoreArtist-" + name, () => OpenArtistNamed(name)));

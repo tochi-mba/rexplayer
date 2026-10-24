@@ -1,6 +1,8 @@
 using System.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
+using Rex.Media.AppCore.Library;
+using Rex.Media.Library;
 
 namespace Rex.Media.App;
 
@@ -37,6 +39,20 @@ public partial class LibraryRow(
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public string Name { get; } = name;
+
+    /// <summary>Allow Arabic and Hebrew user-supplied titles to lay out from the correct edge.</summary>
+    public FlowDirection NameDirection => TextDirection.IsRightToLeft(Name)
+        ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+
+    /// <summary>
+    /// Secondary accessible facts disambiguate two identically titled files
+    /// without speaking an entire private local path. The filename and its
+    /// immediate folder remain available when two songs have identical tags.
+    /// </summary>
+    public string AccessibilityContext => Item is LibraryEntry entry
+        ? string.Join(" · ", new[] { PlainDetail, Path.GetFileName(entry.Path),
+            Path.GetFileName(Path.GetDirectoryName(entry.Path)) }.Where(part => !string.IsNullOrWhiteSpace(part)))
+        : PlainDetail;
 
     /// <summary>What the line says under its name; while its file is still downloading, how far that is.</summary>
     public string Detail => _downloadText ??

@@ -1,3 +1,4 @@
+using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 
 namespace Rex.Media.App.Mac;
@@ -115,16 +116,17 @@ public sealed partial class MainWindow
         }
 
         var queue = _player.Playlist.Items;
-        _queuePage = Math.Clamp(_queuePage, 0, Math.Max(0, (queue.Count - 1) / QueuePageSize));
-        var start = _queuePage * QueuePageSize;
-        var end = Math.Min(queue.Count, start + QueuePageSize);
+        // A removed last-page entry must never leave Up Next on an empty, stale page.
+        var page = LibraryPageSlice.For(queue.Count, _queuePage, QueuePageSize);
+        _queuePage = page.Page;
+        var (start, end) = (page.Start, page.End);
         if (_previousQueuePage is not null)
         {
-            _previousQueuePage.Enabled = _queuePage > 0;
+            _previousQueuePage.Enabled = page.HasPrevious;
         }
         if (_nextQueuePage is not null)
         {
-            _nextQueuePage.Enabled = end < queue.Count;
+            _nextQueuePage.Enabled = page.HasNext;
         }
         if (_queueShuffle is not null)
         {
@@ -297,6 +299,37 @@ public sealed partial class MainWindow
             return true;
         }
 
+        if (action == "remove-last-page")
+        {
+            // Use the same row button as a real user, not Playlist.Clear().
+            // The last page has 16 entries after fill-long; removing them
+            // must return to page one rather than strand an empty scroll view.
+            var pageBefore = _queuePage;
+            if (pageBefore == 0)
+            {
+                return false;
+            }
+
+            for (var attempt = 0; attempt < QueuePageSize; attempt++)
+            {
+                if (_queuePage != pageBefore)
+                {
+                    break;
+                }
+
+                var remove = FindQueueSmokeButton("Remove", last: true);
+                if (remove is not { Enabled: true })
+                {
+                    return false;
+                }
+
+                remove.PerformClick(remove);
+                RefreshQueue();
+            }
+
+            return _queuePage == 0 && !_nextQueuePage!.Enabled;
+        }
+
         if (action == "next-page" || action == "previous-page"
             || action == "shuffle" || action == "last-play-next")
         {
@@ -326,7 +359,8 @@ public sealed partial class MainWindow
         }
 
         if (action is "capture-empty" or "capture-current" or "capture-long"
-            or "capture-page-2" or "capture-shuffled" or "capture-minimum")
+            or "capture-page-2" or "capture-shuffled" or "capture-minimum"
+            or "capture-shrunk")
         {
             var folder = Environment.GetEnvironmentVariable("REXPLAYER_MAC_QUEUE_SCREENSHOTS");
             if (string.IsNullOrWhiteSpace(folder) || _queueWindow.ContentView is not { } view)

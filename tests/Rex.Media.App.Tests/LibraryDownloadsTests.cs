@@ -63,6 +63,7 @@ public sealed class LibraryDownloadsTests : IDisposable
         app.Filter("LibraryFilterDownload", "Downloading");
         Wait.For(() => app.Lines().Length == 1 && Shows(app, "LibraryList", detail), "only the partial video", () => string.Join(", ", app.Lines()));
         Assert.Equal("Filter: Still downloading", app.Text("LibraryFilter"));
+        Screenshots.Match(app, "library-video-partial-downloading", "LibraryPane");
         app.Filter("LibraryFilterDownload", "Complete");
         Wait.For(() => app.Lines().Length == 1 && !HasBadge(app, "LibraryList"), "only the whole video", () => string.Join(", ", app.Lines()));
 
@@ -127,6 +128,7 @@ public sealed class LibraryDownloadsTests : IDisposable
         Assert.True(app.IsShown("LibraryPane"), "the library should stay open rather than show a player that failed");
         Screenshots.Match(app, "library-downloading-unplayable", "LibraryPane");
         Screenshots.Match(app, "library-incomplete-download-notice");
+        Screenshots.Match(app, "library-video-partial-play-notice", "LibraryPane");
         Assert.Equal(0, app.Close());
     }
 }

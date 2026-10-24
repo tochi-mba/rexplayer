@@ -202,6 +202,8 @@ public sealed class LibraryBrowsingTests : IDisposable
         Screenshots.PinViewport(app, 1000, 760);
         Screenshots.Match(app, "library-empty-filters", "LibraryPane");
         app.Press("LibraryEmptyClearFilters");
+        Wait.For(() => app.Find("LibraryFilter").Current.HasKeyboardFocus,
+            "focus to return to the surviving filter control");
         Wait.For(() => app.Lines().Length == 3, "Clear filters to bring the songs back");
         Wait.For(() => app.SavedSettings.LibraryViews.GetValueOrDefault("Songs") is { IsFiltered: false }, "the cleared filters to be kept");
 
@@ -217,6 +219,13 @@ public sealed class LibraryBrowsingTests : IDisposable
         var search = (ValuePattern)app.Find("LibrarySearch").GetCurrentPattern(ValuePattern.Pattern);
         search.SetValue("no such song");
         Wait.For(() => app.IsShown("LibraryEmptyText") && app.Text("LibraryEmptyText") == "Nothing in the library matches that.", "no results");
+        app.Press("LibraryEmptyClearSearch");
+        Wait.For(() => app.Find("LibrarySearch").Current.HasKeyboardFocus
+            && ((ValuePattern)app.Find("LibrarySearch").GetCurrentPattern(ValuePattern.Pattern)).Current.Value.Length == 0,
+            "clear-search focus to return to the still-existing search box");
+        search = (ValuePattern)app.Find("LibrarySearch").GetCurrentPattern(ValuePattern.Pattern);
+        search.SetValue("no such song");
+        Wait.For(() => app.IsShown("LibraryEmptyClearSearch"), "the searchable empty view to return");
         Pointer.Key(app, "LibrarySearch", Pointer.Escape);
         Wait.For(() =>
         {

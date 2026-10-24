@@ -3,6 +3,7 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Rex.Media.AppCore.Library;
@@ -28,10 +29,153 @@ public sealed partial class MainWindow
     private bool _shownLyricsCanSeek;
     private int _shownLine = -1;
     private readonly List<TextBlock> _lyricTexts = [];
+    private bool _followCurrentLyric = true;
+    private readonly Dictionary<int, List<Run>> _lyricWordRuns = [];
+    private int _shownWordLine = -1;
+    private int _shownWordIndex = -2;
+    private readonly Windows.UI.ViewManagement.AccessibilitySettings _lyricAccessibility = new();
+    private readonly Windows.UI.ViewManagement.UISettings _lyricSystemColors = new();
     private PlaylistItem? _shownChapterItem;
     private MediaInfo? _shownChapterInfo;
     private TimeSpan _shownChapterDuration;
     private MediaStageView _stageView;
+
+    // High contrast takes precedence over translucent white lyric text and dark chips.
+    private Brush LyricNeutralBrush() => _lyricAccessibility.HighContrast
+        ? new SolidColorBrush(_lyricSystemColors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Foreground))
+        : new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
+
+    private Brush LyricAccentBrush() => _lyricAccessibility.HighContrast
+        ? LyricNeutralBrush()
+        : (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+
+    private Brush LyricChipBrush() => _lyricAccessibility.HighContrast
+        ? new SolidColorBrush(_lyricSystemColors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Background))
+        : new SolidColorBrush(Windows.UI.Color.FromArgb(0x98, 0x0B, 0x10, 0x19));
+
+    private void RepaintLyricPalette()
+    {
+        if (_closed)
+        {
+            return;
+        }
+
+        LyricsStatus.Foreground = _lyricAccessibility.HighContrast
+            ? LyricNeutralBrush() : new SolidColorBrush(Microsoft.UI.Colors.White);
+        LyricsStatus.Background = _lyricAccessibility.HighContrast ? LyricChipBrush() : null;
+        foreach (var child in LyricsLines.Children)
+        {
+            switch (child)
+            {
+                case Border chip:
+                    chip.Background = LyricChipBrush();
+                    break;
+                case Button button:
+                    button.Background = LyricChipBrush();
+                    break;
+            }
+        }
+
+        foreach (var lyric in _lyricTexts)
+        {
+            lyric.Foreground = LyricNeutralBrush();
+            lyric.FontWeight = FontWeights.Normal;
+        }
+
+        foreach (var run in _lyricWordRuns.Values.SelectMany(words => words))
+        {
+            run.Foreground = LyricNeutralBrush();
+            run.FontWeight = FontWeights.Normal;
+        }
+
+        // Preserve keyboard focus and manually suspended lyric following.
+        _shownLine = -1;
+        _shownWordLine = -1;
+        _shownWordIndex = -2;
+        ShowLyricLine();
+    }
+
+    /// <summary>
+    /// A manual scroll should not be immediately undone by the next playback tick.
+    /// The button is available by pointer, Tab and screen-reader navigation.
+    /// </summary>
+    private void WireLyricNavigation()
+    {
+        // The ScrollViewer and its scrollbars can handle these events internally.
+        // Observe them even when handled, so dragging the thumb, wheel, touch, or
+        // keyboard scrolling never gets immediately undone by the playback timer.
+        LyricsBox.AddHandler(UIElement.PointerWheelChangedEvent,
+            new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => SuspendLyricFollow()), handledEventsToo: true);
+        LyricsBox.AddHandler(UIElement.PointerPressedEvent,
+            new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => SuspendLyricFollow()), handledEventsToo: true);
+        LyricsBox.AddHandler(UIElement.KeyDownEvent,
+            new Microsoft.UI.Xaml.Input.KeyEventHandler((_, args) =>
+            {
+                if (args.Key is Windows.System.VirtualKey.Up or Windows.System.VirtualKey.Down
+                    or Windows.System.VirtualKey.PageUp or Windows.System.VirtualKey.PageDown
+                    or Windows.System.VirtualKey.Home or Windows.System.VirtualKey.End)
+                {
+                    SuspendLyricFollow();
+                }
+            }), handledEventsToo: true);
+        LyricsFollowButton.Click += (_, _) =>
+        {
+            _followCurrentLyric = true;
+            LyricsFollowButton.Visibility = Visibility.Collapsed;
+            BringActiveLyricIntoView();
+        };
+
+        Root.ActualThemeChanged += (_, _) => RepaintLyricPalette();
+        _lyricAccessibility.HighContrastChanged += (_, _) =>
+            DispatcherQueue.TryEnqueue(RepaintLyricPalette);
+        RepaintLyricPalette();
+
+        Stage.SizeChanged += (_, _) =>
+        {
+            if (_shownLyrics is null)
+            {
+                return;
+            }
+
+            // A narrower window changes wrapping and the vertical anchor.
+            // Do not reset the user's manually suspended follow state.
+            LyricsBox.Height = Math.Max(120, Stage.ActualHeight * 0.45);
+            if (_followCurrentLyric)
+            {
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (!_closed && _followCurrentLyric)
+                    {
+                        BringActiveLyricIntoView();
+                    }
+                });
+            }
+        };
+    }
+
+    private void SuspendLyricFollow()
+    {
+        if (_shownLyrics is not { IsTimed: true })
+        {
+            return;
+        }
+
+        _followCurrentLyric = false;
+        LyricsFollowButton.Visibility = Visibility.Visible;
+    }
+
+    private void BringActiveLyricIntoView()
+    {
+        var current = _player.LyricIndex;
+        if (current >= 0 && current < LyricsLines.Children.Count)
+        {
+            LyricsLines.Children[current].StartBringIntoView(new BringIntoViewOptions
+            {
+                VerticalAlignmentRatio = 0.5,
+                AnimationDesired = _budget.Animations,
+            });
+        }
+    }
 
     /// <summary>Synchronizes the stage, its accessible profile and available media-specific actions.</summary>
     private void ShowPresentation()
@@ -127,6 +271,22 @@ public sealed partial class MainWindow
         }
 
         var lyrics = stage.ShowLyrics ? _player.Lyrics : null;
+        var lyricStatus = !_settings.ShowLyrics || _player.Item is null || HasVideo ? null
+            : _player.Info is null ? "Loading lyrics from local media..."
+            : lyrics?.DisplayMode switch
+            {
+                LyricsDisplayMode.Plain => "Untimed lyrics; no line or word times were supplied.",
+                LyricsDisplayMode.LineTimed => "Timed lyrics; only line starts were supplied.",
+                LyricsDisplayMode.WordTimed => "Word-timed lyrics; highlights follow exact source timestamps.",
+                LyricsDisplayMode.MixedTimed => "Partly word-timed lyrics; untimed words are shown without invented timing.",
+                _ => _player.LyricsProblem ?? "No lyrics found in this song or beside it.",
+            };
+        if (LyricsStatus.Text != lyricStatus)
+        {
+            LyricsStatus.Text = lyricStatus ?? "";
+        }
+
+        LyricsStatus.Visibility = lyricStatus is null ? Visibility.Collapsed : Visibility.Visible;
         // Growing media can report a slightly longer duration on each refresh.
         // Rebuilding timed controls every time would repeatedly steal keyboard
         // focus; only rebuild when some lyric becomes (un)seekable.
@@ -138,6 +298,11 @@ public sealed partial class MainWindow
             || !ReferenceEquals(info, _shownLyricsInfo) || lyricSeekEligibilityChanged
             || (lyrics is not null && _shownLyricsCanSeek != stage.CanSeek))
         {
+            _lyricWordRuns.Clear();
+            _shownWordLine = -1;
+            _shownWordIndex = -2;
+            _followCurrentLyric = true;
+            LyricsFollowButton.Visibility = Visibility.Collapsed;
             // Timed lyrics are focusable buttons. Removing the old lines must not
             // strand keyboard/screen-reader focus on an element outside the tree.
             if (_shownLyrics is not null && Content.XamlRoot is { } root
@@ -162,11 +327,27 @@ public sealed partial class MainWindow
                 {
                     Text = line.Text.Length == 0 ? " " : line.Text,
                     FontSize = 20,
-                    Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF)),
+                    Foreground = LyricNeutralBrush(),
                     TextWrapping = TextWrapping.Wrap,
                     TextAlignment = TextAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Center,
                 };
+                // Render word timing only when the parser has independently
+                // verified every segment. A line-only LRC line stays line-only.
+                if (line.Words.Count > 0)
+                {
+                    text.Text = "";
+                    var runs = new List<Run>();
+                    foreach (var word in line.Words)
+                    {
+                        var run = new Run { Text = word.Text };
+                        text.Inlines.Add(run);
+                        runs.Add(run);
+                    }
+
+                    _lyricWordRuns[index] = runs;
+                }
+
                 _lyricTexts.Add(text);
                 if (line.At is not { } at || !stage.CanSeek
                     || !MediaStagePolicy.IsPlayableTimeJump(at, _player.Duration))
@@ -175,7 +356,7 @@ public sealed partial class MainWindow
                     // never paint a broad translucent rectangle behind the whole stage.
                     LyricsLines.Children.Add(new Border
                     {
-                        Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x98, 0x0B, 0x10, 0x19)),
+                        Background = LyricChipBrush(),
                         CornerRadius = new CornerRadius(9),
                         Padding = new Thickness(12, 7, 12, 7),
                         MaxWidth = 640,
@@ -190,7 +371,7 @@ public sealed partial class MainWindow
                 {
                     Content = text,
                     // Keep contrast just behind the words, not across the entire light background.
-                    Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x98, 0x0B, 0x10, 0x19)),
+                    Background = LyricChipBrush(),
                     BorderThickness = new Thickness(0),
                     CornerRadius = new CornerRadius(9),
                     Padding = new Thickness(12, 7, 12, 7),
@@ -217,6 +398,8 @@ public sealed partial class MainWindow
                         return;
                     }
 
+                    _followCurrentLyric = true;
+                    LyricsFollowButton.Visibility = Visibility.Collapsed;
                     _player.Seek(at);
                     Say(when);
                 };
@@ -230,6 +413,8 @@ public sealed partial class MainWindow
 
         ShowStageChapters(stage, item, info);
         LayOutMediaStage();
+        LyricsDetachButton.Visibility = lyrics is null ? Visibility.Collapsed : Visibility.Visible;
+        RefreshLyricsCompanion();
     }
 
     /// <summary>
@@ -486,23 +671,80 @@ public sealed partial class MainWindow
         var line = _player.LyricIndex;
         if (line == _shownLine)
         {
+            UpdateLyricWords(line);
             return;
         }
 
         if (_shownLine >= 0 && _shownLine < _lyricTexts.Count)
         {
             var previous = _lyricTexts[_shownLine];
-            previous.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
+            previous.Foreground = LyricNeutralBrush();
             previous.FontWeight = FontWeights.Normal;
+            ClearLyricWords(_shownLine);
         }
 
         _shownLine = line;
         if (line >= 0 && line < _lyricTexts.Count)
         {
             var current = _lyricTexts[line];
-            current.Foreground = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+            // With precise timings only the words already sung take the
+            // accent, not the entire line ahead of the singer.
+            current.Foreground = _lyricWordRuns.ContainsKey(line)
+                ? LyricNeutralBrush()
+                : LyricAccentBrush();
             current.FontWeight = FontWeights.SemiBold;
-            LyricsLines.Children[line].StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.5, AnimationDesired = _budget.Animations });
+            UpdateLyricWords(line);
+            if (_followCurrentLyric)
+            {
+                BringActiveLyricIntoView();
+            }
         }
+    }
+
+    /// <summary>Only source-verified word starts control the karaoke highlight.</summary>
+    private void UpdateLyricWords(int line)
+    {
+        if (_shownLyrics is null || !_lyricWordRuns.TryGetValue(line, out var runs))
+        {
+            return;
+        }
+
+        var index = Lyrics.WordIndexAt(_shownLyrics.Lines[line], _player.Position);
+        if (line == _shownWordLine && index == _shownWordIndex)
+        {
+            return;
+        }
+
+        _shownWordLine = line;
+        _shownWordIndex = index;
+        var accent = LyricAccentBrush();
+        var neutral = LyricNeutralBrush();
+        for (var i = 0; i < runs.Count; i++)
+        {
+            runs[i].Foreground = i <= index ? accent : neutral;
+            // System high contrast deliberately uses the same readable foreground
+            // for both states; weight keeps the exact-timed word perceptible.
+            runs[i].FontWeight = _lyricAccessibility.HighContrast && i <= index
+                ? FontWeights.Bold : FontWeights.Normal;
+        }
+    }
+
+    /// <summary>Last line's karaoke segments no longer inherit the active accent.</summary>
+    private void ClearLyricWords(int line)
+    {
+        if (!_lyricWordRuns.TryGetValue(line, out var runs))
+        {
+            return;
+        }
+
+        var neutral = LyricNeutralBrush();
+        foreach (var run in runs)
+        {
+            run.Foreground = neutral;
+            run.FontWeight = FontWeights.Normal;
+        }
+
+        _shownWordLine = -1;
+        _shownWordIndex = -2;
     }
 }

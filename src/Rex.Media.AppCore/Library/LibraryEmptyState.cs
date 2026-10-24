@@ -23,7 +23,8 @@ public enum LibraryEmptyView
 /// <param name="Text">The words in the middle of the view.</param>
 /// <param name="OffersFolders">Offer to add a folder (and the usual Music, Videos and Pictures folders).</param>
 /// <param name="OffersClearFilters">Offer to clear the view's quick filters, which hide everything it holds.</param>
-public sealed record LibraryEmptyState(string Text, bool OffersFolders, bool OffersClearFilters)
+/// <param name="OffersRescan">Offer a direct retry if the last folder scan failed.</param>
+public sealed record LibraryEmptyState(string Text, bool OffersFolders, bool OffersClearFilters, bool OffersRescan = false)
 {
     /// <summary>
     /// The words for a view with nothing to show (LIB-05). A search that finds nothing says so; a
@@ -36,7 +37,7 @@ public sealed record LibraryEmptyState(string Text, bool OffersFolders, bool Off
     /// <param name="hasFolders">Whether the library watches any folder.</param>
     /// <param name="filters">The quick filters in use, as the filter button says them, or null for none.</param>
     /// <param name="scanning">Whether the library is looking through its folders now.</param>
-    public static LibraryEmptyState For(LibraryEmptyView view, bool searching, bool hasFolders, string? filters, bool scanning)
+    public static LibraryEmptyState For(LibraryEmptyView view, bool searching, bool hasFolders, string? filters, bool scanning, string? scanProblem = null)
     {
         if (searching)
         {
@@ -53,6 +54,11 @@ public sealed record LibraryEmptyState(string Text, bool OffersFolders, bool Off
         if (filters is not null && view is LibraryEmptyView.Media or LibraryEmptyView.ContinueWatching)
         {
             return new($"Nothing here matches these filters: {filters}.", false, true);
+        }
+
+        if (!scanning && !string.IsNullOrWhiteSpace(scanProblem) && view == LibraryEmptyView.Media)
+        {
+            return new(scanProblem, false, false, OffersRescan: true);
         }
 
         return view switch

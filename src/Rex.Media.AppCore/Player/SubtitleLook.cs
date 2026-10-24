@@ -60,7 +60,7 @@ public sealed record SubtitleLook
     public required bool RespectStyles { get; init; }
 
     /// <summary>The look for a picture <paramref name="pictureHeight"/> tall.</summary>
-    public static SubtitleLook For(PlayerSettings settings, double pictureHeight)
+    public static SubtitleLook For(PlayerSettings settings, double pictureHeight, bool highContrast = false)
     {
         ArgumentNullException.ThrowIfNull(settings);
         settings = settings.Normalize();
@@ -73,6 +73,29 @@ public sealed record SubtitleLook
             OutlineChoice.Thick => Math.Max(1, fontSize * 0.1),
             _ => 0,
         };
+        // In Windows high contrast, media-supplied karaoke colors and custom
+        // subtitle palette may be unreadable. Do not allow font runs to override
+        // a solid legible foreground/background. Custom style remains intact
+        // once the OS high-contrast mode is turned off.
+        if (highContrast)
+        {
+            return new SubtitleLook
+            {
+                Font = settings.SubtitleFont,
+                FontSize = fontSize,
+                Bold = true,
+                Text = new Argb(255, 255, 255, 255),
+                Outline = Math.Max(2, fontSize * 0.08),
+                OutlineColor = new Argb(255, 0, 0, 0),
+                ShadowOffset = 0,
+                Shadow = new Argb(0, 0, 0, 0),
+                Box = new Argb(255, 0, 0, 0),
+                Margin = height * settings.SubtitleMargin / 100,
+                AllAtBottom = settings.SubtitlesAtBottom,
+                RespectStyles = false,
+            };
+        }
+
         return new SubtitleLook
         {
             Font = settings.SubtitleFont,

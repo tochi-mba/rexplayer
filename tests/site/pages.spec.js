@@ -109,7 +109,8 @@ test('the six Windows screenshot cards load their committed local images', async
   await expect(thumbnails).toHaveCount(6);
   for (const image of await thumbnails.all()) {
     await image.scrollIntoViewIfNeeded();
-    await expect.poll(() => image.evaluate(el => el.naturalWidth)).toBeGreaterThan(0);
+    await expect.poll(() => image.evaluate(el => el.naturalWidth)).toBeGreaterThanOrEqual(320);
+    await expect.poll(() => image.evaluate(el => el.naturalHeight)).toBeGreaterThanOrEqual(180);
     const source = await image.getAttribute('src');
     await expect(image.locator('xpath=..')).toHaveAttribute('href', source);
   }
@@ -129,6 +130,37 @@ test('the Windows walkthrough is keyboard-accessible and progresses through nati
   await expect(image).toHaveAttribute('src', /windows-tv-episodes-ci\.png$/);
   await expect(page.locator('#tour-image-link')).toHaveAttribute('href', /windows-tv-episodes-ci\.png$/);
   await expect(page.locator('#tour-progress')).toHaveText('Step 4 of 6');
+});
+
+test('every walkthrough image is decoded and described at phone and desktop widths', async ({ page }) => {
+  for (const width of [320, 1280]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto('./');
+    const steps = page.locator('[data-tour-step]');
+    for (const step of await steps.all()) {
+      const source = await step.getAttribute('data-tour-src');
+      const alternative = await step.getAttribute('data-tour-alt');
+      expect(alternative?.trim()).toBeTruthy();
+      await step.click();
+      const picture = page.locator('#tour-image');
+      await expect(picture).toHaveAttribute('src', source);
+      await expect(picture).toHaveAttribute('alt', alternative);
+      await picture.scrollIntoViewIfNeeded();
+      await expect.poll(() => picture.evaluate(image =>
+        image.complete && image.naturalWidth >= 320 && image.naturalHeight >= 180)).toBeTruthy();
+      // Check the actual rendered preview, not just a successful network response:
+      // neither mobile width nor the desktop hero should clip the image offscreen.
+      const box = await picture.boundingBox();
+      expect(box, `rendered screenshot at ${width}px`).not.toBeNull();
+      expect(box.width, `visible screenshot width at ${width}px`).toBeGreaterThan(100);
+      expect(box.x, `screenshot left edge at ${width}px`).toBeGreaterThanOrEqual(-1);
+      expect(box.x + box.width, `screenshot right edge at ${width}px`).toBeLessThanOrEqual(width + 1);
+      await expect(page.locator('#tour-image-link')).toHaveAttribute('href', source);
+    }
+    const overflow = await page.evaluate(() =>
+      document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow, `after walkthrough at ${width}px`).toBeLessThanOrEqual(0);
+  }
 });
 
 test('the page uses the REX ink and signal palette', async ({ page }) => {

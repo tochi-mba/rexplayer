@@ -28,6 +28,17 @@ internal static partial class Pointer
 
     public static void RightClick(AppProcess app, AutomationElement element) => Mouse(app, element, RightDown, RightUp, 1);
 
+    /// <summary>Move the real pointer over a fraction of a visible slider without clicking or seeking.</summary>
+    public static void Hover(AppProcess app, AutomationElement element, double fraction)
+    {
+        Forward(app);
+        var box = element.Current.BoundingRectangle;
+        Assert.False(box.IsEmpty, "The hover target has no place on screen.");
+        Assert.InRange(fraction, 0, 1);
+        Assert.True(SetCursorPos((int)(box.Left + (box.Width * fraction)), (int)(box.Top + (box.Height * 0.5))),
+            "The pointer could not hover over the target.");
+    }
+
     /// <summary>Gives <paramref name="element"/> the keyboard focus and presses <paramref name="key"/> once.</summary>
     public static void Key(AppProcess app, AutomationElement element, ushort key)
     {

@@ -59,13 +59,24 @@ public sealed partial class MainWindow
         var undo = new Button { Content = "Undo" };
         var redo = new Button { Content = "Redo" };
         var reset = new Button { Content = "Reset to original" };
+        var retry = new Button { Content = "Retry saving", Visibility = Visibility.Collapsed };
+        AutomationProperties.SetAutomationId(retry, "TranscriptEditRetry");
         AutomationProperties.SetAutomationId(undo, "TranscriptEditUndo");
         AutomationProperties.SetAutomationId(redo, "TranscriptEditRedo");
         AutomationProperties.SetAutomationId(reset, "TranscriptEditReset");
         controls.Children.Add(undo);
         controls.Children.Add(redo);
         controls.Children.Add(reset);
+        controls.Children.Add(retry);
         container.Children.Add(controls);
+        var saveState = new TextBlock
+        {
+            Text = "The generated original is preserved. Edits are saved locally.",
+            TextWrapping = TextWrapping.Wrap,
+        };
+        AutomationProperties.SetAutomationId(saveState, "TranscriptEditSaveState");
+        AutomationProperties.SetLiveSetting(saveState, AutomationLiveSetting.Polite);
+        container.Children.Add(saveState);
 
         var navigation = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var previous = new Button { Content = "Previous words" };
@@ -101,6 +112,8 @@ public sealed partial class MainWindow
         const int pageSize = 50;
         var changing = false;
         Task pendingWrite = Task.CompletedTask;
+        var lastSaveFailed = false;
+        var requestedSave = 0;
         var editedSidecar = Transcript.SidecarSrtPath(media, model, edited: true);
 
         void SaveInOrder()
@@ -108,8 +121,20 @@ public sealed partial class MainWindow
             var snapshot = history.Snapshot;
             var isOriginal = history.IsOriginal;
             var writeSidecar = _settings.Transcription.WriteSrtBesideMedia;
+            var revision = ++requestedSave;
+            lastSaveFailed = false;
+            saveState.Text = "Saving transcript edits…";
+            retry.Visibility = Visibility.Collapsed;
             pendingWrite = pendingWrite.ContinueWith(_ =>
             {
+                // A user may correct several words in succession. Never write
+                // every obsolete keystroke snapshot and block dialog closure;
+                // only the most recent revision is durably saved.
+                if (revision != Volatile.Read(ref requestedSave))
+                {
+                    return;
+                }
+
                 try
                 {
                     if (isOriginal)
@@ -128,13 +153,41 @@ public sealed partial class MainWindow
                             AtomicFile.Write(editedSidecar, Encoding.UTF8.GetBytes(snapshot.Content.ToSrt()));
                         }
                     }
+
+                    if (revision == Volatile.Read(ref requestedSave))
+                    {
+                        lastSaveFailed = false;
+                    }
+
+                    OnWindowThread(() =>
+                    {
+                        if (revision == requestedSave && !_closing)
+                        {
+                            saveState.Text = isOriginal ? "Original transcript restored and saved." : "Transcript edits saved.";
+                        }
+                    });
                 }
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
                 {
-                    OnWindowThread(() => Say("The transcript edit could not be saved: " + error.Message));
+                    if (revision == Volatile.Read(ref requestedSave))
+                    {
+                        lastSaveFailed = true;
+                    }
+
+                    OnWindowThread(() =>
+                    {
+                        if (revision == requestedSave && !_closing)
+                        {
+                            saveState.Text = "The transcript edit could not be saved: " + error.Message;
+                            retry.Visibility = Visibility.Visible;
+                            Say(saveState.Text);
+                        }
+                    });
                 }
             }, TaskScheduler.Default);
         }
+
+        retry.Click += (_, _) => SaveInOrder();
 
         void ShowEditedTrack()
         {
@@ -230,7 +283,7 @@ public sealed partial class MainWindow
             page = matchIndex / pageSize;
             ShowPage();
             var at = history.Current.Words[matchIndex].Start;
-            matchStatus.Text = $"Match at word {matchIndex + 1} of {history.Current.Words.Count}, {TimeText.Format(at, _player.Duration)}.";
+            matchStatus.Text = $"Match at word {matchIndex + 1} of {history.Current.Words.Count}, {Rex.Media.AppCore.Player.TimeText.Format(at, _player.Duration)}.";
             jump.IsEnabled = _player.CanSeek && _player.Item?.Location == media;
         };
         jump.Click += (_, _) =>
@@ -278,6 +331,42 @@ public sealed partial class MainWindow
             Content = container,
             CloseButtonText = "Done",
             XamlRoot = Content.XamlRoot,
+        };
+        // Never silently let the user dismiss a failed autosave. Wait for all
+        // revisions scheduled before dismissal, cancel closing on disk error,
+        // and leave the Retry button usable after permissions/space are fixed.
+        dialog.CloseButtonClick += async (_, args) =>
+        {
+            var deferral = args.GetDeferral();
+            try
+            {
+                while (true)
+                {
+                    var newest = pendingWrite;
+                    await newest;
+                    if (ReferenceEquals(newest, pendingWrite))
+                    {
+                        break;
+                    }
+                }
+
+                if (lastSaveFailed)
+                {
+                    args.Cancel = true;
+                    retry.Visibility = Visibility.Visible;
+                    saveState.Text = "Your corrections are not saved. Fix the storage problem and choose Retry saving.";
+                }
+            }
+            catch (Exception error)
+            {
+                args.Cancel = true;
+                retry.Visibility = Visibility.Visible;
+                saveState.Text = "Saving could not finish: " + error.Message;
+            }
+            finally
+            {
+                deferral.Complete();
+            }
         };
         await ShowDialogAsync(dialog);
         await pendingWrite;

@@ -74,6 +74,39 @@ public sealed class PresentationTests
 
     [Fact]
     [Capability("META-09")]
+    public void KaraokeWordSelectionUsesOnlyValidatedSourceTimesAcrossSeekAndPause()
+    {
+        var lyrics = Lyrics.Parse("[00:01.00]<00:01.00>First <00:01.50>word\n[00:03.00]line only")!;
+        var wordLine = lyrics.Lines[0];
+        Assert.Equal(-1, Lyrics.WordIndexAt(wordLine, TimeSpan.Zero));
+        Assert.Equal(0, Lyrics.WordIndexAt(wordLine, TimeSpan.FromSeconds(1)));
+        Assert.Equal(0, Lyrics.WordIndexAt(wordLine, TimeSpan.FromMilliseconds(1499)));
+        Assert.Equal(1, Lyrics.WordIndexAt(wordLine, TimeSpan.FromMilliseconds(1500)));
+        Assert.Equal(1, Lyrics.WordIndexAt(wordLine, TimeSpan.FromSeconds(2)));
+        Assert.Equal(0, Lyrics.WordIndexAt(wordLine, TimeSpan.FromSeconds(1)));
+        Assert.Equal(-1, Lyrics.WordIndexAt(lyrics.Lines[1], TimeSpan.FromSeconds(3)));
+        Assert.Equal(-1, Lyrics.WordIndexAt(new LyricLine(null, "untimed"), TimeSpan.FromSeconds(10)));
+        Assert.Throws<ArgumentNullException>(() => Lyrics.WordIndexAt(null!, TimeSpan.Zero));
+    }
+
+    [Fact]
+    [Capability("META-09")]
+    public void LyricModesNeverInventWordTimingWhenSomeOrAllSourceMarkersAreAbsent()
+    {
+        Assert.Equal(LyricsDisplayMode.Plain, Lyrics.Parse("Hello\nworld")!.DisplayMode);
+        Assert.Equal(LyricsDisplayMode.LineTimed,
+            Lyrics.Parse("[00:01.00]Hello\n[00:02.00]world")!.DisplayMode);
+        Assert.Equal(LyricsDisplayMode.WordTimed,
+            Lyrics.Parse("[00:01.00]<00:01.00>Hello\n[00:02.00]<00:02.00>world")!.DisplayMode);
+        Assert.Equal(LyricsDisplayMode.MixedTimed,
+            Lyrics.Parse("[00:01.00]<00:01.00>Hello\n[00:02.00]world")!.DisplayMode);
+        Assert.Equal(LyricsDisplayMode.LineTimed,
+            Lyrics.Parse("[00:01.00]<00:00.80>bad first stamp\n[00:02.00]line")!.DisplayMode);
+        Assert.Null(Lyrics.Parse("[ar:Artist]"));
+    }
+
+    [Fact]
+    [Capability("META-09")]
     public void UnreliableEnhancedLrcRetainsLinesButDoesNotClaimWordTiming()
     {
         var lyrics = Lyrics.Parse("""
@@ -116,6 +149,51 @@ public sealed class PresentationTests
         Assert.Equal(-1, lyrics.IndexAt(TimeSpan.FromSeconds(-2)));
         Assert.Equal(4999, lyrics.IndexAt(TimeSpan.FromSeconds(6000)));
         Assert.Equal("duplicate", lyrics.Lines[lyrics.IndexAt(TimeSpan.FromSeconds(58))].Text);
+    }
+
+    [Fact]
+    [Capability("META-09")]
+    public void DamagedOffsetTagsCannotAbortLyricsOrEraseTheLastValidOffset()
+    {
+        var lyrics = Lyrics.Parse("""
+            [offset:+500]
+            [offset:9999999999999999999999999]
+            [00:02.00]still here
+            """)!;
+
+        Assert.True(lyrics.IsTimed);
+        Assert.Equal(TimeSpan.FromMilliseconds(1500), Assert.Single(lyrics.Lines).At);
+        Assert.Equal("still here", lyrics.Lines[0].Text);
+        Assert.Equal(0, lyrics.IndexAt(TimeSpan.FromMilliseconds(1500)));
+    }
+
+    [Fact]
+    [Capability("META-09")]
+    public void ImpossibleSecondsDoNotBecomeTimedLyrics()
+    {
+        var mixed = Lyrics.Parse("""
+            [00:65.00]malformed
+            [00:01.00]valid
+            """)!;
+        Assert.True(mixed.IsTimed);
+        Assert.Equal("valid", Assert.Single(mixed.Lines).Text);
+        Assert.False(Lyrics.Parse("[00:99]plain text")!.IsTimed);
+    }
+
+    [Fact]
+    [Capability("META-09")]
+    public void LongUnicodeAndRtlLinesRetainTheirCharactersAndLastDuplicateWins()
+    {
+        var words = string.Concat(Enumerable.Repeat("مرحبا 世界 🎵 ", 128)).Trim();
+        var lyrics = Lyrics.Parse($"[ar:فنان]\n[00:01.00][00:02.00]{words}\n[00:02.00]repeated")!;
+
+        Assert.True(lyrics.IsTimed);
+        Assert.Equal(3, lyrics.Lines.Count);
+        Assert.Equal(words, lyrics.Lines[0].Text);
+        Assert.Equal(words, lyrics.Lines[1].Text);
+        Assert.Empty(lyrics.Lines[1].Words);
+        Assert.Equal("repeated", lyrics.Lines[lyrics.IndexAt(TimeSpan.FromSeconds(2))].Text);
+        Assert.Equal(-1, lyrics.IndexAt(TimeSpan.Zero));
     }
 
     [Theory]

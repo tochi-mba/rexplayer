@@ -57,6 +57,9 @@ public sealed partial class AppWindowTests
         app.SetValue("SeekBar", 120);
         WaitForPosition(app, 120, "the seek bar to move the song");
         Wait.For(() => app.Text("Elapsed") == "2:00", "the elapsed time to follow the seek bar");
+        Wait.For(() => (app.Find("SeekBar").GetCurrentPropertyValue(AutomationElement.HelpTextProperty) as string)
+            ?.Contains("2:00 of 6:40", StringComparison.Ordinal) == true,
+            "keyboard and screen readers to learn the real timeline position and duration");
         Assert.Equal("Paused", app.Status().State);
 
         app.Press("PlayPauseButton");
@@ -102,6 +105,38 @@ public sealed partial class AppWindowTests
         app.Press("CloseButton");
         Wait.For(() => !app.IsShown("GoToTimeBox"), "the dialog to close");
         Assert.True(app.Position >= 65, "A cancelled Go to a time does not seek.");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Theory]
+    [Capability("PB-05")]
+    [InlineData("https://example.invalid/stream.mp4")]
+    [InlineData("rtsp://camera.invalid/live")]
+    [InlineData("C:\\does-not-exist\\movie.mp4")]
+    public void OpenLocationRefusesUnsupportedNetworkAndMissingSourcesWithoutCrashing(string location)
+    {
+        using var app = AppProcess.Start();
+        app.Run(CommandCatalog.OpenLocation);
+        ((ValuePattern)app.Find("LocationBox").GetCurrentPattern(ValuePattern.Pattern)).SetValue(location);
+        app.Press("PrimaryButton");
+        Wait.For(() => app.LogText.Contains("could not be found", StringComparison.Ordinal)
+                || app.LogText.Contains("Network streams and remote locations are not supported.", StringComparison.Ordinal),
+            "a clear unsupported-local-only or missing path message");
+        Assert.Equal("Idle", app.Status().State);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("PB-05")]
+    public void HoverAlwaysShowsRealSeekTimeWhenExpensivePreviewThumbnailsAreDisabled()
+    {
+        using var app = AppProcess.Start([Named("Hover", 200)], extraSettings: "\"seekPreview\": false");
+        Wait.For(() => app.IsShown("SeekBar") && app.Position > 0, "a seekable song");
+        Pointer.Hover(app, app.Find("SeekBar"), fraction: 0.75);
+        Wait.For(() => app.IsShown("SeekPreview")
+            && TimeText.TryParse(app.Text("SeekPreviewTime")) is { TotalSeconds: > 100 and < 200 },
+            "an accurate timeline hover without a decoded picture");
+        Assert.False(app.IsShown("SeekPreviewPicture"), "Thumbnails remain disabled; only honest time is shown.");
         Assert.Equal(0, app.Close());
     }
 

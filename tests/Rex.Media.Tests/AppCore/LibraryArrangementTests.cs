@@ -161,6 +161,24 @@ public sealed class LibraryArrangementTests
     }
 
     [Fact]
+    [Capability("LIB-05")]
+    public void AstralLettersAndUnicodeMarksUseStableAlphabeticHeadings()
+    {
+        // Deseret letters live beyond the BMP and use a UTF-16 surrogate pair.
+        // Grouping by the first char previously placed them under "#".
+        Assert.Equal("𐐀", LibraryArrangement.LetterOf("𐐨lpha"));
+        Assert.Equal("E", LibraryArrangement.LetterOf("E\u0301lan"));
+        Assert.Equal("#", LibraryArrangement.LetterOf("🎵 music"));
+        Assert.Equal("#", LibraryArrangement.LetterOf("\uD800 malformed"));
+
+        var sections = LibraryArrangement.Group(
+            [Song("𐐨lpha"), Song("𐐀lpha"), Song("🎵 music")],
+            LibraryGrouping.Letter, Now);
+        Assert.Equal(["𐐀", "#"], sections.Select(x => x.Header));
+        Assert.Equal(2, sections[0].Entries.Count);
+    }
+
+    [Fact]
     public void GroupsOfSongsAreOrderedByWhatIsInThem()
     {
         var albums = LibraryViews.Albums(Asake);
@@ -177,6 +195,31 @@ public sealed class LibraryArrangementTests
         Assert.Equal(["Work Of Art", "Mr Money With The Vibe", LibraryViews.UnknownAlbum], Names(LibrarySort.MostPlayed));
         Assert.Equal(["Work Of Art", "Mr Money With The Vibe", LibraryViews.UnknownAlbum], Names(LibrarySort.Length));
         Assert.Throws<ArgumentNullException>(() => LibraryArrangement.Sort((IReadOnlyList<LibraryGroup>)null!, LibrarySort.Title, false));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void SameTitlesKeepIndependentArtistAlbumAndPathIdentityWithUnknownFallback()
+    {
+        var first = Song("Same", artist: "Alice", album: "Release", genre: "Jazz");
+        var second = Song("Same", artist: "Bob", album: "Release", genre: null) with { Path = Path.Combine("D:" + Path.DirectorySeparatorChar, "Other", "Same.mp3") };
+        var missing = Song("Mystery", artist: null, album: null, genre: null);
+        var originals = new[] { first, second, missing };
+
+        var albums = LibraryViews.Albums(originals);
+        Assert.Equal(3, albums.Count);
+        Assert.Equal(["Alice", "Bob"], albums.Where(group => group.Name == "Release").Select(group => group.Detail));
+        Assert.Equal(missing.Path, Assert.Single(albums.Single(group => group.Name == LibraryViews.UnknownAlbum).Entries).Path);
+
+        var artists = LibraryViews.Artists(originals);
+        Assert.Contains(artists, group => group.Name == "Alice" && group.Entries.Single().Path == first.Path);
+        Assert.Contains(artists, group => group.Name == "Bob" && group.Entries.Single().Path == second.Path);
+        Assert.Equal(missing.Path, Assert.Single(artists.Single(group => group.Name == LibraryViews.UnknownArtist).Entries).Path);
+
+        var groups = LibraryArrangement.Group(originals, LibraryGrouping.Genre, Now);
+        Assert.Equal(["Jazz", LibraryViews.UnknownGenre], groups.Select(section => section.Header));
+        Assert.Equal([second.Path, missing.Path], groups[1].Entries.Select(entry => entry.Path));
+        Assert.Equal([first, second, missing], LibraryArrangement.Sort(originals, LibrarySort.Natural, false));
     }
 
     [Fact]

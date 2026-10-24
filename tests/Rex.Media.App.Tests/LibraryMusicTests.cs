@@ -72,6 +72,54 @@ public sealed class LibraryMusicTests : IDisposable
 
     [Fact]
     [Capability("LIB-05")]
+    public void MusicHomePinsOnlyRealAlbumsAndAllowsRemovingThem()
+    {
+        var played = AsakeAcrossAlbums();
+        using var app = _scene.Ready(KeepBrowsing, played).Start();
+
+        app.Visit("Music");
+        Wait.For(() => app.IsShown("MusicHeroPin"), "a keyboard-accessible pin control on the featured real album");
+        Assert.False(app.IsShown("MusicShelf-Pinned"));
+
+        app.Press("MusicHeroPin");
+        Wait.For(() => app.IsShown("MusicShelf-Pinned"), "the pinned shelf to appear after saving");
+        Card(app, "Pinned", "Work of Art");
+        Screenshots.Match(app, "music-home-with-pinned-album", "LibraryHome");
+        app.Press("MusicHeroPin");
+        Wait.For(() => !app.IsShown("MusicShelf-Pinned"), "the empty pinned shelf to disappear");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void UnifiedHomeShowsOnlyAlbumsTheUserActuallyPinned()
+    {
+        var played = AsakeAcrossAlbums();
+        using var app = _scene.Ready(KeepBrowsing, played).Start();
+        app.Visit("Home");
+        Assert.False(app.IsShown("LibraryShelfCards-PinnedAlbums"));
+
+        app.Visit("Music");
+        Wait.For(() => app.IsShown("MusicHeroPin") && app.Text("MusicHeroTitle") == "Work of Art",
+            "the real album to be featured before pinning");
+        app.Press("MusicHeroPin");
+        app.Visit("Home");
+        Wait.For(() => app.IsShown("LibraryShelfCards-PinnedAlbums"),
+            "the unified Home page to include the pinned album shelf");
+        var pinned = app.Line("Work of Art", "LibraryShelfCards-PinnedAlbums");
+        Assert.NotNull(pinned);
+        Assert.False(app.IsShown("LibraryShelf-PinnedAlbums"), "Pinned shelf does not falsely offer See all albums as pinned.");
+        Screenshots.Match(app, "library-home-with-pinned-album", "LibraryPane");
+
+        app.Visit("Music");
+        app.Press("MusicHeroPin");
+        app.Visit("Home");
+        Wait.For(() => !app.IsShown("LibraryShelfCards-PinnedAlbums"), "the empty pinned shelf to disappear");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void AnAlbumPageShowsItsHeaderTracksDiscsAndMoreByTheArtist()
     {
         AsakeAcrossAlbums();
@@ -147,6 +195,36 @@ public sealed class LibraryMusicTests : IDisposable
         app.Press("LibraryBack");
         Wait.For(() => app.Text("LibraryTitle") == "Artists" && !app.IsShown("LibraryOverview"),
             "the biography clears when leaving the artist page");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void SongsKeepTheirSortingSelectionQueueActionsAndHonestRemovedFileState()
+    {
+        AsakeAcrossAlbums();
+        using var app = _scene.Ready(KeepBrowsing).Start();
+        app.Visit("Songs");
+        app.Pick("LibraryLook", "List");
+        app.Pick("LibrarySort", "Title");
+        Wait.For(() => app.Lines().FirstOrDefault() == "Active (feat. Travis Scott)",
+            "the songs to use their chosen title order");
+        var chosen = app.Line("Terminator");
+        ((SelectionItemPattern)chosen.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
+        Assert.True(app.IsShown("LibraryEnqueue"), "The selected song has a direct queue action.");
+        app.Press("LibraryEnqueue");
+        app.Run(Rex.Media.AppCore.Commands.CommandCatalog.TogglePlaylist);
+        Wait.For(() => app.Find("PlaylistView").FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.NameProperty, "Terminator")) is not null,
+            "the chosen song to appear in Up Next");
+
+        var missing = Path.Combine(_scene.Media, "Wave.wav");
+        File.Delete(missing);
+        app.Visit("Folders");
+        app.Press("LibraryRescan");
+        app.Visit("Songs");
+        Wait.For(() => !app.Lines().Contains("Wave"), "removed media to disappear without a ghost row");
+        Assert.Contains("Terminator", app.Lines());
         Assert.Equal(0, app.Close());
     }
 

@@ -31,7 +31,7 @@
         </Grid>
       </Border>
       <StackPanel Grid.Row="1">
-        <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
+        <TextBlock Text="{x:Bind Name}" FlowDirection="{x:Bind NameDirection}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
         <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" Visibility="{x:Bind DetailVisibility, Mode=OneWay}" />
         <TextBlock Text="{x:Bind Extra}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12" />
       </StackPanel>
@@ -72,7 +72,7 @@
         </Grid>
       </Border>
       <StackPanel Grid.Row="1">
-        <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
+        <TextBlock Text="{x:Bind Name}" FlowDirection="{x:Bind NameDirection}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
         <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" Visibility="{x:Bind DetailVisibility, Mode=OneWay}" FontSize="12" />
       </StackPanel>
     </Grid>
@@ -116,7 +116,7 @@
         </Grid>
       </Border>
       <StackPanel Grid.Row="1" Spacing="2">
-        <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+        <TextBlock Text="{x:Bind Name}" FlowDirection="{x:Bind NameDirection}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
         <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Visibility="{x:Bind DetailVisibility, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" FontSize="12" />
       </StackPanel>
     </Grid>
@@ -144,7 +144,7 @@
                 </LinearGradientBrush>
               </Border.Background>
               <StackPanel Padding="12,36,12,11" Spacing="2">
-                <TextBlock Text="{x:Bind Name}" Foreground="White" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                <TextBlock Text="{x:Bind Name}" FlowDirection="{x:Bind NameDirection}" Foreground="White" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="1" />
                 <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Foreground="#DCE3ED" Visibility="{x:Bind DetailVisibility, Mode=OneWay}" TextTrimming="CharacterEllipsis" MaxLines="1" FontSize="12" />
               </StackPanel>
             </Border>
@@ -194,7 +194,7 @@
         </Grid>
       </Border>
       <StackPanel Grid.Row="1" Spacing="2" Margin="4,0,4,0">
-        <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" FontSize="12" />
+        <TextBlock Text="{x:Bind Name}" FlowDirection="{x:Bind NameDirection}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" FontSize="12" />
         <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                    Visibility="{x:Bind DetailVisibility, Mode=OneWay}" TextTrimming="CharacterEllipsis" FontSize="11" />
       </StackPanel>

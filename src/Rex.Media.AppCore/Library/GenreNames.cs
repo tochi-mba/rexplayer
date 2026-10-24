@@ -60,11 +60,14 @@ public static class GenreNames
     {
         var genres = new List<string>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var part in (field ?? "").Split(Separators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (var raw in (field ?? "").Split(Separators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
+            // Invalid control bytes can arrive from damaged tags. They must not
+            // become invisible or inaccessible genre headings.
+            var part = new string([.. raw.Select(c => char.IsControl(c) ? ' ' : c)]);
             foreach (var genre in Pieces(Id3v1.ExpandGenre(part)))
             {
-                if (seen.Add(Key(genre)))
+                if (genre.EnumerateRunes().Any(Rune.IsLetterOrDigit) && seen.Add(Key(genre)))
                 {
                     genres.Add(genre);
                 }
@@ -111,16 +114,18 @@ public static class GenreNames
         }
 
         var key = new StringBuilder(decomposed.Length);
-        foreach (var c in decomposed.Replace("&", "and", StringComparison.Ordinal))
+        // Iterate Unicode scalars, not UTF-16 chars, so an astral-script genre
+        // is not reduced to an empty key that merges unrelated names.
+        foreach (var rune in decomposed.Replace("&", "and", StringComparison.Ordinal).EnumerateRunes())
         {
-            if (CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.NonSpacingMark)
+            if (Rune.GetUnicodeCategory(rune) == UnicodeCategory.NonSpacingMark)
             {
                 continue;
             }
 
-            if (char.IsLetterOrDigit(c))
+            if (Rune.IsLetterOrDigit(rune))
             {
-                key.Append(char.ToLowerInvariant(c));
+                key.Append(Rune.ToLowerInvariant(rune).ToString());
             }
         }
 
@@ -128,7 +133,7 @@ public static class GenreNames
     }
 
     /// <summary>An unknown genre as written, with runs of spaces closed up.</summary>
-    private static string Tidy(string name) => string.Join(' ', name.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    private static string Tidy(string name) => string.Join(' ', name.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
     private static Dictionary<string, string> BuildKnown()
     {

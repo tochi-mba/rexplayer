@@ -40,7 +40,8 @@ public sealed partial class MainWindow
             _ => LibraryEmptyView.Media,
         };
         var state = LibraryEmptyState.For(view, searching, _library!.Folders.Count > 0,
-            choice is { IsFiltered: true } ? LibraryArrangement.FilterLabel(choice) : null, _scanner?.Status.Length > 0);
+            choice is { IsFiltered: true } ? LibraryArrangement.FilterLabel(choice) : null,
+            _scanner?.Status.Length > 0, _scanner?.Problem);
         LibraryEmpty.Visibility = Visibility.Visible;
         if (state == _shownEmpty)
         {
@@ -54,7 +55,13 @@ public sealed partial class MainWindow
         {
             var clearSearch = new Button { Content = "Clear search" };
             AutomationProperties.SetAutomationId(clearSearch, "LibraryEmptyClearSearch");
-            clearSearch.Click += (_, _) => LibrarySearch.Text = "";
+            clearSearch.Click += (_, _) =>
+            {
+                LibrarySearch.Text = "";
+                // The empty-state button disappears as soon as results return.
+                // Focus must move to a surviving control, not a detached button.
+                LibrarySearch.Focus(FocusState.Programmatic);
+            };
             LibraryFolderButtons.Children.Add(clearSearch);
         }
 
@@ -62,8 +69,21 @@ public sealed partial class MainWindow
         {
             var clear = new Button { Content = "Clear filters" };
             AutomationProperties.SetAutomationId(clear, "LibraryEmptyClearFilters");
-            clear.Click += (_, _) => KeepViewChoice(ViewChoice(_libraryViewKey).Unfiltered());
+            clear.Click += (_, _) =>
+            {
+                KeepViewChoice(ViewChoice(_libraryViewKey).Unfiltered());
+                LibraryFilterButton.Focus(FocusState.Programmatic);
+            };
             LibraryFolderButtons.Children.Add(clear);
+        }
+
+        if (state.OffersRescan)
+        {
+            var retry = new Button { Content = "Try scanning again" };
+            AutomationProperties.SetAutomationId(retry, "LibraryEmptyRetryScan");
+            AutomationProperties.SetName(retry, "Try scanning the library folder again");
+            retry.Click += (_, _) => _scanner?.Request();
+            LibraryFolderButtons.Children.Add(retry);
         }
 
         if (!state.OffersFolders)

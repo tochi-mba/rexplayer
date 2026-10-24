@@ -160,6 +160,55 @@ public sealed class DetailOverrideTests
     }
 
     [Fact]
+    public void FieldProvenanceSeparatesLocalOverridesFromUnreadAndMixedSources()
+    {
+        var a = Song("a.mp3", "First");
+        var b = Song("b.mp3", "Second");
+        Assert.Equal("No selected media", DetailsForm.Provenance([], MetadataKeys.Title));
+        Assert.Equal("Indexed locally; some file metadata has not been read yet",
+            DetailsForm.Provenance([a], MetadataKeys.Title));
+
+        var read = a with { Probed = true };
+        Assert.Equal("From the local media scan; tags and filename fallback may both contribute",
+            DetailsForm.Provenance([read], MetadataKeys.Title));
+        var overridden = read with { Override = new DetailOverride { Title = "Chosen" } };
+        Assert.Equal("Locally overridden in rexplayer",
+            DetailsForm.Provenance([overridden], MetadataKeys.Title));
+        Assert.Equal("Mixed sources, including rexplayer overrides",
+            DetailsForm.Provenance([overridden, b], MetadataKeys.Title));
+        Assert.Equal("From the local media scan; tags and filename fallback may both contribute",
+            DetailsForm.Provenance([overridden], MetadataKeys.Artist));
+        Assert.Throws<ArgumentNullException>(() => DetailsForm.Provenance(null!, MetadataKeys.Title));
+        Assert.Throws<ArgumentNullException>(() => DetailsForm.Provenance([read], null!));
+    }
+
+    [Theory]
+    [InlineData("1", "2", "2026")]
+    [InlineData("3/12", "1/2", "2024-11")]
+    [InlineData("3/12", "", "2024-11-28")]
+    [InlineData("", "", "")]
+    public void ValidChangedTrackDiscAndDatesAreAccepted(string track, string disc, string year)
+    {
+        Assert.Empty(DetailsForm.Problems(new DetailOverride { Track = track, Disc = disc, Year = year }));
+        Assert.Empty(DetailsForm.Problems(new DetailOverride()));
+    }
+
+    [Theory]
+    [InlineData("0", "0", "bad")]
+    [InlineData("3/2", "-1", "2024-99-01")]
+    [InlineData("hello", "2/0", "2024-02-40")]
+    [InlineData("10000", "3/2", "99")]
+    public void InvalidChangedTrackDiscAndDatesAreRejectedBeforeWriting(string track, string disc, string year)
+    {
+        var issues = DetailsForm.Problems(new DetailOverride { Track = track, Disc = disc, Year = year });
+        Assert.Equal(3, issues.Count);
+        Assert.Contains(issues, issue => issue.Contains("Track", StringComparison.Ordinal));
+        Assert.Contains(issues, issue => issue.Contains("Disc", StringComparison.Ordinal));
+        Assert.Contains(issues, issue => issue.Contains("Date", StringComparison.Ordinal));
+        Assert.Throws<ArgumentNullException>(() => DetailsForm.Problems(null!));
+    }
+
+    [Fact]
     public void ApplyLaysAnEditOverAFilesMetadata()
     {
         var metadata = new Dictionary<string, string> { [MetadataKeys.Title] = "Old", [MetadataKeys.Album] = "Work of Art", [MetadataKeys.Composer] = "Ahmed" };

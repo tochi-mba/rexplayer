@@ -85,6 +85,114 @@ public sealed class LibraryBackupTests
     }
 
     [Fact]
+    [Capability("LIB-10")]
+    public void RestorePreviewIsReadOnlyAndExplainsAdditiveConflictsBeforeConsent()
+    {
+        var data = LibraryBackup.Read(LibraryBackup.Export(
+            Library(("Sungba.mp3", 5), ("Joha.mp3", 1)),
+            [new NamedPlaylist("x", "Asake", [new QueuedItem(In("Joha.mp3"), null, null, TimeSpan.Zero, null)])])[0].Bytes);
+        var existing = Library(("Sungba.mp3", 2));
+        using var harness = Harness();
+        harness.Controller.CreatePlaylist("Asake", [new PlaylistItem(In("Joha.mp3"))]);
+
+        // Same playlist name and location already present, only the missing
+        // file is a new entry. Preview must not raise play counts or mutate UI.
+        Assert.Equal(new BackupSummary(0, 1, 0), LibraryBackup.Preview(data, existing, harness.Controller));
+        Assert.Equal(2, existing.Entry(In("Sungba.mp3"))!.Plays);
+        Assert.Null(existing.Entry(In("Joha.mp3")));
+        Assert.Single(harness.Controller.NamedPlaylists);
+
+        var summary = LibraryBackup.Restore(data, existing, harness.Controller);
+        Assert.Equal(new BackupSummary(0, 1, 0), summary);
+        Assert.Equal(5, existing.Entry(In("Sungba.mp3"))!.Plays);
+        Assert.NotNull(existing.Entry(In("Joha.mp3")));
+        Assert.Equal(new BackupSummary(0, 0, 0), LibraryBackup.Preview(data, existing, harness.Controller));
+
+        Assert.Throws<ArgumentNullException>(() => LibraryBackup.Preview(null!, existing, harness.Controller));
+        Assert.Throws<ArgumentNullException>(() => LibraryBackup.Preview(data, null!, harness.Controller));
+        Assert.Throws<ArgumentNullException>(() => LibraryBackup.Preview(data, existing, null!));
+    }
+
+    [Fact]
+    [Capability("LIB-10")]
+    public void AtomicSnapshotIsVerifiedBeforeRestoreAndAnInterruptedExportLeavesOldDataIntact()
+    {
+        var root = Directory.CreateTempSubdirectory("rexplayer-snapshot-").FullName;
+        try
+        {
+            var library = Library(("Sungba.mp3", 4));
+            using var harness = Harness();
+            harness.Controller.CreatePlaylist("Road trip", [new PlaylistItem(In("Sungba.mp3"))]);
+            var files = LibraryBackup.Export(library, harness.Controller.NamedPlaylists);
+
+            var published = LibraryBackup.PublishSnapshot(root, files);
+            Assert.StartsWith(LibraryBackup.PublishedPrefix, Path.GetFileName(published), StringComparison.Ordinal);
+            Assert.True(File.Exists(Path.Combine(published, LibraryBackup.CompletionName)));
+            Assert.True(File.Exists(Path.Combine(published, LibraryBackup.FileName)));
+
+            var verified = LibraryBackup.ReadFromFile(Path.Combine(published, LibraryBackup.FileName));
+            Assert.Equal(4, Assert.Single(verified.Entries).Plays);
+            Assert.Single(verified.Playlists);
+
+            // A fault on the second write cannot corrupt a prior successful
+            // export or leave a staged folder looking like a real backup.
+            var writes = 0;
+            Assert.Throws<IOException>(() => LibraryBackup.PublishSnapshot(root, files,
+                writer: (path, bytes) =>
+                {
+                    if (++writes == 2)
+                    {
+                        throw new IOException("disk full mid-export");
+                    }
+
+                    File.WriteAllBytes(path, bytes);
+                }));
+            Assert.Equal([published], Directory.EnumerateDirectories(root).ToArray());
+            Assert.Equal(4, Assert.Single(LibraryBackup.ReadFromFile(Path.Combine(published, LibraryBackup.FileName)).Entries).Plays);
+
+            // A damaged or incomplete published backup fails integrity checks
+            // before the mutating restore function can be reached.
+            File.AppendAllText(Path.Combine(published, "Playlists", "Road trip.m3u8"), "corruption");
+            Assert.Throws<FormatException>(() => LibraryBackup.ReadFromFile(Path.Combine(published, LibraryBackup.FileName)));
+            Assert.True(File.Exists(Path.Combine(published, LibraryBackup.FileName)));
+
+            // A v1 loose JSON backup still imports for existing users.
+            var legacy = Path.Combine(root, "old backup.json");
+            File.WriteAllBytes(legacy, files[0].Bytes);
+            Assert.Equal(4, Assert.Single(LibraryBackup.ReadFromFile(legacy).Entries).Plays);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void PublishedBackupRejectsTraversalAndManifestCollisionsBeforeWriting()
+    {
+        var root = Directory.CreateTempSubdirectory("rexplayer-snapshot-errors-").FullName;
+        try
+        {
+            Assert.Throws<FormatException>(() => LibraryBackup.PublishSnapshot(root, [(LibraryBackup.FileName, []), ("../outside.json", [])]));
+            Assert.Throws<FormatException>(() => LibraryBackup.PublishSnapshot(root, [(LibraryBackup.FileName, []), (LibraryBackup.FileName.ToUpperInvariant(), [])]));
+            Assert.Throws<FormatException>(() => LibraryBackup.PublishSnapshot(root, [(LibraryBackup.FileName, []), (LibraryBackup.CompletionName, [])]));
+            Assert.Throws<FormatException>(() => LibraryBackup.PublishSnapshot(root, []));
+            Assert.Empty(Directory.EnumerateFileSystemEntries(root));
+
+            var published = LibraryBackup.PublishSnapshot(root, [(LibraryBackup.FileName, "{}"u8.ToArray())]);
+            File.Delete(Path.Combine(published, LibraryBackup.CompletionName));
+            Assert.Throws<FormatException>(() => LibraryBackup.ReadFromFile(Path.Combine(published, LibraryBackup.FileName)));
+            Assert.Throws<ArgumentNullException>(() => LibraryBackup.PublishSnapshot(root, null!));
+            Assert.Throws<ArgumentException>(() => LibraryBackup.PublishSnapshot("", []));
+            Assert.Throws<ArgumentException>(() => LibraryBackup.ReadFromFile(""));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void WhatIsNoBackupIsRefusedAndNamesAreMadeSafe()
     {
         Assert.Throws<FormatException>(() => LibraryBackup.Read("not json"u8.ToArray()));

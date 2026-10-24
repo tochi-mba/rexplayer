@@ -20,11 +20,13 @@ public sealed partial class MainWindow
             panel.Children.Add(new TextBlock { Text = updated, TextWrapping = TextWrapping.Wrap });
         }
 
-        panel.Children.Add(new TextBlock
+        var privacy = new TextBlock
         {
-            Text = "A media player for Windows by REX Technologies, under the MIT License. It has no account and sends nothing about you.",
+            Text = "A local media player for Windows by REX Technologies, under the MIT License. No account is required. Optional metadata lookups and update checks use the network when enabled; local files and listening history remain on this computer.",
             TextWrapping = TextWrapping.Wrap,
-        });
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(privacy, "AboutPrivacy");
+        panel.Children.Add(privacy);
         var data = new TextBlock { Text = "Settings, library and log: " + App.DataRoot, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(data, "AboutDataFolder");
         panel.Children.Add(data);

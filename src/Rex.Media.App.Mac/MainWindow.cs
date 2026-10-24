@@ -73,6 +73,7 @@ public sealed partial class MainWindow : IDisposable
         _window.ContentView = Layout();
         InitializeLibrary();
         InitializeQueue();
+        InitializeLibrary();
         NSApplication.SharedApplication.MainMenu = BuildMenus();
         NSTimer.CreateRepeatingScheduledTimer(TimeSpan.FromSeconds(1), _ => _player.SleepTick());
     }
@@ -153,6 +154,14 @@ public sealed partial class MainWindow : IDisposable
                     }
 
                     break;
+                case "mac-library":
+                    if (!LibrarySmokeAction(request.Id, request.Paths))
+                    {
+                        answered.SetResult(AutomationReply.Failed("The native library smoke action is unavailable: " + request.Id));
+                        return;
+                    }
+
+                    break;
                 case "status":
                     break;
                 case "ui.add-folder":
@@ -228,7 +237,9 @@ public sealed partial class MainWindow : IDisposable
                 State = _player.State.ToString(),
                 Title = request.Command == "mac-queue"
                     ? (_queueSummary?.StringValue ?? "") + " | " + (_queueShuffle?.Title ?? "")
-                    : _player.Item is null ? null : _player.Title,
+                    : request.Command == "mac-library"
+                        ? LibrarySmokeTitle()
+                        : _player.Item is null ? null : _player.Title,
                 Position = _player.Position.TotalSeconds,
                 Duration = _player.Duration > TimeSpan.Zero ? _player.Duration.TotalSeconds : null,
             });
@@ -288,6 +299,8 @@ public sealed partial class MainWindow : IDisposable
         var library = NSButton.CreateButton("Library", ShowLibrary);
         library.ToolTip = "Browse your local folders and media";
         var queue = NSButton.CreateButton("Up Next", ShowQueue);
+        var library = NSButton.CreateButton("Library", ShowLibrary);
+        library.ToolTip = "Browse your own local library and watched folders";
         queue.ToolTip = "View, reorder, and manage what plays next";
         open.ToolTip = "Open a file (Cmd+O)";
         _playPause.BezelStyle = NSBezelStyle.Rounded;
@@ -360,6 +373,8 @@ public sealed partial class MainWindow : IDisposable
         app.AddItem(new NSMenuItem("Playback tools…", (_, _) => ShowPlaybackTools()));
         app.AddItem(new NSMenuItem("Your library…", (_, _) => Run(CommandCatalog.ToggleLibrary)));
         app.AddItem(new NSMenuItem("Up Next…", (_, _) => ShowQueue()));
+        // Reuse the shared command and its customizable keyboard equivalent.
+        app.AddItem(Entry(CommandCatalog.ToggleLibrary, "Library…"));
         app.AddItem(NSMenuItem.SeparatorItem);
         app.AddItem(new NSMenuItem("Hide rexplayer", "h", (_, _) => NSApplication.SharedApplication.Hide(NSApplication.SharedApplication)));
         app.AddItem(new NSMenuItem("Quit rexplayer", "q", (_, _) => NSApplication.SharedApplication.Terminate(null)));
@@ -433,6 +448,9 @@ public sealed partial class MainWindow : IDisposable
         {
             case CommandCatalog.OpenFile or CommandCatalog.OpenFolder:
                 OpenWithPanel(folders: command == CommandCatalog.OpenFolder);
+                return true;
+            case CommandCatalog.ToggleLibrary:
+                ShowLibrary();
                 return true;
             case CommandCatalog.Quit:
                 NSApplication.SharedApplication.Terminate(null);

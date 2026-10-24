@@ -107,12 +107,19 @@ public sealed class VisualStage
     /// <see cref="SpectrumAnalyzer.Size"/>, with the sensitivity applied; the beat is heard from the
     /// sound as it is, the sensitivity setting how strongly it moves things.
     /// </summary>
-    public bool Draw(VisualizerChoice choice, IReadOnlyDictionary<string, string> options, ReadOnlySpan<float> left, ReadOnlySpan<float> right, int sampleRate, TimeSpan elapsed)
+    public bool Draw(VisualizerChoice choice, IReadOnlyDictionary<string, string> options, ReadOnlySpan<float> left, ReadOnlySpan<float> right, int sampleRate, TimeSpan elapsed, CancellationToken cancellation = default)
     {
         ArgumentNullException.ThrowIfNull(options);
-        if (left.Length != SoundSize || right.Length != SoundSize)
+        cancellation.ThrowIfCancellationRequested();
+        // A short or unavailable source need not fabricate a full frame of
+        // audio. Zero-pad at the older end so the newest actual samples still
+        // line up with the latest sound; an absent right channel means mono.
+        // Longer capture buffers use their newest samples without allocating.
+        left = left.Length > SoundSize ? left[^SoundSize..] : left;
+        right = right.Length > SoundSize ? right[^SoundSize..] : right;
+        if (right.IsEmpty)
         {
-            throw new ArgumentException($"Each channel takes {SoundSize} samples.", nameof(left));
+            right = left;
         }
 
         if (_scene is null || choice != _choice)
@@ -134,20 +141,25 @@ public sealed class VisualStage
         Context.Prepare();
         var gain = (float)Context.Number(Player.VisualizerOptions.Sensitivity);
         var skip = SoundSize - Context.Left.Length;
+        var leftPad = SoundSize - left.Length;
+        var rightPad = SoundSize - right.Length;
         for (var i = 0; i < _mono.Length; i++)
         {
-            var (l, r) = (float.IsFinite(left[i]) ? Math.Clamp(left[i], -1, 1) : 0, float.IsFinite(right[i]) ? Math.Clamp(right[i], -1, 1) : 0);
-            _mono[i] = (l + r) / 2;
+            var l = i >= leftPad ? SafeSample(left[i - leftPad]) : 0;
+            var r = i >= rightPad ? SafeSample(right[i - rightPad]) : 0;
+            _mono[i] = (l + r) * 0.5f;
             if (i >= skip)
             {
-                Context.Left[i - skip] = Math.Clamp(l * gain, -1, 1);
-                Context.Right[i - skip] = Math.Clamp(r * gain, -1, 1);
+                Context.Left[i - skip] = SafeSample(l * gain);
+                Context.Right[i - skip] = SafeSample(r * gain);
             }
         }
 
         _pulse.Sensitivity = gain;
         _pulse.Update(_mono, Math.Max(1, sampleRate), elapsed);
+        cancellation.ThrowIfCancellationRequested();
         _scene.Draw(Context);
+        cancellation.ThrowIfCancellationRequested();
         Canvas.Settle();
         Canvas.ToBgra(Pixels, 1, 0.35f);
         if (Context.Toggle(Player.VisualizerOptions.Meter))
@@ -158,6 +170,9 @@ public sealed class VisualStage
 
         return true;
     }
+
+    /// <summary>Clamp decoded samples, treating damaged or unavailable audio as silence.</summary>
+    public static float SafeSample(float sample) => float.IsFinite(sample) ? Math.Clamp(sample, -1, 1) : 0;
 
     /// <summary>
     /// The beat meter, along the bottom: the bands as thin bars; the bass, middle and treble, the

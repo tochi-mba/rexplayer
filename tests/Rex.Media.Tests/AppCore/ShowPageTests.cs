@@ -84,6 +84,36 @@ public sealed class ShowPageTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void OpenSeasonRefreshKeepsItsRouteButNeverReusesMovedOrDamagedOldEntries()
+    {
+        var old = Show(Episode("Alpha S01E01", plays: 1), Episode("Alpha S02E01"));
+        var firstView = LibraryViews.TvSeasons(old);
+        var open = firstView.Single(season => season.Name == "Season 2");
+
+        // The new scan reclassifies an entry and records a new playback failure.
+        // The page must use the new objects, not the old season's stale list.
+        var refreshed = Show(Episode("Alpha S01E01", plays: 1),
+            Episode("Alpha S02E01", problem: "drive disconnected"),
+            Episode("Alpha S02E02", title: "Corrected title"));
+        var current = LibraryViews.TvSeasons(refreshed);
+        var selected = ShowPage.RefreshSeason(current, open, ShowPage.NextUp(refreshed, Nothing));
+
+        Assert.NotSame(open, selected);
+        Assert.Equal("Season 2", selected!.Name);
+        Assert.Equal(["Alpha S02E01", "Corrected title"], selected.Entries.Select(e => e.Title));
+        Assert.Equal("drive disconnected", selected.Entries[0].Problem);
+        Assert.Equal("Alpha S02E02", ShowPage.NextUp(refreshed, Nothing)!.Path.Split(Path.DirectorySeparatorChar)[^1].Replace(".mkv", ""));
+
+        // When season 2 disappears, the current route falls back to a real
+        // season instead of showing an old ghost episode from the removed disk.
+        var withoutSecond = LibraryViews.TvSeasons(Show(Episode("Alpha S01E01", plays: 1)));
+        Assert.Equal("Season 1", ShowPage.RefreshSeason(withoutSecond, open, null)?.Name);
+        Assert.Null(ShowPage.RefreshSeason([], open, null));
+        Assert.Throws<ArgumentNullException>(() => ShowPage.RefreshSeason(null!, open, null));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ThePickerExplicitlyNamesSeasonZeroWithoutChangingRegularSeasonLabels()
     {
         var show = Show(Episode("Alpha S00E01"), Episode("Alpha S01E01"));
@@ -111,6 +141,72 @@ public sealed class ShowPageTests
         Assert.Equal(0, ShowPage.Progress(Episode("A"), TimeSpan.FromMinutes(15)));
         Assert.Equal(1, ShowPage.Progress(Episode("A", plays: 1), null));
         Assert.Equal(0, ShowPage.Progress(Episode("A"), null));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void AWatchedSeasonDoesNotMakeAnUnfinishedSeriesComplete()
+    {
+        var show = Show(Episode("Alpha S01E01", plays: 2), Episode("Alpha S01E02", plays: 1),
+            Episode("Alpha S02E01", plays: 1));
+        var seasons = LibraryViews.TvSeasons(show);
+        var first = seasons.Single(season => season.Name == "Season 1");
+        var second = seasons.Single(season => season.Name == "Season 2");
+        var left = LeftAt("S02E01", TimeSpan.FromMinutes(12));
+
+        var seasonOne = ShowPage.WatchSummary(first.Entries, left);
+        var seasonTwo = ShowPage.WatchSummary(second.Entries, left);
+        var series = ShowPage.WatchSummary(show.Entries, left);
+
+        Assert.Equal(new EpisodeWatchSummary(2, 2, 0), seasonOne);
+        Assert.True(seasonOne.IsComplete);
+        Assert.Equal("Season complete: 2 of 2 episodes watched", seasonOne.Describe("Season"));
+        Assert.Equal(new EpisodeWatchSummary(1, 0, 1), seasonTwo);
+        Assert.Equal("Season: 0 of 1 episode watched · 1 in progress", seasonTwo.Describe("Season"));
+        Assert.False(seasonTwo.IsComplete);
+        Assert.Equal(new EpisodeWatchSummary(3, 2, 1), series);
+        Assert.False(series.IsComplete);
+        Assert.Equal("Series: 2 of 3 episodes watched · 1 in progress", series.Describe("Series"));
+
+        // Completing the final episode changes only its own and the parent summaries.
+        Assert.True(ShowPage.WatchSummary(show.Entries, Nothing).IsComplete);
+        Assert.Equal("Series complete: 3 of 3 episodes watched",
+            ShowPage.WatchSummary(show.Entries, Nothing).Describe("Series"));
+        Assert.False(ShowPage.WatchSummary([], Nothing).IsComplete);
+        Assert.Equal("Season: no episodes", ShowPage.WatchSummary([], Nothing).Describe("Season"));
+        Assert.Throws<ArgumentNullException>(() => ShowPage.WatchSummary(null!, Nothing));
+        Assert.Throws<ArgumentNullException>(() => ShowPage.WatchSummary([], null!));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void WatchSummaryCountsEpisodesNotFileVersionsOrWholeMultiEpisodeFiles()
+    {
+        var episodes = new[]
+        {
+            Episode("Alpha S01E01 720p", plays: 1),
+            Episode("Alpha S01E01 1080p"),
+            Episode("Alpha S01E02E03", plays: 1),
+            Episode("Alpha S01E04", plays: 2),
+            Episode("Alpha S00E01"),
+        };
+        var left = LeftAt("S01E04", TimeSpan.FromMinutes(4));
+        var summary = ShowPage.WatchSummary(episodes, left);
+        var grouped = Show(episodes);
+        Assert.Equal("2 seasons · 5 episodes", grouped.Detail);
+        Assert.Equal("4 episodes", LibraryViews.TvSeasons(grouped).Single(s => s.Name == "Season 1").Detail);
+        Assert.Equal(new EpisodeWatchSummary(5, 3, 1), summary);
+        Assert.False(summary.IsComplete);
+        Assert.Equal("Season: 3 of 5 episodes watched · 1 in progress", summary.Describe("Season"));
+
+        // When episode four reaches the end, its previously incomplete play
+        // becomes complete without double-counting the second version of one.
+        Assert.Equal(new EpisodeWatchSummary(5, 4, 0), ShowPage.WatchSummary(episodes, Nothing));
+        Assert.Equal(new EpisodeWatchSummary(3, 3, 0),
+            ShowPage.WatchSummary(episodes.Take(3).ToArray(), Nothing));
+
+        var malformed = Episode("Alpha S01E02-E999", plays: 1);
+        Assert.Equal(1, ShowPage.WatchSummary([malformed], Nothing).Total);
     }
 
     [Fact]

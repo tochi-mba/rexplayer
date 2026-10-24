@@ -14,6 +14,16 @@ public sealed record LyricLine(TimeSpan? At, string Text)
     public IReadOnlyList<LyricWord> Words { get; init; } = [];
 }
 
+/// <summary>How precisely a lyric source actually marks time; no precision is inferred.</summary>
+public enum LyricsDisplayMode
+{
+    None,
+    Plain,
+    LineTimed,
+    WordTimed,
+    MixedTimed,
+}
+
 /// <summary>
 /// A song's lyrics (META-09): timed, from an LRC file ("[01:02.50]words", several times to a line
 /// allowed, with an [offset:...] in milliseconds), or plain, from a tag or an untimed file.
@@ -26,6 +36,22 @@ public sealed partial class Lyrics
     public IReadOnlyList<LyricLine> Lines { get; }
 
     public bool IsTimed => Lines.Count > 0 && Lines[0].At is not null;
+
+    /// <summary>Describe the complete source, including partially word-timed LRC files.</summary>
+    public LyricsDisplayMode DisplayMode
+    {
+        get
+        {
+            if (!IsTimed)
+            {
+                return Lines.Count == 0 ? LyricsDisplayMode.None : LyricsDisplayMode.Plain;
+            }
+
+            var timed = Lines.Count(line => line.Words.Count > 0);
+            return timed == 0 ? LyricsDisplayMode.LineTimed
+                : timed == Lines.Count ? LyricsDisplayMode.WordTimed : LyricsDisplayMode.MixedTimed;
+        }
+    }
 
     /// <summary>Lyrics from text: LRC when any line carries a time, else one line per line of text; null when there is no text.</summary>
     public static Lyrics? Parse(string? text)
@@ -43,12 +69,23 @@ public sealed partial class Lyrics
             var line = raw.Trim();
             if (OffsetTag().Match(line) is { Success: true } offsetMatch)
             {
-                offset = TimeSpan.FromMilliseconds(int.Parse(offsetMatch.Groups["ms"].Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture));
+                // A damaged or extremely large offset tag must not abort loading the lyrics.
+                // Keep the last valid offset rather than treating malformed metadata as text.
+                if (int.TryParse(offsetMatch.Groups["ms"].Value, NumberStyles.AllowLeadingSign,
+                    CultureInfo.InvariantCulture, out var milliseconds))
+                {
+                    offset = TimeSpan.FromMilliseconds(milliseconds);
+                }
+
                 continue;
             }
 
-            var stamps = Stamp().Matches(line);
-            if (stamps.Count == 0)
+            // Invalid seconds are not timestamps. Keep their text available as plain lyrics
+            // rather than assigning an invented time to malformed LRC lines.
+            var stamps = Stamp().Matches(line).Cast<Match>()
+                .Where(match => int.Parse(match.Groups["s"].Value, CultureInfo.InvariantCulture) < 60)
+                .ToArray();
+            if (stamps.Length == 0)
             {
                 // [ar:Asake] and the like say who and what; they are not sung.
                 if (!InfoTag().IsMatch(line))
@@ -60,7 +97,7 @@ public sealed partial class Lyrics
             }
 
             var (words, segments) = ReadWords(line[(stamps[^1].Index + stamps[^1].Length)..]);
-            foreach (Match stamp in stamps)
+            foreach (var stamp in stamps)
             {
                 var at = Time(stamp);
                 timed.Add(new LyricLine(at, words)
@@ -113,6 +150,32 @@ public sealed partial class Lyrics
         {
             var middle = low + ((high - low) / 2);
             if (Lines[middle].At <= position)
+            {
+                low = middle + 1;
+            }
+            else
+            {
+                high = middle;
+            }
+        }
+
+        return low - 1;
+    }
+
+    /// <summary>
+    /// Last word with reliable source timing at this position. Untimed or
+    /// unreliable lines return -1 rather than inventing karaoke precision.
+    /// </summary>
+    public static int WordIndexAt(LyricLine line, TimeSpan position)
+    {
+        ArgumentNullException.ThrowIfNull(line);
+        var words = line.Words;
+        var low = 0;
+        var high = words.Count;
+        while (low < high)
+        {
+            var middle = low + ((high - low) / 2);
+            if (words[middle].At <= position)
             {
                 low = middle + 1;
             }

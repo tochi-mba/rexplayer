@@ -29,7 +29,7 @@
           </Grid>
         </Border>
         <StackPanel Grid.Column="2" VerticalAlignment="Center">
-          <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
+          <TextBlock Text="{x:Bind Name}" FlowDirection="{x:Bind NameDirection}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
           <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" Visibility="{x:Bind DetailVisibility, Mode=OneWay}" />
         </StackPanel>
         <!-- Quick actions show on the line pointed at or focused, exactly like a card's play mark. -->
@@ -232,10 +232,24 @@
         </Grid>
         </ScrollViewer>
         <!-- Lyrics, the line being sung marked and kept in the middle (META-09). -->
+        <!-- Distinguish loading, unavailable, untimed and mixed lyric sources without
+             inventing timestamps. The status stays accessible when no scroll viewer exists. -->
+        <TextBlock x:Name="LyricsStatus" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                   Margin="32,0,32,112" MaxWidth="560" Padding="12,8" TextWrapping="Wrap" TextAlignment="Center"
+                   Foreground="White" AutomationProperties.AutomationId="LyricsStatus"
+                   AutomationProperties.Name="Lyrics status" AutomationProperties.LiveSetting="Polite" />
+        <!-- Manual navigation pauses lyric autoscroll until the user explicitly resumes it. -->
         <ScrollViewer x:Name="LyricsBox" Visibility="Collapsed" VerticalAlignment="Bottom" Margin="48,0,48,24" MaxWidth="720" CornerRadius="12"
-                      VerticalScrollBarVisibility="Hidden" IsHitTestVisible="True" AutomationProperties.AutomationId="Lyrics" AutomationProperties.Name="Lyrics">
+                      VerticalScrollBarVisibility="Auto" IsHitTestVisible="True" AutomationProperties.AutomationId="Lyrics" AutomationProperties.Name="Lyrics">
           <StackPanel x:Name="LyricsLines" Spacing="6" Padding="0,8" />
         </ScrollViewer>
+        <Button x:Name="LyricsFollowButton" Content="Follow current line" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,52,30"
+                Canvas.ZIndex="6" ToolTipService.ToolTip="Resume automatic lyric scrolling" AutomationProperties.AutomationId="LyricsFollow" AutomationProperties.Name="Return to current lyric line" />
+        <Button x:Name="LyricsDetachButton" Content="Open lyrics window" Visibility="Collapsed" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                Margin="48,0,0,30" Canvas.ZIndex="6" Click="OnOpenLyricsCompanion"
+                ToolTipService.ToolTip="Open a separately resizable lyrics window"
+                AutomationProperties.AutomationId="LyricsDetach"
+                AutomationProperties.Name="Open or focus the detached lyrics window" />
         <!-- A held viewer should not have to infer from the small timeline rail that captions are
              being prepared. Keep the explanation central and offer an immediate, explicit escape. -->
         <Border x:Name="CaptionBufferOverlay" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"

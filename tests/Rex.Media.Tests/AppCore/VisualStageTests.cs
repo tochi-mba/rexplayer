@@ -1,4 +1,5 @@
 using System.Globalization;
+using Rex.Media.Audio;
 using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Visuals;
 using Rex.Media.Primitives;
@@ -115,6 +116,139 @@ public sealed class VisualStageTests
         Assert.All(stage.Context.Right, value => Assert.Equal(0, value));
         Assert.True(float.IsFinite(stage.Canvas.AverageLuma()));
         Assert.True(float.IsFinite(stage.Pulse.Snare.Level));
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void CanceledVisualFramesNeverEnterAnalysisAndNextTrackMayStartFresh()
+    {
+        var stage = Stage(64, 36);
+        var sound = new float[VisualStage.SoundSize];
+        using var oldTrack = new CancellationTokenSource();
+        oldTrack.Cancel();
+        Assert.Throws<OperationCanceledException>(() => stage.Draw(
+            VisualizerChoice.Halo, Defaults, sound, sound, 48000,
+            TimeSpan.FromMilliseconds(30), oldTrack.Token));
+
+        // A new song does not inherit the cancellation token from a stopped
+        // or closed visualisation and can immediately render a new scene.
+        Assert.True(stage.Draw(VisualizerChoice.Mirror, Defaults, sound, sound,
+            48000, TimeSpan.FromMilliseconds(30), CancellationToken.None));
+        Assert.True(float.IsFinite(stage.Canvas.AverageLuma()));
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void ShortAndMissingVisualizerSamplesStaySilentUntilTheSourceHasData()
+    {
+        var stage = Stage(48, 30);
+        var shortSound = new float[] { 0.25f, -0.5f, 0.75f };
+        Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, shortSound, [], 48000, TimeSpan.FromMilliseconds(30)));
+        Assert.Equal(VisualStage.SoundSize - shortSound.Length, stage.Context.Left.TakeWhile(x => x == 0).Count()
+            + (VisualStage.SoundSize - stage.Context.Left.Length));
+        Assert.Equal(stage.Context.Left, stage.Context.Right);
+        Assert.Equal(0.25f, stage.Context.Left[^3]);
+        Assert.Equal(-0.5f, stage.Context.Left[^2]);
+        Assert.Equal(0.75f, stage.Context.Left[^1]);
+
+        Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, [], [], 48000, TimeSpan.FromMilliseconds(30)));
+        Assert.All(stage.Context.Left, sample => Assert.Equal(0, sample));
+        Assert.All(stage.Context.Right, sample => Assert.Equal(0, sample));
+        Assert.True(float.IsFinite(stage.Canvas.AverageLuma()));
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void OversizedAndClippedVisualizerChannelsUseRecentFiniteSamples()
+    {
+        var stage = Stage(48, 30);
+        var longer = Enumerable.Repeat(0.1f, VisualStage.SoundSize + 16).ToArray();
+        longer[^3] = float.NaN;
+        longer[^2] = float.PositiveInfinity;
+        longer[^1] = 4f;
+        Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, longer, [],
+            48000, TimeSpan.FromMilliseconds(30)));
+        Assert.Equal(0, stage.Context.Left[^3]);
+        Assert.Equal(0, stage.Context.Left[^2]);
+        Assert.Equal(1, stage.Context.Left[^1]);
+        Assert.All(stage.Context.Left, sample => Assert.InRange(sample, -1, 1));
+        Assert.Equal(VisualStage.SafeSample(-4), -1);
+        Assert.Equal(VisualStage.SafeSample(float.NegativeInfinity), 0);
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void SurroundMusicDownmixesToAnAccurateStereoVisualizerSignal()
+    {
+        using var sixChannels = AudioFrame.Rent(48000, 6, 12, ChannelLayout.Surround51);
+        for (var i = 0; i < sixChannels.SampleCount; i++)
+        {
+            sixChannels.Channel(0)[i] = 0.3f;
+            sixChannels.Channel(1)[i] = -0.25f;
+            sixChannels.Channel(2)[i] = 0.4f;
+            sixChannels.Channel(4)[i] = 0.15f;
+            sixChannels.Channel(5)[i] = -0.1f;
+        }
+
+        using var stereo = new ChannelMixer(ChannelLayout.Surround51, ChannelLayout.Stereo).Process(sixChannels);
+        var stage = Stage(48, 30);
+        Assert.True(stage.Draw(VisualizerChoice.Mirror, Defaults,
+            stereo.Channel(0), stereo.Channel(1), stereo.SampleRate, TimeSpan.FromMilliseconds(30)));
+        Assert.Equal(0, stage.Context.Left[^13]);
+        Assert.InRange(stage.Context.Left[^1], 0.25f, 0.4f);
+        Assert.InRange(stage.Context.Right[^1], -0.2f, 0.1f);
+        Assert.NotEqual(stage.Context.Left[^1], stage.Context.Right[^1]);
+        Assert.True(float.IsFinite(stage.Canvas.AverageLuma()));
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void UnavailableAndOffModesResetWithoutLeavingASceneStuck()
+    {
+        var stage = Stage();
+        float[] silence = new float[VisualStage.SoundSize];
+        Assert.False(stage.Draw(VisualizerChoice.Off, Defaults, silence, silence, 48000, TimeSpan.FromSeconds(1d / 30)));
+        Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, silence, silence, 48000, TimeSpan.FromSeconds(1d / 30)));
+        Assert.False(stage.Draw(VisualizerChoice.Off, Defaults, silence, silence, 48000, TimeSpan.FromSeconds(1d / 30)));
+        Assert.True(stage.Draw(VisualizerChoice.Mirror, Defaults, silence, silence, 48000, TimeSpan.FromSeconds(1d / 30)));
+        Assert.True(float.IsFinite(stage.Canvas.AverageLuma()));
+        stage.Reset();
+        Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, silence, silence, 48000, TimeSpan.FromSeconds(1d / 30)));
+    }
+
+    [Theory]
+    [Capability("AU-18")]
+    [InlineData(VisualizerChoice.Halo)]
+    [InlineData(VisualizerChoice.Mirror)]
+    [InlineData(VisualizerChoice.Aurora)]
+    [InlineData(VisualizerChoice.BeatEdit)]
+    public void MonoAndStereoSourcesRenderWithinBoundsWithoutARequiredCamera(VisualizerChoice choice)
+    {
+        var left = new float[VisualStage.SoundSize];
+        var right = new float[VisualStage.SoundSize];
+        for (var i = 0; i < left.Length; i++)
+        {
+            left[i] = (float)(0.55 * Math.Sin(i * Math.PI / 19));
+            right[i] = (float)(0.35 * Math.Sin(i * Math.PI / 31));
+        }
+
+        var mono = Stage(96, 54);
+        mono.Context.Camera = null;
+        mono.Context.Mask = null;
+        Assert.True(mono.Draw(choice, Defaults, left, left, 48000, TimeSpan.FromSeconds(1d / 30)));
+        Assert.Equal(mono.Context.Left, mono.Context.Right);
+        Assert.True(float.IsFinite(mono.Canvas.AverageLuma()));
+
+        var stereo = Stage(96, 54);
+        stereo.Context.Camera = null;
+        stereo.Context.Mask = null;
+        Assert.True(stereo.Draw(choice, Defaults, left, right, 48000, TimeSpan.FromSeconds(1d / 30)));
+        Assert.NotEqual(stereo.Context.Left.ToArray(), stereo.Context.Right.ToArray());
+        Assert.True(float.IsFinite(stereo.Canvas.AverageLuma()));
+
+        stereo.Context.Camera = new VisualPicture([0, 0, 0], 1, 1);
+        Assert.True(stereo.Draw(choice, Defaults, left, right, 48000, TimeSpan.FromSeconds(1d / 30)));
+        Assert.True(float.IsFinite(stereo.Canvas.AverageLuma()));
     }
 
     /// <summary>

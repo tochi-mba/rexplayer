@@ -139,20 +139,29 @@ public sealed partial class MainWindow
         var number = season?.Entries.Select(LibraryViews.EpisodeOf).FirstOrDefault(episode => episode is not null)?.Season;
         var overview = TitleSections.SeasonOverview(facts, number);
         var cast = TitleSections.CastRow(facts?.Cast ?? []);
-        var key = show.Name + "\n" + overview + "\n" + string.Join("|", cast.Select(member => member.Name + member.Character + member.PhotoUrl));
+        // A completed season must not suggest the whole series was watched.
+        // Aggregate from the locally saved per-episode history, never from online metadata.
+        var seasonProgress = season is null ? null : ShowPage.WatchSummary(season.Entries, _player.LeftAt).Describe("Season");
+        var seriesProgress = ShowPage.WatchSummary(show.Entries, _player.LeftAt).Describe("Series");
+        var viewing = string.Join(" · ", new[] { seasonProgress, seriesProgress }.Where(value => !string.IsNullOrWhiteSpace(value)));
+        var key = show.Name + "\n" + overview + "\n" + viewing + "\n" + string.Join("|", cast.Select(member => member.Name + member.Character + member.PhotoUrl));
         if (key == _shownShowHeader)
         {
             return;
         }
 
         _shownShowHeader = key;
-        if (cast.Count == 0 && overview is null)
-        {
-            LibraryList.Header = null;
-            return;
-        }
-
         var header = new StackPanel { Spacing = 14, Padding = new Thickness(6, 4, 6, 14) };
+        var progress = new TextBlock
+        {
+            Text = viewing,
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 900,
+            HorizontalAlignment = HorizontalAlignment.Left,
+        };
+        AutomationProperties.SetAutomationId(progress, "LibraryViewingProgress");
+        AutomationProperties.SetName(progress, viewing);
+        header.Children.Add(progress);
         if (overview is not null)
         {
             var text = new TextBlock { Text = overview, TextWrapping = TextWrapping.Wrap, MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Left };

@@ -37,6 +37,7 @@ public sealed partial class MainWindow
     private DispatcherQueueTimer? _libraryRefresh;
     private DispatcherQueueTimer? _libraryChanges;
     private DispatcherQueueTimer? _libraryRescan;
+    private readonly Windows.UI.ViewManagement.AccessibilitySettings _libraryContrastSettings = new();
     private LibrarySource _librarySource = LibrarySource.Home;
     private LibraryGroup? _libraryGroup;
 
@@ -72,6 +73,18 @@ public sealed partial class MainWindow
     }
 
     private bool LibraryOpen => LibraryPane.Visibility == Visibility.Visible;
+
+    private void RebuildLibraryForSystemPalette()
+    {
+        if (_closed || !LibraryOpen)
+        {
+            return;
+        }
+
+        _shownLibrary = "";
+        _shownHero = "";
+        ShowLibrary();
+    }
 
     /// <summary>The library's own store beside the other; when it cannot be read, one in memory.</summary>
     internal static RexStore OpenLibraryStore()
@@ -118,6 +131,13 @@ public sealed partial class MainWindow
         _libraryRescan.Interval = LibraryRescanEvery;
         OnTick(_libraryRescan, () => _scanner.Request());
         _libraryRescan.Start();
+
+        // Re-create theme-specific library visuals when Windows theme/contrast
+        // changes. A previously rendered movie billboard must not retain white
+        // over-photo text after the user switches to a high-contrast theme.
+        Root.ActualThemeChanged += (_, _) => RebuildLibraryForSystemPalette();
+        _libraryContrastSettings.HighContrastChanged += (_, _) =>
+            DispatcherQueue.TryEnqueue(RebuildLibraryForSystemPalette);
 
         LibrarySources.ItemsSource = LibrarySourceItems.Select(source => source.Item).ToList();
         ApplyLibraryNavigationWidth();
@@ -507,6 +527,15 @@ public sealed partial class MainWindow
     /// <summary>A visible media line asks for its picture once; recycled, off-screen rows ask for nothing.</summary>
     private void OnLibraryRowShown(ListViewBase sender, ContainerContentChangingEventArgs args)
     {
+        if (args.ItemContainer is { } realized)
+        {
+            // The row's title remains a concise screen-reader name; a secondary
+            // filename and parent-folder hint distinguishes otherwise identical
+            // titles and is replaced when a virtualized container is recycled.
+            AutomationProperties.SetHelpText(realized, args.InRecycleQueue ? ""
+                : args.Item is LibraryRow row ? row.AccessibilityContext : "");
+        }
+
         if (args.InRecycleQueue)
         {
             LetPictureGo(args.Item as LibraryRow);

@@ -32,6 +32,28 @@ public sealed class LibraryEmptyStateTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void FailedLibraryScanNeverClaimsThatTheDriveIsEmpty()
+    {
+        const string problem = "A library folder could not be read. Reconnect its drive or check permissions, then rescan. Known history was kept.";
+        var failure = LibraryEmptyState.For(LibraryEmptyView.Media,
+            searching: false, hasFolders: true, filters: null, scanning: false, scanProblem: problem);
+        Assert.Equal(problem, failure.Text);
+        Assert.True(failure.OffersRescan, "An unavailable watched drive needs a direct recovery action.");
+        Assert.False(LibraryEmptyState.For(LibraryEmptyView.Media, false, true, null, true, problem).OffersRescan,
+            "Do not offer retry while the scan is already running.");
+        Assert.False(LibraryEmptyState.For(LibraryEmptyView.Media, false, true, "Music", false, problem).OffersRescan,
+            "A filter that hides entries needs Clear filters, not an unrelated scan retry.");
+        Assert.Equal("Looking through your folders...", LibraryEmptyState.For(LibraryEmptyView.Media,
+            searching: false, hasFolders: true, filters: null, scanning: true, scanProblem: problem).Text);
+        Assert.Equal("Nothing here matches these filters: Music.", LibraryEmptyState.For(LibraryEmptyView.Media,
+            searching: false, hasFolders: true, filters: "Music", scanning: false, scanProblem: problem).Text);
+        Assert.Equal("The library shows the music, videos and pictures in the folders you choose, and keeps up as files come and go.",
+            LibraryEmptyState.For(LibraryEmptyView.Media,
+                searching: false, hasFolders: false, filters: null, scanning: false, scanProblem: problem).Text);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void ALibraryWithoutFoldersOffersSomeAndAScanSaysItIsLooking()
     {
         var welcome = LibraryEmptyState.For(LibraryEmptyView.Media, false, hasFolders: false, filters: "Music", scanning: true);

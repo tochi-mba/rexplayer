@@ -22,9 +22,12 @@ Usage::
 from __future__ import annotations
 
 import re
+import struct
 import sys
+import zlib
 from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import unquote
 
 SITE = Path(__file__).resolve().parents[1] / "site"
 PRODUCT = "rexplayer"
@@ -58,6 +61,8 @@ class PageParser(HTMLParser):
         self.base = ""
         self.h1_count = 0
         self.images_without_alt: list[str] = []
+        self.tour_images_without_alt: list[str] = []
+        self.invalid_tour_sources: list[str] = []
         self.unsafe_blank: list[str] = []
         self.inline_handlers: list[str] = []
         self._in_title = False
@@ -81,6 +86,23 @@ class PageParser(HTMLParser):
             self.hrefs.append(values["href"])
             if values.get("target") == "_blank" and "noopener" not in values.get("rel", ""):
                 self.unsafe_blank.append(values["href"])
+        # The walkthrough switches images in JavaScript, but every possible source
+        # and its spoken description must also be checked before Pages publication.
+        if "data-tour-src" in values:
+            source = values["data-tour-src"]
+            # Walkthrough sources are plain relative asset paths, not external URLs,
+            # absolute site paths or paths escaping the published site directory.
+            decoded = unquote(source)
+            segments = decoded.split("/")
+            if (not decoded.strip() or decoded.startswith(REMOTE) or decoded.startswith("/")
+                    or any(segment in ("", ".", "..") for segment in segments)
+                    or "?" in decoded or "#" in decoded or "\\" in decoded
+                    or any(control in decoded for control in ("\x00", "\r", "\n"))):
+                self.invalid_tour_sources.append(source)
+            else:
+                self.assets.append(source)
+            if not values.get("data-tour-alt", "").strip():
+                self.tour_images_without_alt.append(source)
         if tag == "img":
             self.assets.append(values.get("src", ""))
             # An explicitly empty alt marks an image decorative; a missing one does not.
@@ -115,6 +137,8 @@ def check(site: Path = SITE, product: str = PRODUCT) -> list[str]:
     for page in pages:
         problems.extend(f"{page.name}: {problem}" for problem in _check_page(page, parsed, product))
     problems.extend(_check_sitemap(site, pages))
+    for asset in sorted((site / "assets").glob("*.png")):
+        problems.extend(f"{asset.name}: {issue}" for issue in _check_png(asset))
     return problems
 
 
@@ -154,6 +178,8 @@ def _check_page(page: Path, parsed: dict[str, PageParser], product: str) -> list
     for href in parser.hrefs:
         problems.extend(_check_link(page, parser, parsed, href))
     problems.extend(f"image '{image}' has no alt text." for image in parser.images_without_alt)
+    problems.extend(f"walkthrough image '{image}' has no descriptive data-tour-alt." for image in parser.tour_images_without_alt)
+    problems.extend(f"walkthrough image '{image}' must use an existing local asset." for image in parser.invalid_tour_sources)
     problems.extend(f"the new-tab link to '{href}' lacks rel=\"noopener\"." for href in parser.unsafe_blank)
     problems.extend(f"inline event handler '{handler}' found; use app.js." for handler in parser.inline_handlers)
     insecure = sorted(set(re.findall(r"http://[^\"'\s<>]+", html)))
@@ -191,6 +217,57 @@ def _check_link(page: Path, parser: PageParser, parsed: dict[str, PageParser], h
         return [f"link '{href}' points at a page that does not exist."]
     if fragment and target.name in parsed and fragment not in parsed[target.name].ids:
         return [f"link '{href}' points at an id that does not exist on {target.name}."]
+    return []
+
+
+def _check_png(asset: Path) -> list[str]:
+    """Validate screenshot bytes, dimensions and chunk checksums without PIL.
+
+    Merely checking that an <img> src exists lets a zero-byte, truncated or
+    accidentally 1×1 preview pass the static gate. This checks the actual
+    committed gallery files; browser tests separately verify decoding/layout.
+    """
+    try:
+        with asset.open("rb") as file:
+            if file.read(8) != b"\x89PNG\r\n\x1a\n":
+                return ["not a PNG image."]
+            chunks = []
+            width = height = 0
+            seen_ihdr = seen_idat = seen_iend = False
+            while True:
+                head = file.read(8)
+                if len(head) != 8:
+                    return ["incomplete PNG: missing IEND chunk."]
+                size, kind = struct.unpack(">I4s", head)
+                if size > 32 * 1024 * 1024:
+                    return ["PNG chunk is unreasonably large."]
+                data = file.read(size)
+                checksum = file.read(4)
+                if len(data) != size or len(checksum) != 4:
+                    return ["truncated PNG chunk."]
+                expected = struct.unpack(">I", checksum)[0]
+                actual = zlib.crc32(kind + data) & 0xffffffff
+                if actual != expected:
+                    return ["PNG chunk checksum mismatch."]
+                chunks.append(kind)
+                if kind == b"IHDR":
+                    if seen_ihdr or len(data) != 13 or len(chunks) != 1:
+                        return ["invalid PNG image header."]
+                    seen_ihdr = True
+                    width, height = struct.unpack(">II", data[:8])
+                elif kind == b"IDAT":
+                    seen_idat = True
+                elif kind == b"IEND":
+                    seen_iend = True
+                    if size != 0 or file.read(1):
+                        return ["invalid trailing PNG data."]
+                    break
+            if not (seen_ihdr and seen_idat and seen_iend):
+                return ["missing required PNG image chunks."]
+            if width < 320 or height < 180:
+                return [f"screenshot {width}×{height} is too small for a readable preview."]
+    except OSError as exc:
+        return [f"could not read PNG asset: {exc}."]
     return []
 
 

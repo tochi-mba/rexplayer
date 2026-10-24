@@ -90,16 +90,35 @@ public sealed class AppEndToEndTests : IDisposable
 
     [Fact]
     [Capability("UI-14")]
-    public void TheFirstStartWelcomesAndAsksAboutLookingForUpdates()
+    public void TheFirstStartDoesNotOptIntoBackgroundNetworkChecksByDefault()
     {
         using var app = AppProcess.Start(firstRun: true);
 
-        app.Toggle("WelcomeUpdates");
+        var updates = (System.Windows.Automation.TogglePattern)app.Find("WelcomeUpdates")
+            .GetCurrentPattern(System.Windows.Automation.TogglePattern.Pattern);
+        Assert.Equal(System.Windows.Automation.ToggleState.Off, updates.Current.ToggleState);
+        Assert.Contains("Optional metadata lookups and update checks contact online services only when enabled",
+            app.Text("WelcomePrivacy"), StringComparison.Ordinal);
+        Screenshots.Match(app, "welcome-first-run-offline");
         app.Press("CloseButton");
         Wait.For(() => File.Exists(app.SettingsPath) && app.SavedSettings.FirstRunDone, "the welcome to be remembered");
 
         var saved = app.SavedSettings;
         Assert.Equal((UpdateCadence.Off, AppProcess.Version), (saved.UpdateChecks, saved.LastSeenVersion));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("UI-14")]
+    public void TheFirstStartCanExplicitlyEnableBackgroundUpdateChecks()
+    {
+        using var app = AppProcess.Start(firstRun: true);
+
+        app.Toggle("WelcomeUpdates");
+        app.Press("CloseButton");
+        Wait.For(() => File.Exists(app.SettingsPath) && app.SavedSettings.FirstRunDone,
+            "the chosen update preference to be remembered");
+        Assert.Equal(UpdateCadence.Daily, app.SavedSettings.UpdateChecks);
         Assert.Equal(0, app.Close());
     }
 

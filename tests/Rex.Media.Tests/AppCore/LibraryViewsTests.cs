@@ -447,6 +447,43 @@ public sealed class LibraryViewsTests
     [InlineData("afro single", new string[0])]
     public void SearchFindsEveryWordAnywhere(string? text, string[] found) => Assert.Equal(found, Titles(LibraryViews.Search(Entries, text)));
 
+    [Theory]
+    [Capability("LIB-05")]
+    [InlineData("01 🎵 شمس وليل", true)]
+    [InlineData("… שלום עולם", true)]
+    [InlineData("Title 2026 شمس", false)]
+    [InlineData("123 🎵", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    [InlineData("阿拉伯語", false)]
+    public void MediaTitleDirectionFollowsItsFirstStrongScriptCharacter(string? title, bool rtl)
+    {
+        Assert.Equal(rtl, TextDirection.IsRightToLeft(title));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void HugeLibrarySearchRetainsDistinctPathsForRepeatedNamesAndRtlUnicode()
+    {
+        var many = Enumerable.Range(0, 12000).Select(index => new LibraryEntry
+        {
+            Path = Path.Combine("media", $"disc-{index:D5}", $"{index:D5}.flac"),
+            Kind = LibraryKind.Music,
+            Title = index is 50 or 11999 ? "شمس وليل 🎵" : $"Song {index:D5}",
+            Artist = index is 50 or 11999 ? "فنان" : "Local performer",
+            Album = index is 50 or 11999 ? "ألبوم" : "Library",
+            Added = Monday,
+        }).ToArray();
+
+        var matches = LibraryViews.Search(many, "شمس");
+        Assert.Equal(2, matches.Count);
+        Assert.Equal(2, matches.Select(song => song.Path).Distinct(StringComparer.Ordinal).Count());
+        Assert.All(matches, song => Assert.Equal("شمس وليل 🎵", song.Title));
+        Assert.Equal(2, LibraryViews.Search(many, "فنان ألبوم").Count);
+        Assert.Equal(12000, LibraryViews.Songs(many).Count);
+        Assert.Empty(LibraryViews.Search(many, "كلمة غير موجودة"));
+    }
+
     [Fact]
     public void SearchCanUseFetchedGenresAndCreditsWithoutChangingStoredTags()
     {

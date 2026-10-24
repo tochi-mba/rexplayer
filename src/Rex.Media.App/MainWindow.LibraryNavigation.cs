@@ -38,6 +38,22 @@ public sealed partial class MainWindow
 
     private void OnLibraryPaneSized(object sender, SizeChangedEventArgs e) => ApplyLibraryNavigationWidth();
 
+    /// <summary>
+    /// A temporary expanded rail is only for choosing a destination on a narrow window.
+    /// Once a view is chosen, give its content the available width back without changing
+    /// the persisted desktop navigation preference.
+    /// </summary>
+    private void CollapseTemporaryLibraryNavigation()
+    {
+        if (!LibraryNavigationIsNarrow || !_libraryNavigationExpandedWhileNarrow)
+        {
+            return;
+        }
+
+        _libraryNavigationExpandedWhileNarrow = false;
+        ApplyLibraryNavigationWidth();
+    }
+
     /// <summary>Uses an icon rail by choice or when the window is narrow, without removing navigation.</summary>
     private void ApplyLibraryNavigationWidth()
     {

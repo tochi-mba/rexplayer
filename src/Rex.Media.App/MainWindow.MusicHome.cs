@@ -58,9 +58,11 @@ public sealed partial class MainWindow
         LibraryPlay.Visibility = LibraryShuffle.Visibility = LibraryEnqueue.Visibility = Visibility.Collapsed;
         _libraryRows = [];
 
-        var home = MusicHome.Rows(entries, _player.NamedPlaylists, DateTime.UtcNow, name => MetadataArtist(name)?.Genres ?? []);
+        var home = MusicHome.Rows(entries, _player.NamedPlaylists, DateTime.UtcNow,
+            name => MetadataArtist(name)?.Genres ?? [], _settings.PinnedAlbumPaths);
         var shelves = new List<(string Title, string Id, IReadOnlyList<MusicRow> Rows)>
         {
+            ("Pinned albums", "Pinned", [.. home.Pinned.Select(AlbumCard)]),
             ("Jump back in", "JumpBackIn", [.. home.JumpBackIn.Select(place => place.Album is { } album ? AlbumCard(album) : PlaylistCard(place.Playlist!))]),
             ("On repeat", "OnRepeat", [.. home.OnRepeat.Select(song => SongCard(song, home.OnRepeat))]),
             ("Recently added", "RecentlyAdded", [.. home.RecentlyAdded.Select(AlbumCard)]),
@@ -71,8 +73,13 @@ public sealed partial class MainWindow
         shelves.RemoveAll(shelf => shelf.Rows.Count == 0);
         ShowLibraryEmpty(home.Hero is null && shelves.Count == 0, false, LibrarySource.Music);
 
-        var shown = "Music\n" + home.Hero?.Group.Name + "|" + home.Hero?.IsArtist + "\n"
-            + string.Join("\n", shelves.Select(shelf => shelf.Title + ":" + string.Join(",", shelf.Rows.Select(row => RowIdentity(row) + row.PicturePath))));
+        // The route can stay identical while a background tag scan corrects
+        // titles, credits, artwork or current-playback badges. Include the
+        // actually displayed facts, not just paths, in this idempotence key.
+        var shown = "Music\n" + home.Hero?.Group.Name + "|" + home.Hero?.IsArtist
+            + "|" + home.Hero?.Group.Detail + "|" + home.Hero?.Reason + "\n"
+            + string.Join("\n", shelves.Select(shelf => shelf.Title + ":" + string.Join(",", shelf.Rows.Select(row =>
+                RowIdentity(row) + "|" + row.Name + "|" + row.Detail + "|" + row.PicturePath + "|" + row.IsPlaying))));
         if (shown == _shownLibrary)
         {
             return;
@@ -162,6 +169,11 @@ public sealed partial class MainWindow
         actions.Children.Add(HeroButton("Play", "", "MusicHeroPlay", accent: true, () => PlayGroup(group, shuffle: false)));
         actions.Children.Add(HeroButton("Shuffle", "", "MusicHeroShuffle", accent: false, () => PlayGroup(group, shuffle: true)));
         actions.Children.Add(HeroButton(pick.IsArtist ? "Go to artist" : "Open album", "", "MusicHeroOpen", accent: false, () => OpenMusicGroup(group, pick.IsArtist)));
+        if (!pick.IsArtist)
+        {
+            actions.Children.Add(HeroButton(AlbumIsPinned(group) ? "Unpin album" : "Pin album", "",
+                "MusicHeroPin", accent: false, () => ToggleAlbumPin(group)));
+        }
         words.Children.Add(actions);
         frame.Children.Add(words);
         return frame;
@@ -271,6 +283,35 @@ public sealed partial class MainWindow
     internal void OnMusicRowPlay(object sender, RoutedEventArgs e) => OnRowPlay(sender, e);
 
     internal void OnMusicRowQueue(object sender, RoutedEventArgs e) => OnRowQueue(sender, e);
+
+    /// <summary>A pin is a path from the album, never a title that could match another artist.</summary>
+    private bool AlbumIsPinned(LibraryGroup album) => album.Entries.Any(entry =>
+        _settings.PinnedAlbumPaths.Contains(entry.Path, StringComparer.OrdinalIgnoreCase));
+
+    /// <summary>Pin or unpin a real album, persist the change, and redraw the current library view.</summary>
+    private void ToggleAlbumPin(LibraryGroup album)
+    {
+        if (album.Entries.FirstOrDefault()?.Path is not { Length: > 0 } representative)
+        {
+            return;
+        }
+
+        var paths = _settings.PinnedAlbumPaths.Where(path =>
+            !album.Entries.Any(entry => string.Equals(entry.Path, path, StringComparison.OrdinalIgnoreCase))).ToList();
+        var removing = paths.Count < _settings.PinnedAlbumPaths.Count;
+        if (!removing)
+        {
+            paths.Insert(0, representative);
+        }
+
+        _settings = _settings with { PinnedAlbumPaths = paths.Take(40).ToArray() };
+        _player.Settings = _settings;
+        SaveSettings();
+        _shownLibrary = "";
+        _shownMusicPage = "";
+        ShowLibrary();
+        Say(removing ? "Album removed from Music Home pins" : "Album pinned to Music Home");
+    }
 
     private MusicRow AlbumCard(LibraryGroup album) => new(album.Name, ArtistNames.Display(album.Detail) ?? Count(album.Entries.Count, "song"), "", album)
     {

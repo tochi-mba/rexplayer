@@ -25,6 +25,7 @@ public sealed record MusicPlace(LibraryGroup? Album, NamedPlaylist? Playlist);
 public sealed record MusicHomeRows(
     MusicPick? Hero,
     IReadOnlyList<MusicPlace> JumpBackIn,
+    IReadOnlyList<LibraryGroup> Pinned,
     IReadOnlyList<LibraryEntry> OnRepeat,
     IReadOnlyList<LibraryGroup> RecentlyAdded,
     IReadOnlyList<MusicMix> Mixes,
@@ -66,7 +67,9 @@ public static class MusicHome
     /// <param name="playlists">The user's playlists, for "Jump back in".</param>
     /// <param name="now">The time "lately" is measured from.</param>
     /// <param name="moreGenres">Genres a lookup found for an artist, for the artist mixes; null for none.</param>
-    public static MusicHomeRows Rows(IEnumerable<LibraryEntry> entries, IReadOnlyList<NamedPlaylist> playlists, DateTime now, Func<string, IReadOnlyList<string>>? moreGenres = null)
+    /// <param name="pinnedAlbumPaths">Paths in real albums selected by the user; missing paths are ignored.</param>
+    public static MusicHomeRows Rows(IEnumerable<LibraryEntry> entries, IReadOnlyList<NamedPlaylist> playlists, DateTime now,
+        Func<string, IReadOnlyList<string>>? moreGenres = null, IReadOnlyList<string>? pinnedAlbumPaths = null)
     {
         ArgumentNullException.ThrowIfNull(entries);
         ArgumentNullException.ThrowIfNull(playlists);
@@ -85,7 +88,22 @@ public static class MusicHome
         var newArtists = artists.OrderByDescending(artist => artist.Entries.Min(song => song.Added))
             .ThenBy(artist => artist.Name, NaturalOrder.Instance).Take(RowSize).ToArray();
 
-        return new MusicHomeRows(Hero(albums, artists, recentlyAdded, Lately), JumpBackIn(songs, albums, playlists), onRepeat, recentlyAdded,
+        // A pin names a real track in the album, not a title: unrelated releases
+        // with identical names must not be promoted together. Missing media does
+        // not become a fabricated, clickable Home card.
+        var pinned = new List<LibraryGroup>();
+        foreach (var path in pinnedAlbumPaths ?? [])
+        {
+            var album = albums.FirstOrDefault(group => group.Entries.Any(song =>
+                string.Equals(song.Path, path, StringComparison.OrdinalIgnoreCase)));
+            if (album is not null && !pinned.Contains(album))
+            {
+                pinned.Add(album);
+            }
+        }
+
+        return new MusicHomeRows(Hero(albums, artists, recentlyAdded, Lately), JumpBackIn(songs, albums, playlists),
+            pinned.Take(RowSize).ToArray(), onRepeat, recentlyAdded,
             [.. ArtistMixes(artists, Lately, moreGenres), .. GenreMixes(songs, Lately), .. DecadeMixes(songs, Lately)], notLately, newArtists);
     }
 

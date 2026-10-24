@@ -28,6 +28,14 @@ public sealed class MacAppSmokeTests
         var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
         var screenshots = RepoPaths.Combine("artifacts", "mac-queue-screenshots");
         Directory.CreateDirectory(screenshots);
+        var libraryScreenshots = RepoPaths.Combine("artifacts", "mac-library-screenshots");
+        Directory.CreateDirectory(libraryScreenshots);
+        var libraryFixture = Path.Combine(root, "watched-media");
+        Directory.CreateDirectory(libraryFixture);
+        File.Copy(RepoPaths.Combine("tests", "fixtures", "mp3", "stereo-44k-128k-cbr.mp3"),
+            Path.Combine(libraryFixture, "Sample Song.mp3"));
+        File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4"),
+            Path.Combine(libraryFixture, "Sample Film.mp4"));
         var start = new ProcessStartInfo(Path.Combine(bundle!, "Contents", "MacOS", "rexplayer"))
         {
             UseShellExecute = false,
@@ -39,6 +47,8 @@ public sealed class MacAppSmokeTests
         start.Environment["REXPLAYER_PIPE_NAME"] = pipe;
         start.Environment["REXPLAYER_MAC_QUEUE_TESTS"] = "1";
         start.Environment["REXPLAYER_MAC_QUEUE_SCREENSHOTS"] = screenshots;
+        start.Environment["REXPLAYER_MAC_LIBRARY_TESTS"] = "1";
+        start.Environment["REXPLAYER_MAC_LIBRARY_SCREENSHOTS"] = libraryScreenshots;
         using var app = Process.Start(start)!;
         // Native runtime assertions happen before the managed logger exists. Drain both pipes
         // immediately so a noisy startup cannot block, and include them if the smoke test fails.
@@ -48,6 +58,41 @@ public sealed class MacAppSmokeTests
         {
             var up = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Ok: true }, app, root);
             Assert.Equal("Idle", up.State);
+            var emptyLibrary = await Library(pipe, "show");
+            Assert.Contains("0 items", emptyLibrary.Title, StringComparison.Ordinal);
+            await Library(pipe, "capture-empty");
+            await Library(pipe, "add-folder", libraryFixture);
+            var populated = await Until(
+                () => Ask(pipe, new AutomationRequest { Command = "mac-library", Id = "status" }),
+                reply => reply?.Title?.Contains("2 items", StringComparison.Ordinal) == true,
+                app, root);
+            Assert.Contains("1 folder", populated.Title, StringComparison.Ordinal);
+            await Library(pipe, "capture-populated");
+            var searched = await Library(pipe, "search-song");
+            Assert.Contains("1 item", searched.Title, StringComparison.Ordinal);
+            var missing = await Library(pipe, "search-missing");
+            Assert.Contains("0 items", missing.Title, StringComparison.Ordinal);
+            Assert.Contains("Search: No fixture with this name", missing.Title, StringComparison.Ordinal);
+            await Library(pipe, "capture-search-empty");
+            var restored = await Library(pipe, "clear-search");
+            Assert.Contains("2 items", restored.Title, StringComparison.Ordinal);
+            var songs = await Library(pipe, "songs");
+            Assert.Contains("1 item", songs.Title, StringComparison.Ordinal);
+            var onlyVideos = await Library(pipe, "videos");
+            Assert.Contains("1 item", onlyVideos.Title, StringComparison.Ordinal);
+            await Library(pipe, "capture-videos");
+            await Library(pipe, "verify-accessibility");
+            await Library(pipe, "minimum");
+            await Library(pipe, "capture-minimum");
+            foreach (var name in new[] { "empty", "populated", "search-empty", "videos", "minimum" })
+            {
+                var file = new FileInfo(Path.Combine(libraryScreenshots, name + ".png"));
+                Assert.True(file.Exists && file.Length > 1024,
+                    "No usable native library screenshot: " + file.FullName);
+            }
+            Assert.Contains("not a finalized-release screenshot",
+                File.ReadAllText(Path.Combine(libraryScreenshots, "provenance.txt")), StringComparison.Ordinal);
+
             var empty = await Queue(pipe, "show");
             Assert.Contains("0 items", empty.Title, StringComparison.Ordinal);
             await Queue(pipe, "capture-empty");
@@ -87,10 +132,41 @@ public sealed class MacAppSmokeTests
             await Queue(pipe, "verify-accessibility");
             await Queue(pipe, "minimum");
             await Queue(pipe, "capture-minimum");
-            foreach (var name in new[] { "empty", "current", "long", "page-2", "shuffled", "minimum" })
+            var tail = await Queue(pipe, "next-page");
+            Assert.Contains("viewing 76", tail.Title, StringComparison.Ordinal);
+            var shrunk = await Queue(pipe, "remove-last-page");
+            Assert.Contains("75 items", shrunk.Title, StringComparison.Ordinal);
+            Assert.DoesNotContain("viewing 76", shrunk.Title, StringComparison.Ordinal);
+            await Queue(pipe, "capture-shrunk");
+            foreach (var name in new[] { "empty", "current", "long", "page-2", "shuffled", "minimum", "shrunk" })
             {
                 var file = new FileInfo(Path.Combine(screenshots, name + ".png"));
                 Assert.True(file.Exists && file.Length > 1024, "No usable native queue screenshot: " + file.FullName);
+            }
+
+            await Library(pipe, "songs");
+            await Library(pipe, "play-first");
+            var fromLibrary = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }),
+                reply => reply is { Title: not null, State: "Playing" or "Paused" or "Ended" }, app, root);
+            Assert.False(string.IsNullOrWhiteSpace(fromLibrary.Title),
+                "The native library row should have started actual local playback.");
+
+            var folders = await Library(pipe, "folders");
+            Assert.Contains("1 item", folders.Title, StringComparison.Ordinal);
+            await Library(pipe, "capture-folders");
+            var cleared = await Library(pipe, "remove-folder");
+            Assert.Contains("0 items", cleared.Title, StringComparison.Ordinal);
+            Assert.Contains("0 folders", cleared.Title, StringComparison.Ordinal);
+            await Library(pipe, "capture-cleared");
+            Assert.True(File.Exists(Path.Combine(libraryFixture, "Sample Song.mp3")),
+                "Removing a watched folder must never delete an audio file.");
+            Assert.True(File.Exists(Path.Combine(libraryFixture, "Sample Film.mp4")),
+                "Removing a watched folder must never delete a video file.");
+            foreach (var name in new[] { "folders", "cleared" })
+            {
+                var file = new FileInfo(Path.Combine(libraryScreenshots, name + ".png"));
+                Assert.True(file.Exists && file.Length > 1024,
+                    "No usable native watched-folder screenshot: " + file.FullName);
             }
 
             var quitting = await Ask(pipe, new AutomationRequest { Command = "run", Id = "quit" });
@@ -600,6 +676,18 @@ public sealed class MacAppSmokeTests
     {
         var reply = await Ask(pipe, new AutomationRequest { Command = "mac-queue", Id = action });
         Assert.True(reply?.Ok == true, "Mac queue action failed: " + action + ": " + (reply?.Error ?? "no reply"));
+        return reply!;
+    }
+
+    private static async Task<AutomationReply> Library(string pipe, string action, string? folder = null)
+    {
+        var reply = await Ask(pipe, new AutomationRequest
+        {
+            Command = "mac-library",
+            Id = action,
+            Paths = folder is null ? [] : [folder],
+        });
+        Assert.True(reply?.Ok == true, "Mac library action failed: " + action + ": " + (reply?.Error ?? "no reply"));
         return reply!;
     }
 
