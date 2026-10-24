@@ -85,6 +85,7 @@ class ScreenshotReviewTests(unittest.TestCase):
                 "dimensions": "720x540",
                 "theme": "dark",
                 "requiredLane": "ci-windows",
+                "baseline": "unreviewed",
                 "expectedAutomationIds": ["Stage"],
                 "expectedVisibleData": [],
             }]}), encoding="utf-8")
@@ -105,6 +106,10 @@ class ScreenshotReviewTests(unittest.TestCase):
                 "--root", str(root / "artifacts"), "--output", str(output),
             ], check=True, capture_output=True, text=True)
             page = output.read_text(encoding="utf-8")
+            self.assertIn("Declared baseline state", page)
+            self.assertIn("unreviewed", page)
+            self.assertIn("Baseline file witness", page)
+            self.assertIn("not captured", page)
             self.assertIn("Observed stage UI Automation", page)
             self.assertIn("Press &lt;Enter&gt; &amp; seek", page)
             self.assertIn("StageChaptersButton: visible=False, enabled=False", page)
