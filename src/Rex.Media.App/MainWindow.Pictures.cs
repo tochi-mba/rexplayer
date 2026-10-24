@@ -457,9 +457,12 @@ public sealed partial class MainWindow
             throw new MediaFormatException("The audio track gave no samples for its artwork.");
         }
 
-        // Use the media's containing folder and file name, not the absolute path.
-        // A moved library or a new temporary test root must not recolor identical sound.
-        var artworkIdentity = Path.GetFileName(Path.GetDirectoryName(path)) + "/" + Path.GetFileName(path);
+        // Color the same recording consistently across library moves and test roots.
+        // Keep its last two directories (such as author/book) to distinguish
+        // equally named tracks without hashing the machine-specific root path.
+        var directory = Path.GetDirectoryName(path);
+        var parent = Path.GetDirectoryName(directory);
+        var artworkIdentity = string.Join("/", Path.GetFileName(parent), Path.GetFileName(directory), Path.GetFileName(path));
         using var picture = AudioArtwork.Render([.. mono], sampleRate, artworkIdentity, options);
         using var output = new MemoryStream();
         PngWriter.Write(output, picture);
