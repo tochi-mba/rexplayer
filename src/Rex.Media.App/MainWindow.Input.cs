@@ -107,6 +107,18 @@ public sealed partial class MainWindow
             return;
         }
 
+        // The preview handler runs before WinUI's list internals can consume Ctrl+End.
+        // Navigate to the final data item, not merely the last realized container.
+        if (e.Key == VirtualKey.End && IsDown(VirtualKey.Control)
+            && IsWithin(FocusManager.GetFocusedElement(Content.XamlRoot) as DependencyObject, PlaylistView)
+            && _playlistRows.Count > 0)
+        {
+            PlaylistView.ScrollIntoView(_playlistRows[^1]);
+            e.Handled = true;
+            _shortcutKeys.Add(e.Key);
+            return;
+        }
+
         if (VirtualKeys.Chord((int)e.Key, IsDown(VirtualKey.Control), IsDown(VirtualKey.Menu), IsDown(VirtualKey.Shift)) is not { } chord)
         {
             return;
@@ -124,11 +136,11 @@ public sealed partial class MainWindow
             return;
         }
 
-        // Queue navigation/reordering belongs to the list, not the global shortcuts.
-        // In particular Ctrl+End must reach the queue to realize its last virtualized row.
-        if (IsWithin(focused, PlaylistView)
-            && ((IsDown(VirtualKey.Menu) && e.Key is VirtualKey.Up or VirtualKey.Down)
-                || (IsDown(VirtualKey.Control) && e.Key == VirtualKey.End)))
+        // Alt+Up/Down reorder selected queue entries. The root preview
+        // handler runs before PlaylistView.KeyDown: do not consume those keys
+        // as the global picture-pan shortcuts while keyboard focus is in the queue.
+        if (IsWithin(focused, PlaylistView) && IsDown(VirtualKey.Menu)
+            && (e.Key is VirtualKey.Up or VirtualKey.Down))
         {
             return;
         }
@@ -397,12 +409,6 @@ public sealed partial class MainWindow
     {
         switch (e.Key)
         {
-            case VirtualKey.End when IsDown(VirtualKey.Control) && _playlistRows.Count > 0:
-                // WinUI's default End navigation may stop at the last realized container.
-                // ScrollIntoView addresses the final item in the data source directly.
-                PlaylistView.ScrollIntoView(_playlistRows[^1]);
-                e.Handled = true;
-                break;
             case VirtualKey.Up when IsDown(VirtualKey.Menu) && PlaylistView.SelectedItems.Count > 0:
                 MoveSelectedPlaylistEntries(-1);
                 e.Handled = true;
