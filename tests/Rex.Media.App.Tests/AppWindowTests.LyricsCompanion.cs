@@ -7,12 +7,29 @@ namespace Rex.Media.App.Tests;
 
 public sealed partial class AppWindowTests
 {
-    private static AutomationElement? DetachedLyricsOf(AppProcess app) =>
-        AutomationElement.RootElement.FindAll(TreeScope.Children,
+    private static AutomationElement? DetachedLyricsOf(AppProcess app)
+    {
+        var processId = app.Window.Current.ProcessId;
+        foreach (var window in AutomationElement.RootElement.FindAll(TreeScope.Children,
                 new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window))
-            .Cast<AutomationElement>()
-            .FirstOrDefault(window => window.Current.ProcessId == app.Window.Current.ProcessId
-                && window.Current.Name.Contains("Lyrics · rexplayer", StringComparison.Ordinal));
+            .Cast<AutomationElement>())
+        {
+            try
+            {
+                if (window.Current.ProcessId == processId
+                    && window.Current.Name.Contains("Lyrics · rexplayer", StringComparison.Ordinal))
+                {
+                    return window;
+                }
+            }
+            catch (ElementNotAvailableException)
+            {
+                // A top-level window may close between enumeration and reading.
+            }
+        }
+
+        return null;
+    }
 
     [Fact]
     [Capability("META-09")]
