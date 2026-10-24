@@ -508,10 +508,9 @@ public sealed class LibraryListeningTests : IDisposable
         // that flyout, leaving the author shelf open instead of the book list.
         // Focus the actual popup HWND before sending Escape. A bare global
         // keystroke may go to the owner window while this flyout is active.
-        Pointer.Key(app, "LibraryMenuOpenAuthor", Pointer.Escape);
+        app.Press("LibraryMenuOpenAuthor");
         Wait.For(() => !app.IsShown("LibraryMenuOpenAuthor"),
-            "the author context menu to close before navigation");
-        app.Open("Ann Writer");
+            "the author context action to dismiss its popup");
         Wait.For(() => app.Text("LibraryKicker") == "AUTHOR"
             && app.Lines().Contains("Alpha") && app.Lines().Contains("Beta"),
             "the author page to show separate playable books");
