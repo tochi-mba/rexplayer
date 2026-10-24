@@ -325,6 +325,8 @@ public sealed class MediaStageWindowTests : IDisposable
             "the picture to replace the spoken-audio stream");
 
         Assert.False(app.IsShown("StageChaptersButton"));
+        Assert.False(app.IsShown("StageChapter-0"),
+            "The previous audiobook's chapter flyout cannot remain in the accessibility tree.");
         Assert.False(app.Find("SeekBar").Current.IsEnabled);
         Assert.DoesNotContain("Chapter jumps", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
         Assert.DoesNotContain("seek slider", app.Find("Stage").Current.HelpText, StringComparison.Ordinal);
