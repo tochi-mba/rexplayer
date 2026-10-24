@@ -52,7 +52,7 @@ public sealed partial class AppWindowTests
                 app.Find("LyricLine-1").Current.Name, StringComparison.Ordinal);
         }
 
-        Screenshots.Match(app, "lyrics-mode-" + mode, "Stage");
+        Screenshots.Match(app, "lyrics-mode-" + mode, mode == "none" ? null : "Stage");
         // Capture each actual mode under compact wrapping as well as the standard
         // view. The same underlying audio and source remain paused and stable.
         transform.Resize(720, 640);
@@ -61,7 +61,7 @@ public sealed partial class AppWindowTests
             "the compact lyric viewport");
         Wait.For(() => app.Text("LyricsStatus") == expectedStatus,
             "the lyric mode to survive a compact-window resize");
-        Screenshots.Match(app, "lyrics-mode-" + mode + "-compact", "Stage");
+        Screenshots.Match(app, "lyrics-mode-" + mode + "-compact", mode == "none" ? null : "Stage");
         Assert.Equal(0, app.Close());
     }
 
