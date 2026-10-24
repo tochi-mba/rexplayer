@@ -64,6 +64,7 @@ public sealed partial class MainWindow
             }
         }
 
+        MovieVersionMenu.Hide();
         MovieVersionButton.Visibility = Visibility.Collapsed;
         MovieVersionMenu.Items.Clear();
         _shownVersionItem = null;
