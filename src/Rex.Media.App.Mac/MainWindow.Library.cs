@@ -279,7 +279,8 @@ public sealed partial class MainWindow
         content.Alignment = NSLayoutAttribute.Leading;
         content.Spacing = 10;
         content.EdgeInsets = new NSEdgeInsets(12, 12, 14, 12);
-        content.Frame = new CGRect(0, 0, 620, Math.Max(200, (end - start) * (filter == 4 ? 42 : 90) + 45));
+        content.Frame = new CGRect(0, 0, Math.Max(360, _libraryScroll.ContentView.Bounds.Width),
+            Math.Max(200, (end - start) * (filter == 4 ? 42 : 90) + 45));
         _libraryScroll.DocumentView = content;
         var clip = _libraryScroll.ContentView;
         clip.ScrollToPoint(new CGPoint(0, Math.Max(0, content.Frame.Height - clip.Bounds.Height)));
@@ -349,11 +350,32 @@ public sealed partial class MainWindow
 
         if (action == "verify-accessibility")
         {
-            return _librarySummary is not null && _libraryScroll?.DocumentView is not null
+            var play = FindLibrarySmokeButton("Play: ");
+            var add = FindLibrarySmokeButton("Add to Up Next");
+            return play?.AccessibilityLabel?.StartsWith("Play: ", StringComparison.Ordinal) == true
+                && add?.AccessibilityLabel?.StartsWith("Add ", StringComparison.Ordinal) == true
+                && add.AccessibilityLabel.EndsWith(" to Up Next", StringComparison.Ordinal)
+                && _librarySearch?.AccessibilityLabel == "Search the local library"
                 && _libraryKind.ToolTip?.Contains("local library", StringComparison.Ordinal) == true;
         }
 
-        if (action is "capture-empty" or "capture-populated" or "capture-videos")
+        if (action == "play-first" && FindLibrarySmokeButton("Play: ") is { } first)
+        {
+            first.PerformClick(first);
+            return true;
+        }
+
+        if (action == "minimum")
+        {
+            var frame = _libraryWindow.Frame;
+            var minimum = _libraryWindow.MinSize;
+            _libraryWindow.SetFrame(new CGRect(frame.X, frame.Y, minimum.Width, minimum.Height), true);
+            view.LayoutSubtreeIfNeeded();
+            RefreshLibrary();
+            return true;
+        }
+
+        if (action is "capture-empty" or "capture-populated" or "capture-videos" or "capture-minimum")
         {
             var output = Environment.GetEnvironmentVariable("REXPLAYER_MAC_LIBRARY_SCREENSHOTS");
             if (string.IsNullOrWhiteSpace(output))
@@ -381,6 +403,33 @@ public sealed partial class MainWindow
         }
 
         return false;
+    }
+
+    private NSButton? FindLibrarySmokeButton(string title)
+    {
+        if (_libraryScroll?.DocumentView is not { } document)
+        {
+            return null;
+        }
+
+        static IEnumerable<NSButton> Buttons(NSView root)
+        {
+            if (root is NSButton button)
+            {
+                yield return button;
+            }
+
+            foreach (var child in root.Subviews)
+            {
+                foreach (var candidate in Buttons(child))
+                {
+                    yield return candidate;
+                }
+            }
+        }
+
+        return Buttons(document).FirstOrDefault(button => button.Enabled
+            && button.Title.StartsWith(title, StringComparison.Ordinal));
     }
 
     private void CloseLibrary()
