@@ -1,3 +1,4 @@
+using System.IO;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.TestKit;
 
