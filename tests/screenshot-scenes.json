@@ -2,1160 +2,171 @@
   "schemaVersion": 1,
   "description": "Inventory of real UI screenshot scene contracts. All host viewports are pinned. unreviewed is record-only; ci-windows denotes an existing committed baseline, not human visual approval. Dedicated contrast and DPI lanes require actual OS configuration.",
   "scenes": [
-    {
-      "id": "empty-window-light",
-      "fixture": "empty-player",
-      "route": "player/idle",
-      "state": "empty",
-      "dimensions": "1000x700",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "IdleTitle"
-      ],
-      "expectedVisibleData": [
-        {
-          "automationId": "IdleTitle",
-          "name": "rexplayer"
-        }
-      ],
-      "readinessSignal": "uia:IdleTitle",
-      "owner": "AppWindowTests.Screenshots",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "empty-window-dark",
-      "fixture": "empty-player",
-      "route": "player/idle",
-      "state": "empty",
-      "dimensions": "1000x700",
-      "theme": "dark",
-      "expectedAutomationIds": [
-        "IdleTitle"
-      ],
-      "expectedVisibleData": [
-        {
-          "automationId": "IdleTitle",
-          "name": "rexplayer"
-        }
-      ],
-      "readinessSignal": "uia:IdleTitle",
-      "owner": "AppWindowTests.Screenshots",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-normal",
-      "fixture": "user-settings",
-      "route": "settings/all",
-      "state": "normal",
-      "dimensions": "1000x760",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PrimaryButton"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesSection",
-      "owner": "AppWindowTests.Screenshots",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-small",
-      "fixture": "user-settings",
-      "route": "settings/all",
-      "state": "normal",
-      "dimensions": "720x640",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PrimaryButton"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesSection",
-      "owner": "AppWindowTests.Screenshots",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-search-artwork",
-      "fixture": "user-settings",
-      "route": "settings/music-and-artwork",
-      "state": "search",
-      "dimensions": "1000x760",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PreferencesCategorySearch"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesCategorySearch",
-      "owner": "AppWindowTests.Screenshots",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-advanced-artwork",
-      "fixture": "user-settings",
-      "route": "settings/music-and-artwork",
-      "state": "expanded",
-      "dimensions": "1000x760",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PreferencesArtworkDetails"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesArtworkDetails",
-      "owner": "AppWindowTests.Screenshots",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-search-empty",
-      "fixture": "user-settings",
-      "route": "settings/music-and-artwork",
-      "state": "filtered-empty",
-      "dimensions": "1000x760",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PreferencesSearchEmpty"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesSearchEmpty",
-      "owner": "AppWindowTests.Screenshots",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "playback-paused",
-      "fixture": "mp4/h264-aac.mp4",
-      "route": "player/video",
-      "state": "paused",
-      "dimensions": "1000x700",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "NowPlaying",
-        "PlayPauseButton"
-      ],
-      "expectedVisibleData": [
-        {
-          "automationId": "NowPlaying",
-          "name": "Basquiat"
-        }
-      ],
-      "readinessSignal": "uia:PlayPauseButton",
-      "owner": "AppWindowTests.Screenshots",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "experience-welcome",
-      "fixture": "empty-player",
-      "route": "player/idle",
-      "state": "welcome",
-      "dimensions": "1000x700",
-      "theme": "system",
-      "expectedAutomationIds": [
-        "WelcomeOpen",
-        "WelcomeLibrary"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:WelcomeLibrary",
-      "owner": "PlayerExperienceTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "experience-library-wide-light",
-      "fixture": "three-tagged-songs",
-      "route": "library/songs",
-      "state": "wide-search",
-      "dimensions": "1000x600",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "LibraryPane",
-        "LibrarySearch"
-      ],
-      "expectedVisibleData": [
-        {
-          "automationId": "LibraryTitle",
-          "name": "Songs"
-        }
-      ],
-      "readinessSignal": "uia:LibrarySearch",
-      "owner": "PlayerExperienceTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "experience-search-light",
-      "fixture": "three-tagged-songs",
-      "route": "library/songs",
-      "state": "filtered-empty",
-      "dimensions": "720x720",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "LibraryEmptyClearSearch"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:LibraryEmptyClearSearch",
-      "owner": "PlayerExperienceTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "experience-library-light",
-      "fixture": "three-tagged-songs",
-      "route": "library/songs",
-      "state": "search-cleared",
-      "dimensions": "720x720",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "LibraryPane",
-        "LibrarySearch"
-      ],
-      "expectedVisibleData": [
-        {
-          "automationId": "LibraryTitle",
-          "name": "Songs"
-        }
-      ],
-      "readinessSignal": "uia:LibraryPane",
-      "owner": "PlayerExperienceTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "experience-library-wide-dark",
-      "fixture": "three-tagged-songs",
-      "route": "library/songs",
-      "state": "wide-search",
-      "dimensions": "1000x600",
-      "theme": "dark",
-      "expectedAutomationIds": [
-        "LibraryPane",
-        "LibrarySearch"
-      ],
-      "expectedVisibleData": [
-        {
-          "automationId": "LibraryTitle",
-          "name": "Songs"
-        }
-      ],
-      "readinessSignal": "uia:LibrarySearch",
-      "owner": "PlayerExperienceTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "experience-search-dark",
-      "fixture": "three-tagged-songs",
-      "route": "library/songs",
-      "state": "filtered-empty",
-      "dimensions": "720x720",
-      "theme": "dark",
-      "expectedAutomationIds": [
-        "LibraryEmptyClearSearch"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:LibraryEmptyClearSearch",
-      "owner": "PlayerExperienceTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "experience-library-dark",
-      "fixture": "three-tagged-songs",
-      "route": "library/songs",
-      "state": "search-cleared",
-      "dimensions": "720x720",
-      "theme": "dark",
-      "expectedAutomationIds": [
-        "LibraryPane",
-        "LibrarySearch"
-      ],
-      "expectedVisibleData": [
-        {
-          "automationId": "LibraryTitle",
-          "name": "Songs"
-        }
-      ],
-      "readinessSignal": "uia:LibraryPane",
-      "owner": "PlayerExperienceTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-show-page-collage",
-      "fixture": "episodic-video",
-      "route": "library/tv/show",
-      "state": "collage",
-      "dimensions": "1000x760",
-      "theme": "user-settings",
-      "expectedAutomationIds": [
-        "LibraryCollage"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:LibraryCollage",
-      "owner": "LibraryArtworkTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-show-card-made-poster",
-      "fixture": "episodic-video",
-      "route": "library/tv",
-      "state": "generated-artwork",
-      "dimensions": "1000x760",
-      "theme": "user-settings",
-      "expectedAutomationIds": [
-        "LibraryList"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:LibraryList",
-      "owner": "LibraryArtworkTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "music-home",
-      "fixture": "three-tagged-songs",
-      "route": "library/music",
-      "state": "shelves",
-      "dimensions": "1000x760",
-      "theme": "user-settings",
-      "expectedAutomationIds": [
-        "LibraryHome"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:LibraryHome",
-      "owner": "LibraryMusicTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "album-page",
-      "fixture": "three-tagged-songs",
-      "route": "library/album",
-      "state": "detail",
-      "dimensions": "1000x760",
-      "theme": "user-settings",
-      "expectedAutomationIds": [
-        "LibraryPane"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:LibraryPane",
-      "owner": "LibraryMusicTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "songs-table",
-      "fixture": "three-tagged-songs",
-      "route": "library/songs",
-      "state": "table",
-      "dimensions": "1000x760",
-      "theme": "user-settings",
-      "expectedAutomationIds": [
-        "LibraryPane"
-      ],
-      "expectedVisibleData": [
-        {
-          "automationId": "LibraryTitle",
-          "name": "Songs"
-        }
-      ],
-      "readinessSignal": "uia:LibraryPane",
-      "owner": "LibraryMusicTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-tv-browse",
-      "fixture": "episodic-video",
-      "route": "library/tv",
-      "state": "browse",
-      "dimensions": "1000x760",
-      "theme": "user-settings",
-      "expectedAutomationIds": [
-        "LibraryPane"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:LibraryPane",
-      "owner": "LibraryFoldersTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-show-page",
-      "fixture": "episodic-video",
-      "route": "library/tv/show",
-      "state": "detail",
-      "dimensions": "1000x760",
-      "theme": "user-settings",
-      "expectedAutomationIds": [
-        "LibraryPane"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:LibraryPane",
-      "owner": "LibraryFoldersTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "dialog-open-location",
-      "fixture": "empty-player",
-      "route": "dialog/open-location",
-      "state": "open",
-      "dimensions": "1000x700",
-      "theme": "user-settings",
-      "expectedAutomationIds": [
-        "LocationBox"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:LocationBox",
-      "owner": "AppWindowTests.Dialogs",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "dialog-shortcut-sheet",
-      "fixture": "empty-player",
-      "route": "dialog/shortcuts",
-      "state": "open",
-      "dimensions": "1000x760",
-      "theme": "user-settings",
-      "expectedAutomationIds": [
-        "CloseButton"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:CloseButton",
-      "owner": "AppWindowTests.Dialogs",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-movie-card-letterboxed",
-      "fixture": "mp4/h264-aac.mp4",
-      "route": "library/movies",
-      "state": "poster-ratio",
-      "dimensions": "1280x800",
-      "theme": "user-settings",
-      "expectedAutomationIds": [
-        "LibraryList"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:LibraryList",
-      "owner": "LibraryCardsTests",
-      "baseline": "ci-windows",
-      "captureMode": "window",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-episode-still-letterboxed",
-      "fixture": "mp4/h264-aac.mp4",
-      "route": "library/tv",
-      "state": "still-ratio",
-      "dimensions": "1280x800",
-      "theme": "user-settings",
-      "expectedAutomationIds": [
-        "LibraryList"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:LibraryList",
-      "owner": "LibraryCardsTests",
-      "baseline": "ci-windows",
-      "captureMode": "window",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "menu-playback",
-      "fixture": "empty-player",
-      "route": "menu/playback",
-      "state": "expanded",
-      "dimensions": "1000x700",
-      "theme": "user-settings",
-      "expectedAutomationIds": [
-        "PlaybackMenu",
-        "Command-play-pause"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:Command-play-pause",
-      "owner": "AppWindowTests.Menus",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "context-menu",
-      "fixture": "empty-player",
-      "route": "menu/context",
-      "state": "expanded",
-      "dimensions": "1000x700",
-      "theme": "user-settings",
-      "expectedAutomationIds": [
-        "Stage",
-        "Context-play-pause"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:Context-play-pause",
-      "owner": "AppWindowTests.Menus",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-songs-collage",
-      "fixture": "three-tagged-songs",
-      "route": "library/songs",
-      "state": "collage",
-      "dimensions": "1000x760",
-      "theme": "user-settings",
-      "expectedAutomationIds": [
-        "LibraryPane"
-      ],
-      "expectedVisibleData": [
-        {
-          "automationId": "LibraryTitle",
-          "name": "Songs"
-        }
-      ],
-      "readinessSignal": "uia:LibraryPane",
-      "owner": "LibraryBrowsingTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-empty-filters",
-      "fixture": "three-tagged-songs",
-      "route": "library/songs",
-      "state": "filtered-empty",
-      "dimensions": "1000x760",
-      "theme": "user-settings",
-      "expectedAutomationIds": [
-        "LibraryEmptyClearFilters"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:LibraryEmptyClearFilters",
-      "owner": "LibraryBrowsingTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-card-downloading",
-      "fixture": "partial-video",
-      "route": "library/downloads",
-      "state": "partial",
-      "dimensions": "1000x760",
-      "theme": "user-settings",
-      "expectedAutomationIds": [
-        "LibraryShelfCards-Downloading"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:LibraryShelfCards-Downloading",
-      "owner": "LibraryDownloadsTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-movie-details",
-      "fixture": "movie-with-metadata",
-      "route": "library/movies/detail",
-      "state": "expanded-header",
-      "dimensions": "1000x760",
-      "theme": "user-settings",
-      "expectedAutomationIds": [
-        "LibraryHero"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:LibraryHero",
-      "owner": "LibraryDetailsTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-show-header",
-      "fixture": "episodic-video",
-      "route": "library/tv/show",
-      "state": "expanded-header",
-      "dimensions": "1000x760",
-      "theme": "user-settings",
-      "expectedAutomationIds": [
-        "LibraryHero"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:LibraryHero",
-      "owner": "LibraryDetailsTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-section-playback",
-      "fixture": "user-settings",
-      "route": "settings/playback",
-      "state": "category",
-      "dimensions": "1000x760",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PreferencesScroll"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesSection",
-      "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-section-intros-and-credits",
-      "fixture": "user-settings",
-      "route": "settings/intros-and-credits",
-      "state": "category",
-      "dimensions": "1000x760",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PreferencesScroll"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesSection",
-      "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-section-video-and-pictures",
-      "fixture": "user-settings",
-      "route": "settings/video-and-pictures",
-      "state": "category",
-      "dimensions": "1000x760",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PreferencesScroll"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesSection",
-      "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-section-music-and-artwork",
-      "fixture": "user-settings",
-      "route": "settings/music-and-artwork",
-      "state": "category",
-      "dimensions": "1000x760",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PreferencesScroll"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesSection",
-      "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-section-performance",
-      "fixture": "user-settings",
-      "route": "settings/performance",
-      "state": "category",
-      "dimensions": "1000x760",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PreferencesScroll"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesSection",
-      "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-section-languages",
-      "fixture": "user-settings",
-      "route": "settings/languages",
-      "state": "category",
-      "dimensions": "1000x760",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PreferencesScroll"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesSection",
-      "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-section-subtitles",
-      "fixture": "user-settings",
-      "route": "settings/subtitles",
-      "state": "category",
-      "dimensions": "1000x760",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PreferencesScroll"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesSection",
-      "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-section-transcription",
-      "fixture": "user-settings",
-      "route": "settings/transcription",
-      "state": "category",
-      "dimensions": "1000x760",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PreferencesScroll"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesSection",
-      "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-section-window",
-      "fixture": "user-settings",
-      "route": "settings/window",
-      "state": "category",
-      "dimensions": "1000x760",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PreferencesScroll"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesSection",
-      "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-section-library",
-      "fixture": "user-settings",
-      "route": "settings/library",
-      "state": "category",
-      "dimensions": "1000x760",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PreferencesScroll"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesSection",
-      "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-section-metadata",
-      "fixture": "user-settings",
-      "route": "settings/metadata",
-      "state": "category",
-      "dimensions": "1000x760",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PreferencesScroll"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesSection",
-      "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-section-history-and-resume",
-      "fixture": "user-settings",
-      "route": "settings/history-and-resume",
-      "state": "category",
-      "dimensions": "1000x760",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PreferencesScroll"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesSection",
-      "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-section-keyboard-and-mouse",
-      "fixture": "user-settings",
-      "route": "settings/keyboard-and-mouse",
-      "state": "category",
-      "dimensions": "1000x760",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PreferencesScroll"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesSection",
-      "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-section-opening-files",
-      "fixture": "user-settings",
-      "route": "settings/opening-files",
-      "state": "category",
-      "dimensions": "1000x760",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PreferencesScroll"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesSection",
-      "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "preferences-section-updates",
-      "fixture": "user-settings",
-      "route": "settings/updates",
-      "state": "category",
-      "dimensions": "1000x760",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "PreferencesSection",
-        "PreferencesScroll"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:PreferencesSection",
-      "owner": "AppWindowTests.Shell",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-home-empty",
-      "fixture": "empty-watched-folder",
-      "route": "library/home",
-      "state": "empty",
-      "dimensions": "1000x760",
-      "theme": "system",
-      "expectedAutomationIds": [
-        "LibraryPane",
-        "LibraryTitle"
-      ],
-      "expectedVisibleData": [
-        {
-          "automationId": "LibraryTitle",
-          "name": "Home"
-        }
-      ],
-      "readinessSignal": "uia:LibraryPane",
-      "owner": "LibraryFixtureVisualTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-songs-single",
-      "fixture": "one-tagged-song",
-      "route": "library/songs",
-      "state": "one-item",
-      "dimensions": "720x640",
-      "theme": "system",
-      "expectedAutomationIds": [
-        "LibraryPane",
-        "LibraryTitle"
-      ],
-      "expectedVisibleData": [
-        {
-          "automationId": "LibraryTitle",
-          "name": "Songs"
-        }
-      ],
-      "readinessSignal": "uia:LibraryPane",
-      "owner": "LibraryFixtureVisualTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-home-mixed",
-      "fixture": "three-tagged-songs-one-movie-one-picture",
-      "route": "library/home",
-      "state": "mixed",
-      "dimensions": "1000x760",
-      "theme": "system",
-      "expectedAutomationIds": [
-        "LibraryPane",
-        "LibraryTitle"
-      ],
-      "expectedVisibleData": [
-        {
-          "automationId": "LibraryTitle",
-          "name": "Home"
-        }
-      ],
-      "readinessSignal": "uia:LibraryPane",
-      "owner": "LibraryFixtureVisualTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-home-mixed-compact",
-      "fixture": "three-tagged-songs-one-movie-one-picture",
-      "route": "library/home",
-      "state": "compact",
-      "dimensions": "720x640",
-      "theme": "system",
-      "expectedAutomationIds": [
-        "LibraryPane",
-        "LibraryTitle"
-      ],
-      "expectedVisibleData": [
-        {
-          "automationId": "LibraryTitle",
-          "name": "Home"
-        }
-      ],
-      "readinessSignal": "uia:LibraryPane",
-      "owner": "LibraryFixtureVisualTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-songs-unicode-rtl",
-      "fixture": "cjk-and-arabic-tagged-songs",
-      "route": "library/songs",
-      "state": "unicode-rtl",
-      "dimensions": "1000x760",
-      "theme": "system",
-      "expectedAutomationIds": [
-        "LibraryPane",
-        "LibraryTitle"
-      ],
-      "expectedVisibleData": [
-        {
-          "automationId": "LibraryTitle",
-          "name": "Songs"
-        }
-      ],
-      "readinessSignal": "uia:LibraryPane",
-      "owner": "LibraryFixtureVisualTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-long-title-compact",
-      "fixture": "one-long-tagged-song-no-artwork",
-      "route": "library/songs",
-      "state": "long-title-compact",
-      "dimensions": "720x640",
-      "theme": "system",
-      "expectedAutomationIds": [
-        "LibraryPane",
-        "LibraryTitle"
-      ],
-      "expectedVisibleData": [
-        {
-          "automationId": "LibraryTitle",
-          "name": "Songs"
-        }
-      ],
-      "readinessSignal": "uia:LibraryPane",
-      "owner": "LibraryEvidenceEdgeTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-missing-artwork-wide",
-      "fixture": "one-long-tagged-song-no-artwork",
-      "route": "library/songs",
-      "state": "missing-artwork",
-      "dimensions": "1000x760",
-      "theme": "system",
-      "expectedAutomationIds": [
-        "LibraryPane",
-        "LibraryTitle"
-      ],
-      "expectedVisibleData": [
-        {
-          "automationId": "LibraryTitle",
-          "name": "Songs"
-        }
-      ],
-      "readinessSignal": "uia:LibraryPane",
-      "owner": "LibraryEvidenceEdgeTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "caption-buffer-loading",
-      "fixture": "tagged-wav-fake-speech-600",
-      "route": "player/captions",
-      "state": "loading",
-      "dimensions": "1000x700",
-      "theme": "system",
-      "expectedAutomationIds": [
-        "CaptionBufferOverlay",
-        "CaptionBufferPlayNow"
-      ],
-      "expectedVisibleData": [
-        {
-          "automationId": "CaptionBufferOverlay",
-          "name": "Preparing captions"
-        }
-      ],
-      "readinessSignal": "uia:CaptionBufferOverlay",
-      "owner": "AppWindowTests.CaptionWait",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-incomplete-download-notice",
-      "fixture": "twenty-byte-mp4-with-aria2-partial",
-      "route": "library/all-videos",
-      "state": "recoverable-incomplete-file-notice",
-      "dimensions": "1000x700",
-      "theme": "system",
-      "expectedAutomationIds": [
-        "LibraryPane",
-        "LibraryNotice"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:LibraryNotice",
-      "owner": "LibraryDownloadsTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    },
-    {
-      "id": "library-songs-high-dpi",
-      "fixture": "three-tagged-songs",
-      "route": "library/songs",
-      "state": "scaled-dpi-144-minimum",
-      "dimensions": "1000x760",
-      "theme": "system",
-      "expectedAutomationIds": [
-        "LibraryPane",
-        "LibrarySearch"
-      ],
-      "expectedVisibleData": [
-        {
-          "automationId": "LibraryTitle",
-          "name": "Songs"
-        }
-      ],
-      "readinessSignal": "uia:LibraryPane",
-      "owner": "LibraryAccessibilityVisualTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows-high-dpi"
-    },
-    {
-      "id": "library-songs-high-contrast",
-      "fixture": "three-tagged-songs",
-      "route": "library/songs",
-      "state": "windows-high-contrast-on",
-      "dimensions": "1000x760",
-      "theme": "system",
-      "expectedAutomationIds": [
-        "LibraryPane",
-        "LibrarySearch"
-      ],
-      "expectedVisibleData": [
-        {
-          "automationId": "LibraryTitle",
-          "name": "Songs"
-        }
-      ],
-      "readinessSignal": "uia:LibraryPane",
-      "owner": "LibraryAccessibilityVisualTests",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows-high-contrast"
-    },
-    {
-      "id": "player-corrupt-file-error",
-      "fixture": "four-invalid-wave-header-bytes",
-      "route": "player/error",
-      "state": "faulted-with-failure-notice",
-      "dimensions": "1000x700",
-      "theme": "light",
-      "expectedAutomationIds": [
-        "Osd",
-        "PlayPauseButton"
-      ],
-      "expectedVisibleData": [],
-      "readinessSignal": "uia:Osd",
-      "owner": "AppWindowTests.PlaybackNotices",
-      "baseline": "unreviewed",
-      "captureMode": "desktop",
-      "requiredLane": "ci-windows"
-    }
+    { "id": "empty-window-light", "fixture": "empty-player", "route": "player/idle", "state": "empty", "dimensions": "1000x700", "theme": "light",
+      "expectedAutomationIds": ["IdleTitle"], "expectedVisibleData": [{"automationId":"IdleTitle","name":"rexplayer"}], "readinessSignal": "uia:IdleTitle", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "empty-window-dark", "fixture": "empty-player", "route": "player/idle", "state": "empty", "dimensions": "1000x700", "theme": "dark",
+      "expectedAutomationIds": ["IdleTitle"], "expectedVisibleData": [{"automationId":"IdleTitle","name":"rexplayer"}], "readinessSignal": "uia:IdleTitle", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-normal", "fixture": "user-settings", "route": "settings/all", "state": "normal", "dimensions": "1000x760", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PrimaryButton"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesSection", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-small", "fixture": "user-settings", "route": "settings/all", "state": "normal", "dimensions": "720x640", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PrimaryButton"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesSection", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-search-artwork", "fixture": "user-settings", "route": "settings/music-and-artwork", "state": "search", "dimensions": "1000x760", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PreferencesCategorySearch"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesCategorySearch", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-advanced-artwork", "fixture": "user-settings", "route": "settings/music-and-artwork", "state": "expanded", "dimensions": "1000x760", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PreferencesArtworkDetails"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesArtworkDetails", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-search-empty", "fixture": "user-settings", "route": "settings/music-and-artwork", "state": "filtered-empty", "dimensions": "1000x760", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PreferencesSearchEmpty"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesSearchEmpty", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "playback-paused", "fixture": "mp4/h264-aac.mp4", "route": "player/video", "state": "paused", "dimensions": "1000x700", "theme": "light",
+      "expectedAutomationIds": ["NowPlaying","PlayPauseButton"], "expectedVisibleData": [{"automationId":"NowPlaying","name":"Basquiat"}], "readinessSignal": "uia:PlayPauseButton", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "experience-welcome", "fixture": "empty-player", "route": "player/idle", "state": "welcome", "dimensions": "1000x700", "theme": "system",
+      "expectedAutomationIds": ["WelcomeOpen","WelcomeLibrary"], "expectedVisibleData": [], "readinessSignal": "uia:WelcomeLibrary", "owner": "PlayerExperienceTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "experience-library-wide-light", "fixture": "three-tagged-songs", "route": "library/songs", "state": "wide-search", "dimensions": "1000x600", "theme": "light",
+      "expectedAutomationIds": ["LibraryPane","LibrarySearch"], "expectedVisibleData": [{"automationId":"LibraryTitle","name":"Songs"}], "readinessSignal": "uia:LibrarySearch", "owner": "PlayerExperienceTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "experience-search-light", "fixture": "three-tagged-songs", "route": "library/songs", "state": "filtered-empty", "dimensions": "720x720", "theme": "light",
+      "expectedAutomationIds": ["LibraryEmptyClearSearch"], "expectedVisibleData": [], "readinessSignal": "uia:LibraryEmptyClearSearch", "owner": "PlayerExperienceTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "experience-library-light", "fixture": "three-tagged-songs", "route": "library/songs", "state": "search-cleared", "dimensions": "720x720", "theme": "light",
+      "expectedAutomationIds": ["LibraryPane","LibrarySearch"], "expectedVisibleData": [{"automationId":"LibraryTitle","name":"Songs"}], "readinessSignal": "uia:LibraryPane", "owner": "PlayerExperienceTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "experience-library-wide-dark", "fixture": "three-tagged-songs", "route": "library/songs", "state": "wide-search", "dimensions": "1000x600", "theme": "dark",
+      "expectedAutomationIds": ["LibraryPane","LibrarySearch"], "expectedVisibleData": [{"automationId":"LibraryTitle","name":"Songs"}], "readinessSignal": "uia:LibrarySearch", "owner": "PlayerExperienceTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "experience-search-dark", "fixture": "three-tagged-songs", "route": "library/songs", "state": "filtered-empty", "dimensions": "720x720", "theme": "dark",
+      "expectedAutomationIds": ["LibraryEmptyClearSearch"], "expectedVisibleData": [], "readinessSignal": "uia:LibraryEmptyClearSearch", "owner": "PlayerExperienceTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "experience-library-dark", "fixture": "three-tagged-songs", "route": "library/songs", "state": "search-cleared", "dimensions": "720x720", "theme": "dark",
+      "expectedAutomationIds": ["LibraryPane","LibrarySearch"], "expectedVisibleData": [{"automationId":"LibraryTitle","name":"Songs"}], "readinessSignal": "uia:LibraryPane", "owner": "PlayerExperienceTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "library-show-page-collage", "fixture": "episodic-video", "route": "library/tv/show", "state": "collage", "dimensions": "1000x760", "theme": "user-settings",
+      "expectedAutomationIds": ["LibraryCollage"], "expectedVisibleData": [], "readinessSignal": "uia:LibraryCollage", "owner": "LibraryArtworkTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "library-show-card-made-poster", "fixture": "episodic-video", "route": "library/tv", "state": "generated-artwork", "dimensions": "1000x760", "theme": "user-settings",
+      "expectedAutomationIds": ["LibraryList"], "expectedVisibleData": [], "readinessSignal": "uia:LibraryList", "owner": "LibraryArtworkTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "music-home", "fixture": "three-tagged-songs", "route": "library/music", "state": "shelves", "dimensions": "1000x760", "theme": "user-settings",
+      "expectedAutomationIds": ["LibraryHome"], "expectedVisibleData": [], "readinessSignal": "uia:LibraryHome", "owner": "LibraryMusicTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "album-page", "fixture": "three-tagged-songs", "route": "library/album", "state": "detail", "dimensions": "1000x760", "theme": "user-settings",
+      "expectedAutomationIds": ["LibraryPane"], "expectedVisibleData": [], "readinessSignal": "uia:LibraryPane", "owner": "LibraryMusicTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "songs-table", "fixture": "three-tagged-songs", "route": "library/songs", "state": "table", "dimensions": "1000x760", "theme": "user-settings",
+      "expectedAutomationIds": ["LibraryPane"], "expectedVisibleData": [{"automationId":"LibraryTitle","name":"Songs"}], "readinessSignal": "uia:LibraryPane", "owner": "LibraryMusicTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "library-tv-browse", "fixture": "episodic-video", "route": "library/tv", "state": "browse", "dimensions": "1000x760", "theme": "user-settings",
+      "expectedAutomationIds": ["LibraryPane"], "expectedVisibleData": [], "readinessSignal": "uia:LibraryPane", "owner": "LibraryFoldersTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "library-show-page", "fixture": "episodic-video", "route": "library/tv/show", "state": "detail", "dimensions": "1000x760", "theme": "user-settings",
+      "expectedAutomationIds": ["LibraryPane"], "expectedVisibleData": [], "readinessSignal": "uia:LibraryPane", "owner": "LibraryFoldersTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "dialog-open-location", "fixture": "empty-player", "route": "dialog/open-location", "state": "open", "dimensions": "1000x700", "theme": "user-settings",
+      "expectedAutomationIds": ["LocationBox"], "expectedVisibleData": [], "readinessSignal": "uia:LocationBox", "owner": "AppWindowTests.Dialogs", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "dialog-shortcut-sheet", "fixture": "empty-player", "route": "dialog/shortcuts", "state": "open", "dimensions": "1000x760", "theme": "user-settings",
+      "expectedAutomationIds": ["CloseButton"], "expectedVisibleData": [], "readinessSignal": "uia:CloseButton", "owner": "AppWindowTests.Dialogs", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "library-movie-card-letterboxed", "fixture": "mp4/h264-aac.mp4", "route": "library/movies", "state": "poster-ratio", "dimensions": "1280x800", "theme": "user-settings",
+      "expectedAutomationIds": ["LibraryList"], "expectedVisibleData": [], "readinessSignal": "uia:LibraryList", "owner": "LibraryCardsTests", "baseline": "ci-windows", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "library-episode-still-letterboxed", "fixture": "mp4/h264-aac.mp4", "route": "library/tv", "state": "still-ratio", "dimensions": "1280x800", "theme": "user-settings",
+      "expectedAutomationIds": ["LibraryList"], "expectedVisibleData": [], "readinessSignal": "uia:LibraryList", "owner": "LibraryCardsTests", "baseline": "ci-windows", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "menu-playback", "fixture": "empty-player", "route": "menu/playback", "state": "expanded", "dimensions": "1000x700", "theme": "user-settings",
+      "expectedAutomationIds": ["PlaybackMenu","Command-play-pause"], "expectedVisibleData": [], "readinessSignal": "uia:Command-play-pause", "owner": "AppWindowTests.Menus", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "context-menu", "fixture": "empty-player", "route": "menu/context", "state": "expanded", "dimensions": "1000x700", "theme": "user-settings",
+      "expectedAutomationIds": ["Stage","Context-play-pause"], "expectedVisibleData": [], "readinessSignal": "uia:Context-play-pause", "owner": "AppWindowTests.Menus", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "library-songs-collage", "fixture": "three-tagged-songs", "route": "library/songs", "state": "collage", "dimensions": "1000x760", "theme": "user-settings",
+      "expectedAutomationIds": ["LibraryPane"], "expectedVisibleData": [{"automationId":"LibraryTitle","name":"Songs"}], "readinessSignal": "uia:LibraryPane", "owner": "LibraryBrowsingTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "library-empty-filters", "fixture": "three-tagged-songs", "route": "library/songs", "state": "filtered-empty", "dimensions": "1000x760", "theme": "user-settings",
+      "expectedAutomationIds": ["LibraryEmptyClearFilters"], "expectedVisibleData": [], "readinessSignal": "uia:LibraryEmptyClearFilters", "owner": "LibraryBrowsingTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "library-card-downloading", "fixture": "partial-video", "route": "library/downloads", "state": "partial", "dimensions": "1000x760", "theme": "user-settings",
+      "expectedAutomationIds": ["LibraryShelfCards-Downloading"], "expectedVisibleData": [], "readinessSignal": "uia:LibraryShelfCards-Downloading", "owner": "LibraryDownloadsTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "library-movie-details", "fixture": "movie-with-metadata", "route": "library/movies/detail", "state": "expanded-header", "dimensions": "1000x760", "theme": "user-settings",
+      "expectedAutomationIds": ["LibraryHero"], "expectedVisibleData": [], "readinessSignal": "uia:LibraryHero", "owner": "LibraryDetailsTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "library-show-header", "fixture": "episodic-video", "route": "library/tv/show", "state": "expanded-header", "dimensions": "1000x760", "theme": "user-settings",
+      "expectedAutomationIds": ["LibraryHero"], "expectedVisibleData": [], "readinessSignal": "uia:LibraryHero", "owner": "LibraryDetailsTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-section-playback", "fixture": "user-settings", "route": "settings/playback", "state": "category", "dimensions": "1000x760", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PreferencesScroll"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesSection", "owner": "AppWindowTests.Shell", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-section-intros-and-credits", "fixture": "user-settings", "route": "settings/intros-and-credits", "state": "category", "dimensions": "1000x760", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PreferencesScroll"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesSection", "owner": "AppWindowTests.Shell", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-section-video-and-pictures", "fixture": "user-settings", "route": "settings/video-and-pictures", "state": "category", "dimensions": "1000x760", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PreferencesScroll"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesSection", "owner": "AppWindowTests.Shell", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-section-music-and-artwork", "fixture": "user-settings", "route": "settings/music-and-artwork", "state": "category", "dimensions": "1000x760", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PreferencesScroll"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesSection", "owner": "AppWindowTests.Shell", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-section-performance", "fixture": "user-settings", "route": "settings/performance", "state": "category", "dimensions": "1000x760", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PreferencesScroll"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesSection", "owner": "AppWindowTests.Shell", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-section-languages", "fixture": "user-settings", "route": "settings/languages", "state": "category", "dimensions": "1000x760", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PreferencesScroll"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesSection", "owner": "AppWindowTests.Shell", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-section-subtitles", "fixture": "user-settings", "route": "settings/subtitles", "state": "category", "dimensions": "1000x760", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PreferencesScroll"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesSection", "owner": "AppWindowTests.Shell", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-section-transcription", "fixture": "user-settings", "route": "settings/transcription", "state": "category", "dimensions": "1000x760", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PreferencesScroll"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesSection", "owner": "AppWindowTests.Shell", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-section-window", "fixture": "user-settings", "route": "settings/window", "state": "category", "dimensions": "1000x760", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PreferencesScroll"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesSection", "owner": "AppWindowTests.Shell", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-section-library", "fixture": "user-settings", "route": "settings/library", "state": "category", "dimensions": "1000x760", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PreferencesScroll"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesSection", "owner": "AppWindowTests.Shell", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-section-metadata", "fixture": "user-settings", "route": "settings/metadata", "state": "category", "dimensions": "1000x760", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PreferencesScroll"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesSection", "owner": "AppWindowTests.Shell", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-section-history-and-resume", "fixture": "user-settings", "route": "settings/history-and-resume", "state": "category", "dimensions": "1000x760", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PreferencesScroll"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesSection", "owner": "AppWindowTests.Shell", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-section-keyboard-and-mouse", "fixture": "user-settings", "route": "settings/keyboard-and-mouse", "state": "category", "dimensions": "1000x760", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PreferencesScroll"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesSection", "owner": "AppWindowTests.Shell", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-section-opening-files", "fixture": "user-settings", "route": "settings/opening-files", "state": "category", "dimensions": "1000x760", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PreferencesScroll"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesSection", "owner": "AppWindowTests.Shell", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "preferences-section-updates", "fixture": "user-settings", "route": "settings/updates", "state": "category", "dimensions": "1000x760", "theme": "light",
+      "expectedAutomationIds": ["PreferencesSection","PreferencesScroll"], "expectedVisibleData": [], "readinessSignal": "uia:PreferencesSection", "owner": "AppWindowTests.Shell", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "library-home-empty", "fixture": "empty-watched-folder", "route": "library/home", "state": "empty", "dimensions": "1000x760", "theme": "system",
+      "expectedAutomationIds": ["LibraryPane","LibraryTitle"], "expectedVisibleData": [{"automationId":"LibraryTitle","name":"Home"}], "readinessSignal": "uia:LibraryPane", "owner": "LibraryFixtureVisualTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "library-songs-single", "fixture": "one-tagged-song", "route": "library/songs", "state": "one-item", "dimensions": "720x640", "theme": "system",
+      "expectedAutomationIds": ["LibraryPane","LibraryTitle"], "expectedVisibleData": [{"automationId":"LibraryTitle","name":"Songs"}], "readinessSignal": "uia:LibraryPane", "owner": "LibraryFixtureVisualTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "library-home-mixed", "fixture": "three-tagged-songs-one-movie-one-picture", "route": "library/home", "state": "mixed", "dimensions": "1000x760", "theme": "system",
+      "expectedAutomationIds": ["LibraryPane","LibraryTitle"], "expectedVisibleData": [{"automationId":"LibraryTitle","name":"Home"}], "readinessSignal": "uia:LibraryPane", "owner": "LibraryFixtureVisualTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "library-home-mixed-compact", "fixture": "three-tagged-songs-one-movie-one-picture", "route": "library/home", "state": "compact", "dimensions": "720x640", "theme": "system",
+      "expectedAutomationIds": ["LibraryPane","LibraryTitle"], "expectedVisibleData": [{"automationId":"LibraryTitle","name":"Home"}], "readinessSignal": "uia:LibraryPane", "owner": "LibraryFixtureVisualTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "library-songs-unicode-rtl", "fixture": "cjk-and-arabic-tagged-songs", "route": "library/songs", "state": "unicode-rtl", "dimensions": "1000x760", "theme": "system",
+      "expectedAutomationIds": ["LibraryPane","LibraryTitle"], "expectedVisibleData": [{"automationId":"LibraryTitle","name":"Songs"}], "readinessSignal": "uia:LibraryPane", "owner": "LibraryFixtureVisualTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "library-long-title-compact", "fixture": "one-long-tagged-song-no-artwork", "route": "library/songs", "state": "long-title-compact", "dimensions": "720x640", "theme": "system",
+      "expectedAutomationIds": ["LibraryPane","LibraryTitle"], "expectedVisibleData": [{"automationId":"LibraryTitle","name":"Songs"}], "readinessSignal": "uia:LibraryPane", "owner": "LibraryEvidenceEdgeTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "library-missing-artwork-wide", "fixture": "one-long-tagged-song-no-artwork", "route": "library/songs", "state": "missing-artwork", "dimensions": "1000x760", "theme": "system",
+      "expectedAutomationIds": ["LibraryPane","LibraryTitle"], "expectedVisibleData": [{"automationId":"LibraryTitle","name":"Songs"}], "readinessSignal": "uia:LibraryPane", "owner": "LibraryEvidenceEdgeTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "caption-buffer-loading", "fixture": "tagged-wav-fake-speech-600", "route": "player/captions", "state": "loading", "dimensions": "1000x700", "theme": "system",
+      "expectedAutomationIds": ["CaptionBufferOverlay","CaptionBufferPlayNow"], "expectedVisibleData": [{"automationId":"CaptionBufferOverlay","name":"Preparing captions"}], "readinessSignal": "uia:CaptionBufferOverlay", "owner": "AppWindowTests.CaptionWait", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "library-incomplete-download-notice", "fixture": "twenty-byte-mp4-with-aria2-partial", "route": "library/all-videos", "state": "recoverable-incomplete-file-notice", "dimensions": "1000x700", "theme": "system",
+      "expectedAutomationIds": ["LibraryPane","LibraryNotice"], "expectedVisibleData": [], "readinessSignal": "uia:LibraryNotice", "owner": "LibraryDownloadsTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "library-songs-high-dpi", "fixture": "three-tagged-songs", "route": "library/songs", "state": "scaled-dpi-144-minimum", "dimensions": "1000x760", "theme": "system",
+      "expectedAutomationIds": ["LibraryPane","LibrarySearch"], "expectedVisibleData": [{"automationId":"LibraryTitle","name":"Songs"}], "readinessSignal": "uia:LibraryPane", "owner": "LibraryAccessibilityVisualTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows-high-dpi" },
+    { "id": "library-songs-high-contrast", "fixture": "three-tagged-songs", "route": "library/songs", "state": "windows-high-contrast-on", "dimensions": "1000x760", "theme": "system",
+      "expectedAutomationIds": ["LibraryPane","LibrarySearch"], "expectedVisibleData": [{"automationId":"LibraryTitle","name":"Songs"}], "readinessSignal": "uia:LibraryPane", "owner": "LibraryAccessibilityVisualTests", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows-high-contrast" },
+    { "id": "player-corrupt-file-error", "fixture": "four-invalid-wave-header-bytes", "route": "player/error", "state": "faulted-with-failure-notice", "dimensions": "1000x700", "theme": "light",
+      "expectedAutomationIds": ["Osd","PlayPauseButton"], "expectedVisibleData": [], "readinessSignal": "uia:Osd", "owner": "AppWindowTests.PlaybackNotices", "baseline": "unreviewed", "captureMode": "desktop", "requiredLane": "ci-windows" },
+    { "id": "stage-welcome-compact", "fixture": "empty-player", "route": "player/idle", "state": "compact", "dimensions": "720x540", "theme": "dark",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "Playback stage"}], "readinessSignal": "uia:Stage", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-welcome-minimum", "fixture": "empty-player", "route": "player/idle", "state": "minimum", "dimensions": "420x340", "theme": "dark",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "Playback stage"}], "readinessSignal": "uia:Stage", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-welcome-compact-light", "fixture": "empty-player", "route": "player/idle", "state": "compact", "dimensions": "720x540", "theme": "light",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "Playback stage"}], "readinessSignal": "uia:Stage", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-welcome-minimum-light", "fixture": "empty-player", "route": "player/idle", "state": "minimum", "dimensions": "420x340", "theme": "light",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "Playback stage"}], "readinessSignal": "uia:Stage", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-audio-minimum", "fixture": "direct-audio", "route": "player/audio", "state": "paused-minimum", "dimensions": "420x340", "theme": "dark",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "AUDIO playback stage"}], "readinessSignal": "uia:Stage", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-audio-compact", "fixture": "direct-audio", "route": "player/audio", "state": "paused-compact", "dimensions": "720x540", "theme": "dark",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "AUDIO playback stage"}], "readinessSignal": "uia:Stage", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-audio-windowed", "fixture": "direct-audio", "route": "player/audio", "state": "paused-windowed", "dimensions": "1000x720", "theme": "dark",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "AUDIO playback stage"}], "readinessSignal": "uia:Stage", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-audio-after-fullscreen", "fixture": "direct-audio", "route": "player/audio", "state": "paused-returned-from-fullscreen", "dimensions": "1000x700", "theme": "dark",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "AUDIO playback stage"}], "readinessSignal": "uia:Stage", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-video-compact", "fixture": "direct-video", "route": "player/video", "state": "ended-compact", "dimensions": "720x540", "theme": "dark",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "VIDEO playback stage"}], "readinessSignal": "uia:Stage", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-video-minimum", "fixture": "direct-video", "route": "player/video", "state": "ended-minimum", "dimensions": "420x340", "theme": "dark",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "VIDEO playback stage"}], "readinessSignal": "uia:Stage", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-video-windowed", "fixture": "direct-video", "route": "player/video", "state": "ended-windowed", "dimensions": "1000x720", "theme": "dark",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "VIDEO playback stage"}], "readinessSignal": "uia:Stage", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-television", "fixture": "library-episode", "route": "player/television", "state": "ended", "dimensions": "1000x700", "theme": "dark",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "TV EPISODE playback stage"}], "readinessSignal": "uia:Stage", "owner": "MediaStageWindowTests", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-video-ended", "fixture": "direct-video", "route": "player/video", "state": "ended", "dimensions": "1000x700", "theme": "dark",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "VIDEO playback stage"}], "readinessSignal": "uia:Stage", "owner": "MediaStageWindowTests", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-podcast", "fixture": "library-podcast", "route": "player/podcast", "state": "paused", "dimensions": "1000x700", "theme": "dark",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "PODCAST playback stage"}], "readinessSignal": "uia:Stage", "owner": "MediaStageWindowTests", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-recording", "fixture": "library-recording", "route": "player/recording", "state": "paused", "dimensions": "1000x700", "theme": "dark",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "RECORDING playback stage"}], "readinessSignal": "uia:Stage", "owner": "MediaStageWindowTests", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-sound", "fixture": "library-sound", "route": "player/sound", "state": "paused", "dimensions": "1000x700", "theme": "dark",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "AUDIO playback stage"}], "readinessSignal": "uia:Stage", "owner": "MediaStageWindowTests", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-audiobook-chapters", "fixture": "chaptered-mp3", "route": "player/audiobook", "state": "paused", "dimensions": "1000x700", "theme": "dark",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "AUDIOBOOK playback stage"}], "readinessSignal": "uia:Stage", "owner": "MediaStageWindowTests", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-error", "fixture": "unreadable-video", "route": "player/error", "state": "faulted", "dimensions": "1000x700", "theme": "dark",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "PLAYBACK ERROR playback stage"}], "readinessSignal": "uia:Stage", "owner": "MediaStageWindowTests", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-song-windowed", "fixture": "library-song", "route": "player/song", "state": "paused", "dimensions": "1000x700", "theme": "dark",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "NOW PLAYING playback stage"}], "readinessSignal": "uia:Stage", "owner": "MediaStageWindowTests", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-movie-windowed", "fixture": "library-movie", "route": "player/movie", "state": "ended", "dimensions": "1000x700", "theme": "dark",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "MOVIE playback stage"}], "readinessSignal": "uia:Stage", "owner": "MediaStageWindowTests", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-picture-windowed", "fixture": "library-picture", "route": "player/picture", "state": "playing", "dimensions": "1000x700", "theme": "dark",
+      "expectedAutomationIds": ["Stage"], "expectedVisibleData": [{"automationId": "Stage", "name": "PICTURE playback stage"}], "readinessSignal": "uia:Stage", "owner": "MediaStageWindowTests", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows" },
+    { "id": "stage-welcome-high-dpi", "fixture": "empty-player", "route": "player/idle", "state": "high-dpi", "dimensions": "1000x700", "theme": "dark",
+      "expectedAutomationIds": ["Stage","PlayPauseButton"], "expectedVisibleData": [{"automationId": "Stage", "name": "Playback stage"}], "readinessSignal": "uia:Stage", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows-high-dpi" },
+    { "id": "stage-welcome-high-contrast", "fixture": "empty-player", "route": "player/idle", "state": "high-contrast", "dimensions": "1000x700", "theme": "dark",
+      "expectedAutomationIds": ["Stage","PlayPauseButton"], "expectedVisibleData": [{"automationId": "Stage", "name": "Playback stage"}], "readinessSignal": "uia:Stage", "owner": "AppWindowTests.Screenshots", "baseline": "unreviewed", "captureMode": "window", "requiredLane": "ci-windows-high-contrast" }
   ]
 }

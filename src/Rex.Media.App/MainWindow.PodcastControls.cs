@@ -171,8 +171,12 @@ public sealed partial class MainWindow
         var dialog = new ContentDialog
         {
             Title = "Podcast playback",
-            Content = new ScrollViewer { Content = panel, MaxHeight = 470,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto },
+            Content = new ScrollViewer
+            {
+                Content = panel,
+                MaxHeight = 470,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            },
             CloseButtonText = "Done",
             XamlRoot = Content.XamlRoot,
         };

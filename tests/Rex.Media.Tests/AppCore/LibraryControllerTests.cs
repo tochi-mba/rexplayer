@@ -112,6 +112,59 @@ public sealed class LibraryControllerTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void UndoRemovingFromLibraryRestoresZeroOneOrMultipleFilesAndAnnouncesTheOutcome()
+    {
+        using var harness = new ControllerHarness(autoPlay: false);
+        var player = harness.Controller;
+        var library = new MediaLibrary(RexStore.InMemory());
+        var folder = Path.Combine(Path.GetTempPath(), "rexplayer-library-undo-tests");
+        var first = Path.Combine(folder, "Sungba.wav");
+        var second = Path.Combine(folder, "Terminator.wav");
+        library.AddFolder(folder);
+        Assert.Equal(2, library.Scan(folder,
+            [new LibraryFile(first, 1, Monday), new LibraryFile(second, 1, Monday)],
+            _ => LibraryKind.Music).Added);
+        player.Library = library;
+        var entries = new[] { library.Entry(first)!, library.Entry(second)! };
+
+        var changes = 0;
+        player.Changed += (_, _) => changes++;
+        Assert.Equal(0, player.RestoreToLibrary(entries));
+        Assert.NotNull(library.Entry(first));
+        Assert.Throws<ArgumentNullException>(() => player.RestoreToLibrary(null!));
+
+        player.RemoveFromLibrary([first]);
+        Assert.Null(library.Entry(first));
+        Assert.Equal(1, player.RestoreToLibrary([entries[0]]));
+        Assert.NotNull(library.Entry(first));
+        Assert.Equal(0, player.RestoreToLibrary([entries[0]]));
+
+        player.RemoveFromLibrary([first, second]);
+        Assert.Null(library.Entry(first));
+        Assert.Null(library.Entry(second));
+        Assert.Equal(2, player.RestoreToLibrary(entries));
+        Assert.NotNull(library.Entry(first));
+        Assert.NotNull(library.Entry(second));
+        Assert.True(changes >= 6, "Every restore and remove result must notify the UI.");
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void UndoWithoutAnOpenLibraryIsHarmlessAndStillSignalsTheWindow()
+    {
+        using var harness = new ControllerHarness(autoPlay: false);
+        var controller = harness.Controller;
+        Assert.Null(controller.Library);
+        var notifications = 0;
+        controller.Changed += (_, _) => notifications++;
+
+        Assert.Equal(0, controller.RestoreToLibrary([Entry("Sungba.wav")]));
+        Assert.Equal(1, notifications);
+        Assert.Empty(controller.Playlist.Items);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void WithoutHistoryPlaysAreNotCounted()
     {
         var (harness, library) = Harness(keepHistory: false);

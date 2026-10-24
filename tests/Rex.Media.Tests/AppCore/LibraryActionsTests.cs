@@ -63,9 +63,9 @@ public sealed class LibraryActionsTests
         Assert.Equal("a\nb\n\nThey go to the Recycle Bin, where they can be brought back, and the library forgets them.", LibraryActions.DeletePrompt(["a", "b"]).Body);
 
         Assert.Equal("Remove Sungba.mp3 from the library?", LibraryActions.RemovePrompt(["Sungba.mp3"]).Title);
-        Assert.Equal("The file stays where it is; the library stops showing it You can use Undo immediately while the file is still available; otherwise re-add the watched folder.", LibraryActions.RemovePrompt(["Sungba.mp3"]).Body);
+        Assert.Equal("The file stays where it is; the library stops showing it. You can use Undo immediately while the file is still available; otherwise re-add the watched folder.", LibraryActions.RemovePrompt(["Sungba.mp3"]).Body);
         Assert.Equal("Remove 2 items from the library?", LibraryActions.RemovePrompt(["a", "b"]).Title);
-        Assert.Equal("a\nb\n\nThe files stay where they are; the library stops showing them You can use Undo immediately while the files are still available; otherwise re-add the watched folder.", LibraryActions.RemovePrompt(["a", "b"]).Body);
+        Assert.Equal("a\nb\n\nThe files stay where they are; the library stops showing them. You can use Undo immediately while the files are still available; otherwise re-add the watched folder.", LibraryActions.RemovePrompt(["a", "b"]).Body);
 
         Assert.Equal(new Prompt("Stop watching this folder?",
             "Music\n\nNo files will be deleted. This folder will leave the library and stop being scanned. You can add the folder again later."),
@@ -108,6 +108,8 @@ public sealed class LibraryActionsTests
         Assert.False(LibraryActions.CanRevealFile("a relative path.mp4"));
         Assert.False(LibraryActions.CanRevealFile("https://example.test/stream.mp4"));
         Assert.False(LibraryActions.CanRevealFile("bad\\0file.mp4"));
+        Assert.False(LibraryActions.CanRevealFile(Path.Combine(music, "broken\0name.mp3")));
+        Assert.False(LibraryActions.CanRevealFile("file://example.test/not-a-local-file.mp3"));
         Assert.True(LibraryActions.CanRevealFile(first));
         Assert.Empty(LibraryActions.RevealGroups([]));
         Assert.Throws<ArgumentNullException>(() => LibraryActions.RevealGroups(null!));

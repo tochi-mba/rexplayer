@@ -188,7 +188,7 @@ public sealed class Playlist(Random? random = null)
     {
         ArgumentNullException.ThrowIfNull(items);
         var selected = items.Where(item => !ReferenceEquals(item, Current) && _items.Contains(item))
-            .Distinct(ReferenceEqualityComparer.Instance).ToList();
+            .Distinct<PlaylistItem>(ReferenceEqualityComparer.Instance).ToList();
         if (selected.Count == 0)
         {
             return;

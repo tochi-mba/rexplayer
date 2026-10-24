@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Rex.Media.AppCore;
 using Rex.Media.AppCore.Commands;
@@ -108,6 +109,8 @@ public sealed partial class MainWindow : Window
         ApplyTooltips();
         ApplyGlobalShortcuts();
         WireZoom();
+        Root.SizeChanged += (_, _) => LayOutMediaStage();
+        Stage.SizeChanged += (_, _) => LayOutMediaStage();
         WireSubjectTools();
         WireSeekBar();
 
@@ -144,7 +147,7 @@ public sealed partial class MainWindow : Window
         if (AppWindow.Presenter is OverlappedPresenter overlapped)
         {
             overlapped.PreferredMinimumWidth = 360;
-            overlapped.PreferredMinimumHeight = 150;
+            overlapped.PreferredMinimumHeight = 320;
         }
 
         PlaylistView.ItemsSource = _playlistRows;
@@ -449,6 +452,24 @@ public sealed partial class MainWindow : Window
         var title = _player.Title;
         Title = title.Length > 0 ? $"{title} \u2014 rexplayer" : "rexplayer";
         var picture = _player.Item?.Location is { } location && MediaFiles.IsPicture(location);
+        if (!picture && PictureIntervalButton.Visibility == Visibility.Visible)
+        {
+            // Popup flyouts have their own focus scope. Dismissing the picture
+            // control during a stream switch must also close its open choices
+            // and move focus away from the removed menu/button.
+            if (Content.XamlRoot is { } xamlRoot)
+            {
+                var focused = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(xamlRoot);
+                if (ReferenceEquals(focused, PictureIntervalButton)
+                    || (focused is MenuFlyoutItemBase menuItem && PictureIntervalMenu.Items.Contains(menuItem)))
+                {
+                    PlayPauseButton.Focus(FocusState.Programmatic);
+                }
+            }
+
+            PictureIntervalMenu.Hide();
+        }
+
         PictureIntervalButton.Visibility = picture ? Visibility.Visible : Visibility.Collapsed;
         if (picture)
         {
@@ -460,6 +481,7 @@ public sealed partial class MainWindow : Window
         var idle = _player.State is SessionState.Idle || (_player.Item is not null && !HasVideo);
         VideoBlankLayer.Visibility = HasVideo ? Visibility.Collapsed : Visibility.Visible;
         Idle.Visibility = idle ? Visibility.Visible : Visibility.Collapsed;
+        IdleScroller.Visibility = Idle.Visibility;
         WelcomeActions.Visibility = _player.Item is null ? Visibility.Visible : Visibility.Collapsed;
         IdleTitle.Text = _player.Item is null ? "rexplayer" : title;
         IdleHint.Text = _player.Item is null ? "Drop media here, or press Ctrl+O to open a file."
@@ -470,7 +492,7 @@ public sealed partial class MainWindow : Window
         DownloadBufferOverlay.Visibility = waitingForDownload ? Visibility.Visible : Visibility.Collapsed;
         if (waitingForDownload)
         {
-            var download = _player.Item?.Location is { } location ? _library?.Entry(location) : null;
+            var download = _player.Item?.Location is { } downloadLocation ? _library?.Entry(downloadLocation) : null;
             var fraction = download is { Downloading: true }
                 ? Downloads.Fraction(download.Size, download.FinalSize, download.Allocated)
                 : null;

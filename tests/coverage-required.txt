@@ -180,6 +180,7 @@ MediaInfo.cs
 MediaKeyEcho.cs
 MediaLibrary.cs
 MediaPrefetch.cs
+MediaStagePolicy.cs
 MediaRegistries.cs
 MediaSession.Commands.cs
 MediaSession.cs
