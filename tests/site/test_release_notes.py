@@ -20,10 +20,10 @@ class ReleaseNotesTests(unittest.TestCase):
             encoding="utf-8",
         )
         (root / "CHANGELOG.md").write_text(
-            f"# Changelog\\n\\n## {notes} - 2026-10-24\\n\\n### Fixed\\n\\n- Local recovery.\\n",
+            f"# Changelog\n\n## {notes} - 2026-10-24\n\n### Fixed\n\n- Local recovery.\n",
             encoding="utf-8",
         )
-        (root / "README.md").write_text(f"> **Source version: {readme}.**\\n", encoding="utf-8")
+        (root / "README.md").write_text(f"> **Source version: {readme}.**\n", encoding="utf-8")
         return root
 
     def test_the_actual_pr_version_changelog_and_readme_match(self) -> None:
@@ -41,7 +41,7 @@ class ReleaseNotesTests(unittest.TestCase):
         root = self.fixture()
         changelog = root / "CHANGELOG.md"
         changelog.write_text(changelog.read_text(encoding="utf-8") +
-                             "\\n## 0.30.8 - 2026-10-24\\n", encoding="utf-8")
+                             "\n## 0.30.8 - 2026-10-24\n", encoding="utf-8")
         self.assertIn("CHANGELOG.md must contain exactly one release entry for 0.30.8.",
                       check_release_notes.check(root))
 
