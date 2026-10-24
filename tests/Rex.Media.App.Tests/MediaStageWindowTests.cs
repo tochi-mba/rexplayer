@@ -412,6 +412,9 @@ public sealed class MediaStageWindowTests : IDisposable
             app.Press("MovieVersionButton");
             Wait.For(() => app.IsShown("MovieVersion-1"),
                 "a separately focusable alternate resolution menu item");
+            var versionBounds = app.Find("MovieVersion-1").Current.BoundingRectangle;
+            Assert.True(versionBounds.Width >= 42 && versionBounds.Height >= 42,
+                "An alternate movie resolution must be touch-sized and keyboard-accessible.");
             app.Find("MovieVersion-1").SetFocus();
             Wait.For(() => app.Find("MovieVersion-1").Current.HasKeyboardFocus,
                 "the movie's alternate resolution to own keyboard focus");
