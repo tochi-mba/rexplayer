@@ -39,6 +39,7 @@ public sealed partial class MainWindow
     private void OnLibraryPaneSized(object sender, SizeChangedEventArgs e)
     {
         ApplyLibraryNavigationWidth();
+        ApplySmallHomeViewport(LibraryHome.Visibility == Visibility.Visible);
         // At the supported 360×430 minimum the 196px expanded header, view
         // controls and outer margins otherwise leave the Home shelf ScrollViewer
         // with zero height. Keep the hero's title and Back accessible, but use
@@ -51,6 +52,20 @@ public sealed partial class MainWindow
         else if (e.NewSize.Height >= 550 && LibraryHome.Visibility == Visibility.Visible)
         {
             SetLibraryHeaderCompact(false);
+        }
+    }
+
+    // On a 360x430 desktop the search/filter toolbar and expanded header
+    // otherwise consume every row of the Home scroll viewport. Shelves and
+    // navigation have priority until more height is available. Other routes
+    // keep their search and filters even at the same small window size.
+    private void ApplySmallHomeViewport(bool home)
+    {
+        var tinyHome = home && LibraryPane.ActualHeight is > 0 and < 550;
+        LibraryViewOptionsHost.Visibility = tinyHome ? Visibility.Collapsed : Visibility.Visible;
+        if (tinyHome)
+        {
+            SetLibraryHeaderCompact(true);
         }
     }
 
