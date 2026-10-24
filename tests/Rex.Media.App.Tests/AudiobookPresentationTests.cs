@@ -167,6 +167,12 @@ public sealed class AudiobookPresentationTests : IDisposable
 
         app.Visit("Completed");
         Wait.For(() => app.Lines().Contains("Complete Me"), "the finished book's card");
+        // Even a single finished book must be explicitly chosen. The default
+        // "Play everything" path must not bypass its book-scoped finished state.
+        app.Press("LibraryPlay");
+        Assert.Empty(app.Queue());
+        app.Toggle("PlaylistButton");
+        Wait.For(() => !app.IsShown("PlaylistView"), "playlist pane to close");
         app.Choose("Complete Me");
         app.Press("LibraryPlay");
         Wait.For(() => app.Text("NowPlaying") == "Part 1", "completed book to start again");
