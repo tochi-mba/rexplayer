@@ -572,7 +572,11 @@ public sealed partial class MainWindow
         }
 
         LibraryLookButton.Flyout = Choices("LibraryLook", looks,
-            choice.Look, look => KeepViewChoice(choice with { Look = look, Grouping = look == LibraryLook.Collage ? LibraryGrouping.None : choice.Grouping }));
+            choice.Look, look =>
+            {
+                var current = ViewChoice(_libraryViewKey);
+                KeepViewChoice(current with { Look = look, Grouping = look == LibraryLook.Collage ? LibraryGrouping.None : current.Grouping });
+            });
 
         // Each view offers the orders and groups that mean something for what it holds.
         var sorts = groupsView
@@ -593,16 +597,25 @@ public sealed partial class MainWindow
             };
         var sortName = SortNames.First(pair => pair.Sort == choice.Sort).Name;
         LibrarySortButton.Content = (choice.Descending ? "\u2191 " : "\u2193 ") + sortName;
-        var sortMenu = Choices("LibrarySort", [.. sorts.Select(sort => (sort, SortNames.First(pair => pair.Sort == sort).Name))], choice.Sort, sort => KeepViewChoice(choice with { Sort = sort }));
+        var sortMenu = Choices("LibrarySort", [.. sorts.Select(sort => (sort, SortNames.First(pair => pair.Sort == sort).Name))], choice.Sort,
+            sort => KeepViewChoice(ViewChoice(_libraryViewKey) with { Sort = sort }));
         sortMenu.Items.Add(new MenuFlyoutSeparator());
         var reverse = new ToggleMenuFlyoutItem { Text = "Reverse the order", IsChecked = choice.Descending };
         AutomationProperties.SetAutomationId(reverse, "LibrarySort-Reverse");
-        reverse.Click += (_, _) => KeepViewChoice(choice with { Descending = !choice.Descending });
+        reverse.Click += (_, _) =>
+        {
+            var current = ViewChoice(_libraryViewKey);
+            KeepViewChoice(current with { Descending = !current.Descending });
+        };
         sortMenu.Items.Add(reverse);
         LibrarySortButton.Flyout = sortMenu;
         LibraryGroupButton.Content = GroupingNames.First(pair => pair.Grouping == choice.Grouping).Name;
         var groupMenu = Choices("LibraryGroup", [.. groupings.Select(grouping => (grouping, GroupingNames.First(pair => pair.Grouping == grouping).Name))], choice.Grouping,
-            grouping => KeepViewChoice(choice with { Grouping = grouping, Look = grouping != LibraryGrouping.None && choice.Look == LibraryLook.Collage ? LibraryLook.Grid : choice.Look }));
+            grouping =>
+            {
+                var current = ViewChoice(_libraryViewKey);
+                KeepViewChoice(current with { Grouping = grouping, Look = grouping != LibraryGrouping.None && current.Look == LibraryLook.Collage ? LibraryLook.Grid : current.Look });
+            });
         if (choice.Grouping != LibraryGrouping.None)
         {
             groupMenu.Items.Add(new MenuFlyoutSeparator());
