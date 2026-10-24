@@ -456,6 +456,18 @@ public sealed class ListeningViewsTests
             .Select(chapter => (chapter.Part.Path, chapter.Start, chapter.Title, chapter.SameMarkIndex));
         Assert.Equal(originalKeys, updatedKeys);
         Assert.Equal(0, afterScan[0].SameMarkIndex);
+
+        // An identically named/timed marker in the second physical part is not
+        // the fourth occurrence of a marker in the first part.
+        var second = AudioFile("Audiobooks/Writer/Book/Second.m4b", TimeSpan.FromMinutes(30)) with
+        {
+            Chapters = [new LibraryChapter(TimeSpan.FromMinutes(5), "Repeat")],
+        };
+        var spanningParts = ListeningViews.Chapters(new LibraryGroup("Book", "Writer", [part, second]));
+        Assert.Equal([0, 1, 2, 0], spanningParts
+            .Where(chapter => chapter.Title.Equals("Repeat", StringComparison.OrdinalIgnoreCase))
+            .Select(chapter => chapter.SameMarkIndex));
+        Assert.NotEqual(spanningParts[1].Part.Path, spanningParts[^1].Part.Path);
     }
 
     [Fact]
