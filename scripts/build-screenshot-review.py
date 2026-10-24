@@ -29,7 +29,34 @@ def build(inventory_path: Path, root: Path, output: Path) -> int:
         else:
             missing += 1
 
+        expected_text = scene["expectedVisibleData"]
+        observed_text = evidence.get("observedVisibleData")
+        if not expected_text:
+            semantic_status = "no expected text"
+        elif not isinstance(observed_text, list):
+            semantic_status = "NOT CAPTURED"
+        else:
+            seen = {item["automationId"]: item for item in observed_text
+                    if isinstance(item, dict) and "automationId" in item}
+            mismatches = []
+            for expected in expected_text:
+                control = seen.get(expected["automationId"], {})
+                actual_name = control.get("Name", control.get("name"))
+                if not control.get("shown") or actual_name != expected["name"]:
+                    mismatches.append(
+                        f'{expected["automationId"]}: expected {expected["name"]!r}, '
+                        f'observed {actual_name!r}, visible={control.get("shown", "unknown")}'
+                    )
+            semantic_status = "MATCH" if not mismatches else "MISMATCH: " + " | ".join(mismatches)
+
+        actual_scene = evidence.get("sceneId")
+        identity_status = ("MATCH" if actual_scene == scene["id"]
+                           else "NOT CAPTURED" if actual_scene is None
+                           else f'MISMATCH: metadata belongs to {actual_scene!r}')
+
         fields = [
+            ("Scene identity", identity_status),
+            ("Semantic text witness", semantic_status),
             ("Fixture", scene["fixture"]),
             ("Route / state", f'{scene["route"]} / {scene["state"]}'),
             ("Viewport / theme", f'{scene["dimensions"]} / {scene["theme"]}'),
