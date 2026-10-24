@@ -399,6 +399,9 @@ public sealed class MediaStageWindowTests : IDisposable
             "two editions of the same movie to expose their resolution picker");
 
         var picker = app.Find("MovieVersionButton");
+        Assert.True(picker.Current.BoundingRectangle.Width >= 42
+            && picker.Current.BoundingRectangle.Height >= 42,
+            "The movie resolution picker must remain a touch-sized playback action.");
         picker.SetFocus();
         Wait.For(() => picker.Current.HasKeyboardFocus,
             "the movie version picker to own keyboard focus");
