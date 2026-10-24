@@ -333,6 +333,34 @@ public sealed class MediaStageWindowTests : IDisposable
     }
 
     [Fact]
+    public void ARealPictureHasTouchSizedSlideshowSettingsWithoutASeekTimeline()
+    {
+        var picture = _scene.Picture("slideshow-controls.jpg");
+        using var app = AppProcess.Start([picture]);
+        Wait.For(() => app.Find("Stage").Current.Name == "PICTURE playback stage"
+            && app.IsShown("PictureIntervalButton"),
+            "picture playback and its slideshow interval picker");
+
+        var bounds = app.Find("PictureIntervalButton").Current.BoundingRectangle;
+        Assert.True(bounds.Width >= 42 && bounds.Height >= 42,
+            "The picture interval picker must be touch-sized at standard DPI.");
+        Assert.False(app.Find("SeekBar").Current.IsEnabled);
+        app.Press("PictureIntervalButton");
+        Wait.For(() => app.IsShown("PictureInterval-10"),
+            "picture interval options to open");
+        bounds = app.Find("PictureInterval-10").Current.BoundingRectangle;
+        Assert.True(bounds.Width >= 42 && bounds.Height >= 42,
+            "Each slideshow interval choice must have a touch-sized target.");
+        app.Press("PictureInterval-10");
+        Wait.For(() => app.Find("PictureIntervalButton").Current.Name
+            == "Slideshow interval, 10 seconds per picture",
+            "the selected picture interval to be announced to screen readers");
+        Assert.False(app.Find("SeekBar").Current.IsEnabled);
+        Assert.False(app.Find("StartOverButton").Current.IsEnabled);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     public void SwitchingFromCaptionedLocalVideoToRemoteLocationClearsOldSubtitleUI()
     {
         var video = _scene.Video("Captioned.mp4");
