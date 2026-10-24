@@ -49,7 +49,12 @@ public sealed class LibraryFixtureVisualTests
             app.Text("LibraryEmptyText").Contains("Reconnect its drive or check permissions", StringComparison.Ordinal),
             "the inaccessible folder to show a recovery action rather than claiming no media exists");
         Assert.DoesNotContain("There is nothing of this kind", app.Text("LibraryEmptyText"), StringComparison.Ordinal);
+        Assert.Equal("Try scanning the library folder again", app.Find("LibraryEmptyRetryScan").Current.Name);
         Screenshots.Match(app, "library-home-disconnected-folder-error", "LibraryPane");
+        app.Press("LibraryEmptyRetryScan");
+        Wait.For(() => app.IsShown("LibraryEmptyRetryScan") &&
+            app.Text("LibraryEmptyText").Contains("Reconnect its drive", StringComparison.Ordinal),
+            "a failed retry to preserve the actionable error without discarding the library");
         Assert.Equal(0, app.Close());
     }
 
