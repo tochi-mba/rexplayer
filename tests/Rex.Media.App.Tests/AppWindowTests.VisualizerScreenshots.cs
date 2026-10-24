@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Windows.Automation;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.TestKit;
@@ -6,6 +7,9 @@ namespace Rex.Media.App.Tests;
 
 public sealed partial class AppWindowTests
 {
+    [LibraryImport("user32.dll", EntryPoint = "GetDpiForWindow")]
+    private static partial uint GetVisualizerTestDpi(nint window);
+
     /// <summary>
     /// Real native visualizer modes at fixed viewport sizes, paused long enough that the
     /// sound-driven animation has settled. Their CI captures still require pixel review
@@ -54,4 +58,39 @@ public sealed partial class AppWindowTests
         app.Press("CloseButton");
         Assert.Equal(0, app.Close());
     }
+    /// <summary>These two lanes require the real OS setting; a synthetic flag is not pixel evidence.</summary>
+    [Fact]
+    [Capability("AU-18")]
+    public void NativeSpectrumAtSystemHighContrastHasANamedStableCapture()
+    {
+        Assert.SkipWhen(!System.Windows.SystemParameters.HighContrast,
+            "Native system high contrast is not enabled on this Windows machine.");
+        using var app = AppProcess.Start([Music(30)], RootShowing("Spectrum"));
+        Wait.For(() => app.IsShown("Visualizer"), "the actual high-contrast spectrum stage");
+        app.Run(CommandCatalog.PlayPause);
+        Thread.Sleep(2000);
+        Assert.True(app.IsShown("Visualizer"));
+        Screenshots.Match(app, "visualizer-spectrum-system-high-contrast", "Stage");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void NativeSpectrumAtPerMonitorHighDpiHasANamedStableCapture()
+    {
+        using var app = AppProcess.Start([Music(30)], RootShowing("Spectrum"));
+        var dpi = GetVisualizerTestDpi(app.Handle);
+        Assert.SkipWhen(dpi < 120, "A real 125%-or-higher Windows monitor is required.");
+        Wait.For(() => app.IsShown("Visualizer"), "the actual scaled spectrum stage");
+        var viewport = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
+        viewport.Resize(1000, 760);
+        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 1000) < 2 &&
+            Math.Abs(app.Window.Current.BoundingRectangle.Height - 760) < 2,
+            "the high-DPI fixed physical viewport");
+        app.Run(CommandCatalog.PlayPause);
+        Thread.Sleep(2000);
+        Screenshots.Match(app, "visualizer-spectrum-high-dpi-" + dpi, "Stage");
+        Assert.Equal(0, app.Close());
+    }
+
 }
