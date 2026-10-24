@@ -231,11 +231,11 @@ public sealed partial class MainWindow
             ? folders.Where(folder => folder.Contains(_libraryQuery, StringComparison.CurrentCultureIgnoreCase)).ToList()
             : folders.ToList();
         var count = filter == 4 ? matchingFolders.Count : items.Count;
-        _libraryPage = Math.Clamp(_libraryPage, 0, Math.Max(0, (count - 1) / LibraryPageSize));
-        var start = _libraryPage * LibraryPageSize;
-        var end = Math.Min(count, start + LibraryPageSize);
-        _libraryPrevious!.Enabled = _libraryPage > 0;
-        _libraryNext!.Enabled = end < count;
+        var page = LibraryPageSlice.For(count, _libraryPage, LibraryPageSize);
+        _libraryPage = page.Page;
+        var (start, end) = (page.Start, page.End);
+        _libraryPrevious!.Enabled = page.HasPrevious;
+        _libraryNext!.Enabled = page.HasNext;
         if (_libraryClearSearch is not null)
         {
             _libraryClearSearch.Enabled = _librarySearch?.StringValue.Length > 0 || _libraryQuery.Length > 0;
