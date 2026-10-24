@@ -129,6 +129,36 @@ public sealed class LibraryFixtureVisualTests
         Assert.Equal(0, app.Close());
     }
 
+    /// <summary>
+    /// Every source-size breakpoint renders from the same indexed media, rather than
+    /// separate image mockups. CI captures need native review before release approval.
+    /// </summary>
+    [Theory]
+    [Capability("UI-13")]
+    [InlineData(360, 430, "minimum")]
+    [InlineData(720, 640, "compact")]
+    [InlineData(1000, 760, "standard")]
+    [InlineData(1280, 860, "wide")]
+    public void HomeNavigationRemainsReachableAcrossNativeWindowWidths(int width, int height, string size)
+    {
+        using var scene = new LibraryScene();
+        scene.WithAsake();
+        scene.Picture("Lagos.jpg");
+        using var app = scene.Ready().Start();
+        SetViewport(app, width, height);
+        Wait.For(() => app.IsShown("LibraryHome") && app.IsShown("LibraryNavigationToggle"),
+            "the local Home shelves and library navigation to remain mounted at " + size);
+        var sources = app.Find("LibrarySources").Current.BoundingRectangle;
+        var pane = app.Find("LibraryPane").Current.BoundingRectangle;
+        Assert.True(sources.Width > 0 && pane.Width > sources.Width + 100,
+            $"The {size} window needs usable content beside the navigation rail.");
+        var compact = width < 900;
+        Assert.Equal(compact ? "Expand library navigation" : "Collapse library navigation",
+            app.Find("LibraryNavigationToggle").Current.Name);
+        Screenshots.Match(app, "library-home-shell-" + size, "LibraryPane");
+        Assert.Equal(0, app.Close());
+    }
+
     [Fact]
     [Capability("LIB-05")]
     public void UnicodeAndRtlNamesSurviveOfflineIndexingAndRemainFocusable()
