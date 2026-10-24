@@ -194,10 +194,11 @@ public sealed partial class MainWindow
     private List<PlaylistItem> ChosenEntries()
     {
         var items = _player.Playlist.Items;
-        return [.. PlaylistView.SelectedRanges
-            .SelectMany(range => Enumerable.Range(range.FirstIndex, (int)range.Length))
+        return [.. PlaylistView.SelectedItems
+            .OfType<PlaylistRow>()
+            .Select(_playlistRows.IndexOf)
             .Order()
-            .Where(index => index < items.Count)
+            .Where(index => index >= 0 && index < items.Count)
             .Select(index => items[index])];
     }
 

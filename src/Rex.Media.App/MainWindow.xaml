@@ -589,7 +589,7 @@
                   AutomationProperties.AutomationId="PlaylistJumpNow" AutomationProperties.Name="Scroll queue to the playing item" />
         </StackPanel>
         <Grid Grid.Row="1">
-        <ListView x:Name="PlaylistView" SelectionMode="Extended" IsItemClickEnabled="False"
+        <ListView x:Name="PlaylistView" SelectionMode="Extended" IsItemClickEnabled="False" IsTabStop="True"
                   CanDragItems="True" CanReorderItems="True" AllowDrop="True" ReorderMode="Enabled"
                   DragItemsStarting="OnPlaylistDragItemsStarting" DragItemsCompleted="OnPlaylistDragItemsCompleted"
                   Tapped="OnPlaylistTapped" DoubleTapped="OnPlaylistDoubleTapped" RightTapped="OnPlaylistRightTapped" KeyDown="OnPlaylistKeyDown"

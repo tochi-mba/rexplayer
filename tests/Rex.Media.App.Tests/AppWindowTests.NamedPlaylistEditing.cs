@@ -111,7 +111,7 @@ public sealed partial class AppWindowTests
         })!;
         ((SelectionItemPattern)rows[^1].GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         Input.Focus(app);
-        rows[^1].SetFocus();
+        list.SetFocus();
         Input.Press("Alt+Up");
 
         Wait.For(() => app.Find("PlaylistUndoReorder").Current.IsEnabled, "undo reorder to be available");
