@@ -30,6 +30,7 @@ public sealed partial class AppWindowTests
         Wait.For(() => app.Find("SeekBar").Current.IsEnabled && app.Find("StartOverButton").Current.IsEnabled, "seeking to be offered");
 
         app.Run(CommandCatalog.PlayPause);
+        Wait.For(() => app.Find("PlayPauseButton").Current.Name == "Play" && app.Status().State == "Paused", "the pause");
         OpenDialog(app, CommandCatalog.GoToTime, "GoToTimeBox");
         var box = (ValuePattern)app.Find("GoToTimeBox").GetCurrentPattern(ValuePattern.Pattern);
         box.SetValue("0:42");
