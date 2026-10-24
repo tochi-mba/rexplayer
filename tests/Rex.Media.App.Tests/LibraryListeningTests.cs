@@ -319,6 +319,9 @@ public sealed class LibraryListeningTests : IDisposable
         ((System.Windows.Automation.ValuePattern)app.Find("LibrarySearch").GetCurrentPattern(System.Windows.Automation.ValuePattern.Pattern)).SetValue("Tolkien");
         Wait.For(() => app.Text("LibraryKicker") == "SEARCH" && app.Lines().SequenceEqual(["J. R. R. Tolkien"]),
             "author search to keep the semantic author result instead of turning it into an artist");
+        Assert.Equal("Open author", app.Text("LibraryPlayText"));
+        Assert.False(app.IsShown("LibraryShuffle"));
+        Assert.False(app.IsShown("LibraryEnqueue"));
         app.Open("J. R. R. Tolkien");
         Wait.For(() => app.Text("LibraryKicker") == "AUTHOR" && app.Text("LibraryTitle") == "J. R. R. Tolkien",
             "the author page");
