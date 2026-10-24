@@ -77,6 +77,7 @@ public sealed partial class MainWindow
         foreach (var run in _lyricWordRuns.Values.SelectMany(words => words))
         {
             run.Foreground = LyricNeutralBrush();
+            run.FontWeight = FontWeights.Normal;
         }
 
         // Preserve keyboard focus and manually suspended lyric following.
@@ -493,6 +494,10 @@ public sealed partial class MainWindow
         for (var i = 0; i < runs.Count; i++)
         {
             runs[i].Foreground = i <= index ? accent : neutral;
+            // System high contrast deliberately uses the same readable foreground
+            // for both states; weight keeps the exact-timed word perceptible.
+            runs[i].FontWeight = _lyricAccessibility.HighContrast && i <= index
+                ? FontWeights.Bold : FontWeights.Normal;
         }
     }
 
@@ -508,6 +513,7 @@ public sealed partial class MainWindow
         foreach (var run in runs)
         {
             run.Foreground = neutral;
+            run.FontWeight = FontWeights.Normal;
         }
 
         _shownWordLine = -1;
