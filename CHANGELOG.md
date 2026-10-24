@@ -3,6 +3,28 @@
 Every version of rexplayer that reaches users, newest first. A version is published by the CI
 pipeline the moment its number reaches `main`.
 
+## 0.30.8 - 2026-10-24
+
+### Added
+
+- **Native Mac library browsing.** A local-first AppKit library window lists watched folders, songs, videos and pictures, with search, safe pagination, Play and Add to Up Next. Add and stop watching folders without deleting the original media; rescan available folders periodically.
+- **Mac Up Next interactions.** Browse, reorder, shuffle and remove queue entries in the native window, including recovery when the last queue page becomes empty. Queue and library windows expose descriptive names to assistive technology.
+- **More useful local Home shelves.** Pin real music albums, browse matching movies and shows, continue listening and watching, and return to the correct library view after narrowing a search or filter.
+
+### Improved
+
+- **Music and lyrics.** Distinguish missing, plain, line-timed, partly word-timed and word-timed local lyrics. Seek by a source-provided line time, keep manual scrolling under the user's control and use readable system colors and word-weight emphasis in high contrast.
+- **Adaptive Windows library.** Keep useful Home content width in compact windows, restore desktop navigation when widened, explain disconnected folders and offer an immediate scan retry. Movie and TV Browse respect ordinary saved sort order on their All items shelves.
+- **Movie and show discovery.** Present accessible feature actions and native detail pages without mixing up Play and More info. High-contrast settings replace photographic hero backgrounds with system colors and suppress decorative fades.
+- **Visualisation and app responsiveness.** Rebuild visualisation backing pixels when display scale changes; preserve the chosen mode through pause, seek, track changes, resizing and window minimization.
+
+### Fixed
+
+- **Featured media controls.** Clicking Play or More info on a movie/TV feature no longer also activates its parent card.
+- **Empty library recovery.** Clearing a search or filter returns keyboard focus to the surviving control, while a disconnected folder is explained instead of being mistaken for an empty library.
+- **Mac queue page removal.** Deleting items from the final queue page returns to a valid remaining page.
+- **Website previews.** Pre-publication checks catch broken or undersized PNG assets, and responsive browser checks verify decoded screenshots and narrow-width layout. The Pages workflow also checks the actual deployed commit and retains browser captures after publication.
+
 ## 0.30.7 - 2026-10-23
 
 ### Fixed
