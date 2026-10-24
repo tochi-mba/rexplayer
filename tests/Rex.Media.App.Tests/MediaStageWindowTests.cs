@@ -264,7 +264,7 @@ public sealed class MediaStageWindowTests : IDisposable
     {
         var song = _scene.Audio("SeekBounded.wav", TimeSpan.FromSeconds(20));
         File.WriteAllText(Path.ChangeExtension(song, ".lrc"),
-            "[00:00.00]Start\\n[00:10.00]Playable\\n[00:30.00]Beyond the track\\n");
+            "[00:00.00]Start\n[00:10.00]Playable\n[00:30.00]Beyond the track\n");
 
         using var app = AppProcess.Start([song]);
         Wait.For(() => app.Find("Stage").Current.Name == "AUDIO playback stage"
@@ -285,8 +285,8 @@ public sealed class MediaStageWindowTests : IDisposable
     {
         var first = _scene.Audio(Path.Combine("Songs", "First.wav"), TimeSpan.FromSeconds(20));
         var second = _scene.Audio(Path.Combine("Songs", "Second.wav"), TimeSpan.FromSeconds(20));
-        File.WriteAllText(Path.ChangeExtension(first, ".lrc"), "[00:00.00]First stream line\\n[00:03.00]First ending\\n");
-        File.WriteAllText(Path.ChangeExtension(second, ".lrc"), "[00:00.00]Second stream line\\n[00:03.00]Second ending\\n");
+        File.WriteAllText(Path.ChangeExtension(first, ".lrc"), "[00:00.00]First stream line\n[00:03.00]First ending\n");
+        File.WriteAllText(Path.ChangeExtension(second, ".lrc"), "[00:00.00]Second stream line\n[00:03.00]Second ending\n");
 
         using var app = AppProcess.Start([first, second], extraSettings: "\"theme\": \"Dark\"");
         Wait.For(() => app.Text("NowPlaying") == "First" && app.IsShown("Lyrics")
@@ -403,7 +403,7 @@ public sealed class MediaStageWindowTests : IDisposable
     {
         var video = _scene.Video("Captioned.mp4");
         File.WriteAllText(Path.Combine(_scene.Media, "Captioned.en.srt"),
-            "1\\n00:00:00,000 --> 00:10:00,000\\nLocal video captions\\n");
+            "1\n00:00:00,000 --> 00:10:00,000\nLocal video captions\n");
         using var app = AppProcess.Start([video]);
         Wait.For(() => app.IsShown("SubtitleText")
             && app.Text("SubtitleText") == "Local video captions",
@@ -430,7 +430,7 @@ public sealed class MediaStageWindowTests : IDisposable
     {
         var video = _scene.Video("BeforeFault.mp4");
         File.WriteAllText(Path.Combine(_scene.Media, "BeforeFault.en.srt"),
-            "1\\n00:00:00,000 --> 00:10:00,000\\nCaption before fault\\n");
+            "1\n00:00:00,000 --> 00:10:00,000\nCaption before fault\n");
         var bad = Path.Combine(_scene.Media, "unreadable.mp4");
         File.WriteAllText(bad, "not a playable media file");
 
