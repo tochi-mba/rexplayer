@@ -126,7 +126,12 @@ internal sealed class AppProcess : IDisposable
         var window = Wait.Until(() =>
         {
             process.Refresh();
-            Assert.False(process.HasExited, $"rexplayer exited with {(process.HasExited ? process.ExitCode : 0)} before showing its window.");
+            if (process.HasExited)
+            {
+                var diagnostic = Path.Combine(root, "startup-error.txt");
+                var reason = File.Exists(diagnostic) ? File.ReadAllText(diagnostic) : "(no startup exception was recorded)";
+                Assert.Fail($"rexplayer exited with {process.ExitCode} before showing its window. Startup failure: {reason}");
+            }
             if (process.MainWindowHandle == 0)
             {
                 return null;
@@ -214,6 +219,7 @@ internal sealed class AppProcess : IDisposable
         // Actual PNGs are still captured and compared by Screenshots.Match.
         start.Environment["REXPLAYER_UI_CAPTURE"] = "1";
         start.Environment["REXPLAYER_PIPE_NAME"] = "rexplayer-test-" + Path.GetFileName(root);
+        start.Environment["REXPLAYER_STARTUP_ERROR_FILE"] = Path.Combine(root, "startup-error.txt");
         return start;
     }
 
