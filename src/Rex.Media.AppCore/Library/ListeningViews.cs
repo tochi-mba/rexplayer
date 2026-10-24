@@ -343,11 +343,13 @@ public static partial class ListeningViews
         // earlier, unlike a global row number. Assign it in one linear pass.
         // Selection identities are compared without case, so duplicate numbering
         // must use that same comparison or case-variant titles would collide.
-        var seen = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        // Keep the path/title as tuple fields rather than allocating a joined
+        // string for each of the 10,000 chapter markers on a large book page.
+        var seen = new Dictionary<(string Path, long Start, string Title), int>(ChapterMarkComparer.Instance);
         for (var index = 0; index < chapters.Count; index++)
         {
             var chapter = chapters[index];
-            var key = $"{chapter.Part.Path}\n{chapter.Start.Ticks}\n{chapter.Title}";
+            var key = (chapter.Part.Path, chapter.Start.Ticks, chapter.Title);
             seen.TryGetValue(key, out var occurrence);
             if (occurrence > 0)
             {
@@ -671,6 +673,23 @@ public static partial class ListeningViews
     /// <summary>A part's number at the end of its title: " - Part 01", " (Disc 2)", " CD3", ", Chapter 4", " 07", " Part 3 of 12".</summary>
     [GeneratedRegex(@"[ _\-,.(\[]*(?:(?:part|pt|dis[ck]|cd|chapter|ch)[ _\-.]*)?\d+(?:[ _\-]*of[ _\-]*\d+)?[)\]]?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex PartNumberPattern();
+
+    /// <summary>
+    /// Compare repeated chapter marks without allocating a large concatenated
+    /// path/time/title string, while preserving Windows' case-insensitive keys.
+    /// </summary>
+    private sealed class ChapterMarkComparer : IEqualityComparer<(string Path, long Start, string Title)>
+    {
+        public static readonly ChapterMarkComparer Instance = new();
+
+        public bool Equals((string Path, long Start, string Title) x, (string Path, long Start, string Title) y) =>
+            x.Start == y.Start && StringComparer.OrdinalIgnoreCase.Equals(x.Path, y.Path)
+            && StringComparer.OrdinalIgnoreCase.Equals(x.Title, y.Title);
+
+        public int GetHashCode((string Path, long Start, string Title) obj) =>
+            HashCode.Combine(StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Path), obj.Start,
+                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Title));
+    }
 
     /// <summary>Books' keys compared without case.</summary>
     private sealed class BookKeyComparer : IEqualityComparer<(string Name, string Folder)>
