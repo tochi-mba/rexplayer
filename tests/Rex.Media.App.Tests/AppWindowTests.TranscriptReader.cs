@@ -132,7 +132,11 @@ public sealed partial class AppWindowTests
         app.Press("TranscriptReaderNext");
         Wait.For(() => app.Text("TranscriptReaderPage").Contains("36–48 of 48", StringComparison.Ordinal),
             "the second bounded page of transcript paragraphs");
-        Assert.True(app.IsShown("TranscriptReaderCue-46"));
+        // The second page has more rows than its scroll viewport can show at
+        // once. Keyboard focus must be able to reveal the requested paragraph.
+        app.Find("TranscriptReaderCue-46").SetFocus();
+        Wait.For(() => app.IsShown("TranscriptReaderCue-46"),
+            "a keyboard-focused paragraph on the second page to scroll into view");
 
         var search = (ValuePattern)app.Find("TranscriptReaderSearch").GetCurrentPattern(ValuePattern.Pattern);
         search.SetValue("TARGET");
