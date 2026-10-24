@@ -120,7 +120,13 @@ public sealed class MacAppSmokeTests
             await Queue(pipe, "verify-accessibility");
             await Queue(pipe, "minimum");
             await Queue(pipe, "capture-minimum");
-            foreach (var name in new[] { "empty", "current", "long", "page-2", "shuffled", "minimum" })
+            var tail = await Queue(pipe, "next-page");
+            Assert.Contains("viewing 76", tail.Title, StringComparison.Ordinal);
+            var shrunk = await Queue(pipe, "remove-last-page");
+            Assert.Contains("75 items", shrunk.Title, StringComparison.Ordinal);
+            Assert.DoesNotContain("viewing 76", shrunk.Title, StringComparison.Ordinal);
+            await Queue(pipe, "capture-shrunk");
+            foreach (var name in new[] { "empty", "current", "long", "page-2", "shuffled", "minimum", "shrunk" })
             {
                 var file = new FileInfo(Path.Combine(screenshots, name + ".png"));
                 Assert.True(file.Exists && file.Length > 1024, "No usable native queue screenshot: " + file.FullName);
