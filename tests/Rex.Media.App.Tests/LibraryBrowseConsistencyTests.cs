@@ -52,7 +52,7 @@ public sealed class LibraryBrowseConsistencyTests : IDisposable
     [Capability("LIB-05")]
     public void BrowseHeroPlayAndMoreInfoRemainIndependentNativeActions()
     {
-        _scene.Film(Path.Combine("Movies", "Moon Harbour.2024.mp4"));
+        var movie = _scene.Film(Path.Combine("Movies", "Moon Harbour.2024.mp4"));
         using var app = _scene.Ready().Start();
         app.Visit("Movies");
         Wait.For(() => app.IsShown("LibraryBillboardPlay") &&
@@ -74,8 +74,17 @@ public sealed class LibraryBrowseConsistencyTests : IDisposable
 
         Pointer.Click(app, app.Find("LibraryBillboardPlay"));
         Wait.For(() => !app.IsShown("LibraryPane") &&
-            app.Text("NowPlaying").Contains("Moon Harbour", StringComparison.Ordinal),
-            "Play to start only the actual film and reveal the player");
+            app.LogText.Contains($"Playing 1 item(s) from the library, from {movie}.", StringComparison.Ordinal),
+            "Play to start only the featured film and reveal the player",
+            () => $"Library visible: {app.IsShown("LibraryPane")}; player title: {app.Text("NowPlaying")}. " +
+                "Log ends: " + string.Join(" | ", app.LogText.Split(Environment.NewLine).TakeLast(5)));
+
+        // The short real MP4 fixture carries the embedded title "Basquiat".
+        // The native player displays that tag, not the renamed library filename.
+        Wait.For(() => app.Text("NowPlaying") == "Basquiat",
+            "the native player to show the film fixture's actual embedded title",
+            () => "The player shows " + app.Text("NowPlaying"));
+        Assert.Contains("Moon Harbour", Assert.Single(app.Queue()), StringComparison.Ordinal);
         Assert.Equal(0, app.Close());
     }
 
