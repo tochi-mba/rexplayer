@@ -307,6 +307,7 @@ public sealed partial class MainWindow
                 }
             }
 
+            StageChapterMenu.Hide();
             StageChaptersButton.Visibility = Visibility.Collapsed;
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(StageChaptersButton, "");
             if (_shownChapterItem is not null)
@@ -340,6 +341,7 @@ public sealed partial class MainWindow
                 PlayPauseButton.Focus(FocusState.Programmatic);
             }
 
+            StageChapterMenu.Hide();
             StageChapterMenu.Items.Clear();
             foreach (var (index, chapter) in info.Chapters.Index())
             {
