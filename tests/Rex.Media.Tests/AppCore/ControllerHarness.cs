@@ -38,6 +38,7 @@ internal sealed class ControllerHarness : IDisposable
     /// <param name="pictures">Give sessions a stand-in video decoder and somewhere to show pictures.</param>
     /// <param name="beforeAudioWrite">An optional cancellable barrier before recording a frame.</param>
     /// <param name="milestones">Where the controller and its sessions mark their timing lines; nowhere when null.</param>
+    /// <param name="readFile">Optional file reader for deterministic errors while finding covers and lyrics.</param>
     public ControllerHarness(bool autoPlay = true, PlayerSettings? settings = null, Func<string, IByteSource>? openSource = null, bool diskFolders = false, Dictionary<string, string[]>? sidecars = null, Rex.Media.Library.RexStore? store = null, TimeProvider? time = null, Rex.Media.Diagnostics.RexLog? log = null, bool pictures = false, Action<Rex.Media.Primitives.AudioFrame, CancellationToken>? beforeAudioWrite = null, Rex.Media.Diagnostics.Milestones? milestones = null, Func<string, byte[]>? readFile = null)
     {
         var demuxers = new DemuxerRegistry().Add(new WavDemuxerFactory()).Add(new Rex.Media.Containers.Matroska.MatroskaDemuxerFactory());
