@@ -35,7 +35,8 @@ public sealed partial class AppWindowTests
         var box = (ValuePattern)app.Find("GoToTimeBox").GetCurrentPattern(ValuePattern.Pattern);
         box.SetValue("0:42");
         app.Press("PrimaryButton");
-        Wait.For(() => app.Text("Elapsed") == "0:42", "the song to move to 0:42", () => "It shows " + app.Text("Elapsed") + ".");
+        WaitForPosition(app, 42, "the song to settle at 0:42");
+        Assert.Equal("0:42", app.Text("Elapsed"));
 
         // A time that is not a time says so and leaves the place alone.
         OpenDialog(app, CommandCatalog.GoToTime, "GoToTimeBox");
