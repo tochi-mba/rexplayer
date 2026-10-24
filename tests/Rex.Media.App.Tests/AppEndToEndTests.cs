@@ -99,6 +99,7 @@ public sealed class AppEndToEndTests : IDisposable
         Assert.Equal(System.Windows.Automation.ToggleState.Off, updates.Current.ToggleState);
         Assert.Contains("Optional metadata lookups and update checks contact online services only when enabled",
             app.Text("WelcomePrivacy"), StringComparison.Ordinal);
+        Screenshots.Match(app, "welcome-first-run-offline");
         app.Press("CloseButton");
         Wait.For(() => File.Exists(app.SettingsPath) && app.SavedSettings.FirstRunDone, "the welcome to be remembered");
 
