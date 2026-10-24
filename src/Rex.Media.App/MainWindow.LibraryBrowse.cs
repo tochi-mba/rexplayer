@@ -321,6 +321,11 @@ public sealed partial class MainWindow
     /// </summary>
     private Grid Billboard(string kicker, string title, string line, Description? synopsis, LibraryEntry art, Uri? wide, string playLabel, Action play, Action more)
     {
+        // Respect the user's system text colors instead of drawing white text
+        // over a dark photograph while high contrast is on.
+        var highContrast = new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast;
+        var standardLabel = highContrast ? null : new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xDC, 0xE3, 0xED));
+        var standardTitle = highContrast ? null : new SolidColorBrush(Microsoft.UI.Colors.White);
         var frame = new Grid { Height = 320, CornerRadius = new CornerRadius(12), Background = (Brush)Application.Current.Resources["LayerFillColorDefaultBrush"] };
         AutomationProperties.SetAutomationId(frame, "LibraryBillboard");
         AutomationProperties.SetName(frame, title);
@@ -350,7 +355,7 @@ public sealed partial class MainWindow
                 UpdateBrowseHeroHold();
             });
         };
-        if (_budget.Animations)
+        if (_budget.Animations && !highContrast)
         {
             frame.Opacity = 0;
             var fade = new DoubleAnimation { To = 1, Duration = TimeSpan.FromMilliseconds(240), EasingFunction = new QuadraticEase() };
@@ -360,20 +365,24 @@ public sealed partial class MainWindow
             transition.Children.Add(fade);
             frame.Loaded += (_, _) => transition.Begin();
         }
-        var backdrop = new Image { Stretch = Stretch.UniformToFill };
-        frame.Children.Add(backdrop);
-        var token = _libraryPictures.Token;
-        Forget(ShowPictureAsync(art.Path, art.Kind, art.Duration, picture => backdrop.Source ??= picture, token));
-        if (wide is not null)
+        if (!highContrast)
         {
-            // The backdrop, once it comes, takes the place of the artwork shown meanwhile.
-            ShowRemotePicture(wide, ShownWidth(LibraryShelves), picture => backdrop.Source = picture, token);
-        }
+            // A system-colored solid frame is the correct fallback under high contrast.
+            var backdrop = new Image { Stretch = Stretch.UniformToFill };
+            frame.Children.Add(backdrop);
+            var token = _libraryPictures.Token;
+            Forget(ShowPictureAsync(art.Path, art.Kind, art.Duration, picture => backdrop.Source ??= picture, token));
+            if (wide is not null)
+            {
+                // The backdrop, once it comes, takes the place of the artwork shown meanwhile.
+                ShowRemotePicture(wide, ShownWidth(LibraryShelves), picture => backdrop.Source = picture, token);
+            }
 
-        var shade = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 1), EndPoint = new Windows.Foundation.Point(0.9, 0) };
-        shade.GradientStops.Add(new GradientStop { Color = Windows.UI.Color.FromArgb(0xD8, 0x10, 0x14, 0x1B), Offset = 0 });
-        shade.GradientStops.Add(new GradientStop { Color = Windows.UI.Color.FromArgb(0x00, 0x10, 0x14, 0x1B), Offset = 1 });
-        frame.Children.Add(new Microsoft.UI.Xaml.Shapes.Rectangle { Fill = shade });
+            var shade = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 1), EndPoint = new Windows.Foundation.Point(0.9, 0) };
+            shade.GradientStops.Add(new GradientStop { Color = Windows.UI.Color.FromArgb(0xD8, 0x10, 0x14, 0x1B), Offset = 0 });
+            shade.GradientStops.Add(new GradientStop { Color = Windows.UI.Color.FromArgb(0x00, 0x10, 0x14, 0x1B), Offset = 1 });
+            frame.Children.Add(new Microsoft.UI.Xaml.Shapes.Rectangle { Fill = shade });
+        }
 
         var words = new StackPanel { Spacing = 6, VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(28, 0, 28, 24), MaxWidth = 720 };
         words.Children.Add(new TextBlock
@@ -382,14 +391,14 @@ public sealed partial class MainWindow
             FontSize = 12,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             CharacterSpacing = 80,
-            Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xDC, 0xE3, 0xED)),
+            Foreground = standardLabel,
         });
-        var name = new TextBlock { Text = title, Style = (Style)Application.Current.Resources["TitleLargeTextBlockStyle"], TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 2, Foreground = new SolidColorBrush(Microsoft.UI.Colors.White) };
+        var name = new TextBlock { Text = title, Style = (Style)Application.Current.Resources["TitleLargeTextBlockStyle"], TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 2, Foreground = standardTitle };
         AutomationProperties.SetAutomationId(name, "LibraryBillboardTitle");
         words.Children.Add(name);
         if (line.Length > 0)
         {
-            var facts = new TextBlock { Text = line, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xDC, 0xE3, 0xED)) };
+            var facts = new TextBlock { Text = line, Foreground = standardLabel };
             AutomationProperties.SetAutomationId(facts, "LibraryBillboardLine");
             words.Children.Add(facts);
         }
@@ -403,7 +412,7 @@ public sealed partial class MainWindow
                 MaxLines = 3,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 Margin = new Thickness(0, 2, 0, 0),
-                Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
+                Foreground = standardTitle,
             };
             AutomationProperties.SetAutomationId(about, "LibraryBillboardSynopsis");
             words.Children.Add(about);
@@ -415,7 +424,7 @@ public sealed partial class MainWindow
                     NavigateUri = synopsis.Link,
                     Padding = new Thickness(0),
                     FontSize = 11,
-                    Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xDC, 0xE3, 0xED)),
+                    Foreground = standardLabel,
                 };
                 AutomationProperties.SetAutomationId(credit, "LibraryBillboardCredit");
                 AutomationProperties.SetName(credit, Rex.Media.AppCore.Metadata.Wikipedia.DescriptionCredit);
