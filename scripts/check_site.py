@@ -95,7 +95,7 @@ class PageParser(HTMLParser):
             if (not decoded.strip() or decoded.startswith(REMOTE) or decoded.startswith("/")
                     or any(segment in ("", ".", "..") for segment in segments)
                     or "?" in decoded or "#" in decoded or "\\" in decoded
-                    or any(control in decoded for control in ("\\x00", "\\r", "\\n"))):
+                    or any(control in decoded for control in ("\x00", "\r", "\n"))):
                 self.invalid_tour_sources.append(source)
             else:
                 self.assets.append(source)
