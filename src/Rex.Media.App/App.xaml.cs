@@ -131,6 +131,25 @@ public partial class App : Application
             // Nothing was shown, so there is nothing to carry on with: the log says why, and the
             // process ends instead of staying behind without a window.
             Log.Critical("app", "rexplayer could not start: " + ex);
+            // A windowless launch can exit normally even though initialization failed.
+            // Write the failure synchronously for UI-test diagnostics before Exit().
+            var diagnostic = Environment.GetEnvironmentVariable("REXPLAYER_STARTUP_ERROR_FILE");
+            if (!string.IsNullOrWhiteSpace(diagnostic))
+            {
+                try
+                {
+                    File.WriteAllText(diagnostic, ex.ToString());
+                }
+                catch (IOException)
+                {
+                    // Diagnostics must not obscure the original launch failure.
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // Diagnostics must not obscure the original launch failure.
+                }
+            }
+
             Exit();
         }
     }
