@@ -438,7 +438,14 @@ public sealed partial class MainWindow
             // A picture slideshow's text and tooltip must not leak into a later
             // audiobook, music or author view when the same button is reused.
             LibraryPlayText.Text = "Play";
-            ToolTipService.SetToolTip(LibraryPlay, null);
+            ToolTipService.SetToolTip(LibraryPlay, source switch
+            {
+                LibrarySource.Audiobooks when _libraryGroup is null => "Play one selected audiobook in chapter order.",
+                LibrarySource.Audiobooks => "Resume this book or play a selected chapter.",
+                LibrarySource.Authors when _librarySeason is null => "Play one selected book from this author.",
+                LibrarySource.Authors => "Resume this book or play a selected chapter.",
+                _ => "Play the chosen items, or all of them (Enter)",
+            });
         }
 
         ShowLibraryBack(_libraryGroup is not null && search.Length == 0);
