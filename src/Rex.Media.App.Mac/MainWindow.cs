@@ -104,6 +104,7 @@ public sealed partial class MainWindow : IDisposable
 
         ShowState();
         ShowStartupGuidance();
+        BeginCrashRecovery();
     }
 
     public void OpenHandedOver(IReadOnlyList<string> files) => _player.OpenHandedOver(files, _settings.EnqueueFromSecondLaunch, DateTimeOffset.Now);
@@ -133,6 +134,7 @@ public sealed partial class MainWindow : IDisposable
         DisposeStartupGuidance();
         DisposeStats();
         DisposeMusicPresentation();
+        EndCrashRecovery();
         _player.Dispose();
         _picture?.Presenter?.Dispose();
         _window.Dispose();
@@ -392,6 +394,7 @@ public sealed partial class MainWindow : IDisposable
         stack.Alignment = NSLayoutAttribute.Leading;
         stack.Spacing = 12;
         stack.EdgeInsets = new NSEdgeInsets(20, 20, 20, 20);
+        AddCrashRecoveryBanner(stack);
         stack.TranslatesAutoresizingMaskIntoConstraints = false;
         controls.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
         timeline.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
