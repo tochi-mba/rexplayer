@@ -45,7 +45,7 @@ public sealed partial class MainWindow
             {
                 ShadowColor = MacSubtitleColour(look.Shadow),
                 ShadowOffset = new CGSize((nfloat)look.ShadowOffset, -(nfloat)look.ShadowOffset),
-                ShadowBlurRadius = Math.Max(1, look.ShadowOffset),
+                ShadowBlurRadius = (nfloat)Math.Max(1, look.ShadowOffset),
             };
         }
 
@@ -75,7 +75,7 @@ public sealed partial class MainWindow
                         Shadow = shadow,
                         BackgroundColor = look.Box.A > 0 ? MacSubtitleColour(look.Box) : null,
                         UnderlineStyle = look.RespectStyles && run.Underline
-                            ? NSUnderlineStyle.Single : NSUnderlineStyle.None,
+                            ? (int)NSUnderlineStyle.Single : (int)NSUnderlineStyle.None,
                     };
                     using var part = new NSAttributedString(run.Text, attrs);
                     styled.Append(part);
