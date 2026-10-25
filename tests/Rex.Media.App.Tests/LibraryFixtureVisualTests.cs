@@ -168,22 +168,41 @@ public sealed partial class LibraryFixtureVisualTests
         Assert.Equal(compact ? "Expand library navigation" : "Collapse library navigation",
             app.Find("LibraryNavigationToggle").Current.Name);
 
-        // On a freshly opened 720px window, the navigation toggle can advertise
-        // its compact state before the 64px rail and populated Home shelves have
-        // finished layout. Both states paint stable frames, but only one is the
-        // intended screenshot. Match the same settled state across launches.
-        bool CompactHomeReady() =>
-            app.Find("LibrarySources").Current.BoundingRectangle.Width is >= 55 and <= 75
-            && app.Text("LibrarySubtitle") == "3 songs · 0 videos · 1 picture"
-            && app.Window.FindFirst(TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.AutomationIdProperty, "LibraryShelfCards-Albums"))
-                is { } albums && albums.Current.Name == "Albums";
+        // The short Home viewport deliberately collapses the hero's subtitle.
+        // Do not wait for that hidden UIA element (or an offscreen virtualized
+        // shelf): nested app.Text/Find retries otherwise time out. The compact
+        // header, real shelf viewport and measured rail must all have settled.
+        bool CompactHomeReady()
+        {
+            var sources = app.Window.FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty, "LibrarySources"));
+            var hero = app.Window.FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty, "LibraryHero"));
+            var title = app.Window.FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty, "LibraryTitle"));
+            var home = app.Window.FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty, "LibraryHome"));
+            if (sources is null || hero is null || title is null || home is null)
+            {
+                return false;
+            }
+
+            try
+            {
+                return sources.Current.BoundingRectangle.Width is >= 55 and <= 75
+                    && hero.Current.Name == "Compact library header"
+                    && title.Current.Name == "Home"
+                    && !home.Current.IsOffscreen && home.Current.BoundingRectangle.Height > 0;
+            }
+            catch (ElementNotAvailableException)
+            {
+                return false;
+            }
+        }
 
         if (size == "compact")
         {
-            Wait.For(CompactHomeReady, "the populated 720px Home shell and 64px navigation rail",
-                () => $"Rail: {app.Find("LibrarySources").Current.BoundingRectangle.Width:0.#}px; " +
-                    $"subtitle: {app.Text("LibrarySubtitle")}");
+            Wait.For(CompactHomeReady, "the settled 720px Home header, shelves and 64px navigation rail");
         }
 
         Screenshots.Match(app, "library-home-shell-" + size, "LibraryPane",
