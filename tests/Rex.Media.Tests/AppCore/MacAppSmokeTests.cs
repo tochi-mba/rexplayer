@@ -31,6 +31,9 @@ public sealed class MacAppSmokeTests
     [Capability("UI-09", CapabilityPlatform.MacOS)]
     [Capability("UI-05", CapabilityPlatform.MacOS)]
     [Capability("SUB-16", CapabilityPlatform.MacOS)]
+    [Capability("UI-11", CapabilityPlatform.MacOS)]
+    [Capability("LIB-03", CapabilityPlatform.MacOS)]
+    [Capability("LIB-04", CapabilityPlatform.MacOS)]
     [Capability("PB-12", CapabilityPlatform.MacOS)]
     [Capability("VID-03", CapabilityPlatform.MacOS)]
     [Capability("VID-27", CapabilityPlatform.MacOS)]
@@ -60,6 +63,8 @@ public sealed class MacAppSmokeTests
         start.Environment["REXPLAYER_FAKE_AUDIO"] = "1";
         start.Environment["REXPLAYER_PIPE_NAME"] = pipe;
         start.Environment["REXPLAYER_MAC_QUEUE_TESTS"] = "1";
+        start.Environment["REXPLAYER_MAC_SHORTCUT_TESTS"] = "1";
+        start.Environment["REXPLAYER_MAC_PLAYLIST_TESTS"] = "1";
         start.Environment["REXPLAYER_MAC_QUEUE_SCREENSHOTS"] = screenshots;
         start.Environment["REXPLAYER_MAC_LIBRARY_TESTS"] = "1";
         start.Environment["REXPLAYER_MAC_LIBRARY_SCREENSHOTS"] = libraryScreenshots;
@@ -109,6 +114,27 @@ public sealed class MacAppSmokeTests
 
             var logCleared = await Ask(pipe, new AutomationRequest { Command = "mac-diagnostics", Id = "clear" });
             Assert.True(logCleared?.Ok == true, "The Mac log console did not clear its view.");
+            // Bind and restore a Mac menu shortcut through the real native editor.
+            foreach (var action in new[] { "show", "bind", "reset" })
+            {
+                var shortcut = await Ask(pipe, new AutomationRequest { Command = "mac-shortcuts", Id = action });
+                Assert.True(shortcut?.Ok == true, "Mac shortcut editor failed to " + action + LogTail(root));
+            }
+
+            // Native file and named-playlist surfaces use the same persisted model as the engine.
+            var savedPlaylists = await Ask(pipe, new AutomationRequest { Command = "mac-playlists", Id = "show" });
+            Assert.True(savedPlaylists?.Ok == true, "Native saved-playlist window did not open.");
+            var playlistFile = Path.Combine(root, "exported-playlist.m3u8");
+            var saveFile = await Ask(pipe, new AutomationRequest
+            {
+                Command = "mac-playlists", Id = "save-file", Path = playlistFile,
+            });
+            Assert.True(saveFile?.Ok == true && File.Exists(playlistFile),
+                "Mac playlist export did not create a readable file.");
+            Assert.Contains("h264-aac.mp4", File.ReadAllText(playlistFile), StringComparison.OrdinalIgnoreCase);
+            var createNamed = await Ask(pipe, new AutomationRequest { Command = "mac-playlists", Id = "create" });
+            Assert.True(createNamed?.Ok == true, "Native named-playlist creation failed.");
+
             var emptyLibrary = await Library(pipe, "show");
             Assert.Contains("0 items", emptyLibrary.Title, StringComparison.Ordinal);
             await Library(pipe, "capture-empty");
