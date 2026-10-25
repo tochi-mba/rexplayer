@@ -404,6 +404,7 @@ public sealed partial class MainWindow : IDisposable
         stack.Spacing = 12;
         stack.EdgeInsets = new NSEdgeInsets(20, 20, 20, 20);
         AddCrashRecoveryBanner(stack);
+        AddConfirmationBanner(stack);
         stack.TranslatesAutoresizingMaskIntoConstraints = false;
         controls.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
         timeline.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;

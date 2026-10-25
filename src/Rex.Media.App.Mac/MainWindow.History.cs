@@ -41,18 +41,11 @@ public sealed partial class MainWindow
             });
             var clear = NSButton.CreateButton("Clear history…", () =>
             {
-                using var confirm = new NSAlert
-                {
-                    MessageText = "Clear recent media and resume positions?",
-                    InformativeText = "The files themselves will not be deleted.",
-                };
-                confirm.AddButton("Clear history");
-                confirm.AddButton("Cancel");
-                if (confirm.RunModal() == 1000)
+                ConfirmInWindow("Clear recent media and saved positions? Your files will remain untouched.", () =>
                 {
                     _player.ClearHistory();
                     RefreshHistory();
-                }
+                });
             });
             var controls = NSStackView.FromViews([open, clear]);
             controls.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;

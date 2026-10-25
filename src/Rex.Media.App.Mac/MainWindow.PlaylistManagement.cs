@@ -99,18 +99,11 @@ public sealed partial class MainWindow
             var remove = NSButton.CreateButton("Delete…", () =>
             {
                 if (SelectedSavedPlaylistId() is not { } id) return;
-                using var confirm = new NSAlert
-                {
-                    MessageText = "Delete this saved playlist?",
-                    InformativeText = "The media files themselves will not be deleted.",
-                };
-                confirm.AddButton("Delete playlist");
-                confirm.AddButton("Cancel");
-                if (confirm.RunModal() == 1000)
+                ConfirmInWindow("Delete this saved playlist? The media files will not be deleted.", () =>
                 {
                     _player.DeletePlaylist(id);
                     RefreshSavedPlaylists();
-                }
+                });
             });
             var first = NSStackView.FromViews([create, play, append]);
             first.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;

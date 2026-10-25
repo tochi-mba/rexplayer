@@ -74,25 +74,29 @@ public sealed partial class MainWindow
             // This verifies the completed backup's digests before the first library write.
             var backup = LibraryBackup.ReadFromFile(path);
             var preview = LibraryBackup.Preview(backup, _mediaLibrary, _player);
-            using var confirm = new NSAlert
-            {
-                MessageText = "Merge this backup into your library?",
-                InformativeText =
-                    $"New folders: {preview.Folders}; media entries: {preview.Entries}; saved playlists: {preview.Playlists}. " +
-                    "Existing files are not deleted. Restoring changes two stores and cannot yet roll " +
-                    "back automatically after an interrupted write.",
-            };
-            confirm.AddButton("Restore backup");
-            confirm.AddButton("Cancel");
-            if (confirm.RunModal() != 1000)
-            {
-                return;
-            }
+            ConfirmInWindow(
+                $"Restore {preview.Folders} folders, {preview.Entries} media entries and " +
+                $"{preview.Playlists} playlists? Existing media is not deleted. " +
+                "The two-store restore cannot automatically roll back an interrupted write.", () =>
+                {
+                    if (_mediaLibrary is null)
+                    {
+                        Say("The library is unavailable.");
+                        return;
+                    }
 
-            var restored = LibraryBackup.Restore(backup, _mediaLibrary, _player);
-            _libraryScanner?.Request();
-            RefreshLibrary(force: true);
-            Say($"Restored {restored.Folders} folders, {restored.Entries} files and {restored.Playlists} playlists.");
+                    try
+                    {
+                        var restored = LibraryBackup.Restore(backup, _mediaLibrary, _player);
+                        _libraryScanner?.Request();
+                        RefreshLibrary(force: true);
+                        Say($"Restored {restored.Folders} folders, {restored.Entries} files and {restored.Playlists} playlists.");
+                    }
+                    catch (Exception error) when (error is IOException or UnauthorizedAccessException or FormatException)
+                    {
+                        Say("Library restore failed: " + error.Message);
+                    }
+                });
         }
         catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException)
         {
