@@ -875,6 +875,7 @@ public sealed partial class MainWindow : Window
 
     private void OnClosed(object sender, WindowEventArgs args)
     {
+        _onlineLyricsCancellation?.Cancel();
         // Ordered: first nothing more can be queued or tick, then the parts that draw stop, then
         // the settings are kept, then the workers and the player go, and the graphics device last.
         // Each part closes on its own, so one failure is logged and the rest still close.

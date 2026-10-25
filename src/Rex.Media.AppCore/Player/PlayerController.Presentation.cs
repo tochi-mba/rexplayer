@@ -17,6 +17,19 @@ public sealed partial class PlayerController
     /// <summary>The line of the lyrics being sung now; -1 when none is.</summary>
     public int LyricIndex => Lyrics?.IndexAt(Position) ?? -1;
 
+    /// <summary>Shows a requested online result only while the same song still has no local lyrics.</summary>
+    public bool UseOnlineLyrics(PlaylistItem item, Lyrics lyrics)
+    {
+        if (!ReferenceEquals(Item, item) || Lyrics is not null)
+        {
+            return false;
+        }
+
+        Lyrics = lyrics;
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
     /// <summary>Finds the picture and the lyrics of an item once its details are known.</summary>
     private void FindPresentation(PlaylistItem item, MediaInfo info)
     {
