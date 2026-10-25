@@ -4,6 +4,11 @@ Every version of rexplayer that reaches users, newest first. A version is publis
 pipeline the moment its number reaches `main`.
 
 ## Unreleased
+
+## 0.30.9 - 2026-10-25
+### Added
+- **Lyrics on request.** Find lyrics for the current song from LRCLIB when no local lyrics are present. Match title, artist and duration before showing them; keep local `.lrc` files and embedded lyrics first. The lookup sends song details only when Find lyrics online is pressed.
+
 ### Improved
 - Find Windows Preferences by category, setting label or choice, with a persistent category list on wide windows and readable no-results feedback (#467). Reject blank and nearly uniform UI screenshots before accepting visual baselines.
 
