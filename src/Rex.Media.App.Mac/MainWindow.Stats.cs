@@ -1,5 +1,6 @@
 using Rex.Media.AppCore.Player;
 using Rex.Media.Engine;
+using Rex.Media.Primitives;
 
 namespace Rex.Media.App.Mac;
 
@@ -71,9 +72,7 @@ public sealed partial class MainWindow
                 var interval = _previousStats is null ? TimeSpan.Zero : now - _previousStatsAt;
                 _statsOverlay.StringValue = StatsText.Describe(stats, _player.Info,
                     _player.AudioTrack, _previousStats, interval,
-                    _settings.HardwareVideoDecoding
-                        ? "macOS, VideoToolbox (hardware allowed)"
-                        : "macOS, VideoToolbox (hardware disabled)");
+                    MacDecoderPolicyDescription());
                 _previousStats = stats;
                 _previousStatsAt = now;
             });
@@ -86,6 +85,19 @@ public sealed partial class MainWindow
         {
             OnWindowThread(() => _statsBusy = false);
         }
+    }
+
+    private string MacDecoderPolicyDescription()
+    {
+        var codec = _player.Info?.FirstTrack(MediaKind.Video)?.Codec;
+        var allowed = _settings.HardwareVideoDecoding && (codec switch
+        {
+            CodecId.H264 => _settings.HardwareH264Decoding,
+            CodecId.Hevc => _settings.HardwareHevcDecoding,
+            _ => true,
+        });
+        return allowed ? "macOS, VideoToolbox (hardware permitted)"
+            : "macOS, VideoToolbox (hardware disabled by preference)";
     }
 
     private void DisposeStats()
