@@ -53,6 +53,17 @@ public enum UpdateMode
     NotifyOnly,
 }
 
+/// <summary>How rexplayer behaves when a remembered position exists for a file.</summary>
+public enum ResumeBehavior
+{
+    /// <summary>Offer an unobtrusive choice after media opens.</summary>
+    Ask,
+    /// <summary>Return to the saved position automatically.</summary>
+    Always,
+    /// <summary>Start at the beginning and do not seek to a saved position.</summary>
+    Never,
+}
+
 /// <summary>How the two front channels are heard.</summary>
 public enum StereoChoice
 {
@@ -476,6 +487,9 @@ public sealed record PlayerSettings
 
     public bool Shuffle { get; init; }
 
+    /// <summary>Whether and how to return to remembered playback positions.</summary>
+    public ResumeBehavior ResumeMode { get; init; } = ResumeBehavior.Always;
+
     /// <summary>The four jump sizes, in seconds: very short, short, medium and long.</summary>
     public int VeryShortJumpSeconds { get; init; } = 3;
 
@@ -814,6 +828,7 @@ public sealed record PlayerSettings
             VolumeStepPercent = Math.Clamp(VolumeStepPercent, 1, 25),
             PictureSeconds = Math.Clamp(PictureSeconds, 1, 3600),
             Repeat = Enum.IsDefined(Repeat) ? Repeat : RepeatMode.Off,
+            ResumeMode = Enum.IsDefined(ResumeMode) ? ResumeMode : ResumeBehavior.Always,
             VeryShortJumpSeconds = Math.Clamp(VeryShortJumpSeconds, 1, 3600),
             ShortJumpSeconds = Math.Clamp(ShortJumpSeconds, 1, 3600),
             MediumJumpSeconds = Math.Clamp(MediumJumpSeconds, 1, 3600),

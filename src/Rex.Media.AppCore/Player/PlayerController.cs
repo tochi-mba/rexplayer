@@ -305,6 +305,7 @@ public sealed partial class PlayerController : IDisposable
     /// <summary>Stops playing and releases the media and the audio device.</summary>
     public void Stop()
     {
+        PendingResumeAt = null;
         _log.Info(LogSource, "Stopped.");
         RememberPosition();
         EndSession();

@@ -8,6 +8,8 @@ public sealed partial class MainWindow
     private NSButton? _preferencesHistory;
     private NSButton? _preferencesRestoreQueue;
     private NSButton? _preferencesEnqueue;
+    private NSPopUpButton? _preferencesResumeMode;
+    private NSPopUpButton? _preferencesTheme;
     private NSButton? _preferencesSingleInstance;
     private NSSlider? _preferencesMaxVolume;
     private NSSlider? _preferencesPictureSeconds;
@@ -28,7 +30,7 @@ public sealed partial class MainWindow
 
     private void BuildPreferences()
     {
-        _preferencesWindow = new NSWindow(new CGRect(0, 0, 560, 440),
+        _preferencesWindow = new NSWindow(new CGRect(0, 0, 560, 540),
             NSWindowStyle.Titled | NSWindowStyle.Closable, NSBackingStore.Buffered, false)
         {
             Title = "Preferences - rexplayer",
@@ -45,6 +47,8 @@ public sealed partial class MainWindow
         _preferencesRestoreQueue = CheckBox("Restore the queue when rexplayer starts");
         _preferencesSingleInstance = CheckBox("Use one rexplayer window");
         _preferencesEnqueue = CheckBox("Files handed over by another launch join the queue");
+        _preferencesResumeMode = EffectChoices(["Ask before resuming", "Always resume", "Start from beginning"]);
+        _preferencesTheme = EffectChoices(["Follow system appearance", "Light", "Dark"]);
         var clearHistory = NSButton.CreateButton("Clear playback history", () =>
         {
             _player.ClearHistory();
@@ -76,8 +80,11 @@ public sealed partial class MainWindow
             _preferencesRestoreQueue,
             clearHistory,
             PreferencesHeading("Playback"),
+            EffectChoiceRow("Saved position", _preferencesResumeMode),
             volume,
             pictures,
+            PreferencesHeading("Appearance"),
+            EffectChoiceRow("Theme", _preferencesTheme),
             PreferencesHeading("Opening media"),
             _preferencesSingleInstance,
             _preferencesEnqueue,
@@ -90,7 +97,13 @@ public sealed partial class MainWindow
         explanation.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
         volume.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
         pictures.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-        _preferencesWindow.ContentView = stack;
+        stack.Frame = new CGRect(0, 0, 550, 690);
+        var scroll = new NSScrollView(new CGRect(0, 0, 560, 540))
+        {
+            HasVerticalScroller = true,
+            DocumentView = stack,
+        };
+        _preferencesWindow.ContentView = scroll;
         _preferencesWindow.Center();
     }
 
@@ -128,6 +141,8 @@ public sealed partial class MainWindow
         _preferencesRestoreQueue!.State = State(_settings.RestoreQueue);
         _preferencesSingleInstance!.State = State(_settings.SingleInstance);
         _preferencesEnqueue!.State = State(_settings.EnqueueFromSecondLaunch);
+        _preferencesResumeMode!.SelectItem((int)_settings.ResumeMode);
+        _preferencesTheme!.SelectItem((int)_settings.Theme);
         _preferencesMaxVolume!.DoubleValue = _settings.MaxVolumePercent;
         _preferencesPictureSeconds!.DoubleValue = _settings.PictureSeconds;
         UpdatePreferenceLabels();
@@ -147,10 +162,13 @@ public sealed partial class MainWindow
             RestoreQueue = IsChecked(_preferencesRestoreQueue),
             SingleInstance = IsChecked(_preferencesSingleInstance),
             EnqueueFromSecondLaunch = IsChecked(_preferencesEnqueue),
+            ResumeMode = (ResumeBehavior)(int)_preferencesResumeMode!.IndexOfSelectedItem,
+            Theme = (ThemeChoice)(int)_preferencesTheme!.IndexOfSelectedItem,
             MaxVolumePercent = (int)Math.Round(_preferencesMaxVolume!.DoubleValue),
             PictureSeconds = (int)Math.Round(_preferencesPictureSeconds!.DoubleValue),
         }).Normalize();
         _player.Settings = _settings;
+        ApplyMacTheme();
         _volume.MaxValue = _settings.MaxVolumePercent / 100.0;
         _player.SetVolume(Math.Min(_player.Volume, _volume.MaxValue));
         try
@@ -164,6 +182,16 @@ public sealed partial class MainWindow
             _log.Warning(LogSource, "Preferences could not be saved: " + ex.Message);
             Say("Preferences could not be saved.");
         }
+    }
+
+    private void ApplyMacTheme()
+    {
+        NSApplication.SharedApplication.Appearance = _settings.Theme switch
+        {
+            ThemeChoice.Light => NSAppearance.GetAppearance(NSAppearance.NameAqua),
+            ThemeChoice.Dark => NSAppearance.GetAppearance(NSAppearance.NameDarkAqua),
+            _ => null,
+        };
     }
 
     private static NSCellStateValue State(bool value) => value ? NSCellStateValue.On : NSCellStateValue.Off;

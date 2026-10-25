@@ -51,6 +51,8 @@ public sealed partial class MainWindow : IDisposable
     private NSTimer? _clearMessage;
     private PictureView? _picture;
     private NSStackView? _welcome;
+    private NSStackView? _resumeBanner;
+    private NSTextField? _resumeNotice;
     private bool _moving;
 
     public MainWindow(DataRoots roots, RexLog log)
@@ -78,6 +80,7 @@ public sealed partial class MainWindow : IDisposable
         InitializeLibrary();
         InitializeQueue();
         NSApplication.SharedApplication.MainMenu = BuildMenus();
+        ApplyMacTheme();
         NSTimer.CreateRepeatingScheduledTimer(TimeSpan.FromSeconds(1), _ => _player.SleepTick());
     }
 
@@ -365,7 +368,19 @@ public sealed partial class MainWindow : IDisposable
         var timeline = NSStackView.FromViews([_seek, _time]);
         timeline.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
         timeline.Spacing = 12;
-        var stack = NSStackView.FromViews([_title, _artist, _message, timeline, controls]);
+        _resumeNotice = NSTextField.CreateLabel("Continue where you stopped?");
+        _resumeNotice.TextColor = NSColor.SecondaryLabel;
+        var acceptResume = NSButton.CreateButton("Resume", () => _player.AcceptResume());
+        var restartResume = NSButton.CreateButton("Start over", () =>
+        {
+            _player.DismissPendingResume();
+            _player.StartOver();
+        });
+        _resumeBanner = NSStackView.FromViews([_resumeNotice, acceptResume, restartResume]);
+        _resumeBanner.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
+        _resumeBanner.Spacing = 8;
+        _resumeBanner.Hidden = true;
+        var stack = NSStackView.FromViews([_title, _artist, _message, _resumeBanner, timeline, controls]);
         _chrome = stack;
         stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
         stack.Alignment = NSLayoutAttribute.Leading;
@@ -757,6 +772,15 @@ public sealed partial class MainWindow : IDisposable
         _window.Title = _player.Item is null ? "rexplayer" : _player.Title + " - rexplayer";
         _playPause.Title = _player.IsPlaying ? "Pause" : "Play";
         _seek.Enabled = _player.CanSeek;
+        if (_resumeBanner is not null && _resumeNotice is not null)
+        {
+            _resumeBanner.Hidden = _player.PendingResumeAt is not { } at || !_player.CanSeek;
+            if (_player.PendingResumeAt is { } offered)
+            {
+                _resumeNotice.StringValue = "Resume from " + TimeText.Format(offered, _player.Duration) + "?";
+            }
+        }
+
         _volume.DoubleValue = _player.Volume;
         ShowPosition();
         ShowChecks();
