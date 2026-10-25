@@ -14,7 +14,7 @@ public sealed partial class MainWindow
         // F6 only for our player window, leaving every other app and panel untouched.
         _macKeyMonitor = NSEvent.AddLocalMonitorForEventsMatchingMask(NSEventMask.KeyDown, e =>
         {
-            if (e.KeyCode != 97 || e.Window != _window)
+            if (e.KeyCode != 97 || e.WindowNumber != _window.WindowNumber)
             {
                 return e;
             }
