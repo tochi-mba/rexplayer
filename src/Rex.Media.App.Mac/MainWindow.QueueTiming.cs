@@ -2,9 +2,16 @@ using Rex.Media.AppCore.Player;
 
 namespace Rex.Media.App.Mac;
 
-/// <summary>Per-queue-entry start, end and run-time editing without changing the original file.</summary>
+/// <summary>Per-queue-entry start, end and run-time editing without blocking playback.</summary>
 public sealed partial class MainWindow
 {
+    private NSWindow? _queueTimingWindow;
+    private NSTextField? _queueTimingStart;
+    private NSTextField? _queueTimingStop;
+    private NSTextField? _queueTimingRun;
+    private NSTextField? _queueTimingNotice;
+    private PlaylistItem? _queueTimingItem;
+
     private static NSStackView TimingRow(string title, NSTextField field)
     {
         var label = NSTextField.CreateLabel(title);
@@ -17,69 +24,102 @@ public sealed partial class MainWindow
 
     private void EditQueueTiming(PlaylistItem item)
     {
-        var index = _player.Playlist.IndexOf(item);
+        if (_player.Playlist.IndexOf(item) < 0) return;
+        if (_queueTimingWindow is null)
+        {
+            _queueTimingWindow = new NSWindow(new CGRect(0, 0, 470, 330),
+                NSWindowStyle.Titled | NSWindowStyle.Closable,
+                NSBackingStore.Buffered, false)
+            {
+                Title = "Queue timing - rexplayer",
+            };
+            _queueTimingWindow.ReleaseWhenClosed(false);
+            var heading = NSTextField.CreateLabel("Set the in and out points");
+            heading.Font = NSFont.SystemFontOfSize(21, NSFontWeight.Semibold)!;
+            var hint = NSTextField.CreateWrappingLabel(
+                "Only this queue entry changes; the media file stays untouched. " +
+                "Enter an end or a run time, not both.");
+            hint.TextColor = NSColor.SecondaryLabel;
+            _queueTimingStart = new NSTextField(new CGRect(0, 0, 240, 24))
+            {
+                PlaceholderString = "0:00",
+            };
+            _queueTimingStop = new NSTextField(new CGRect(0, 0, 240, 24))
+            {
+                PlaceholderString = "End of file",
+            };
+            _queueTimingRun = new NSTextField(new CGRect(0, 0, 240, 24))
+            {
+                PlaceholderString = "Optional run time",
+            };
+            _queueTimingStart.AccessibilityLabel = "Queue item start time";
+            _queueTimingStop.AccessibilityLabel = "Queue item stop time";
+            _queueTimingRun.AccessibilityLabel = "Queue item run time";
+            _queueTimingNotice = NSTextField.CreateWrappingLabel("");
+            _queueTimingNotice.TextColor = NSColor.SecondaryLabel;
+            var apply = NSButton.CreateButton("Apply", ApplyQueueTiming);
+            apply.KeyEquivalent = "\r";
+            var cancel = NSButton.CreateButton("Cancel", () => _queueTimingWindow.OrderOut(null));
+            var actions = NSStackView.FromViews([apply, cancel]);
+            actions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
+            actions.Spacing = 10;
+            var content = NSStackView.FromViews([
+                heading, hint,
+                TimingRow("Start", _queueTimingStart),
+                TimingRow("Stop", _queueTimingStop),
+                TimingRow("Run time", _queueTimingRun),
+                _queueTimingNotice, actions,
+            ]);
+            content.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
+            content.Alignment = NSLayoutAttribute.Leading;
+            content.Spacing = 13;
+            content.EdgeInsets = new NSEdgeInsets(20, 24, 20, 24);
+            _queueTimingWindow.ContentView = content;
+            _queueTimingWindow.Center();
+        }
+
+        _queueTimingItem = item;
+        _queueTimingStart!.StringValue = TimeText.Format(item.Start);
+        _queueTimingStop!.StringValue = item.End is { } end ? TimeText.Format(end) : "";
+        _queueTimingRun!.StringValue = "";
+        _queueTimingNotice!.StringValue = "";
+        _queueTimingWindow.MakeKeyAndOrderFront(null);
+        _queueTimingWindow.MakeFirstResponder(_queueTimingStart);
+    }
+
+    private void ApplyQueueTiming()
+    {
+        var item = _queueTimingItem;
+        var index = item is null ? -1 : _player.Playlist.IndexOf(item);
         if (index < 0)
         {
+            _queueTimingNotice!.StringValue = "That queue entry is no longer available.";
             return;
         }
 
-        var start = new NSTextField(new CGRect(0, 0, 170, 24))
-        {
-            StringValue = TimeText.Format(item.Start),
-            PlaceholderString = "0:00",
-        };
-        var stop = new NSTextField(new CGRect(0, 0, 170, 24))
-        {
-            StringValue = item.End is { } end ? TimeText.Format(end) : "",
-            PlaceholderString = "End of file",
-        };
-        var run = new NSTextField(new CGRect(0, 0, 170, 24))
-        {
-            PlaceholderString = "Optional run time",
-        };
-        var fields = NSStackView.FromViews([
-            TimingRow("Start", start),
-            TimingRow("Stop", stop),
-            TimingRow("Run time", run),
-        ]);
-        fields.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-        fields.Spacing = 10;
-        fields.Frame = new CGRect(0, 0, 390, 114);
-        using var alert = new NSAlert
-        {
-            MessageText = "Set the in and out points",
-            InformativeText = "Only this queue entry is changed; the media file stays untouched. " +
-                "Set an end or a run time, not both.",
-            AccessoryView = fields,
-        };
-        alert.AddButton("Apply");
-        alert.AddButton("Cancel");
-        if (alert.RunModal() != 1000)
-        {
-            return;
-        }
-
-        var begin = TimeText.TryParse(start.StringValue);
-        var endTime = string.IsNullOrWhiteSpace(stop.StringValue) ? null : TimeText.TryParse(stop.StringValue);
-        var length = string.IsNullOrWhiteSpace(run.StringValue) ? null : TimeText.TryParse(run.StringValue);
+        var begin = TimeText.TryParse(_queueTimingStart!.StringValue);
+        var stopText = _queueTimingStop!.StringValue;
+        var runText = _queueTimingRun!.StringValue;
+        var endTime = string.IsNullOrWhiteSpace(stopText) ? null : TimeText.TryParse(stopText);
+        var length = string.IsNullOrWhiteSpace(runText) ? null : TimeText.TryParse(runText);
         if (begin is null || begin < TimeSpan.Zero ||
-            (!string.IsNullOrWhiteSpace(stop.StringValue) && endTime is null) ||
-            (!string.IsNullOrWhiteSpace(run.StringValue) && length is null) ||
+            (!string.IsNullOrWhiteSpace(stopText) && endTime is null) ||
+            (!string.IsNullOrWhiteSpace(runText) && length is null) ||
             endTime is not null && length is not null ||
             length is { } duration && duration <= TimeSpan.Zero)
         {
-            Say("Enter valid times, and use either Stop or Run time.");
+            _queueTimingNotice!.StringValue = "Enter valid times, and use either Stop or Run time.";
             return;
         }
 
         var finish = length is { } span ? begin.Value + span : endTime;
         if (finish is { } endAt && endAt <= begin)
         {
-            Say("The end must be later than the start.");
+            _queueTimingNotice!.StringValue = "The end must be later than the start.";
             return;
         }
 
-        var edited = new PlaylistItem(item.Location)
+        var edited = new PlaylistItem(item!.Location)
         {
             Title = item.Title,
             Artist = item.Artist,
@@ -87,7 +127,15 @@ public sealed partial class MainWindow
             End = finish,
         };
         _player.Playlist.Replace(index, edited);
+        _queueTimingWindow!.OrderOut(null);
         RefreshQueue();
         Say("Set the entry to start at " + TimeText.Format(begin.Value));
+    }
+
+    private void DisposeQueueTiming()
+    {
+        _queueTimingWindow?.Close();
+        _queueTimingWindow?.Dispose();
+        _queueTimingWindow = null;
     }
 }
