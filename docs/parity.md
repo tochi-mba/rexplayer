@@ -37,7 +37,7 @@ Totals: 37 rows differ (22 must), 2 not applicable, 0 gaps.
 | AU-07 | 10-band graphic equaliser | must | verified | built |  |
 | AU-11 | Stereo mode | must | verified | built |  |
 | AU-13 | ReplayGain / R128 | should | verified | built |  |
-| AU-15 | Pitch-preserving speed | must | verified | planned |  |
+| AU-15 | Pitch-preserving speed | must | verified | built |  |
 | AU-18 | Visualisations | should | verified | built |  |
 
 ## Video & rendering
