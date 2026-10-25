@@ -63,6 +63,7 @@ public sealed partial class MainWindow : IDisposable
         _player.Changed += (_, _) => ShowState();
         _player.PositionChanged += (_, _) => ShowPosition();
         _player.Message += (_, text) => Say(text);
+        _player.SubtitlesChanged += (_, _) => OnWindowThread(RefreshTrackTools);
 
         _window = new NSWindow(new CGRect(0, 0, 960, 560), NSWindowStyle.Titled | NSWindowStyle.Closable | NSWindowStyle.Miniaturizable | NSWindowStyle.Resizable, NSBackingStore.Buffered, false)
         {
@@ -119,6 +120,7 @@ public sealed partial class MainWindow : IDisposable
         DisposeShortcuts();
         DisposeSavedPlaylists();
         DisposeEffects();
+        DisposeTrackTools();
         _player.Dispose();
         _picture?.Presenter?.Dispose();
         _window.Dispose();
@@ -419,6 +421,7 @@ public sealed partial class MainWindow : IDisposable
         app.AddItem(Entry(CommandCatalog.KeyboardAndMouse, "Keyboard shortcuts…"));
         app.AddItem(new NSMenuItem("Named playlists…", (_, _) => ShowSavedPlaylists()));
         app.AddItem(Entry(CommandCatalog.Effects, "Effects & filters…"));
+        app.AddItem(new NSMenuItem("Tracks & subtitle sync…", (_, _) => ShowTrackTools()));
         app.AddItem(new NSMenuItem("Your library…", (_, _) => Run(CommandCatalog.ToggleLibrary)));
         app.AddItem(new NSMenuItem("Up Next…", (_, _) => ShowQueue()));
         // Reuse the shared command and its customizable keyboard equivalent.
@@ -751,6 +754,7 @@ public sealed partial class MainWindow : IDisposable
         ShowPosition();
         ShowChecks();
         RefreshPlaybackTools();
+        RefreshTrackTools();
     }
 
     private void ShowPosition()
