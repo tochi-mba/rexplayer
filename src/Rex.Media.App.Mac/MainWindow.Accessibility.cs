@@ -35,7 +35,7 @@ public sealed partial class MainWindow
         ];
         foreach (var window in windows)
         {
-            if (window.ContentView is not { } root) continue;
+            if (window is null || window.ContentView is not { } root) continue;
             var identifier = new string(window.Title.Select(c =>
                 char.IsLetterOrDigit(c) ? char.ToLowerInvariant(c) : '-').ToArray()).Trim('-');
             var ordinal = 0;
