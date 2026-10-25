@@ -375,6 +375,10 @@ public sealed partial class PlayerController : IDisposable
         session.AudioLanguages = Languages.ParseList(Settings.AudioLanguages);
         session.Sound = Sound;
         session.AudioDelay = AudioDelay;
+        if (!Settings.PreservePitch)
+        {
+            _ = Observe(session.SetPitchPreservingAsync(false));
+        }
         if (Speed != 1)
         {
             _ = Observe(session.SetSpeedAsync(Speed));
