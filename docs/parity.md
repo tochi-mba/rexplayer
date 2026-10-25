@@ -128,7 +128,7 @@ Totals: 87 rows differ (63 must), 2 not applicable, 0 gaps.
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| TOOL-06 | Single instance | must | verified | planned |  |
+| TOOL-06 | Single instance | must | verified | built |  |
 | TOOL-09 | Updater | should | verified | planned |  |
 | TOOL-10 | Diagnostics bundle | should | verified | planned |  |
 | TOOL-11 | System probe | must | verified | planned |  |

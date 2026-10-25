@@ -8,6 +8,7 @@ public sealed partial class MainWindow
     private NSButton? _preferencesHistory;
     private NSButton? _preferencesRestoreQueue;
     private NSButton? _preferencesEnqueue;
+    private NSButton? _preferencesSingleInstance;
     private NSSlider? _preferencesMaxVolume;
     private NSSlider? _preferencesPictureSeconds;
     private NSTextField? _preferencesMaxVolumeValue;
@@ -42,6 +43,7 @@ public sealed partial class MainWindow
 
         _preferencesHistory = CheckBox("Remember recently played media and saved positions");
         _preferencesRestoreQueue = CheckBox("Restore the queue when rexplayer starts");
+        _preferencesSingleInstance = CheckBox("Use one rexplayer window");
         _preferencesEnqueue = CheckBox("Files handed over by another launch join the queue");
         var clearHistory = NSButton.CreateButton("Clear playback history", () =>
         {
@@ -77,6 +79,7 @@ public sealed partial class MainWindow
             volume,
             pictures,
             PreferencesHeading("Opening media"),
+            _preferencesSingleInstance,
             _preferencesEnqueue,
             actions,
         ]);
@@ -123,6 +126,7 @@ public sealed partial class MainWindow
     {
         _preferencesHistory!.State = State(_settings.KeepHistory);
         _preferencesRestoreQueue!.State = State(_settings.RestoreQueue);
+        _preferencesSingleInstance!.State = State(_settings.SingleInstance);
         _preferencesEnqueue!.State = State(_settings.EnqueueFromSecondLaunch);
         _preferencesMaxVolume!.DoubleValue = _settings.MaxVolumePercent;
         _preferencesPictureSeconds!.DoubleValue = _settings.PictureSeconds;
@@ -141,6 +145,7 @@ public sealed partial class MainWindow
         {
             KeepHistory = IsChecked(_preferencesHistory),
             RestoreQueue = IsChecked(_preferencesRestoreQueue),
+            SingleInstance = IsChecked(_preferencesSingleInstance),
             EnqueueFromSecondLaunch = IsChecked(_preferencesEnqueue),
             MaxVolumePercent = (int)Math.Round(_preferencesMaxVolume!.DoubleValue),
             PictureSeconds = (int)Math.Round(_preferencesPictureSeconds!.DoubleValue),
