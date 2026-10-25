@@ -1,4 +1,3 @@
-using System.IO;
 using Rex.Media.Primitives;
 using Rex.Media.TestKit;
 
