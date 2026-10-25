@@ -178,6 +178,19 @@ public sealed partial class PlayerController
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Switches between pitch-preserving speed and deliberate pitch shifting.</summary>
+    public void SetPreservePitch(bool preserve)
+    {
+        Settings = Settings with { PreservePitch = preserve };
+        if (_session is not null)
+        {
+            _ = Observe(_session.SetPitchPreservingAsync(preserve));
+        }
+
+        Say(preserve ? "Pitch-preserving speed" : "Speed changes pitch");
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
     /// <summary>Hears the sound <paramref name="delay"/> after the pictures (negative: before), within ten seconds either way.</summary>
     public void SetAudioDelay(TimeSpan delay)
     {
