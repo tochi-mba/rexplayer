@@ -23,10 +23,13 @@ public sealed partial class MainWindow
 
         var panel = NSSavePanel.SavePanel;
         panel.NameFieldStringValue = "Playlist.m3u8";
-        if (panel.RunModal() == 1 && panel.Url?.Path is { } path)
+        panel.Begin(response =>
         {
-            _player.SavePlaylist(path);
-        }
+            if (response == 1 && panel.Url?.Path is { } path)
+            {
+                _player.SavePlaylist(path);
+            }
+        });
     }
 
     private void OpenPlaylistWithPanel()
@@ -36,10 +39,13 @@ public sealed partial class MainWindow
         panel.CanChooseDirectories = false;
         panel.CanChooseFiles = true;
         panel.AllowsMultipleSelection = false;
-        if (panel.RunModal() == 1 && panel.Url?.Path is { } path)
+        panel.Begin(response =>
         {
-            _player.Open([path]);
-        }
+            if (response == 1 && panel.Url?.Path is { } path)
+            {
+                _player.Open([path]);
+            }
+        });
     }
 
     private void ShowSavedPlaylists()
