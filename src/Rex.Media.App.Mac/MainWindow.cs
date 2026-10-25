@@ -271,7 +271,7 @@ public sealed partial class MainWindow : IDisposable
                     answered.SetResult(new AutomationReply
                     {
                         Ok = true,
-                        Text = $"visible={_musicPresentation?.Hidden == false};lyrics={_musicLyrics?.Hidden == false};text={_musicLyrics?.StringValue}",
+                        Text = $"visible={_musicPresentation?.Hidden == false};art={_musicArtwork?.Hidden == false};heading={_musicHeading?.StringValue};lyrics={_musicLyrics?.Hidden == false};visualizer={_settings.Visualizer};meter={_musicSpectrum?.StringValue.Length ?? 0};text={_musicLyrics?.StringValue}",
                     });
                     return;
                 case "status":

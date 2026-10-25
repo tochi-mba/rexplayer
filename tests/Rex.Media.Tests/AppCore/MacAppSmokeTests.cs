@@ -41,6 +41,7 @@ public sealed class MacAppSmokeTests
     [Capability("LIB-08", CapabilityPlatform.MacOS)]
     [Capability("UI-15", CapabilityPlatform.MacOS)]
     [Capability("META-09", CapabilityPlatform.MacOS)]
+    [Capability("AU-19", CapabilityPlatform.MacOS)]
     [Capability("UI-11", CapabilityPlatform.MacOS)]
     [Capability("LIB-03", CapabilityPlatform.MacOS)]
     [Capability("LIB-04", CapabilityPlatform.MacOS)]
@@ -67,6 +68,8 @@ public sealed class MacAppSmokeTests
         Directory.CreateDirectory(libraryFixture);
         File.Copy(RepoPaths.Combine("tests", "fixtures", "mp3", "stereo-44k-128k-cbr.mp3"),
             Path.Combine(libraryFixture, "Sample Song.mp3"));
+        File.Copy(RepoPaths.Combine("tests", "fixtures", "picture", "still.png"),
+            Path.Combine(libraryFixture, "cover.png"));
         File.WriteAllText(Path.Combine(libraryFixture, "Sample Song.lrc"),
             "[00:00.00]First local lyric\n[00:01.00]Second local lyric\n");
         File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4"),
@@ -350,14 +353,17 @@ public sealed class MacAppSmokeTests
                 "The native library row should have started actual local playback.");
             var lyricsShown = await Until(
                 () => Ask(pipe, new AutomationRequest { Command = "mac-music" }),
-                reply => reply?.Text?.Contains("visible=True;lyrics=True", StringComparison.Ordinal) == true &&
+                reply => reply?.Text?.Contains("visible=True;art=True;heading=Sample Song;lyrics=True", StringComparison.Ordinal) == true &&
                     reply.Text.Contains("local lyric", StringComparison.Ordinal),
                 app, root);
             Assert.Contains("local lyric", lyricsShown.Text, StringComparison.Ordinal);
             await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLyrics });
             var lyricsHidden = await Ask(pipe, new AutomationRequest { Command = "mac-music" });
-            Assert.Contains("visible=True;lyrics=False;text=", lyricsHidden?.Text, StringComparison.Ordinal);
+            Assert.Contains("visible=True;art=True;heading=Sample Song;lyrics=False", lyricsHidden?.Text, StringComparison.Ordinal);
             await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLyrics });
+            await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.CycleVisualizer });
+            var visualizerShown = await Ask(pipe, new AutomationRequest { Command = "mac-music" });
+            Assert.Contains("visualizer=Meters", visualizerShown?.Text, StringComparison.Ordinal);
 
             await Library(pipe, "show");
             var folders = await Library(pipe, "folders");

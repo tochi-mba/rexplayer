@@ -6,7 +6,7 @@ platform while the other catches up; under *locked* every must row is verified o
 applicable with a reason, and CI blocks a release otherwise (ADR-0020). A **gap** is a difference someone has
 accepted for now: its note says why and its issue says who closes it.
 
-Totals: 40 rows differ (24 must), 2 not applicable, 0 gaps.
+Totals: 39 rows differ (23 must), 2 not applicable, 0 gaps.
 
 ## Playback core
 
@@ -39,7 +39,6 @@ Totals: 40 rows differ (24 must), 2 not applicable, 0 gaps.
 | AU-13 | ReplayGain / R128 | should | verified | built |  |
 | AU-15 | Pitch-preserving speed | must | verified | planned |  |
 | AU-18 | Visualisations | should | verified | planned |  |
-| AU-19 | Audio-only presentation | must | verified | built |  |
 
 ## Video & rendering
 
