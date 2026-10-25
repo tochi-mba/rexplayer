@@ -135,12 +135,13 @@ public sealed partial class MainWindow
     {
         var panel = NSSavePanel.SavePanel;
         panel.NameFieldStringValue = "rexplayer.log";
-        if (panel.RunModal() != 1 || panel.Url?.Path is not { } path)
+        panel.Begin(response =>
         {
-            return;
-        }
-
-        TryWrite(path, _logText?.Value ?? "", "Log saved");
+            if (response == 1 && panel.Url?.Path is { } path)
+            {
+                TryWrite(path, _logText?.Value ?? "", "Log saved");
+            }
+        });
     }
 
     /// <summary>Saves redacted settings, logs and system facts into one local zip (TOOL-10).</summary>
@@ -148,15 +149,14 @@ public sealed partial class MainWindow
     {
         var panel = NSSavePanel.SavePanel;
         panel.NameFieldStringValue = DiagnosticsBundle.FileName(DateTimeOffset.Now);
-        if (panel.RunModal() != 1 || panel.Url?.Path is not { } path)
+        panel.Begin(response =>
         {
-            return;
-        }
-
-        if (!WriteDiagnostics(path, out var error))
-        {
-            Say("The diagnostics could not be saved: " + error);
-        }
+            if (response == 1 && panel.Url?.Path is { } path &&
+                !WriteDiagnostics(path, out var error))
+            {
+                Say("The diagnostics could not be saved: " + error);
+            }
+        });
     }
 
     private bool WriteDiagnostics(string path, out string? error)
