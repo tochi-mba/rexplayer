@@ -15,6 +15,8 @@ public sealed partial class MainWindow
     private NSTextField? _audioDelayDescription;
     private NSTextField? _audioDelayEntry;
     private NSTextField? _playbackToolsTitle;
+    private NSPopUpButton? _playbackSpeed;
+    private NSTextField? _playbackSpeedHint;
     private NSButton? _nextAudioTrack;
     private readonly List<NSButton> _bookmarkActions = [];
     private readonly List<NSButton> _seekActions = [];
@@ -96,6 +98,23 @@ public sealed partial class MainWindow
             var later = NSButton.CreateButton("Later 50 ms", () => _player.SetAudioDelay(_player.AudioDelay + TimeSpan.FromMilliseconds(50)));
             var reset = NSButton.CreateButton("Reset sync", () => _player.SetAudioDelay(TimeSpan.Zero));
             var apply = NSButton.CreateButton("Set exact delay", SetExactAudioDelay);
+            _playbackSpeed = new NSPopUpButton(new CGRect(0, 0, 250, 28), false);
+            foreach (var speed in PlayerController.SpeedSteps)
+            {
+                _playbackSpeed.AddItem(speed.ToString("0.##", CultureInfo.InvariantCulture) + "×");
+            }
+            _playbackSpeed.Activated += (_, _) =>
+            {
+                var index = (int)_playbackSpeed.IndexOfSelectedItem;
+                if (index >= 0 && index < PlayerController.SpeedSteps.Count)
+                {
+                    _player.SetSpeed(PlayerController.SpeedSteps[index]);
+                    RefreshPlaybackTools();
+                }
+            };
+            ((NSView)_playbackSpeed).AccessibilityLabel = "Playback speed, pitch preserved";
+            _playbackSpeedHint = NSTextField.CreateLabel("Pitch is kept by the shared WSOLA sound engine.");
+            _playbackSpeedHint.TextColor = NSColor.SecondaryLabel;
             var hint = NSTextField.CreateLabel("Changes apply immediately. Bookmarks stay with this file.");
             hint.TextColor = NSColor.SecondaryLabel;
 
@@ -108,6 +127,8 @@ public sealed partial class MainWindow
                 PlaybackToolsRow(add, jump, rename, remove),
                 PlaybackToolsHeading("Sound & sync"),
                 PlaybackToolsRow(_audioDescription, _nextAudioTrack),
+                PlaybackToolsRow(PlaybackToolsHeading("Playback speed"), _playbackSpeed),
+                _playbackSpeedHint,
                 _audioDelayDescription,
                 PlaybackToolsRow(earlier, later, reset),
                 PlaybackToolsRow(_audioDelayEntry, apply),
@@ -214,6 +235,12 @@ public sealed partial class MainWindow
         _nextAudioTrack!.Enabled = _player.AudioTracks.Count > 1;
         _audioDelayDescription!.StringValue = string.Create(CultureInfo.InvariantCulture, $"Audio delay: {_player.AudioDelay.TotalMilliseconds:+0;-0;0} ms");
         _audioDelayEntry!.StringValue = _player.AudioDelay.TotalMilliseconds.ToString("0", CultureInfo.InvariantCulture);
+        if (_playbackSpeed is not null)
+        {
+            var index = PlayerController.SpeedSteps.ToList().FindIndex(
+                speed => Math.Abs(speed - _player.Speed) < 0.001);
+            _playbackSpeed.SelectItem(Math.Max(0, index));
+        }
     }
 
     private void DisposePlaybackTools()
