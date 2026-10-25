@@ -136,7 +136,11 @@ internal static unsafe partial class AppleMedia
 
     public static nint UsingHardwareKey => Global(VideoToolboxLibrary, "kVTDecompressionPropertyKey_UsingHardwareAcceleratedVideoDecoder");
 
+    public static nint AllowHardwareDecodeKey => Global(VideoToolboxLibrary, "kVTVideoDecoderSpecification_EnableHardwareAcceleratedVideoDecoder");
+
     public static nint True => Global(CoreFoundationLibrary, "kCFBooleanTrue");
+
+    public static nint False => Global(CoreFoundationLibrary, "kCFBooleanFalse");
 
     public static nint KeyCallBacks => Address(CoreFoundationLibrary, "kCFTypeDictionaryKeyCallBacks");
 
