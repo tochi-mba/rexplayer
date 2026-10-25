@@ -270,6 +270,7 @@ PlaylistPaths.cs
 PlaylistText.cs
 Pls.cs
 PoliteHosts.cs
+PitchSpeed.cs
 PictureBorders.cs
 PictureDecodeLimit.cs
 PngWriter.cs
