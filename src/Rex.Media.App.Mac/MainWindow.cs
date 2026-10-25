@@ -132,6 +132,7 @@ public sealed partial class MainWindow : IDisposable
         DisposeHistory();
         DisposeStartupGuidance();
         DisposeStats();
+        DisposeMusicPresentation();
         _player.Dispose();
         _picture?.Presenter?.Dispose();
         _window.Dispose();
@@ -421,6 +422,7 @@ public sealed partial class MainWindow : IDisposable
         content.AddSubview(_welcome);
         AddSubtitleOverlays(content);
         AddStatsOverlay(content);
+        AddMusicPresentation(content);
         _welcome.CenterXAnchor.ConstraintEqualTo(_picture.CenterXAnchor).Active = true;
         _welcome.CenterYAnchor.ConstraintEqualTo(_picture.CenterYAnchor).Active = true;
         _picture.TopAnchor.ConstraintEqualTo(content.TopAnchor).Active = true;
@@ -684,6 +686,12 @@ public sealed partial class MainWindow : IDisposable
             case CommandCatalog.ToggleStats:
                 ToggleStatsOverlay();
                 return true;
+            case CommandCatalog.ToggleLyrics:
+                ToggleMusicLyrics();
+                return true;
+            case CommandCatalog.CycleVisualizer:
+                CycleMusicVisualizer();
+                return true;
             case CommandCatalog.BackUpLibrary:
                 BackUpLibrary();
                 return true;
@@ -916,6 +924,7 @@ public sealed partial class MainWindow : IDisposable
         RefreshPlaybackTools();
         RefreshTrackTools();
         RefreshHistory();
+        RefreshMusicPresentation();
     }
 
     private void ShowPosition()
@@ -929,6 +938,7 @@ public sealed partial class MainWindow : IDisposable
         _seek.DoubleValue = duration > TimeSpan.Zero ? Math.Clamp(_player.Position / duration, 0, 1) : 0;
         _time.StringValue = duration > TimeSpan.Zero ? $"{Clock(_player.Position)} / {Clock(duration)}" : Clock(_player.Position);
         UpdateSubtitleOverlays();
+        RefreshMusicPosition();
     }
 
     private void SeekToSlider()
