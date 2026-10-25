@@ -209,20 +209,19 @@ public sealed partial class MainWindow
     {
         var panel = NSSavePanel.SavePanel;
         panel.NameFieldStringValue = "rexplayer-shortcuts.json";
-        if (panel.RunModal() != 1 || panel.Url?.Path is not { } path)
+        panel.Begin(response =>
         {
-            return;
-        }
-
-        try
-        {
-            File.WriteAllText(path, ShortcutEditing.Export(_settings));
-            _shortcutStatus!.StringValue = "Keyboard and mouse settings exported.";
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            _shortcutStatus!.StringValue = "Could not export: " + ex.Message;
-        }
+            if (response != 1 || panel.Url?.Path is not { } path) return;
+            try
+            {
+                File.WriteAllText(path, ShortcutEditing.Export(_settings));
+                _shortcutStatus!.StringValue = "Keyboard and mouse settings exported.";
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _shortcutStatus!.StringValue = "Could not export: " + ex.Message;
+            }
+        });
     }
 
     private void ImportShortcuts()
@@ -232,20 +231,19 @@ public sealed partial class MainWindow
         panel.CanChooseFiles = true;
         panel.CanChooseDirectories = false;
         panel.Title = "Import keyboard and mouse settings";
-        if (panel.RunModal() != 1 || panel.Url?.Path is not { } path)
+        panel.Begin(response =>
         {
-            return;
-        }
-
-        try
-        {
-            SaveShortcutSettings(ShortcutEditing.Import(_settings, File.ReadAllText(path)),
-                "Keyboard and mouse settings imported.");
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException)
-        {
-            _shortcutStatus!.StringValue = "Could not import: " + ex.Message;
-        }
+            if (response != 1 || panel.Url?.Path is not { } path) return;
+            try
+            {
+                SaveShortcutSettings(ShortcutEditing.Import(_settings, File.ReadAllText(path)),
+                    "Keyboard and mouse settings imported.");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException)
+            {
+                _shortcutStatus!.StringValue = "Could not import: " + ex.Message;
+            }
+        });
     }
 
     private bool ShortcutSmokeAction(string? action)
