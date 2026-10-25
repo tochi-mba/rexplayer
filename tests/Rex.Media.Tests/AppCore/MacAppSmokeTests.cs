@@ -160,7 +160,9 @@ public sealed class MacAppSmokeTests
             var playlistFile = Path.Combine(root, "exported-playlist.m3u8");
             var saveFile = await Ask(pipe, new AutomationRequest
             {
-                Command = "mac-playlists", Id = "save-file", Path = playlistFile,
+                Command = "mac-playlists",
+                Id = "save-file",
+                Path = playlistFile,
             });
             Assert.True(saveFile?.Ok == true && File.Exists(playlistFile),
                 "Mac playlist export did not create a readable file.");
