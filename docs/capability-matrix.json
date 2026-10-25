@@ -1927,7 +1927,7 @@
       "oracles": "EVT PERF HW",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -2460,7 +2460,7 @@
       "oracles": "PIX",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -3643,7 +3643,7 @@
       "oracles": "NET (FakeOrigin)",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
