@@ -505,6 +505,12 @@ public sealed record PlayerSettings
     /// <summary>Allow hardware video decoding when the native platform supports it. Reopening a video applies changes.</summary>
     public bool HardwareVideoDecoding { get; init; } = true;
 
+    /// <summary>Allow hardware H.264 decoding when hardware video decoding is enabled.</summary>
+    public bool HardwareH264Decoding { get; init; } = true;
+
+    /// <summary>Allow hardware HEVC decoding when hardware video decoding is enabled.</summary>
+    public bool HardwareHevcDecoding { get; init; } = true;
+
     // Sound
 
     public bool EqualizerEnabled { get; init; }
