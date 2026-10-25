@@ -79,13 +79,17 @@ public sealed partial class MainWindow
         }
 
         var visible = _window.Screen?.VisibleFrame ?? new CGRect(0, 0, 1280, 800);
-        var factor = Math.Max(1.0, _window.BackingScaleFactor);
-        var width = Math.Clamp(video.Width * scale / factor + 48, _window.MinSize.Width, visible.Width);
-        var height = Math.Clamp(video.Height * scale / factor + 190, _window.MinSize.Height, visible.Height);
+        var factor = Math.Max(1.0, (double)_window.BackingScaleFactor);
+        var width = Math.Clamp(video.Width * scale / factor + 48,
+            (double)_window.MinSize.Width, Math.Max((double)_window.MinSize.Width, (double)visible.Width));
+        var height = Math.Clamp(video.Height * scale / factor + 190,
+            (double)_window.MinSize.Height, Math.Max((double)_window.MinSize.Height, (double)visible.Height));
         var frame = _window.Frame;
-        var x = Math.Clamp(frame.X, visible.Left, visible.Right - width);
-        var y = Math.Clamp(frame.Y, visible.Bottom, visible.Top - height);
-        _window.SetFrame(new CGRect(x, y, width, height), true);
+        var x = Math.Clamp((double)frame.X, (double)visible.X,
+            Math.Max((double)visible.X, (double)(visible.X + visible.Width) - width));
+        var y = Math.Clamp((double)frame.Y, (double)visible.Y,
+            Math.Max((double)visible.Y, (double)(visible.Y + visible.Height) - height));
+        _window.SetFrame(new CGRect((nfloat)x, (nfloat)y, (nfloat)width, (nfloat)height), true);
         _picture?.Presenter?.Redraw();
     }
 }
