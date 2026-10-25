@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 155 planned, 73 built, 65 verified, 27 post-1.0, 2 not-applicable.
+macOS: 155 planned, 72 built, 66 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -420,6 +420,6 @@ macOS: 155 planned, 73 built, 65 verified, 27 post-1.0, 2 not-applicable.
 | SEC-02 | Decoder isolation | MF transforms run in-process at 1.0; out-of-process decode host is a post-1.0 hardening option | post | could | post-1.0 | post-1.0 |
 | SEC-03 | Extension trust | Capability manifest shown at install; quarantine on faults; documented "trusted code" stance | M14 | must | planned | planned |
 | SEC-04 | Network services off by default | Web remote and stream-out need explicit enabling and show a firewall explanation | M9/M14 | must | planned | planned |
-| SEC-05 | Update integrity | HTTPS, owner-pinned release URL, sha256 verification; Authenticode once signing exists (§11) | M4 | must | verified | built |
+| SEC-05 | Update integrity | HTTPS, owner-pinned release URL, sha256 verification; Authenticode once signing exists (§11) | M4 | must | verified | verified |
 | SYS-01 | Logging | House rotating logger (never throws, critical always written) + ETW EventSource | M1 | must | built | built |
 | SYS-02 | Settings safety | Atomic writes, cross-process lock, `.rex-backup`, schema version + migrations, Normalize() clamps (house patterns) | M4 | must | built | built |

@@ -67,6 +67,7 @@ public sealed class UpdateAndResumeTests : IDisposable
     }
 
     [Fact]
+    [Capability("SEC-05")]
     public void AUniversalMacReleaseMustHaveBothPinnedAssets()
     {
         const string json = """

@@ -4165,7 +4165,7 @@
       "oracles": "NET",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
