@@ -321,18 +321,21 @@ public sealed partial class MainWindow
 
         var panel = NSSavePanel.SavePanel;
         panel.NameFieldStringValue = Path.GetFileNameWithoutExtension(path) + ".srt";
-        if (panel.RunModal() != 1 || panel.Url?.Path is not { } output) return;
-        _ = Task.Run(() =>
+        panel.Begin(response =>
         {
-            try
+            if (response != 1 || panel.Url?.Path is not { } output) return;
+            _ = Task.Run(() =>
             {
-                TranscriptFileExport.Write(output, transcript);
-                OnWindowThread(() => Say("Transcript exported to " + Path.GetFileName(output)));
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
-            {
-                OnWindowThread(() => Say("Transcript export failed: " + ex.Message));
-            }
+                try
+                {
+                    TranscriptFileExport.Write(output, transcript);
+                    OnWindowThread(() => Say("Transcript exported to " + Path.GetFileName(output)));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+                {
+                    OnWindowThread(() => Say("Transcript export failed: " + ex.Message));
+                }
+            });
         });
     }
 
