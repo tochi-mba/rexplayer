@@ -1,8 +1,8 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using Rex.Media.IO;
 using Rex.Media.AppCore.Player;
+using Rex.Media.IO;
 using Windows.Storage.Pickers;
 
 namespace Rex.Media.App;
@@ -10,6 +10,7 @@ namespace Rex.Media.App;
 public sealed partial class MainWindow
 {
     private static readonly HttpClient LyricsClient = new() { Timeout = TimeSpan.FromSeconds(12) };
+    private static readonly JsonSerializerOptions LyricsSerializerOptions = new() { PropertyNameCaseInsensitive = true };
     private PlaylistItem? _onlineLyricsItem;
     private CancellationTokenSource? _onlineLyricsCancellation;
     private string? _onlineLyricsStatus;
@@ -73,8 +74,7 @@ public sealed partial class MainWindow
                     throw new HttpRequestException("The lyrics response was too large.");
                 }
 
-                var result = JsonSerializer.Deserialize<OnlineLyricsResult>(json,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                var result = JsonSerializer.Deserialize<OnlineLyricsResult>(json, LyricsSerializerOptions);
                 var lyrics = result?.Match(title, artist!, duration);
                 _onlineLyricsStatus = lyrics is null ? "No reliable lyrics match was found online."
                     : _player.UseOnlineLyrics(item, lyrics) ? "Lyrics from LRCLIB."
