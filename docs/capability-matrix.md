@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 254 planned, 7 built, 32 verified, 27 post-1.0, 2 not-applicable.
+macOS: 253 planned, 8 built, 32 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -20,7 +20,7 @@ macOS: 254 planned, 7 built, 32 verified, 27 post-1.0, 2 not-applicable.
 | PB-07 | Frame step | Forward E; backward Shift+E (decode-from-keyframe cache) | M11 | must/should | planned | planned |
 | PB-08 | A-B loop | Set A, set B, clear; loop survives a pause; snaps to frames | M11 | must | planned | planned |
 | PB-09 | Titles & chapters | Next/previous chapter and title; chapter menu; chapter marks on the seek bar | M3/M11 | must | planned | planned |
-| PB-10 | Bookmarks (per file) | Named positions with add, rename, delete and jump; stored in RexStore | M6 | should | verified | planned |
+| PB-10 | Bookmarks (per file) | Named positions with add, rename, delete and jump; stored in RexStore | M6 | should | verified | built |
 | PB-11 | Resume where you left off | Ask / always / never; a 10 s threshold at either end; per-file resume points (hashed keys); the prompt is an in-window banner, never a modal | M6 | must | verified | planned |
 | PB-12 | Repeat & shuffle | Repeat off / one / all; shuffle with no repeats until the list is exhausted | M4 | must | verified | built |
 | PB-13 | Stop after current / pause after current | One-shot toggles | M6 | should | verified | verified |

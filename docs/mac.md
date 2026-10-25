@@ -19,11 +19,12 @@ It also shows the macOS version. Below macOS 12, see [an older Mac](#an-older-ma
 
 ## Current Mac feature coverage
 
-The Mac app provides the basic AppKit playback window, transport and seek controls, volume and
-mute, a Metal video surface, native audio output and codecs, Finder open/drop handling, selected
-shared playback commands, and basic media information. Support for richer library pages,
-subtitle rendering and editing, the complete Windows preferences and effects interface, and
-many platform-specific conveniences is still in progress. A capability is not considered
+The Mac app provides the AppKit playback window, transport and seek controls, volume and
+mute, a Metal video surface, native audio output and codecs, Finder open/drop handling, a native
+queue and searchable watched-folder library, saved-position bookmarks, basic playback tools and
+preferences, selected shared playback commands, and media information. Support for richer library
+pages, subtitle rendering and editing, the complete preferences and effects interface, and many
+platform-specific conveniences is still in progress. A capability is not considered
 **verified** just because a shared engine has its implementation.
 
 One signed, universal download supports both Intel and Apple Silicon; separate architecture

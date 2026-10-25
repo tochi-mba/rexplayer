@@ -13,7 +13,7 @@ Totals: 113 rows differ (87 must), 2 not applicable, 0 gaps.
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
 | PB-05 | Go to time | must | verified | built |  |
-| PB-10 | Bookmarks (per file) | should | verified | planned |  |
+| PB-10 | Bookmarks (per file) | should | verified | built |  |
 | PB-11 | Resume where you left off | must | verified | planned |  |
 | PB-12 | Repeat & shuffle | must | verified | built |  |
 | PB-16 | Snapshot | must | verified | planned |  |

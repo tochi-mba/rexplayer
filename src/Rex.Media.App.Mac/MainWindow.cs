@@ -73,7 +73,6 @@ public sealed partial class MainWindow : IDisposable
         _window.ContentView = Layout();
         InitializeLibrary();
         InitializeQueue();
-        InitializeLibrary();
         NSApplication.SharedApplication.MainMenu = BuildMenus();
         NSTimer.CreateRepeatingScheduledTimer(TimeSpan.FromSeconds(1), _ => _player.SleepTick());
     }
@@ -111,6 +110,7 @@ public sealed partial class MainWindow : IDisposable
 
         CloseLibrary();
         CloseQueue();
+        DisposePreferences();
         DisposePlaybackTools();
         _player.Dispose();
         _picture?.Presenter?.Dispose();
@@ -476,6 +476,9 @@ public sealed partial class MainWindow : IDisposable
                 return true;
             case CommandCatalog.GoToTime:
                 GoToTime();
+                return true;
+            case CommandCatalog.Preferences:
+                ShowPreferences();
                 return true;
             case CommandCatalog.MediaInformation:
                 ShowMediaInformation();
