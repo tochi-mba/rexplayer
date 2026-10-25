@@ -117,6 +117,7 @@ public sealed partial class MainWindow : IDisposable
         DisposePreferences();
         DisposePlaybackTools();
         DisposeShortcuts();
+        DisposeSavedPlaylists();
         _player.Dispose();
         _picture?.Presenter?.Dispose();
         _window.Dispose();
@@ -163,6 +164,14 @@ public sealed partial class MainWindow : IDisposable
                     if (!LibrarySmokeAction(request.Id, request.Paths))
                     {
                         answered.SetResult(AutomationReply.Failed("The native library smoke action is unavailable: " + request.Id));
+                        return;
+                    }
+
+                    break;
+                case "mac-playlists":
+                    if (!SavedPlaylistSmokeAction(request.Id, request.Path))
+                    {
+                        answered.SetResult(AutomationReply.Failed("Mac playlist action failed: " + request.Id));
                         return;
                     }
 
@@ -407,6 +416,7 @@ public sealed partial class MainWindow : IDisposable
         app.AddItem(Entry(CommandCatalog.Preferences, "Settings…"));
         app.AddItem(new NSMenuItem("Playback tools…", (_, _) => ShowPlaybackTools()));
         app.AddItem(Entry(CommandCatalog.KeyboardAndMouse, "Keyboard shortcuts…"));
+        app.AddItem(new NSMenuItem("Named playlists…", (_, _) => ShowSavedPlaylists()));
         app.AddItem(new NSMenuItem("Your library…", (_, _) => Run(CommandCatalog.ToggleLibrary)));
         app.AddItem(new NSMenuItem("Up Next…", (_, _) => ShowQueue()));
         // Reuse the shared command and its customizable keyboard equivalent.
@@ -565,6 +575,12 @@ public sealed partial class MainWindow : IDisposable
                 return true;
             case CommandCatalog.KeyboardAndMouse:
                 ShowShortcutEditor();
+                return true;
+            case CommandCatalog.SavePlaylist:
+                SavePlaylistWithPanel();
+                return true;
+            case CommandCatalog.OpenPlaylist:
+                OpenPlaylistWithPanel();
                 return true;
             case CommandCatalog.MediaInformation:
                 ShowMediaInformation();
