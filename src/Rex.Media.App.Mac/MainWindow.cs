@@ -118,6 +118,7 @@ public sealed partial class MainWindow : IDisposable
         DisposePlaybackTools();
         DisposeShortcuts();
         DisposeSavedPlaylists();
+        DisposeEffects();
         _player.Dispose();
         _picture?.Presenter?.Dispose();
         _window.Dispose();
@@ -417,6 +418,7 @@ public sealed partial class MainWindow : IDisposable
         app.AddItem(new NSMenuItem("Playback tools…", (_, _) => ShowPlaybackTools()));
         app.AddItem(Entry(CommandCatalog.KeyboardAndMouse, "Keyboard shortcuts…"));
         app.AddItem(new NSMenuItem("Named playlists…", (_, _) => ShowSavedPlaylists()));
+        app.AddItem(Entry(CommandCatalog.Effects, "Effects & filters…"));
         app.AddItem(new NSMenuItem("Your library…", (_, _) => Run(CommandCatalog.ToggleLibrary)));
         app.AddItem(new NSMenuItem("Up Next…", (_, _) => ShowQueue()));
         // Reuse the shared command and its customizable keyboard equivalent.
@@ -581,6 +583,9 @@ public sealed partial class MainWindow : IDisposable
                 return true;
             case CommandCatalog.OpenPlaylist:
                 OpenPlaylistWithPanel();
+                return true;
+            case CommandCatalog.Effects:
+                ShowEffects();
                 return true;
             case CommandCatalog.MediaInformation:
                 ShowMediaInformation();
