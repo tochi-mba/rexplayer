@@ -135,6 +135,7 @@ public sealed partial class MainWindow : IDisposable
         DisposeStats();
         DisposeMusicPresentation();
         EndCrashRecovery();
+        DisposePlaybackActivity();
         _player.Dispose();
         _picture?.Presenter?.Dispose();
         _window.Dispose();
@@ -607,6 +608,7 @@ public sealed partial class MainWindow : IDisposable
         _volume.DoubleValue = _player.Volume;
         ShowPosition();
         UpdateDockTile();
+        UpdatePlaybackActivity();
         UpdateSubtitleOverlays();
         ShowChecks();
         RefreshPlaybackTools();
