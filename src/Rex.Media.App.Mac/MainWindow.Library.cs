@@ -169,8 +169,6 @@ public sealed partial class MainWindow
             stack.Spacing = 14;
             stack.EdgeInsets = new NSEdgeInsets(22, 24, 22, 24);
             stack.TranslatesAutoresizingMaskIntoConstraints = false;
-            stack.WantsLayer = true;
-            stack.Layer!.BackgroundColor = NSColor.WindowBackground.CGColor;
             _libraryWindow.ContentView = stack;
             _libraryScroll.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
             _librarySummary.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;

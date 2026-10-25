@@ -6,7 +6,7 @@ platform while the other catches up; under *locked* every must row is verified o
 applicable with a reason, and CI blocks a release otherwise (ADR-0020). A **gap** is a difference someone has
 accepted for now: its note says why and its issue says who closes it.
 
-Totals: 83 rows differ (60 must), 2 not applicable, 0 gaps.
+Totals: 78 rows differ (55 must), 2 not applicable, 0 gaps.
 
 ## Playback core
 
@@ -63,14 +63,11 @@ Totals: 83 rows differ (60 must), 2 not applicable, 0 gaps.
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
 | VID-01 | Hardware decoding policy | must | verified | planned |  |
-| VID-02 | Frame pacing | must | built | planned |  |
 | VID-03 | Fullscreen | must | verified | built |  |
 | VID-04 | Window sizing | must | verified | planned |  |
 | VID-05 | Aspect ratio | must | verified | planned |  |
 | VID-06 | Crop | must | built | planned |  |
 | VID-07 | Zoom & pan | should | verified | planned |  |
-| VID-23 | Colour pipeline correctness | must | verified | planned |  |
-| VID-25 | Late-frame policy | must | verified | planned |  |
 | VID-26 | Title on start | should | verified | planned |  |
 | VID-27 | Always on top | must | verified | built |  |
 | VID-29 | Power management | must | built | planned |  |
@@ -138,8 +135,6 @@ Totals: 83 rows differ (60 must), 2 not applicable, 0 gaps.
 | WIN-05 | System Media Transport Controls | must | built | planned |  |
 | WIN-06 | Taskbar | must | built | planned |  |
 | WIN-07 | Jump list | should | built | planned |  |
-| WIN-09 | High DPI | must | built | planned |  |
-| WIN-10 | Theme & materials | must | built | planned |  |
 | WIN-11 | Power awareness | must | built | planned |  |
 | WIN-14 | Crash recovery | must | verified | planned |  |
 

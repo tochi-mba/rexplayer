@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 219 planned, 28 built, 46 verified, 27 post-1.0, 2 not-applicable.
+macOS: 214 planned, 31 built, 48 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -199,7 +199,7 @@ macOS: 219 planned, 28 built, 46 verified, 27 post-1.0, 2 not-applicable.
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
 | VID-01 | Hardware decoding policy | Auto (D3D11VA zero-copy) / off / per-codec; automatic software fallback on failure, with the reason in stats | M3 | must | verified | planned |
-| VID-02 | Frame pacing | Flip-model vsync; cadence-correct 23.976/25/29.97 on 60/120/144 Hz; dropped/late accounting; optional refresh-rate matching in fullscreen | M3/M11 | must | built | planned |
+| VID-02 | Frame pacing | Flip-model vsync; cadence-correct 23.976/25/29.97 on 60/120/144 Hz; dropped/late accounting; optional refresh-rate matching in fullscreen | M3/M11 | must | built | built |
 | VID-03 | Fullscreen | F, double-click, Esc to leave; target monitor setting (current / specific); fullscreen controller auto-hides (1.5 s default) and the cursor hides after 1 s | M4 | must | verified | built |
 | VID-04 | Window sizing | ¼, ½, 1:1, 2× (Alt+1..4); fit to screen; "resize window to video" setting; autoscale toggle (O) and scale factor (Alt+O / Alt+Shift+O) | M4 | must | verified | planned |
 | VID-05 | Aspect ratio | Default, 16:9, 4:3, 1:1, 16:10, 2.21:1, 2.35:1, 2.39:1, 5:4, custom W:H; cycle with A | M4 | must | verified | planned |
@@ -220,9 +220,9 @@ macOS: 219 planned, 28 built, 46 verified, 27 post-1.0, 2 not-applicable.
 | VID-20 | 360° video | Equirectangular viewer: drag/arrow keys to look, Page Up/Down for field of view, reset; reads spherical metadata from MP4 and Matroska | M11 | should | planned | planned |
 | VID-21 | HDR → SDR | PQ and HLG, BT.2020 → 709 gamut map, tone map to target nits (203 default), FP16 pipeline, 10-bit decode end to end | M11 | must | planned | planned |
 | VID-22 | HDR passthrough | HDR10 metadata to an HDR-enabled display (Advanced Color) | M15 | should | planned | planned |
-| VID-23 | Colour pipeline correctness | BT.601/709/2020 matrices, limited/full range, chroma siting, flagged-vs-guessed colorimetry | M3 | must | verified | planned |
+| VID-23 | Colour pipeline correctness | BT.601/709/2020 matrices, limited/full range, chroma siting, flagged-vs-guessed colorimetry | M3 | must | verified | verified |
 | VID-24 | Scaling quality | Bilinear / Catmull-Rom / Lanczos3; chroma upsampling quality | M11 | should | planned | planned |
-| VID-25 | Late-frame policy | Drop late frames (default on), skip-to-keyframe when far behind, stats | M3 | must | verified | planned |
+| VID-25 | Late-frame policy | Drop late frames (default on), skip-to-keyframe when far behind, stats | M3 | must | verified | verified |
 | VID-26 | Title on start | OSD shows the title for 3 s (configurable, can be disabled), position setting | M4 | should | verified | planned |
 | VID-27 | Always on top | Never / always / while playing | M4 | must | verified | built |
 | VID-28 | Picture-in-picture | Compact always-on-top mini window with minimal controls | M15 | should | planned | planned |
@@ -383,8 +383,8 @@ macOS: 219 planned, 28 built, 46 verified, 27 post-1.0, 2 not-applicable.
 | WIN-06 | Taskbar | Thumbnail toolbar (previous, play/pause, next), progress state (normal/paused/error), live thumbnail | M15 | must | built | planned |
 | WIN-07 | Jump list | Recent media, pinned items, tasks (open file, resume last, open network stream); classic `ICustomDestinationList` (works unpackaged) | M15 | should | built | planned |
 | WIN-08 | Toasts on track change | Opt-in (Windows App SDK app notifications, unpackaged registration) | M15 | could | planned | planned |
-| WIN-09 | High DPI | PerMonitorV2 everywhere incl. the OSD and subtitles; crisp on monitor moves | M4 | must | built | planned |
-| WIN-10 | Theme & materials | Follows system light/dark live; Mica | M4 | must | built | planned |
+| WIN-09 | High DPI | PerMonitorV2 everywhere incl. the OSD and subtitles; crisp on monitor moves | M4 | must | built | built |
+| WIN-10 | Theme & materials | Follows system light/dark live; Mica | M4 | must | built | built |
 | WIN-11 | Power awareness | VID-29 power requests; pause on sleep, re-open devices on resume | M4/M11 | must | built | planned |
 | WIN-12 | Architectures | x64 (M); ARM64 native (S) through cross-platform `Vector128` SIMD paths | M0/M15 | must/should | planned | planned |
 | WIN-13 | Minimum OS | Windows 10 1809 (build 17763) and Windows 11; Windows 11 is the primary target | M0 | must | built | built |

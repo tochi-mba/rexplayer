@@ -1940,7 +1940,7 @@
       "oracles": "PERF FRM",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -2213,7 +2213,7 @@
       "oracles": "PIX (reference fields)",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "verified"
       }
     },
     {
@@ -2239,7 +2239,7 @@
       "oracles": "FRM PERF",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "verified"
       }
     },
     {
@@ -3814,7 +3814,7 @@
       "oracles": "PIX (scale matrix)",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -3827,7 +3827,7 @@
       "oracles": "PIX",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
