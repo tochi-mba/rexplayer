@@ -167,7 +167,7 @@ public sealed partial class MainWindow
             ((NSView)play).AccessibilityLabel = playing ? "Now playing: " + item.Title : "Play: " + item.Title;
             play.WidthAnchor.ConstraintGreaterThanOrEqualTo(300).Active = true;
             var source = NSTextField.CreateLabel(missing
-                ? "Missing file — choose Locate to point at its new location."
+                ? "Missing file - choose Locate to point at its new location."
                 : item.Artist ?? Rex.Media.AppCore.Player.PlaylistItem.SourceOf(item.Location) ?? "Local media");
             source.TextColor = NSColor.SecondaryLabel;
             source.Font = NSFont.SystemFontOfSize(11, NSFontWeight.Regular)!;

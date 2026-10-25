@@ -201,9 +201,10 @@ public sealed partial class PlayerController
     private void CycleAudioTrack()
     {
         var tracks = Info is null && _audioSwitch is { } switching ? switching.Tracks : AudioTracks;
-        if (tracks.Count == 0)
+        if (tracks.Count < 2 || Item is null)
         {
-            Say("There are no audio tracks to choose from.");
+            Say(tracks.Count == 1 ? "There is only one audio track."
+                : "There are no audio tracks to choose from.");
             return;
         }
 
