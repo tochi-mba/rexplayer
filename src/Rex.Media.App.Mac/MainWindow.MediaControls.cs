@@ -13,6 +13,9 @@ public sealed partial class MainWindow
     private DateTimeOffset _lastMediaPublish;
     private string? _lastMediaLocation;
     private bool _lastMediaPlaying;
+    private byte[]? _lastNowPlayingArtSource;
+    private NSImage? _lastNowPlayingArtImage;
+    private MPMediaItemArtwork? _lastNowPlayingArtwork;
 
     private void StartMediaControls()
     {
@@ -91,6 +94,30 @@ public sealed partial class MainWindow
             metadata.PlaybackDuration = _player.Duration.TotalSeconds;
         }
 
+        if (!ReferenceEquals(_lastNowPlayingArtSource, _player.CoverArt))
+        {
+            _lastNowPlayingArtwork?.Dispose();
+            _lastNowPlayingArtwork = null;
+            _lastNowPlayingArtImage?.Dispose();
+            _lastNowPlayingArtImage = null;
+            _lastNowPlayingArtSource = _player.CoverArt;
+            if (_lastNowPlayingArtSource is { Length: > 0 } art)
+            {
+                try
+                {
+                    using var bytes = NSData.FromArray(art);
+                    var image = new NSImage(bytes);
+                    _lastNowPlayingArtImage = image;
+                    _lastNowPlayingArtwork = new MPMediaItemArtwork(image.Size, _ => image);
+                }
+                catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+                {
+                    _log.Warning(LogSource, "Media-key artwork could not be decoded: " + ex.Message);
+                }
+            }
+        }
+
+        metadata.Artwork = _lastNowPlayingArtwork;
         center.NowPlaying = metadata;
         center.PlaybackState = playing ? MPNowPlayingPlaybackState.Playing
             : MPNowPlayingPlaybackState.Paused;
@@ -104,6 +131,11 @@ public sealed partial class MainWindow
         }
 
         _mediaTargets.Clear();
+        _lastNowPlayingArtwork?.Dispose();
+        _lastNowPlayingArtwork = null;
+        _lastNowPlayingArtImage?.Dispose();
+        _lastNowPlayingArtImage = null;
+        _lastNowPlayingArtSource = null;
         MPNowPlayingInfoCenter.DefaultCenter.NowPlaying = new MPNowPlayingInfo();
         MPNowPlayingInfoCenter.DefaultCenter.PlaybackState = MPNowPlayingPlaybackState.Stopped;
     }
