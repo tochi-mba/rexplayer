@@ -44,7 +44,7 @@ Totals: 37 rows differ (22 must), 2 not applicable, 0 gaps.
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| VID-01 | Hardware decoding policy | must | verified | planned |  |
+| VID-01 | Hardware decoding policy | must | verified | built |  |
 | VID-04 | Window sizing | must | verified | built |  |
 | VID-05 | Aspect ratio | must | verified | built |  |
 | VID-07 | Zoom & pan | should | verified | built |  |
@@ -60,7 +60,7 @@ Totals: 37 rows differ (22 must), 2 not applicable, 0 gaps.
 | OSD-04 | Dual subtitles | should | verified | built |  |
 | OSD-05 | ASS style policy | must | built | planned |  |
 | OSD-07 | OSD messages | must | verified | built |  |
-| OSD-11 | Kinetic captions | should | verified | planned |  |
+| OSD-11 | Kinetic captions | should | verified | built |  |
 
 ## Playlist, library & persistence
 
@@ -84,7 +84,7 @@ Totals: 37 rows differ (22 must), 2 not applicable, 0 gaps.
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| TOOL-09 | Updater | should | verified | planned |  |
+| TOOL-09 | Updater | should | verified | built |  |
 
 ## Platform integration
 
