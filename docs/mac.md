@@ -112,3 +112,16 @@ panel uses the shared sound settings. Full platform verification and status prom
 **verified** are separate tasks after implementation. See the generated [parity ledger](parity.md)
 for unresolved differences; do not treat the **gap** count in that document as the number of
 outstanding rows.
+
+## Build-first Mac parity progress
+
+Recent work adds a native music stage with cover art, source-timed local lyrics and audio-level
+meter; source-resolution PNG frame saving; video aspect, crop, zoom and pan controls; a Dock menu
+with recent media and transport actions; a Dock playback badge and sleep-aware pausing; configurable
+mouse/trackpad input; and playback-statistics and subtitle overlays. Shared resume, library backup
+and missing-media recovery features now have Mac entry points.
+
+A row marked **built** has code but is not fully proved on macOS. Unimplemented capabilities stay
+**planned**. The extensive visualizer catalogue, speech transcription, system media-key integration,
+updater integrity, and full subtitle typography still need implementation. The snapshot UI currently
+exports PNG; JPEG and BMP controls remain outstanding. See the generated [parity ledger](parity.md).

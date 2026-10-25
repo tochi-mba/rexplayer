@@ -146,7 +146,7 @@
       "oracles": "STORE EVT UIA",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -211,7 +211,7 @@
       "oracles": "FILE FRM",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -1602,7 +1602,7 @@
       "oracles": "",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -1849,7 +1849,7 @@
       "oracles": "UIA PIX",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -1966,7 +1966,7 @@
       "oracles": "UIA FRM",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -1979,7 +1979,7 @@
       "oracles": "PIX (geometry)",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -1992,7 +1992,7 @@
       "oracles": "PIX",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -2005,7 +2005,7 @@
       "oracles": "PIX",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -2252,7 +2252,7 @@
       "oracles": "PIX EVT",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -2317,7 +2317,7 @@
       "oracles": "PIX UIA",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -2343,7 +2343,7 @@
       "oracles": "PIX UIA",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -2369,7 +2369,7 @@
       "oracles": "PIX EVT",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -2408,7 +2408,7 @@
       "oracles": "PIX EVT",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -3253,7 +3253,7 @@
       "oracles": "UIA STORE",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -3266,7 +3266,7 @@
       "oracles": "FILE",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -3461,7 +3461,7 @@
       "oracles": "PIX UIA",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -3474,7 +3474,7 @@
       "oracles": "UIA STORE",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -3487,7 +3487,7 @@
       "oracles": "UIA",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -3526,7 +3526,7 @@
       "oracles": "UIA EVT",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -3775,7 +3775,7 @@
       "oracles": "UIA HW",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -3788,7 +3788,7 @@
       "oracles": "STORE",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -3840,7 +3840,7 @@
       "oracles": "EVT HW",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {

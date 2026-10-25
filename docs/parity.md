@@ -6,7 +6,7 @@ platform while the other catches up; under *locked* every must row is verified o
 applicable with a reason, and CI blocks a release otherwise (ADR-0020). A **gap** is a difference someone has
 accepted for now: its note says why and its issue says who closes it.
 
-Totals: 62 rows differ (40 must), 2 not applicable, 0 gaps.
+Totals: 55 rows differ (34 must), 2 not applicable, 0 gaps.
 
 ## Playback core
 
@@ -14,8 +14,8 @@ Totals: 62 rows differ (40 must), 2 not applicable, 0 gaps.
 |---|---|---|---|---|---|
 | PB-05 | Go to time | must | verified | built |  |
 | PB-10 | Bookmarks (per file) | should | verified | built |  |
-| PB-11 | Resume where you left off | must | verified | planned |  |
-| PB-16 | Snapshot | must | verified | planned |  |
+| PB-11 | Resume where you left off | must | verified | built |  |
+| PB-16 | Snapshot | must | verified | built |  |
 | PB-23 | Start/stop/run time per item | should | built | planned |  |
 | PB-27 | Media key / external control | must | built | planned |  |
 
@@ -38,7 +38,7 @@ Totals: 62 rows differ (40 must), 2 not applicable, 0 gaps.
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| META-09 | Lyrics display | could | verified | planned |  |
+| META-09 | Lyrics display | could | verified | built |  |
 
 ## Audio
 
@@ -51,31 +51,29 @@ Totals: 62 rows differ (40 must), 2 not applicable, 0 gaps.
 | AU-13 | ReplayGain / R128 | should | verified | built |  |
 | AU-15 | Pitch-preserving speed | must | verified | planned |  |
 | AU-18 | Visualisations | should | verified | planned |  |
-| AU-19 | Audio-only presentation | must | verified | planned |  |
+| AU-19 | Audio-only presentation | must | verified | built |  |
 
 ## Video & rendering
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
 | VID-01 | Hardware decoding policy | must | verified | planned |  |
-| VID-04 | Window sizing | must | verified | planned |  |
-| VID-05 | Aspect ratio | must | verified | planned |  |
-| VID-06 | Crop | must | built | planned |  |
-| VID-07 | Zoom & pan | should | verified | planned |  |
-| VID-26 | Title on start | should | verified | planned |  |
+| VID-04 | Window sizing | must | verified | built |  |
+| VID-05 | Aspect ratio | must | verified | built |  |
+| VID-07 | Zoom & pan | should | verified | built |  |
+| VID-26 | Title on start | should | verified | built |  |
 | VID-29 | Power management | must | built | planned |  |
-| VID-31 | Stats overlay | should | verified | planned |  |
+| VID-31 | Stats overlay | should | verified | built |  |
 
 ## Subtitle & OSD rendering
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
 | OSD-01 | Text subtitle style | must | verified | planned |  |
-| OSD-02 | Subtitle scaling keys | must | built | planned |  |
 | OSD-03 | Placement | should | verified | planned |  |
-| OSD-04 | Dual subtitles | should | verified | planned |  |
+| OSD-04 | Dual subtitles | should | verified | built |  |
 | OSD-05 | ASS style policy | must | built | planned |  |
-| OSD-07 | OSD messages | must | verified | planned |  |
+| OSD-07 | OSD messages | must | verified | built |  |
 | OSD-09 | Complex scripts & RTL | must | built | planned |  |
 | OSD-11 | Kinetic captions | should | verified | planned |  |
 
@@ -88,8 +86,8 @@ Totals: 62 rows differ (40 must), 2 not applicable, 0 gaps.
 | LIB-04 | Named playlists | must | verified | built |  |
 | LIB-05 | Media library | must | verified | built |  |
 | LIB-08 | Playlist quick slots | could | verified | built |  |
-| LIB-09 | Missing files | should | verified | planned |  |
-| LIB-10 | Library backup / export | should | verified | planned |  |
+| LIB-09 | Missing files | should | verified | built |  |
+| LIB-10 | Library backup / export | should | verified | built |  |
 
 ## UI surface
 
@@ -98,11 +96,9 @@ Totals: 62 rows differ (40 must), 2 not applicable, 0 gaps.
 | UI-01 | Main window | must | verified | built |  |
 | UI-04 | Fullscreen controller | must | verified | built |  |
 | UI-11 | Hotkey editor | must | verified | built |  |
-| UI-13 | Themes | must | built | planned |  |
-| UI-14 | First run | must | verified | planned |  |
-| UI-15 | What's new | should | verified | planned |  |
+| UI-14 | First run | must | verified | built |  |
+| UI-15 | What's new | should | verified | built |  |
 | UI-17 | In-window confirmations | must | built | planned |  |
-| UI-18 | Mouse & touch | must/should | built | planned |  |
 
 ## Tools, interfaces, extensions & CLI
 
@@ -117,9 +113,6 @@ Totals: 62 rows differ (40 must), 2 not applicable, 0 gaps.
 | WIN-03 | Explorer verbs | must | planned | not-applicable | Explorer verbs are Windows' own; on macOS the Finder's Open With comes from the file associations (WIN-02). |
 | WIN-04 | AutoPlay handlers | should | planned | not-applicable | AutoPlay has no macOS equivalent. |
 | WIN-05 | System Media Transport Controls | must | built | planned |  |
-| WIN-06 | Taskbar | must | built | planned |  |
-| WIN-07 | Jump list | should | built | planned |  |
-| WIN-11 | Power awareness | must | built | planned |  |
 | WIN-14 | Crash recovery | must | verified | planned |  |
 
 ## Accessibility & internationalisation
