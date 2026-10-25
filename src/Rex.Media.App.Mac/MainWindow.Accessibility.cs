@@ -7,6 +7,20 @@ namespace Rex.Media.App.Mac;
 /// </summary>
 public sealed partial class MainWindow
 {
+    /// <summary>For row controls without a tooltip, use the visible sibling label.</summary>
+    private static string? NearbyMacLabel(NSView node)
+    {
+        if (node.Superview is not { } parent) return null;
+        foreach (var sibling in parent.Subviews)
+        {
+            if (ReferenceEquals(sibling, node)) break;
+            if (sibling is NSTextField { Editable: false } label &&
+                !string.IsNullOrWhiteSpace(label.StringValue))
+                return label.StringValue;
+        }
+        return null;
+    }
+
     private static (int Controls, int Missing) NameMacControls()
     {
         var controls = 0;
@@ -37,9 +51,9 @@ public sealed partial class MainWindow
                             NSSearchField search => search.PlaceholderString ?? "Search media",
                             NSTextField input => input.PlaceholderString ?? input.ToolTip,
                             NSTextView editor => editor.ToolTip,
-                            NSControl control => control.ToolTip,
-                            _ => node.ToolTip,
-                        };
+                            NSControl control => control.ToolTip ?? NearbyMacLabel(node),
+                            _ => node.ToolTip ?? NearbyMacLabel(node),
+                         };
                         if (!string.IsNullOrWhiteSpace(name))
                             node.AccessibilityLabel = name;
                     }
