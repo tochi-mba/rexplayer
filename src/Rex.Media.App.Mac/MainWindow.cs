@@ -777,7 +777,7 @@ public sealed partial class MainWindow : IDisposable
     private void OpenTypedLocation(string value)
     {
         var address = value.Trim();
-        if (string.IsNullOrWhiteSpace(address) || address.IndexOfAny(['\\r', '\\n', '\\0']) >= 0)
+        if (string.IsNullOrWhiteSpace(address) || address.IndexOfAny([(char)13, (char)10, (char)0]) >= 0)
         {
             Say("Enter one file path or address.");
             return;
