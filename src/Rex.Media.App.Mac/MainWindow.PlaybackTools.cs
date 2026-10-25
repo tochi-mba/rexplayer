@@ -12,6 +12,7 @@ public sealed partial class MainWindow
     private NSTextField? _bookmarkName;
     private NSTextField? _audioDescription;
     private NSTextField? _audioDelayDescription;
+    private NSTextField? _audioDelayEntry;
     private NSTextField? _playbackToolsTitle;
     private NSButton? _nextAudioTrack;
     private readonly List<NSButton> _bookmarkActions = [];
@@ -63,9 +64,15 @@ public sealed partial class MainWindow
             _nextAudioTrack = NSButton.CreateButton("Next audio track", () => Run(CommandCatalog.CycleAudioTrack));
             _audioDelayDescription = NSTextField.CreateLabel("Audio in sync");
             _audioDelayDescription.Font = NSFont.MonospacedDigitSystemFontOfSize(12, NSFontWeight.Regular)!;
+            _audioDelayEntry = new NSTextField(new CGRect(0, 0, 120, 24))
+            {
+                PlaceholderString = "Milliseconds",
+                ToolTip = "Audio delay from -10000 to 10000 milliseconds",
+            };
             var earlier = NSButton.CreateButton("Earlier 50 ms", () => _player.SetAudioDelay(_player.AudioDelay - TimeSpan.FromMilliseconds(50)));
             var later = NSButton.CreateButton("Later 50 ms", () => _player.SetAudioDelay(_player.AudioDelay + TimeSpan.FromMilliseconds(50)));
             var reset = NSButton.CreateButton("Reset sync", () => _player.SetAudioDelay(TimeSpan.Zero));
+            var apply = NSButton.CreateButton("Set exact delay", SetExactAudioDelay);
             var hint = NSTextField.CreateLabel("Changes apply immediately. Bookmarks stay with this file.");
             hint.TextColor = NSColor.SecondaryLabel;
 
@@ -80,6 +87,7 @@ public sealed partial class MainWindow
                 PlaybackToolsRow(_audioDescription, _nextAudioTrack),
                 _audioDelayDescription,
                 PlaybackToolsRow(earlier, later, reset),
+                PlaybackToolsRow(_audioDelayEntry, apply),
                 hint,
             ]);
             stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
@@ -120,6 +128,19 @@ public sealed partial class MainWindow
         {
             _bookmarkName.StringValue = index >= 0 && index < _player.Bookmarks.Count ? _player.Bookmarks[index].Name : "";
         }
+    }
+
+    private void SetExactAudioDelay()
+    {
+        if (double.TryParse(_audioDelayEntry?.StringValue, NumberStyles.Float,
+            CultureInfo.InvariantCulture, out var milliseconds))
+        {
+            _player.SetAudioDelay(TimeSpan.FromMilliseconds(milliseconds));
+            RefreshPlaybackTools();
+            return;
+        }
+
+        Say("Enter an audio delay in milliseconds, from -10000 to 10000.");
     }
 
     private void RefreshPlaybackTools()
@@ -169,6 +190,7 @@ public sealed partial class MainWindow
         _audioDescription!.StringValue = track is null ? "No audio track" : $"{track.Title ?? track.Language ?? track.Codec.DisplayName()} · {_player.AudioTracks.Count} track(s)";
         _nextAudioTrack!.Enabled = _player.AudioTracks.Count > 1;
         _audioDelayDescription!.StringValue = string.Create(CultureInfo.InvariantCulture, $"Audio delay: {_player.AudioDelay.TotalMilliseconds:+0;-0;0} ms");
+        _audioDelayEntry!.StringValue = _player.AudioDelay.TotalMilliseconds.ToString("0", CultureInfo.InvariantCulture);
     }
 
     private void DisposePlaybackTools()

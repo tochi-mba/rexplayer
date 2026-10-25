@@ -6,7 +6,7 @@ platform while the other catches up; under *locked* every must row is verified o
 applicable with a reason, and CI blocks a release otherwise (ADR-0020). A **gap** is a difference someone has
 accepted for now: its note says why and its issue says who closes it.
 
-Totals: 113 rows differ (87 must), 2 not applicable, 0 gaps.
+Totals: 112 rows differ (86 must), 2 not applicable, 0 gaps.
 
 ## Playback core
 
@@ -18,7 +18,6 @@ Totals: 113 rows differ (87 must), 2 not applicable, 0 gaps.
 | PB-12 | Repeat & shuffle | must | verified | built |  |
 | PB-16 | Snapshot | must | verified | planned |  |
 | PB-17 | Track selection | must | built | planned |  |
-| PB-19 | Audio delay | must | built | planned |  |
 | PB-20 | Subtitle delay & sync | must | built | planned |  |
 | PB-23 | Start/stop/run time per item | should | built | planned |  |
 | PB-27 | Media key / external control | must | built | planned |  |
