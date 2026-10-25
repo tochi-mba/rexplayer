@@ -15,6 +15,8 @@ public sealed partial class MainWindow
     private NSPopUpButton? _updatesCadence;
     private NSButton? _updatesDownload;
     private NSButton? _updatesOpenFolder;
+    private NSButton? _updatesRemind;
+    private NSButton? _updatesSkip;
     private CancellationTokenSource? _updateCancellation;
     private readonly HttpClient _updateHttp = new() { Timeout = TimeSpan.FromMinutes(60) };
     private UpdateOffer? _macUpdateOffer;
@@ -68,12 +70,29 @@ public sealed partial class MainWindow
             _updatesDownload = NSButton.CreateButton("Download & verify", DownloadMacUpdate);
             _updatesOpenFolder = NSButton.CreateButton("Open downloaded ZIP folder", () =>
                 NSWorkspace.SharedWorkspace.OpenUrl(NSUrl.FromFilename(_roots.UpdateFolder)));
+            _updatesRemind = NSButton.CreateButton("Remind me later", () =>
+            {
+                _macUpdateOffer = null;
+                if (_updatesStatus is not null)
+                    _updatesStatus.StringValue = "We'll check again on the next scheduled interval.";
+                RefreshMacUpdateControls();
+            });
+            _updatesSkip = NSButton.CreateButton("Skip this version", () =>
+            {
+                if (_macUpdateOffer is not { } skipped) return;
+                SaveMacUpdatePreferences(_settings with { SkippedUpdateVersion = skipped.Version.ToString() });
+                _macUpdateOffer = null;
+                if (_updatesStatus is not null)
+                    _updatesStatus.StringValue = "Skipped version " + skipped.Version + ".";
+                RefreshMacUpdateControls();
+            });
             var controls = NSStackView.FromViews([check, _updatesDownload, _updatesOpenFolder]);
             controls.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             controls.Spacing = 9;
             var stack = NSStackView.FromViews([
                 heading, intro, EffectChoiceRow("Automatic checks", _updatesCadence),
                 _updatesStatus, controls,
+                PlaybackToolsRow(_updatesRemind, _updatesSkip),
             ]);
             stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
             stack.Alignment = NSLayoutAttribute.Leading;
@@ -137,14 +156,17 @@ public sealed partial class MainWindow
             var offer = UpdateCheck.Offer(json, RunningVersion, MacUpdateAsset);
             OnWindowThread(() =>
             {
-                _macUpdateOffer = offer;
+                _macUpdateOffer = offer is not null &&
+                    offer.Version.ToString() == _settings.SkippedUpdateVersion ? null : offer;
                 SaveMacUpdatePreferences(_settings with { LastUpdateCheck = DateTimeOffset.UtcNow });
                 if (_updatesStatus is not null)
                 {
                     _updatesStatus.StringValue = offer is null
                         ? "No newer universal Mac archive was published."
-                        : "rexplayer " + offer.Version + " is available (" +
-                            (offer.Size / (1024 * 1024)) + " MB).";
+                        : _macUpdateOffer is null
+                            ? "The newest version was skipped in your update preferences."
+                            : "rexplayer " + offer.Version + " is available (" +
+                                (offer.Size / (1024 * 1024)) + " MB).";
                 }
 
                 RefreshMacUpdateControls();
@@ -232,6 +254,8 @@ public sealed partial class MainWindow
         }
 
         _updatesDownload.Enabled = _macUpdateOffer is not null && _updateCancellation is null;
+        if (_updatesRemind is not null) _updatesRemind.Enabled = _macUpdateOffer is not null;
+        if (_updatesSkip is not null) _updatesSkip.Enabled = _macUpdateOffer is not null;
         _updatesOpenFolder.Enabled = _macUpdateOffer is { } offer &&
             File.Exists(Path.Combine(_roots.UpdateFolder, offer.InstallerName));
     }
