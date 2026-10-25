@@ -13,14 +13,14 @@ public sealed class TranscriptFileExportTests
 
     [Fact]
     [Capability("SUB-19")]
-    public void SrtVttAndJsonExportsAreCompleteAndNeverChangeTheOriginalModel()
+    public void SrtVttLrcAndJsonExportsAreCompleteAndNeverChangeTheOriginalModel()
     {
         var folder = Path.Combine(Path.GetTempPath(), "rexplayer-export-" + Guid.NewGuid().ToString("N"));
         try
         {
             Directory.CreateDirectory(folder);
             var original = Example;
-            foreach (var extension in new[] { ".srt", ".vtt", ".json" })
+            foreach (var extension in new[] { ".srt", ".vtt", ".lrc", ".json" })
             {
                 var path = Path.Combine(folder, "words" + extension);
                 TranscriptFileExport.Write(path, original);
@@ -34,6 +34,10 @@ public sealed class TranscriptFileExportTests
                 else if (extension == ".json")
                 {
                     Assert.Contains("\"base.en\"", result, StringComparison.Ordinal);
+                }
+                else if (extension == ".lrc")
+                {
+                    Assert.Contains("[00:01.00]<00:01.00>مرحبا", result, StringComparison.Ordinal);
                 }
                 else
                 {

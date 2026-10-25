@@ -6,7 +6,7 @@ namespace Rex.Media.AppCore.Captions;
 /// <summary>
 /// Atomic transcript export. A model's generated and edited originals are
 /// never modified by exporting, and failed writes cannot publish partial SRT,
-/// VTT or JSON files.
+/// VTT, LRC or JSON files.
 /// </summary>
 public static class TranscriptFileExport
 {
@@ -19,8 +19,9 @@ public static class TranscriptFileExport
         {
             ".srt" => transcript.ToSrt(),
             ".vtt" => transcript.ToWebVtt(),
+            ".lrc" => transcript.ToLrc(),
             ".json" => transcript.ToJson(),
-            _ => throw new NotSupportedException("Choose an SRT, VTT or JSON transcript file."),
+            _ => throw new NotSupportedException("Choose an SRT, VTT, LRC or JSON transcript file."),
         };
         AtomicFile.Write(path, Encoding.UTF8.GetBytes(text));
     }

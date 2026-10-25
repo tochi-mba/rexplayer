@@ -242,6 +242,10 @@
                 HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,55"
                 Canvas.ZIndex="6" Click="OnFindLyrics" AutomationProperties.AutomationId="FindLyrics"
                 ToolTipService.ToolTip="Send this song's title, artist and duration to LRCLIB to look for lyrics" />
+        <Button x:Name="SaveLyricsButton" Content="Save lyrics as LRC" Visibility="Collapsed"
+                HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,55"
+                Canvas.ZIndex="6" Click="OnSaveLyrics" AutomationProperties.AutomationId="SaveLyrics"
+                ToolTipService.ToolTip="Save the displayed lyrics, keeping only timestamps supplied by their source" />
         <!-- Manual navigation pauses lyric autoscroll until the user explicitly resumes it. -->
         <ScrollViewer x:Name="LyricsBox" Visibility="Collapsed" VerticalAlignment="Bottom" Margin="48,0,48,24" MaxWidth="720" CornerRadius="12"
                       VerticalScrollBarVisibility="Auto" IsHitTestVisible="True" AutomationProperties.AutomationId="Lyrics" AutomationProperties.Name="Lyrics">

@@ -11,6 +11,7 @@ using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Transcription;
 using Rex.Media.Codecs.MediaFoundation;
 using Rex.Media.Library;
+using Rex.Media.Primitives;
 using Rex.Media.Settings;
 using Rex.Media.Speech;
 using Rex.Media.Subtitles;
@@ -334,13 +335,18 @@ public sealed partial class MainWindow
         var folders = _library?.Folders ?? [];
         var audiobook = entry is not null && Listening().Audiobooks.Any(book => book.Entries.Any(part =>
             string.Equals(part.Path, entry.Path, StringComparison.OrdinalIgnoreCase)));
+        var speechAudio = entry is not null && ShelfOf(entry) is AudioShelf.Audiobooks or AudioShelf.Podcasts or AudioShelf.Recordings
+            || entry is null && MediaStagePolicy.ShelfFromTags(
+                _player.Info?.Metadata.GetValueOrDefault(MetadataKeys.MediaType),
+                _player.Info?.Metadata.GetValueOrDefault(MetadataKeys.Genre)) is AudioShelf.Audiobooks or AudioShelf.Podcasts;
         Forget(Task.Run(() =>
         {
             var full = _transcripts.Load(item, model.Id);
             var partial = full is null ? _transcripts.LoadPartial(item, model.Id) : null;
             var backgroundEligible = settings.Library && entry is not null
                 && TranscriptionEligibility.Of(entry, settings, folders, _ledger.Find(TranscriptionOrder.Sign(entry)), audiobook) == TranscriptionSkip.None;
-            var wanted = full is null && TranscriptionEligibility.Playing(asked, hasVideo, settings.WhatPlays, backgroundEligible);
+            var wanted = full is null && (hasVideo || speechAudio)
+                && TranscriptionEligibility.Playing(asked, hasVideo, settings.WhatPlays, backgroundEligible);
             var track = full is not null ? full.ToTrack(TranscriptionWorker.TrackName(model.Id))
                 : !wanted && partial is not null ? partial.ToTranscript().ToTrack(TranscriptionWorker.TrackName(model.Id)) : null;
             return (full, track, partial?.Done, partial?.Duration, wanted);
@@ -413,6 +419,17 @@ public sealed partial class MainWindow
         if (_player.Item?.Location is not { } item || !File.Exists(item))
         {
             Say("Open a file to hear its speech first.");
+            return;
+        }
+
+        var entry = _library?.Entry(item);
+        var speechAudio = entry is not null && ShelfOf(entry) is AudioShelf.Audiobooks or AudioShelf.Podcasts or AudioShelf.Recordings
+            || entry is null && MediaStagePolicy.ShelfFromTags(
+                _player.Info?.Metadata.GetValueOrDefault(MetadataKeys.MediaType),
+                _player.Info?.Metadata.GetValueOrDefault(MetadataKeys.Genre)) is AudioShelf.Audiobooks or AudioShelf.Podcasts;
+        if (!HasVideo && !speechAudio)
+        {
+            Say("Songs are not transcribed. Find or save lyrics instead; audiobooks can still be transcribed.");
             return;
         }
 
@@ -520,7 +537,7 @@ public sealed partial class MainWindow
     /// <summary>Asks for files to be heard now, ahead of the rest of the queue.</summary>
     private async Task TranscribeNowAsync(IReadOnlyList<LibraryEntry> entries)
     {
-        var heard = entries.Where(entry => entry.Kind != LibraryKind.Picture).Select(entry => entry.Path).ToList();
+        var heard = entries.Where(SpeechEntry).Select(entry => entry.Path).ToList();
         if (heard.Count == 0)
         {
             Say("There is nothing here with speech to transcribe.");
@@ -583,7 +600,7 @@ public sealed partial class MainWindow
     /// <summary>The library menu's transcription items, for the files chosen or a watched folder.</summary>
     private void AddTranscriptionMenuItems(MenuFlyout menu, IReadOnlyList<LibraryEntry> entries, string? folder)
     {
-        var heard = entries.Where(entry => entry.Kind != LibraryKind.Picture).ToList();
+        var heard = entries.Where(SpeechEntry).ToList();
         if (heard.Count == 0)
         {
             return;
@@ -592,7 +609,7 @@ public sealed partial class MainWindow
         menu.Items.Add(new MenuFlyoutSeparator());
         if (folder is not null)
         {
-            menu.Items.Add(MenuItem("Transcribe this folder now", "LibraryMenuTranscribeFolder", () => Forget(TranscribeNowAsync([.. heard.Where(entry => entry.Kind == LibraryKind.Video)]))));
+            menu.Items.Add(MenuItem("Transcribe this folder now", "LibraryMenuTranscribeFolder", () => Forget(TranscribeNowAsync(heard))));
             var left = _settings.Transcription.Excluded.Contains(folder, StringComparer.OrdinalIgnoreCase);
             menu.Items.Add(MenuItem(left ? "Transcribe this folder in the background again" : "Never transcribe this folder in the background", "LibraryMenuExcludeFolder", () => LeaveOutFolder(folder, !left)));
             return;
@@ -610,6 +627,9 @@ public sealed partial class MainWindow
             menu.Items.Add(MenuItem(heard.Count == 1 ? "Forget its transcript" : "Forget their transcripts", "LibraryMenuForgetTranscript", () => ForgetTranscripts(heard)));
         }
     }
+
+    private bool SpeechEntry(LibraryEntry entry) => entry.Kind == LibraryKind.Video
+        || entry.Kind == LibraryKind.Music && ShelfOf(entry) is AudioShelf.Audiobooks or AudioShelf.Podcasts or AudioShelf.Recordings;
 
     private void LeaveOutFolder(string folder, bool leaveOut)
     {

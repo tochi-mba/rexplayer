@@ -36,7 +36,7 @@ public sealed class LibraryArtworkTests : IDisposable
 
         using var app = _scene.Ready(settings => settings with
         {
-            Transcription = new TranscriptionSettings { Library = true, IncludeMusic = true, OnBattery = true, WhilePlaying = true },
+            Transcription = new TranscriptionSettings { Library = true, OnBattery = true, WhilePlaying = true },
 
             // The layouts picked before: shows as cards, a show's page as a collage. The queue's pill
             // takes the toolbar's room, so the layout menu is not reached for.

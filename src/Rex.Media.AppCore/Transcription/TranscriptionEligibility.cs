@@ -14,7 +14,7 @@ public enum TranscriptionSkip
     /// <summary>A picture: there is nothing to hear.</summary>
     Picture,
 
-    /// <summary>A song, which is sung rather than spoken, unless music is included.</summary>
+    /// <summary>A song, which is sung rather than spoken.</summary>
     Music,
 
     /// <summary>Its details are not read yet; it is looked at again once they are.</summary>
@@ -33,8 +33,8 @@ public enum TranscriptionSkip
 /// <summary>
 /// Which of the library's files are heard in the background (SUB-20). The scope is the whole
 /// library or the chosen folders, less the folders left out; where a chosen folder and a left-out
-/// one hold each other, the one nearer the file wins. Pictures are never heard, songs only when
-/// music is included, and a file that turned out to have no sound is not tried again.
+/// one hold each other, the one nearer the file wins. Pictures and songs are never heard;
+/// audiobooks can be included, and a file without sound is not tried again.
 /// </summary>
 public static class TranscriptionEligibility
 {
@@ -42,10 +42,10 @@ public static class TranscriptionEligibility
     public static readonly TimeSpan Shortest = TimeSpan.FromSeconds(5);
 
     /// <summary>
-    /// Whether the item playing should be heard automatically. A direct request always wins, but
+    /// Whether the item playing should be heard automatically. A direct request for speech wins, but
     /// the broad "what plays" setting applies only to media with pictures: opening a song must not
     /// silently spend processor time turning lyrics into captions. A library item already selected
-    /// by the background policy remains eligible (including music the user explicitly included).
+    /// by the background policy remains eligible (including opted-in audiobooks).
     /// </summary>
     public static bool Playing(bool asked, bool hasPictures, bool whatPlays, bool backgroundEligible) =>
         asked || (hasPictures && whatPlays) || backgroundEligible;
@@ -70,7 +70,7 @@ public static class TranscriptionEligibility
         return Uri.TryCreate(entry.Path, UriKind.Absolute, out var uri) && !uri.IsFile ? TranscriptionSkip.NotLocal
             : !InScope(entry.Path, settings, libraryFolders) ? TranscriptionSkip.OutOfScope
             : entry.Kind == LibraryKind.Picture ? TranscriptionSkip.Picture
-            : entry.Kind == LibraryKind.Music && !settings.IncludeMusic && !(settings.IncludeAudiobooks && audiobook)
+            : entry.Kind == LibraryKind.Music && !(settings.IncludeAudiobooks && audiobook)
                 ? TranscriptionSkip.Music
             : record?.State == TranscriptState.NoSound ? TranscriptionSkip.NoSound
             : !entry.Probed ? TranscriptionSkip.NotReadYet
@@ -83,7 +83,7 @@ public static class TranscriptionEligibility
     {
         TranscriptionSkip.OutOfScope => "Not in the folders chosen for transcription",
         TranscriptionSkip.Picture => "A picture has no speech",
-        TranscriptionSkip.Music => "Music is not transcribed unless you include it in Preferences",
+        TranscriptionSkip.Music => "Songs are not transcribed; audiobooks can be included in Preferences",
         TranscriptionSkip.NotReadYet => "Waiting for the library to read its details",
         TranscriptionSkip.TooShort => "Too short to transcribe",
         TranscriptionSkip.NoSound => "It has no sound to transcribe",

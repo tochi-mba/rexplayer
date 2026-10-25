@@ -312,6 +312,7 @@ public sealed partial class MainWindow
             && _player.Duration is { TotalSeconds: >= 1 and <= 3600 }
             ? Visibility.Visible : Visibility.Collapsed;
         FindLyricsButton.IsEnabled = !_findingLyrics;
+        SaveLyricsButton.Visibility = music && lyrics is not null ? Visibility.Visible : Visibility.Collapsed;
         // Growing media can report a slightly longer duration on each refresh.
         // Rebuilding timed controls every time would repeatedly steal keyboard
         // focus; only rebuild when some lyric becomes (un)seekable.

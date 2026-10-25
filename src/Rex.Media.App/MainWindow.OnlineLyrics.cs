@@ -1,6 +1,9 @@
 using System.Net;
+using System.Text;
 using System.Text.Json;
+using Rex.Media.IO;
 using Rex.Media.AppCore.Player;
+using Windows.Storage.Pickers;
 
 namespace Rex.Media.App;
 
@@ -96,6 +99,41 @@ public sealed partial class MainWindow
                 {
                     ShowPresentation();
                 }
+            }
+        }
+    }
+
+    private async void OnSaveLyrics(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        if (_player.Item is not { } item || _player.Lyrics is not { } lyrics)
+        {
+            return;
+        }
+
+        var picker = Prepared(new FileSavePicker
+        {
+            SuggestedStartLocation = PickerLocationId.MusicLibrary,
+            SuggestedFileName = Path.GetFileNameWithoutExtension(item.Location),
+        });
+        picker.FileTypeChoices.Add("Lyrics (LRC)", [".lrc"]);
+        if (await picker.PickSaveFileAsync() is not { } file)
+        {
+            return;
+        }
+
+        try
+        {
+            await Task.Run(() => AtomicFile.Write(file.Path, Encoding.UTF8.GetBytes(lyrics.ToLrc())));
+            if (!_closed && !_closing)
+            {
+                Say("Saved lyrics to " + file.Path);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            if (!_closed && !_closing)
+            {
+                Say("The lyrics could not be saved: " + ex.Message);
             }
         }
     }

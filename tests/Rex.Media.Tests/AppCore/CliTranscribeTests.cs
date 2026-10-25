@@ -100,6 +100,10 @@ public sealed class CliTranscribeTests : IDisposable
         Assert.Equal("", progress);
         Assert.Contains("<00:00:01.000>at", File.ReadAllText(Path.Combine(_directory, "talk.vtt")), StringComparison.Ordinal);
 
+        var (lrcExit, _, lrcError) = Run(transcriber, "transcribe", film, "--out", Path.Combine(_directory, "talk.lrc"));
+        Assert.Equal((0, ""), (lrcExit, lrcError));
+        Assert.Contains("[00:00.50]<00:00.50>Lonely", File.ReadAllText(Path.Combine(_directory, "talk.lrc")), StringComparison.Ordinal);
+
         // --again hears it afresh, with progress on the error stream; --language is passed on.
         var (fresh, _, heard) = Run(transcriber, "transcribe", film, "--again", "--language", "FR", "--out", Path.Combine(_directory, "talk.json"));
         Assert.Equal(0, fresh);
@@ -161,7 +165,7 @@ public sealed class CliTranscribeTests : IDisposable
 
         var (badOut, _, outError) = Run(new FixedTranscriber("tiny.en"), "transcribe", film, "--model", "tiny.en", "--out", Path.Combine(_directory, "t.txt"));
         Assert.Equal(1, badOut);
-        Assert.Contains("--out takes a .srt, .vtt or .json file", outError, StringComparison.Ordinal);
+        Assert.Contains("--out takes a .srt, .vtt, .lrc or .json file", outError, StringComparison.Ordinal);
 
         var (noTranscript, _, captionsError) = Run(null, "captions", film, "--words", "transcript");
         Assert.Equal(1, noTranscript);
