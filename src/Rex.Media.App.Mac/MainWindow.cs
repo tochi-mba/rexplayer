@@ -234,6 +234,14 @@ public sealed partial class MainWindow : IDisposable
                 case "mac-keyboard":
                     answered.SetResult(ProbeMacKeyboardTraversal());
                     return;
+                case "mac-accessibility":
+                    var (controls, missing) = NameMacControls();
+                    answered.SetResult(new AutomationReply
+                    {
+                        Ok = missing == 0,
+                        Text = $"controls={controls};missing-labels={missing}",
+                    });
+                    return;
                 case "mac-bookmarks":
                     answered.SetResult(BookmarkSmokeAction(request.Id));
                     return;
