@@ -45,6 +45,23 @@
        and runs install_name_tool on it, which fails on Linux ELF libraries.
        Filter only the foreign Linux payloads after NuGet has populated the
        publish list; retain the native osx-arm64/osx-x64 Whisper libraries. -->
+  <!-- The macOS SDK collects native dependencies before ComputeFilesToPublish.
+       A late publish-item filter alone cannot prevent install_name_tool from
+       seeing the Linux ELF libraries. Remove those NuGet assets from the earlier
+       resolution item groups as well, preserving all Apple runtime variants. -->
+  <Target Name="ExcludeLinuxWhisperBeforeBundling"
+          AfterTargets="ResolveReferences"
+          BeforeTargets="_ComputeDynamicLibrariesToPublish">
+    <ItemGroup>
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)"
+          Condition="$([System.String]::Copy('%(ReferenceCopyLocalPaths.Identity)').Replace('\\', '/').Contains('/runtimes/linux-'))" />
+      <NativeCopyLocalItems Remove="@(NativeCopyLocalItems)"
+          Condition="$([System.String]::Copy('%(NativeCopyLocalItems.Identity)').Replace('\\', '/').Contains('/runtimes/linux-'))" />
+      <RuntimeTargetsCopyLocalItems Remove="@(RuntimeTargetsCopyLocalItems)"
+          Condition="$([System.String]::Copy('%(RuntimeTargetsCopyLocalItems.Identity)').Replace('\\', '/').Contains('/runtimes/linux-'))" />
+    </ItemGroup>
+  </Target>
+
   <Target Name="ExcludeLinuxWhisperFromMacBundle"
           AfterTargets="ComputeFilesToPublish"
           BeforeTargets="_ComputeBundleResourceOutputPaths">
