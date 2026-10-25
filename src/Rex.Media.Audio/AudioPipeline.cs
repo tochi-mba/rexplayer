@@ -37,6 +37,10 @@ public sealed class AudioPipeline
 
     private AudioEffects _effects = AudioEffects.None;
     private TimeStretch? _stretch;
+    private PitchSpeed? _pitchSpeed;
+
+    /// <summary>Use WSOLA when true; when false, playback speed also shifts the audible pitch.</summary>
+    public bool PreservePitch { get; set; } = true;
 
     /// <summary>
     /// The speed sound plays at, with its pitch kept (AU-15); set by the audio thread when a run of
@@ -55,6 +59,20 @@ public sealed class AudioPipeline
         if (Speed == 1)
         {
             return Convert(input);
+        }
+
+        if (!PreservePitch)
+        {
+            if (_pitchSpeed is null || _pitchSpeed.Speed != Speed ||
+                !_pitchSpeed.Fits(input.SampleRate, input.Channels))
+            {
+                _pitchSpeed = new PitchSpeed(input.SampleRate, input.Channels, Speed);
+            }
+
+            if (_pitchSpeed.Process(input) is not { } shifted) return null;
+            var output = Convert(shifted);
+            if (!ReferenceEquals(output, shifted)) shifted.Dispose();
+            return output;
         }
 
         // Stretched first, at the media's own rate and layout, before anything else is done to it.
@@ -144,6 +162,7 @@ public sealed class AudioPipeline
     {
         _resampler?.Reset(pts);
         _stretch?.Reset(pts);
+        _pitchSpeed?.Reset(pts);
         _equalizer?.Reset();
     }
 
