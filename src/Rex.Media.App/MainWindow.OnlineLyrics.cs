@@ -19,6 +19,7 @@ public sealed partial class MainWindow
     private async void OnFindLyrics(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
         if (_findingLyrics || _player.Item is not { } item || _player.Lyrics is not null
+            || _stageView.Profile is not (MediaStageProfile.Song or MediaStageProfile.Audio)
             || string.IsNullOrWhiteSpace(_player.Artist) || _player.Duration is not { TotalSeconds: >= 1 and <= 3600 })
         {
             return;

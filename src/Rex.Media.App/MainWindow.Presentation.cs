@@ -301,18 +301,24 @@ public sealed partial class MainWindow
                 LyricsDisplayMode.MixedTimed => "Partly word-timed lyrics; untimed words are shown without invented timing.",
                 _ => _onlineLyricsStatus ?? _player.LyricsProblem ?? "No lyrics found in this song or beside it.",
             };
+        if (lyrics is not null && _onlineLyricsStatus == "Lyrics from LRCLIB." && ReferenceEquals(_onlineLyricsItem, item))
+        {
+            lyricStatus = "Lyrics from LRCLIB. " + lyricStatus;
+        }
+
         if (LyricsStatus.Text != lyricStatus)
         {
             LyricsStatus.Text = lyricStatus ?? "";
         }
 
         LyricsStatus.Visibility = lyricStatus is null ? Visibility.Collapsed : Visibility.Visible;
-        FindLyricsButton.Visibility = music && _settings.ShowLyrics && _player.Info is not null
+        FindLyricsButton.Visibility = stage.Profile is MediaStageProfile.Song or MediaStageProfile.Audio
+            && _settings.ShowLyrics && _player.Info is not null
             && _player.Lyrics is null && !string.IsNullOrWhiteSpace(_player.Artist)
             && _player.Duration is { TotalSeconds: >= 1 and <= 3600 }
             ? Visibility.Visible : Visibility.Collapsed;
         FindLyricsButton.IsEnabled = !_findingLyrics;
-        SaveLyricsButton.Visibility = music && lyrics is not null ? Visibility.Visible : Visibility.Collapsed;
+        SaveLyricsButton.Visibility = lyrics is not null ? Visibility.Visible : Visibility.Collapsed;
         // Growing media can report a slightly longer duration on each refresh.
         // Rebuilding timed controls every time would repeatedly steal keyboard
         // focus; only rebuild when some lyric becomes (un)seekable.
