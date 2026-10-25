@@ -196,6 +196,7 @@ public sealed partial class MainWindow
     private static bool TrySubtitleColour(NSTextField? field, out int rgb)
     {
         var value = field?.StringValue.Trim().TrimStart('#') ?? "";
+        rgb = 0;
         return value.Length == 6 && int.TryParse(value, NumberStyles.HexNumber,
             CultureInfo.InvariantCulture, out rgb);
     }

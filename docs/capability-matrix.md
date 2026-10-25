@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 156 planned, 81 built, 56 verified, 27 post-1.0, 2 not-applicable.
+macOS: 155 planned, 82 built, 56 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -397,7 +397,7 @@ macOS: 156 planned, 81 built, 56 verified, 27 post-1.0, 2 not-applicable.
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
 | A11Y-01 | Named, automatable controls | Every reachable control has an AutomationId + Name/HelpText; a RepositoryTest + UIA tree audit enforce it (house invariant) | M4+ | must | verified | planned |
-| A11Y-02 | Keyboard completeness | Every journey works keyboard-only; visible focus; logical tab order; F6 cycles regions | M4+ | must | built | planned |
+| A11Y-02 | Keyboard completeness | Every journey works keyboard-only; visible focus; logical tab order; F6 cycles regions | M4+ | must | built | built |
 | A11Y-03 | Screen-reader announcements | UIA notification events for play/pause, volume, seek results, track changes, errors; T announces the position | M15 | must | planned | planned |
 | A11Y-04 | High contrast | Every brush key has a high-contrast answer (house parity test) | M15 | must | planned | planned |
 | A11Y-05 | Text scaling & reduced motion | Honours Windows text size and animation settings | M15 | must | planned | planned |

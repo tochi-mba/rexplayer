@@ -31,7 +31,8 @@ public sealed partial class MainWindow
             if (_crashRecovery is { } last && _crashNotice is not null && _crashBanner is not null)
             {
                 _crashNotice.StringValue = "The last session ended unexpectedly. Resume " +
-                    last.Title + " at " + TimeSpan.FromSeconds(Math.Max(0, last.PositionSeconds)).ToString(@"h\:mm\:ss") + "?";
+                    last.Title + " at " + TimeSpan.FromSeconds(Math.Max(0, last.PositionSeconds)).ToString(
+                        @"h\:mm\:ss", System.Globalization.CultureInfo.InvariantCulture) + "?";
                 _crashBanner.Hidden = false;
             }
 

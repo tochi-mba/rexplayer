@@ -1,5 +1,3 @@
-using Rex.Media.AppCore.Player;
-
 namespace Rex.Media.App.Mac;
 
 /// <summary>Native access to playback history and the shared remembered quick slots.</summary>

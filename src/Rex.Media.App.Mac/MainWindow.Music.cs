@@ -1,4 +1,3 @@
-using Rex.Media.AppCore.Commands;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
 

@@ -31,6 +31,7 @@ public sealed class MacAppSmokeTests
     [Capability("UI-09", CapabilityPlatform.MacOS)]
     [Capability("UI-05", CapabilityPlatform.MacOS)]
     [Capability("SUB-16", CapabilityPlatform.MacOS)]
+    [Capability("A11Y-02", CapabilityPlatform.MacOS)]
     [Capability("UI-11", CapabilityPlatform.MacOS)]
     [Capability("LIB-03", CapabilityPlatform.MacOS)]
     [Capability("LIB-04", CapabilityPlatform.MacOS)]
@@ -99,6 +100,10 @@ public sealed class MacAppSmokeTests
                 reply => reply is { Ok: true, Title: not null }, app, root);
             Assert.Contains("h264-aac", handedOver.Title, StringComparison.OrdinalIgnoreCase);
             Assert.False(app.HasExited, "The original player exited when the later launch handed over its file.");
+            var mainKeyboard = await Ask(pipe, new AutomationRequest { Command = "mac-keyboard" });
+            Assert.True(mainKeyboard?.Ok == true, "The Mac main-window keyboard loop failed: " +
+                (mainKeyboard?.Error ?? "no reply") + LogTail(root));
+            Assert.Equal("tab=9;regions=3", mainKeyboard!.Text);
             var logShown = await Ask(pipe, new AutomationRequest { Command = "mac-diagnostics", Id = "show" });
             Assert.True(logShown?.Ok == true, "The Mac log console did not open.");
             var logControls = await Ask(pipe, new AutomationRequest { Command = "mac-diagnostics", Id = "verify-controls" });

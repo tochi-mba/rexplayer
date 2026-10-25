@@ -1,4 +1,3 @@
-using System.Net;
 using Rex.Media.AppCore.Updates;
 using Rex.Media.Settings;
 

@@ -1,4 +1,3 @@
-using Rex.Media.AppCore.Commands;
 using Rex.Media.Primitives;
 
 namespace Rex.Media.App.Mac;

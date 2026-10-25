@@ -1,6 +1,3 @@
-using AppKit;
-using CoreGraphics;
-using Foundation;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Settings;
 using Rex.Media.Subtitles;

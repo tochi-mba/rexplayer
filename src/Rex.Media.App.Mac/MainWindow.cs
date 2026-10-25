@@ -11,7 +11,6 @@ using Rex.Media.Diagnostics;
 using Rex.Media.Engine;
 using Rex.Media.IO;
 using Rex.Media.Library;
-using Rex.Media.Primitives;
 using Rex.Media.Settings;
 using Rex.Media.Video;
 using Rex.Media.Video.Metal;
@@ -215,6 +214,9 @@ public sealed partial class MainWindow : IDisposable
                     }
 
                     break;
+                case "mac-keyboard":
+                    answered.SetResult(ProbeMacKeyboardTraversal());
+                    return;
                 case "mac-diagnostics":
                     answered.SetResult(DiagnosticsSmokeAction(request.Id, request.Path));
                     return;
@@ -399,6 +401,7 @@ public sealed partial class MainWindow : IDisposable
         queue.NextKeyView = _volume;
         _volume.NextKeyView = _seek;
         _seek.NextKeyView = previous;
+        SetMainKeyViews(previous, _playPause, stop, next, open, library, queue, _volume, _seek);
         ((NSView)_seek).AccessibilityLabel = "Playback position";
         ((NSView)_volume).AccessibilityLabel = "Playback volume";
         ((NSView)_playPause).AccessibilityLabel = "Play or pause playback";

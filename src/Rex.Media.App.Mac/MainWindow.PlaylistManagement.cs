@@ -1,5 +1,3 @@
-using Rex.Media.AppCore.Commands;
-
 namespace Rex.Media.App.Mac;
 
 /// <summary>Native saved-playlist editing and file import/export over shared playlist storage.</summary>
