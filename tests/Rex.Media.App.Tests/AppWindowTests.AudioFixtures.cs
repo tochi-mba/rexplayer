@@ -1,4 +1,4 @@
-using Rex.Media.Primitives;
+using System.IO;
 using Rex.Media.TestKit;
 
 namespace Rex.Media.App.Tests;
