@@ -73,8 +73,8 @@ public static class UpdateCheck
             {
                 if (asset.TryGetProperty("name", out var name) && asset.TryGetProperty("browser_download_url", out var url)
                     && Uri.TryCreate(url.GetString(), UriKind.Absolute, out var link) && link.Scheme == Uri.UriSchemeHttps
-                    && link.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase)
-                    && link.AbsolutePath.StartsWith($"/tochi-mba/rexplayer/releases/download/", StringComparison.OrdinalIgnoreCase))
+                    && (assetName is null || link.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase)
+                        && link.AbsolutePath.StartsWith("/tochi-mba/rexplayer/releases/download/", StringComparison.OrdinalIgnoreCase)))
                 {
                     if (name.GetString() == installerName)
                     {
