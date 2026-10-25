@@ -1,10 +1,8 @@
 # Changelog
 
-Every version of rexplayer that reaches users, newest first. A version is published by the CI
-pipeline the moment its number reaches `main`.
+Every version of rexplayer that reaches users, newest first. CI publishes a version when its number reaches `main`.
 
 ## Unreleased
-
 ## 0.31.0 - 2026-10-25
 ### Added
 - **Native macOS playback and library parity (#555).** Expanded AppKit controls for media information, bookmarks, the queue and named playlists, library folders and backup/restore, context commands, configurable shortcuts, precise audio and subtitle sync, overlays, video sizing, local pictures and first-run guidance.

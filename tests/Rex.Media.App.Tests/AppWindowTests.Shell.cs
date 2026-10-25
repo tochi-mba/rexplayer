@@ -42,7 +42,12 @@ public sealed partial class AppWindowTests
             return null;
         });
         picker.Collapse();
-        Assert.Equal(PreferencesSections, offered);
+        // WinUI virtualizes long ComboBox popups: UI Automation only exposes the
+        // visible prefix of the 15 choices at a time, not all of their offscreen
+        // list items. Verify the offered order here; the loop below selects
+        // every section and checks that its unique page actually appears.
+        Assert.NotEmpty(offered);
+        Assert.Equal(PreferencesSections.Take(offered.Length), offered);
 
         foreach (var section in PreferencesSections)
         {
