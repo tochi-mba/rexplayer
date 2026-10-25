@@ -553,6 +553,23 @@ public sealed partial class MainWindow : IDisposable
             case CommandCatalog.OpenFile or CommandCatalog.OpenFolder:
                 OpenWithPanel(folders: command == CommandCatalog.OpenFolder);
                 return true;
+            case CommandCatalog.OpenLocation:
+                OpenLocationDialog();
+                return true;
+            case CommandCatalog.PasteLocation:
+                OpenPastedLocation();
+                return true;
+            case CommandCatalog.TogglePlaylist:
+                if (_queueWindow?.IsVisible == true)
+                {
+                    _queueWindow.OrderOut(null);
+                }
+                else
+                {
+                    ShowQueue();
+                }
+
+                return true;
             case CommandCatalog.Quit:
                 NSApplication.SharedApplication.Terminate(null);
                 return true;
@@ -722,6 +739,51 @@ public sealed partial class MainWindow : IDisposable
         {
             _player.Open(panel.Urls.Select(url => url.Path!).ToList());
         }
+    }
+
+    /// <summary>Opens a typed file or network stream address through the shared source factory.</summary>
+    private void OpenLocationDialog()
+    {
+        using var entry = new NSTextField(new CGRect(0, 0, 380, 24))
+        {
+            PlaceholderString = "https://example.org/media.mp4 or file path",
+        };
+        using var dialog = new NSAlert
+        {
+            MessageText = "Open a network or file location",
+            InformativeText = "Enter a file path or a stream URL. rexplayer opens the address only when you choose Open.",
+            AccessoryView = entry,
+        };
+        dialog.AddButton("Open");
+        dialog.AddButton("Cancel");
+        if (dialog.RunModal() == 1000)
+        {
+            OpenTypedLocation(entry.StringValue);
+        }
+    }
+
+    private void OpenPastedLocation()
+    {
+        var value = NSPasteboard.GeneralPasteboard.GetStringForType(NSPasteboard.NSPasteboardTypeString);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            Say("The clipboard does not contain a file path or address.");
+            return;
+        }
+
+        OpenTypedLocation(value);
+    }
+
+    private void OpenTypedLocation(string value)
+    {
+        var address = value.Trim();
+        if (string.IsNullOrWhiteSpace(address) || address.IndexOfAny(['\\r', '\\n', '\\0']) >= 0)
+        {
+            Say("Enter one file path or address.");
+            return;
+        }
+
+        _player.Open([address]);
     }
 
     private void AddSubtitleWithPanel()
