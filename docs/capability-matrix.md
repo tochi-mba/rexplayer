@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 170 planned, 67 built, 56 verified, 27 post-1.0, 2 not-applicable.
+macOS: 166 planned, 71 built, 56 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -33,7 +33,7 @@ macOS: 170 planned, 67 built, 56 verified, 27 post-1.0, 2 not-applicable.
 | PB-20 | Subtitle delay & sync | ±50 ms steps (G/H); speed/FPS factor; three-key sync-by-bookmark (mark audio, mark subtitle, apply); reset | M5 | must | built | built |
 | PB-21 | Sleep timer | Stop or pause after N minutes or at the end of the current item, with a fade-out | M6 | should | verified | verified |
 | PB-22 | Play-and-exit / play-and-stop / play-and-pause | CLI and settings | M4 | must | verified | verified |
-| PB-23 | Start/stop/run time per item | `--start`, `--stop`, `--run-time`; per-item options in the playlist | M4 | should | built | planned |
+| PB-23 | Start/stop/run time per item | `--start`, `--stop`, `--run-time`; per-item options in the playlist | M4 | should | built | built |
 | PB-24 | Corrupt-file resilience | Skip bad access units, keep playing other streams, rebuild a missing MP4/AVI index by scanning (with progress) | M3/M7 | must | planned | planned |
 | PB-25 | Instant start | Cold start under 300 ms to UI; open to first frame under 500 ms on the hardware lane | M15 | must | planned | planned |
 | PB-26 | Scrubbing preview | Seek-bar thumbnail preview generated off-thread from keyframes and cached | M11 | should | planned | planned |
@@ -132,7 +132,7 @@ macOS: 170 planned, 67 built, 56 verified, 27 post-1.0, 2 not-applicable.
 | SUB-15 | Character encoding | BOM/UTF-8 detection, heuristic detector, fallback setting (system ANSI default) with an explicit list (Windows-125x, ISO-8859-x, Shift-JIS, EUC-KR, GB18030, Big5, KOI8-R/U, UTF-16) | M5 | must | built | built |
 | SUB-16 | Drop a subtitle file on the video | Loads it as a subtitle track and selects it | M5 | must | verified | verified |
 | SUB-17 | Online subtitle search | Extension point only (§6.12); no service hard-wired in core | M14 | could | planned | planned |
-| SUB-18 | Word timing | WebVTT cue timestamps and ASS karaoke tags (\k, \K, \kf, \ko) time the runs of a cue; a cue splits into words with the time each is spoken | M16 | should | verified | planned |
+| SUB-18 | Word timing | WebVTT cue timestamps and ASS karaoke tags (\k, \K, \kf, \ko) time the runs of a cue; a cue splits into words with the time each is spoken | M16 | should | verified | built |
 | SUB-19 | Local transcription | A transcript of the speech with word timestamps, made on this computer by a downloaded speech model (never bundled, permissive licence only); joins the track list as "Transcript", cached per file, exportable as SRT/VTT | M16 | should | verified | planned |
 | SUB-20 | Library transcription | Transcribes eligible library files ahead of time at low priority, with pause, retry and per-file progress | M16 | should | verified | planned |
 | SUB-21 | Progressive transcription from the playhead | Hears the part being played first, fills the subtitle buffer piece by piece and then completes the rest | M16 | should | verified | planned |
@@ -226,7 +226,7 @@ macOS: 170 planned, 67 built, 56 verified, 27 post-1.0, 2 not-applicable.
 | VID-26 | Title on start | OSD shows the title for 3 s (configurable, can be disabled), position setting | M4 | should | verified | built |
 | VID-27 | Always on top | Never / always / while playing | M4 | must | verified | verified |
 | VID-28 | Picture-in-picture | Compact always-on-top mini window with minimal controls | M15 | should | planned | planned |
-| VID-29 | Power management | Display stays awake while video plays; audio-only blocks system sleep but not the screen saver; released when paused or stopped | M4 | must | built | planned |
+| VID-29 | Power management | Display stays awake while video plays; audio-only blocks system sleep but not the screen saver; released when paused or stopped | M4 | must | built | built |
 | VID-30 | Frame export | Export the current frame, or every Nth frame of a range, to images | M11 | could | planned | planned |
 | VID-31 | Stats overlay | Decoder (own/MF/hardware), resolution, fps, dropped/late, A/V offset, bitrates, buffer, colour info | M4 | should | verified | built |
 
@@ -388,7 +388,7 @@ macOS: 170 planned, 67 built, 56 verified, 27 post-1.0, 2 not-applicable.
 | WIN-11 | Power awareness | VID-29 power requests; pause on sleep, re-open devices on resume | M4/M11 | must | built | built |
 | WIN-12 | Architectures | x64 (M); ARM64 native (S) through cross-platform `Vector128` SIMD paths | M0/M15 | must/should | planned | planned |
 | WIN-13 | Minimum OS | Windows 10 1809 (build 17763) and Windows 11; Windows 11 is the primary target | M0 | must | built | built |
-| WIN-14 | Crash recovery | Global handlers (house), "rexplayer closed unexpectedly - resume where you were?" on next start, opt-in local minidumps, nothing uploaded | M4 | must | verified | planned |
+| WIN-14 | Crash recovery | Global handlers (house), "rexplayer closed unexpectedly - resume where you were?" on next start, opt-in local minidumps, nothing uploaded | M4 | must | verified | built |
 | WIN-15 | Share / "Open with" from apps | - | post | could | post-1.0 | post-1.0 |
 | WIN-16 | URL protocol handler | Deliberately not registered (attack surface without user value) | - | wont | post-1.0 | post-1.0 |
 

@@ -125,3 +125,16 @@ A row marked **built** has code but is not fully proved on macOS. Unimplemented 
 **planned**. The extensive visualizer catalogue, speech transcription, system media-key integration,
 updater integrity, and full subtitle typography still need implementation. The snapshot UI currently
 exports PNG; JPEG and BMP controls remain outstanding. See the generated [parity ledger](parity.md).
+
+## Second implementation pass
+
+The native queue now edits start, end and run-time per entry. On every active session the Mac
+writes a local crash checkpoint, removes it on clean shutdown and offers a nonmodal resume
+prompt after an interruption. The app also holds appropriately scoped macOS process activities
+while video or music plays, and drops them when playback stops. The subtitle overlay honours
+source-provided per-run word timings and exposes controls for font, colour, opacity, weight,
+margin and style policy. The styling work is partial: complete embedded-style, outlined/shadowed
+text, letterbox placement and kinetic-caption parity are still planned.
+
+All newly advanced capabilities are recorded as **built**, not verified. No full Mac parity
+verification has been performed as part of this implementation batch.

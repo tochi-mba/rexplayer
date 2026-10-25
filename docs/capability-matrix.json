@@ -302,7 +302,7 @@
       "oracles": "FRM CLI",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -1329,7 +1329,7 @@
       "oracles": "",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -2291,7 +2291,7 @@
       "oracles": "EVT HW",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -3879,7 +3879,7 @@
       "oracles": "EVT STORE",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {

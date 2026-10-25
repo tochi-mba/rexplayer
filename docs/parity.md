@@ -6,7 +6,7 @@ platform while the other catches up; under *locked* every must row is verified o
 applicable with a reason, and CI blocks a release otherwise (ADR-0020). A **gap** is a difference someone has
 accepted for now: its note says why and its issue says who closes it.
 
-Totals: 55 rows differ (34 must), 2 not applicable, 0 gaps.
+Totals: 53 rows differ (33 must), 2 not applicable, 0 gaps.
 
 ## Playback core
 
@@ -16,7 +16,6 @@ Totals: 55 rows differ (34 must), 2 not applicable, 0 gaps.
 | PB-10 | Bookmarks (per file) | should | verified | built |  |
 | PB-11 | Resume where you left off | must | verified | built |  |
 | PB-16 | Snapshot | must | verified | built |  |
-| PB-23 | Start/stop/run time per item | should | built | planned |  |
 | PB-27 | Media key / external control | must | built | planned |  |
 
 ## Formats: Audio decoders
@@ -29,7 +28,7 @@ Totals: 55 rows differ (34 must), 2 not applicable, 0 gaps.
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| SUB-18 | Word timing | should | verified | planned |  |
+| SUB-18 | Word timing | should | verified | built |  |
 | SUB-19 | Local transcription | should | verified | planned |  |
 | SUB-20 | Library transcription | should | verified | planned |  |
 | SUB-21 | Progressive transcription from the playhead | should | verified | planned |  |
@@ -62,7 +61,6 @@ Totals: 55 rows differ (34 must), 2 not applicable, 0 gaps.
 | VID-05 | Aspect ratio | must | verified | built |  |
 | VID-07 | Zoom & pan | should | verified | built |  |
 | VID-26 | Title on start | should | verified | built |  |
-| VID-29 | Power management | must | built | planned |  |
 | VID-31 | Stats overlay | should | verified | built |  |
 
 ## Subtitle & OSD rendering
@@ -113,7 +111,7 @@ Totals: 55 rows differ (34 must), 2 not applicable, 0 gaps.
 | WIN-03 | Explorer verbs | must | planned | not-applicable | Explorer verbs are Windows' own; on macOS the Finder's Open With comes from the file associations (WIN-02). |
 | WIN-04 | AutoPlay handlers | should | planned | not-applicable | AutoPlay has no macOS equivalent. |
 | WIN-05 | System Media Transport Controls | must | built | planned |  |
-| WIN-14 | Crash recovery | must | verified | planned |  |
+| WIN-14 | Crash recovery | must | verified | built |  |
 
 ## Accessibility & internationalisation
 
