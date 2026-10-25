@@ -200,7 +200,7 @@ hardware-disable option, and separate hardware H.264/HEVC choices for subsequent
 videos. These choices pass through shared settings, the decoder factory, and VideoToolbox's
 documented decoder specification. When disabled for a codec, VideoToolbox is explicitly
 requested to decode it in software. Automatic hardware selection is otherwise permitted.
-The statistics overlay reports the *configured per-codec policy*, not an unproven claim
-about which device decoded a frame. Recovery evidence, detailed actual decoder hardware
-statistics, and complete zero-copy handling are still missing, so VID-01 remains
-**planned** rather than being marked complete prematurely.
+The statistics overlay reports both the *configured per-codec policy* and the decoder's
+reported source (hardware, software, or rexplayer). Recovery/fallback reasoning when a
+requested hardware decoder is unavailable and complete zero-copy handling remain missing,
+so VID-01 stays **planned** rather than being marked complete prematurely.
