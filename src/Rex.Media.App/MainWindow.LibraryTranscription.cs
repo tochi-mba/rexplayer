@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
 using Rex.Media.AppCore;
+using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Captions;
 using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Transcription;

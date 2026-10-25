@@ -142,7 +142,7 @@ public sealed class TranscriptionPolicyTests
         Assert.Equal([outside.Path, partial.Path, watching.Path, newest.Path, middle.Path, old.Path, twin.Path], queue.Select(file => file.Path));
         Assert.Equal([true, false, false, false, false, false, false], queue.Select(file => file.Asked));
         Assert.Equal(0.25, queue[1].Share);
-        Assert.Equal(TimeSpan.FromMinutes(40 * 7) + TimeSpan.FromMinutes(30), TranscriptionOrder.SoundLeft(queue));
+        Assert.Equal(TimeSpan.FromMinutes(40 * 6) + TimeSpan.FromMinutes(30), TranscriptionOrder.SoundLeft(queue));
 
         // Off: only what was asked.
         Assert.Equal([middle.Path], Order(settings with { Library = false }, middle.Path).Select(file => file.Path));
