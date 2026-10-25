@@ -143,10 +143,17 @@ public sealed partial class MainWindow
             ApplyVideoEffect(_settings.VideoEffect, _settings.VideoEffectStrength);
         }
 
-        foreach (var list in new Microsoft.UI.Xaml.Controls.ListViewBase[] { LibraryList, PlaylistView, LibrarySources })
+        foreach (var list in new Microsoft.UI.Xaml.Controls.ListViewBase[] { LibraryList, PlaylistView })
         {
             ShowListAnimations(list, budget.Animations);
         }
+
+        // The navigation list changes its item template when the rail collapses or
+        // temporarily expands. Entrance transitions can leave its re-created items
+        // painted at an intermediate opacity, even when the rail has its final size.
+        // Navigation is persistent, not a scrolling result list: show its items
+        // immediately in every performance mode, including screenshot capture.
+        ShowListAnimations(LibrarySources, false);
 
         if (_visualizing && before.VisualMaxSide != budget.VisualMaxSide)
         {
