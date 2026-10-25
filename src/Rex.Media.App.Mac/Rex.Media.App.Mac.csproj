@@ -40,4 +40,19 @@
     <Content Include="..\\..\\CHANGELOG.md" Link="CHANGELOG.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- NuGet's Whisper CPU package carries native files for Linux as well as macOS.
+       The macOS bundler treats every .so in the publish list as a Mach-O library
+       and runs install_name_tool on it, which fails on Linux ELF libraries.
+       Filter only the foreign Linux payloads after NuGet has populated the
+       publish list; retain the native osx-arm64/osx-x64 Whisper libraries. -->
+  <Target Name="ExcludeLinuxWhisperFromMacBundle"
+          AfterTargets="ComputeFilesToPublish"
+          BeforeTargets="_ComputeBundleResourceOutputPaths">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+          Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\\', '/').StartsWith('runtimes/linux-'))" />
+    </ItemGroup>
+  </Target>
+
+
 </Project>
