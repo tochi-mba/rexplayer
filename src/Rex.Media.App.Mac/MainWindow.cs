@@ -140,6 +140,7 @@ public sealed partial class MainWindow : IDisposable
         DisposeStartupGuidance();
         DisposeStats();
         DisposeMusicPresentation();
+        DisposeMusicVisualizers();
         EndCrashRecovery();
         DisposePlaybackActivity();
         StopMediaControls();
@@ -527,6 +528,7 @@ public sealed partial class MainWindow : IDisposable
         app.AddItem(Entry(CommandCatalog.KeyboardAndMouse, "Keyboard shortcuts…"));
         app.AddItem(new NSMenuItem("Named playlists…", (_, _) => ShowSavedPlaylists()));
         app.AddItem(Entry(CommandCatalog.Effects, "Effects & filters…"));
+        app.AddItem(new NSMenuItem("Audio visualisations…", (_, _) => ShowMusicVisualizers()));
         app.AddItem(new NSMenuItem("Tracks & subtitle sync…", (_, _) => ShowTrackTools()));
         app.AddItem(new NSMenuItem("Subtitle appearance…", (_, _) => ShowSubtitleStyle()));
         app.AddItem(new NSMenuItem("Software updates…", (_, _) => ShowMacUpdates()));
