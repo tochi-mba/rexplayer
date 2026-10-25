@@ -7,6 +7,7 @@ public sealed partial class MainWindow
     private NSPopUpButton? _recentPicker;
     private NSTextField? _recentSummary;
     private readonly List<NSButton> _quickSlotOpenButtons = [];
+    private readonly List<NSButton> _quickSlotSaveButtons = [];
 
     private void ShowHistory()
     {
@@ -66,6 +67,7 @@ public sealed partial class MainWindow
                     _player.SetSlot(slot);
                     RefreshHistory();
                 });
+                _quickSlotSaveButtons.Add(saveSlot);
                 var row = NSStackView.FromViews([openSlot, saveSlot]);
                 row.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
                 row.Spacing = 8;
@@ -131,5 +133,32 @@ public sealed partial class MainWindow
         _historyWindow?.Close();
         _historyWindow?.Dispose();
         _historyWindow = null;
+    }
+
+    private Rex.Media.AppCore.Automation.AutomationReply QuickSlotSmokeAction(string? action)
+    {
+        ShowHistory();
+        switch (action)
+        {
+            case "save-one":
+                _quickSlotSaveButtons[0].PerformClick(_quickSlotSaveButtons[0]);
+                break;
+            case "open-one":
+                _quickSlotOpenButtons[0].PerformClick(_quickSlotOpenButtons[0]);
+                break;
+            case "status":
+                break;
+            default:
+                return Rex.Media.AppCore.Automation.AutomationReply.Failed("Unknown quick-slot action: " + action);
+        }
+
+        RefreshHistory();
+        var slot = _player.Memory.Slot(1);
+        return new Rex.Media.AppCore.Automation.AutomationReply
+        {
+            Ok = true,
+            Text = slot is null ? "empty" : Path.GetFileName(slot.Location),
+            Position = _player.Position.TotalSeconds,
+        };
     }
 }

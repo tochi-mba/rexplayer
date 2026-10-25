@@ -37,6 +37,7 @@ public sealed class MacAppSmokeTests
     [Capability("PB-11", CapabilityPlatform.MacOS)]
     [Capability("AU-06", CapabilityPlatform.MacOS)]
     [Capability("LIB-04", CapabilityPlatform.MacOS)]
+    [Capability("LIB-08", CapabilityPlatform.MacOS)]
     [Capability("UI-11", CapabilityPlatform.MacOS)]
     [Capability("LIB-03", CapabilityPlatform.MacOS)]
     [Capability("LIB-04", CapabilityPlatform.MacOS)]
@@ -241,6 +242,12 @@ public sealed class MacAppSmokeTests
             Assert.True(sought?.Ok == true && sought.Position is >= 0.2 and <= 0.5,
                 "The Mac did not seek to the requested playback time: " +
                 (sought?.Error ?? "unexpected position"));
+            var slotSaved = await Ask(pipe, new AutomationRequest { Command = "mac-quick-slots", Id = "save-one" });
+            Assert.Contains("h264-aac", slotSaved?.Text, StringComparison.OrdinalIgnoreCase);
+            await Ask(pipe, new AutomationRequest { Command = "seek", To = 0 });
+            var slotOpened = await Ask(pipe, new AutomationRequest { Command = "mac-quick-slots", Id = "open-one" });
+            Assert.True(slotOpened?.Position is >= 0.2 and <= 0.5,
+                "The native quick slot did not reopen its saved playback position.");
             var bookmarkAdded = await Ask(pipe, new AutomationRequest { Command = "mac-bookmarks", Id = "add" });
             Assert.Equal("Mac moment", bookmarkAdded?.Text);
             var bookmarkRenamed = await Ask(pipe, new AutomationRequest { Command = "mac-bookmarks", Id = "rename" });

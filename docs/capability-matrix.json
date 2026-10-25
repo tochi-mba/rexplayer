@@ -3240,7 +3240,7 @@
       "oracles": "EVT",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
