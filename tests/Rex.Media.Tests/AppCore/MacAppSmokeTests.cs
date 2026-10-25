@@ -34,6 +34,7 @@ public sealed class MacAppSmokeTests
     [Capability("A11Y-02", CapabilityPlatform.MacOS)]
     [Capability("PB-05", CapabilityPlatform.MacOS)]
     [Capability("PB-10", CapabilityPlatform.MacOS)]
+    [Capability("PB-11", CapabilityPlatform.MacOS)]
     [Capability("UI-11", CapabilityPlatform.MacOS)]
     [Capability("LIB-03", CapabilityPlatform.MacOS)]
     [Capability("LIB-04", CapabilityPlatform.MacOS)]
@@ -201,6 +202,25 @@ public sealed class MacAppSmokeTests
             Assert.True(opened?.Ok == true, "The app did not acknowledge the open request: " + (opened?.Error ?? "no reply") + ". Its log ends:" + LogTail(root));
             var playing = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Title: not null, State: "Playing" or "Ended" or "Paused" }, app, root);
             Assert.False(string.IsNullOrWhiteSpace(playing.Title), "The app opened the video but reports no title.");
+            await Ask(pipe, new AutomationRequest { Command = "mac-resume", Id = "offer" });
+            var resumeOffer = await Until(
+                () => Ask(pipe, new AutomationRequest { Command = "mac-resume", Id = "status" }),
+                reply => reply?.Text?.Contains("mode=Ask;pending=15;visible=True", StringComparison.Ordinal) == true,
+                app, root);
+            Assert.Contains("remembered=15", resumeOffer.Text, StringComparison.Ordinal);
+            var resumed = await Ask(pipe, new AutomationRequest { Command = "mac-resume", Id = "accept" });
+            Assert.Contains("pending=none;visible=False", resumed?.Text, StringComparison.Ordinal);
+            await Ask(pipe, new AutomationRequest { Command = "mac-resume", Id = "offer" });
+            await Until(
+                () => Ask(pipe, new AutomationRequest { Command = "mac-resume", Id = "status" }),
+                reply => reply?.Text?.Contains("visible=True", StringComparison.Ordinal) == true,
+                app, root);
+            var startedOver = await Ask(pipe, new AutomationRequest { Command = "mac-resume", Id = "start-over" });
+            Assert.Contains("pending=none;visible=False;remembered=none", startedOver?.Text, StringComparison.Ordinal);
+            var neverResume = await Ask(pipe, new AutomationRequest { Command = "mac-resume", Id = "never" });
+            Assert.Contains("mode=Never;pending=none;visible=False", neverResume?.Text, StringComparison.Ordinal);
+            var alwaysResume = await Ask(pipe, new AutomationRequest { Command = "mac-resume", Id = "always" });
+            Assert.Contains("mode=Always;pending=none;visible=False", alwaysResume?.Text, StringComparison.Ordinal);
             var sought = await Ask(pipe, new AutomationRequest { Command = "seek", To = 0.25 });
             Assert.True(sought?.Ok == true && sought.Position is >= 0.2 and <= 0.5,
                 "The Mac did not seek to the requested playback time: " +

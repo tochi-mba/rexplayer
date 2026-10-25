@@ -146,7 +146,7 @@
       "oracles": "STORE EVT UIA",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {

@@ -52,6 +52,8 @@ public sealed partial class MainWindow : IDisposable
     private NSStackView? _welcome;
     private NSStackView? _resumeBanner;
     private NSTextField? _resumeNotice;
+    private NSButton? _resumeAccept;
+    private NSButton? _resumeStartOver;
     private bool _moving;
 
     public MainWindow(DataRoots roots, RexLog log)
@@ -225,6 +227,9 @@ public sealed partial class MainWindow : IDisposable
                     return;
                 case "mac-bookmarks":
                     answered.SetResult(BookmarkSmokeAction(request.Id));
+                    return;
+                case "mac-resume":
+                    answered.SetResult(ResumeSmokeAction(request.Id));
                     return;
                 case "mac-diagnostics":
                     answered.SetResult(DiagnosticsSmokeAction(request.Id, request.Path));
@@ -421,11 +426,13 @@ public sealed partial class MainWindow : IDisposable
         _resumeNotice = NSTextField.CreateLabel("Continue where you stopped?");
         _resumeNotice.TextColor = NSColor.SecondaryLabel;
         var acceptResume = NSButton.CreateButton("Resume", () => _player.AcceptResume());
+        _resumeAccept = acceptResume;
         var restartResume = NSButton.CreateButton("Start over", () =>
         {
             _player.DismissPendingResume();
             _player.StartOver();
         });
+        _resumeStartOver = restartResume;
         _resumeBanner = NSStackView.FromViews([_resumeNotice, acceptResume, restartResume]);
         _resumeBanner.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
         _resumeBanner.Spacing = 8;
@@ -663,6 +670,55 @@ public sealed partial class MainWindow : IDisposable
         RefreshTrackTools();
         RefreshHistory();
         RefreshMusicPresentation();
+    }
+
+    /// <summary>Exercise the native, nonmodal resume offer and its two real buttons.</summary>
+    private AutomationReply ResumeSmokeAction(string? action)
+    {
+        if (_player.Item is not { } item)
+        {
+            return AutomationReply.Failed("Open media before checking resume behavior.");
+        }
+
+        switch (action)
+        {
+            case "offer":
+                _settings = _settings with { ResumeMode = ResumeBehavior.Ask };
+                _player.Settings = _settings;
+                _player.Memory.Left(item.Location, TimeSpan.FromSeconds(15), TimeSpan.Zero);
+                _player.Open([item.Location]);
+                break;
+            case "accept":
+                _resumeAccept?.PerformClick(_resumeAccept);
+                break;
+            case "start-over":
+                _resumeStartOver?.PerformClick(_resumeStartOver);
+                break;
+            case "always":
+                _settings = _settings with { ResumeMode = ResumeBehavior.Always };
+                _player.Settings = _settings;
+                _player.Memory.Left(item.Location, TimeSpan.FromSeconds(15), TimeSpan.Zero);
+                _player.Open([item.Location]);
+                break;
+            case "never":
+                _settings = _settings with { ResumeMode = ResumeBehavior.Never };
+                _player.Settings = _settings;
+                _player.Memory.Left(item.Location, TimeSpan.FromSeconds(15), TimeSpan.Zero);
+                _player.Open([item.Location]);
+                break;
+            case "status":
+                break;
+            default:
+                return AutomationReply.Failed("Unknown resume action: " + action);
+        }
+
+        ShowState();
+        return new AutomationReply
+        {
+            Ok = true,
+            Text = $"mode={_settings.ResumeMode};pending={_player.PendingResumeAt?.TotalSeconds.ToString(CultureInfo.InvariantCulture) ?? "none"};visible={_resumeBanner?.Hidden == false};remembered={_player.Memory.ResumePoint(item.Location)?.TotalSeconds.ToString(CultureInfo.InvariantCulture) ?? "none"}",
+            Position = _player.Position.TotalSeconds,
+        };
     }
 
     private void ShowPosition()
