@@ -222,66 +222,12 @@ public sealed partial class MainWindow
             return;
         }
 
-        using var box = new NSTextField(new CGRect(0, 0, 240, 24))
-        {
-            StringValue = TimeText.Format(_player.Position, _player.Duration),
-        };
-        using var dialog = new NSAlert
-        {
-            MessageText = "Go to a time",
-            InformativeText = "Enter seconds, mm:ss or h:mm:ss.",
-            AccessoryView = box,
-        };
-        dialog.AddButton("Go");
-        dialog.AddButton("Cancel");
-        _window.MakeFirstResponder(box);
-        box.SelectText(null);
-        if (dialog.RunModal() != 1000)
-        {
-            return;
-        }
-
-        if (TimeText.TryParse(box.StringValue) is { } time)
-        {
-            _player.Seek(time);
-        }
-        else
-        {
-            Say($"\"{box.StringValue}\" is not a time. Try 1:23 or 1:02:03.");
-        }
-    }
-
-    private void ShowMediaInformation()
-    {
-        if (_player.Info is not { } info)
-        {
-            Say("Open something to see its media information.");
-            return;
-        }
-
-        var lines = new List<string>
-        {
-            $"Title: {_player.Title}",
-            $"Location: {_player.Item?.Location}",
-            $"Format: {info.FormatName}",
-            $"Length: {(_player.Duration > TimeSpan.Zero ? TimeText.Format(_player.Duration) : "unknown")}",
-        };
-        foreach (var track in info.Tracks)
-        {
-            var detail = track.Video is { } video ? $"{video.Width}×{video.Height}"
-                : track.Audio is { } audio ? $"{audio.SampleRate} Hz, {audio.Channels} channel(s)"
-                : "";
-            lines.Add($"Track {track.Id}: {track.Kind} {track.Codec.DisplayName()} {detail}".TrimEnd());
-        }
-
-        lines.AddRange(info.Metadata.Select(metadata => $"{metadata.Key}: {metadata.Value}"));
-        using var dialog = new NSAlert
-        {
-            MessageText = "Media information",
-            InformativeText = string.Join(Environment.NewLine, lines),
-        };
-        dialog.AddButton("OK");
-        dialog.RunModal();
+        RequestEntryInWindow("Go to a time", TimeText.Format(_player.Position, _player.Duration),
+            "Seconds, mm:ss or h:mm:ss", value =>
+            {
+                if (TimeText.TryParse(value) is { } time) _player.Seek(time);
+                else Say($"\"{value}\" is not a time. Try 1:23 or 1:02:03.");
+            });
     }
 
     private void OpenWithPanel(bool folders)
@@ -290,31 +236,17 @@ public sealed partial class MainWindow
         panel.AllowsMultipleSelection = true;
         panel.CanChooseFiles = !folders;
         panel.CanChooseDirectories = folders;
-        if (panel.RunModal() == 1)
+        panel.Begin(response =>
         {
-            _player.Open(panel.Urls.Select(url => url.Path!).ToList());
-        }
+            if (response == 1) _player.Open(panel.Urls.Select(url => url.Path!).ToList());
+        });
     }
 
     /// <summary>Opens a typed file or network stream address through the shared source factory.</summary>
     private void OpenLocationDialog()
     {
-        using var entry = new NSTextField(new CGRect(0, 0, 380, 24))
-        {
-            PlaceholderString = "https://example.org/media.mp4 or file path",
-        };
-        using var dialog = new NSAlert
-        {
-            MessageText = "Open a network or file location",
-            InformativeText = "Enter a file path or a stream URL. rexplayer opens the address only when you choose Open.",
-            AccessoryView = entry,
-        };
-        dialog.AddButton("Open");
-        dialog.AddButton("Cancel");
-        if (dialog.RunModal() == 1000)
-        {
-            OpenTypedLocation(entry.StringValue);
-        }
+        RequestEntryInWindow("Open a local path or media URL", "",
+            "File path or stream URL", OpenTypedLocation);
     }
 
     private void OpenPastedLocation()
@@ -348,10 +280,10 @@ public sealed partial class MainWindow
         panel.CanChooseFiles = true;
         panel.CanChooseDirectories = false;
         panel.Title = "Add a subtitle file";
-        if (panel.RunModal() == 1 && panel.Url?.Path is { } path)
+        panel.Begin(response =>
         {
-            _player.AddSubtitles(path);
-        }
+            if (response == 1 && panel.Url?.Path is { } path) _player.AddSubtitles(path);
+        });
     }
 
 }
