@@ -158,6 +158,13 @@ public static class SubtitleMarkup
             "u1" or "u" => style with { Underline = true },
             "u0" => style with { Underline = false },
             "r" => new SubtitleRun(""),
+            _ when code.StartsWith("fn", StringComparison.OrdinalIgnoreCase) &&
+                code.Length > 2 && code.Length <= 122 =>
+                style with { Font = code[2..].Trim() },
+            _ when code.StartsWith("fs", StringComparison.OrdinalIgnoreCase) &&
+                double.TryParse(code.AsSpan(2), NumberStyles.Float,
+                    CultureInfo.InvariantCulture, out var size) && size is > 0 and <= 300 =>
+                style with { FontSize = size },
             _ when code.StartsWith("1c&H", StringComparison.OrdinalIgnoreCase) || code.StartsWith("c&H", StringComparison.OrdinalIgnoreCase) =>
                 style with { Color = AssColor(code[(code.IndexOf('H', StringComparison.OrdinalIgnoreCase) + 1)..]) ?? style.Color },
             _ => null,
