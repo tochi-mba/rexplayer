@@ -59,7 +59,7 @@ public sealed class ArchitectureTests
         ["Faces"] = (WindowsApp, []),
         // ADR-0020: speech models through Whisper.net. The transcript's shape, cache and catalogue
         // are AppCore's; this adapter only decodes the sound and runs the model.
-        ["Speech"] = (Windows, ["Primitives", "Diagnostics", "AppCore"]),
+        ["Speech"] = (Portable, ["Primitives", "Diagnostics", "AppCore"]),
         ["Interop"] = (Windows, []),
         // ADR-0021: the Mac's C frameworks through LibraryImport from plain .NET, so these build on any
         // machine; they run only on a Mac, where the macOS adapter tests prove them.
