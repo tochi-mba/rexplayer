@@ -30,6 +30,7 @@ public sealed class MacAppSmokeTests
     [Capability("TOOL-10", CapabilityPlatform.MacOS)]
     [Capability("UI-09", CapabilityPlatform.MacOS)]
     [Capability("UI-05", CapabilityPlatform.MacOS)]
+    [Capability("SUB-16", CapabilityPlatform.MacOS)]
     [Capability("PB-12", CapabilityPlatform.MacOS)]
     [Capability("VID-03", CapabilityPlatform.MacOS)]
     [Capability("VID-27", CapabilityPlatform.MacOS)]
@@ -167,6 +168,12 @@ public sealed class MacAppSmokeTests
             Assert.True(opened?.Ok == true, "The app did not acknowledge the open request: " + (opened?.Error ?? "no reply") + ". Its log ends:" + LogTail(root));
             var playing = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Title: not null, State: "Playing" or "Ended" or "Paused" }, app, root);
             Assert.False(string.IsNullOrWhiteSpace(playing.Title), "The app opened the video but reports no title.");
+            var droppedSubtitles = RepoPaths.Combine("tests", "fixtures", "subtitles", "simple.srt");
+            var dropped = await Ask(pipe, new AutomationRequest { Command = "mac-drop", Paths = [video, droppedSubtitles] });
+            Assert.True(dropped?.Ok == true, "The Mac did not accept a media and subtitle drop.");
+            var subtitleState = await Ask(pipe, new AutomationRequest { Command = "mac-subtitles" });
+            Assert.Contains("tracks=1", subtitleState?.Text, StringComparison.Ordinal);
+            Assert.Contains("selected=simple.srt", subtitleState?.Text, StringComparison.Ordinal);
             var titled = await Ask(pipe, new AutomationRequest { Command = "mac-window" });
             Assert.Contains(playing.Title, titled?.Text, StringComparison.Ordinal);
             Assert.Contains("minimal=False", titled?.Text, StringComparison.Ordinal);

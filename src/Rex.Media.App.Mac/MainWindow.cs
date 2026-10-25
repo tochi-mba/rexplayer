@@ -176,6 +176,17 @@ public sealed partial class MainWindow : IDisposable
                         Text = $"fullscreen={IsFullScreen};floating={_window.Level == NSWindowLevel.Floating};minimal={_minimalInterface};context={ContextCommandCount};title={_window.Title}",
                     });
                     return;
+                case "mac-drop":
+                    _player.Drop(request.Paths ?? []);
+                    answered.SetResult(new AutomationReply { Ok = true });
+                    return;
+                case "mac-subtitles":
+                    answered.SetResult(new AutomationReply
+                    {
+                        Ok = true,
+                        Text = $"tracks={_player.SubtitleTracks.Count};selected={_player.Subtitles?.Name ?? "off"}",
+                    });
+                    return;
                 case "status":
                     break;
                 case "ui.add-folder":
@@ -340,7 +351,7 @@ public sealed partial class MainWindow : IDisposable
         controls.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
         timeline.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
 
-        var content = new DropView(paths => _player.Open(paths));
+        var content = new DropView(paths => _player.Drop(paths));
         _pictureMenu = BuildPictureMenu();
         content.Menu = _pictureMenu;
         _picture = new PictureView(_log) { TranslatesAutoresizingMaskIntoConstraints = false };
@@ -536,6 +547,9 @@ public sealed partial class MainWindow : IDisposable
             case CommandCatalog.GoToTime:
                 GoToTime();
                 return true;
+            case CommandCatalog.AddSubtitles:
+                AddSubtitleWithPanel();
+                return true;
             case CommandCatalog.Preferences:
                 ShowPreferences();
                 return true;
@@ -648,6 +662,19 @@ public sealed partial class MainWindow : IDisposable
         if (panel.RunModal() == 1)
         {
             _player.Open(panel.Urls.Select(url => url.Path!).ToList());
+        }
+    }
+
+    private void AddSubtitleWithPanel()
+    {
+        var panel = NSOpenPanel.OpenPanel;
+        panel.AllowsMultipleSelection = false;
+        panel.CanChooseFiles = true;
+        panel.CanChooseDirectories = false;
+        panel.Title = "Add a subtitle file";
+        if (panel.RunModal() == 1 && panel.Url?.Path is { } path)
+        {
+            _player.AddSubtitles(path);
         }
     }
 
