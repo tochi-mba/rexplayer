@@ -61,6 +61,7 @@ public sealed partial class MainWindow
         var picker = Prepared(new FileSavePicker { SuggestedStartLocation = PickerLocationId.VideosLibrary, SuggestedFileName = Path.GetFileNameWithoutExtension(item ?? "transcript") });
         picker.FileTypeChoices.Add("SubRip subtitles", [".srt"]);
         picker.FileTypeChoices.Add("WebVTT subtitles, every word timed", [".vtt"]);
+        picker.FileTypeChoices.Add("Timed LRC lyrics", [".lrc"]);
         picker.FileTypeChoices.Add("Transcript as JSON", [".json"]);
         if (await picker.PickSaveFileAsync() is not { } file)
         {

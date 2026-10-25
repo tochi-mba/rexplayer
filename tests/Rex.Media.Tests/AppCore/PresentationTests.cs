@@ -145,6 +145,19 @@ public sealed class PresentationTests
 
     [Fact]
     [Capability("META-09")]
+    public void DisplayedLyricsCanBeSavedAsLrcWithoutInventingTimes()
+    {
+        var timed = Lyrics.Parse("[00:01.00]<00:01.00>First <00:01.50>word\n[00:03.00]line only")!;
+        Assert.Equal("[00:01.00]<00:01.00>First <00:01.50>word\n[00:03.00]line only\n", timed.ToLrc());
+        Assert.Equal(LyricsDisplayMode.MixedTimed, Lyrics.Parse(timed.ToLrc())!.DisplayMode);
+
+        var plain = Lyrics.Parse("One\n\nTwo")!;
+        Assert.Equal("One\n\nTwo\n", plain.ToLrc());
+        Assert.Equal(LyricsDisplayMode.Plain, Lyrics.Parse(plain.ToLrc())!.DisplayMode);
+    }
+
+    [Fact]
+    [Capability("META-09")]
     public void UnreliableEnhancedLrcRetainsLinesButDoesNotClaimWordTiming()
     {
         var lyrics = Lyrics.Parse("""

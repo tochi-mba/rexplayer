@@ -209,7 +209,7 @@ public static partial class CliApplication
         return 0;
     }
 
-    /// <summary>The transcript written as the file's kind says (.srt, .vtt or .json), or nothing without --out.</summary>
+    /// <summary>The transcript written as the file's kind says (.srt, .vtt, .lrc or .json), or nothing without --out.</summary>
     private static string? WriteTranscript(Transcript transcript, string? output)
     {
         if (output is null)
@@ -222,8 +222,9 @@ public static partial class CliApplication
         {
             ".srt" => transcript.ToSrt(),
             ".vtt" => transcript.ToWebVtt(),
+            ".lrc" => transcript.ToLrc(),
             ".json" => transcript.ToJson(),
-            var other => throw new CliException($"--out takes a .srt, .vtt or .json file, not '{other}'."),
+            var other => throw new CliException($"--out takes a .srt, .vtt, .lrc or .json file, not '{other}'."),
         };
         File.WriteAllText(path, text);
         return path;

@@ -54,6 +54,41 @@ public sealed partial class Lyrics
 
     public bool IsTimed => Lines.Count > 0 && Lines[0].At is not null;
 
+    /// <summary>Save the supplied line and word times without inventing timing for plain lyrics.</summary>
+    public string ToLrc()
+    {
+        var text = new StringBuilder();
+        foreach (var line in Lines)
+        {
+            if (line.At is { } at)
+            {
+                text.Append('[').Append(LrcStamp(at)).Append(']');
+            }
+
+            if (line.Words.Count > 0)
+            {
+                foreach (var word in line.Words)
+                {
+                    text.Append('<').Append(LrcStamp(word.At)).Append('>').Append(word.Text);
+                }
+            }
+            else
+            {
+                text.Append(line.Text);
+            }
+
+            text.Append('\n');
+        }
+
+        return text.ToString();
+    }
+
+    private static string LrcStamp(TimeSpan time)
+    {
+        var centiseconds = Math.Max(0, time.Ticks / (TimeSpan.TicksPerMillisecond * 10));
+        return string.Create(CultureInfo.InvariantCulture, $"{centiseconds / 6000:00}:{centiseconds / 100 % 60:00}.{centiseconds % 100:00}");
+    }
+
     /// <summary>Describe the complete source, including partially word-timed LRC files.</summary>
     public LyricsDisplayMode DisplayMode
     {

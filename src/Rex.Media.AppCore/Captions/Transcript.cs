@@ -196,6 +196,41 @@ public sealed record Transcript(string Language, string Model, IReadOnlyList<Tra
         return text.ToString();
     }
 
+    /// <summary>The transcript as enhanced LRC, retaining reliable word times.</summary>
+    public string ToLrc()
+    {
+        var text = new StringBuilder();
+        foreach (var cue in ToCues())
+        {
+            text.Append('[').Append(LrcStamp(cue.Start)).Append(']');
+            var runs = cue.Lines[0].Runs;
+            var times = runs.Select(run => run.At is { } at ? LrcCentiseconds(cue.Start + at) : -1L).ToArray();
+            var wordTimed = times.Length > 0 && times[0] >= LrcCentiseconds(cue.Start)
+                && times.Zip(times.Skip(1)).All(pair => pair.First < pair.Second);
+            foreach (var run in runs.Select((value, index) => (value, index)))
+            {
+                if (wordTimed)
+                {
+                    text.Append('<').Append(LrcStamp(cue.Start + run.value.At!.Value)).Append('>');
+                }
+
+                text.Append(run.value.Text);
+            }
+
+            text.Append('\n');
+        }
+
+        return text.ToString();
+    }
+
+    private static long LrcCentiseconds(TimeSpan time) => Math.Max(0, time.Ticks / (TimeSpan.TicksPerMillisecond * 10));
+
+    private static string LrcStamp(TimeSpan time)
+    {
+        var centiseconds = LrcCentiseconds(time);
+        return string.Create(CultureInfo.InvariantCulture, $"{centiseconds / 6000:00}:{centiseconds / 100 % 60:00}.{centiseconds % 100:00}");
+    }
+
     // Export is a UTF-8 file, not an HTML script: keep speech in its original
     // writing system instead of JSON-escaping every non-ASCII character.
     private static readonly TranscriptJson ExportJson = new(new JsonSerializerOptions(TranscriptJson.Default.Options)

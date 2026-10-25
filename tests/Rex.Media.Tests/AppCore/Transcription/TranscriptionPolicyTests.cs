@@ -82,7 +82,8 @@ public sealed class TranscriptionPolicyTests
         Assert.Equal(TranscriptionSkip.OutOfScope, Of(Entry(@"C:\a.mkv")));
         Assert.Equal(TranscriptionSkip.Picture, Of(Entry(@"D:\Videos\a.jpg", LibraryKind.Picture)));
         Assert.Equal(TranscriptionSkip.Music, Of(Entry(@"D:\Videos\Asake - Lonely At The Top.mp3", LibraryKind.Music)));
-        Assert.Equal(TranscriptionSkip.None, Of(Entry(@"D:\Videos\Asake - Sungba.mp3", LibraryKind.Music), with: settings with { IncludeMusic = true }));
+        Assert.Equal(TranscriptionSkip.Music, Of(Entry(@"D:\Videos\Asake - Sungba.mp3", LibraryKind.Music),
+            with: settings with { IncludeAudiobooks = true }));
         var audiobook = Entry(@"D:\Videos\Audiobooks\The Hobbit\Part 1.mp3", LibraryKind.Music);
         Assert.Equal(TranscriptionSkip.Music, Of(audiobook));
         Assert.Equal(TranscriptionSkip.None, TranscriptionEligibility.Of(audiobook,
@@ -138,9 +139,9 @@ public sealed class TranscriptionPolicyTests
             TranscriptionOrder.Order(entries, asked, with, Folders, records.GetValueOrDefault, path => path == watching.Path, Now);
 
         var queue = Order(settings, outside.Path, done.Path, song.Path, picture.Path, @"D:\Videos\unknown.mkv", outside.Path);
-        Assert.Equal([outside.Path, song.Path, partial.Path, watching.Path, newest.Path, middle.Path, old.Path, twin.Path], queue.Select(file => file.Path));
-        Assert.Equal([true, true, false, false, false, false, false, false], queue.Select(file => file.Asked));
-        Assert.Equal(0.25, queue[2].Share);
+        Assert.Equal([outside.Path, partial.Path, watching.Path, newest.Path, middle.Path, old.Path, twin.Path], queue.Select(file => file.Path));
+        Assert.Equal([true, false, false, false, false, false, false], queue.Select(file => file.Asked));
+        Assert.Equal(0.25, queue[1].Share);
         Assert.Equal(TimeSpan.FromMinutes(40 * 7) + TimeSpan.FromMinutes(30), TranscriptionOrder.SoundLeft(queue));
 
         // Off: only what was asked.

@@ -45,9 +45,12 @@ public static class TranscriptionOrder
         var queue = new List<QueuedFile>();
         var taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        var audioContext = AudioContext.Of(entries);
         foreach (var path in asked)
         {
-            if (byPath.TryGetValue(path, out var entry) && entry.Kind != LibraryKind.Picture
+            if (byPath.TryGetValue(path, out var entry) && (entry.Kind == LibraryKind.Video
+                    || entry.Kind == LibraryKind.Music && AudioRules.Judge(entry, MusicLookup.NotSearched, audioContext)?.Shelf
+                        is AudioShelf.Audiobooks or AudioShelf.Podcasts or AudioShelf.Recordings)
                 && find(Sign(entry)) is var record && record?.State is not (TranscriptState.Done or TranscriptState.NoSound) && taken.Add(path))
             {
                 queue.Add(Queued(entry, record) with { Asked = true });
@@ -59,7 +62,6 @@ public static class TranscriptionOrder
             return queue;
         }
 
-        var audioContext = AudioContext.Of(entries);
         var background = entries
             .Where(entry => !taken.Contains(entry.Path))
             .Select(entry => (Entry: entry, Record: find(Sign(entry))))

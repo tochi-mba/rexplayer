@@ -107,6 +107,12 @@ public sealed class TranscriptTests : IDisposable
         var read = SubtitleFile.Parse(vtt).Cues;
         Assert.Equal(3, read.Count);
         Assert.Equal([S(0), S(0.5), S(0.65), S(0.9)], read[0].Lines[0].Runs.Select(run => run.At!.Value));
+
+        var lrc = Speech.ToLrc();
+        Assert.StartsWith("[00:01.00]<00:01.00>Lonely <00:01.50>at <00:01.65>the <00:01.90>top.\n", lrc, StringComparison.Ordinal);
+        var lyrics = Rex.Media.AppCore.Player.Lyrics.Parse(lrc)!;
+        Assert.Equal(Rex.Media.AppCore.Player.LyricsDisplayMode.WordTimed, lyrics.DisplayMode);
+        Assert.Equal(S(1.5), lyrics.Lines[0].Words[1].At);
     }
 
     [Theory]
