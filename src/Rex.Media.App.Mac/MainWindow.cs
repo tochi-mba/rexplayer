@@ -105,6 +105,7 @@ public sealed partial class MainWindow : IDisposable
         ShowState();
         ShowStartupGuidance();
         BeginCrashRecovery();
+        StartMediaControls();
     }
 
     public void OpenHandedOver(IReadOnlyList<string> files) => _player.OpenHandedOver(files, _settings.EnqueueFromSecondLaunch, DateTimeOffset.Now);
@@ -136,6 +137,7 @@ public sealed partial class MainWindow : IDisposable
         DisposeMusicPresentation();
         EndCrashRecovery();
         DisposePlaybackActivity();
+        StopMediaControls();
         DisposeSubtitleStyle();
         _player.Dispose();
         _picture?.Presenter?.Dispose();
@@ -610,6 +612,7 @@ public sealed partial class MainWindow : IDisposable
         _volume.DoubleValue = _player.Volume;
         ShowPosition();
         UpdateDockTile();
+        UpdateSystemNowPlaying();
         UpdatePlaybackActivity();
         UpdateSubtitleOverlays();
         ShowChecks();
@@ -630,6 +633,7 @@ public sealed partial class MainWindow : IDisposable
         _seek.DoubleValue = duration > TimeSpan.Zero ? Math.Clamp(_player.Position / duration, 0, 1) : 0;
         _time.StringValue = duration > TimeSpan.Zero ? $"{Clock(_player.Position)} / {Clock(duration)}" : Clock(_player.Position);
         UpdateSubtitleOverlays();
+        UpdateSystemNowPlaying();
         RefreshMusicPosition();
     }
 
