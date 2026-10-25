@@ -1,4 +1,5 @@
 using Rex.Media.AppCore.Library;
+using Rex.Media.AppCore.Automation;
 
 namespace Rex.Media.App.Mac;
 
@@ -112,6 +113,48 @@ public sealed partial class MainWindow
         {
             _log.Warning(LogSource, "Could not restore library backup: " + ex.Message);
             Say("The backup could not be restored: " + ex.Message);
+        }
+    }
+
+    private AutomationReply LibraryBackupSmokeAction(string? action, string? path)
+    {
+        if (Environment.GetEnvironmentVariable("REXPLAYER_MAC_LIBRARY_TESTS") != "1" ||
+            _mediaLibrary is null || string.IsNullOrWhiteSpace(path))
+        {
+            return AutomationReply.Failed("The Mac library backup action is unavailable.");
+        }
+
+        try
+        {
+            if (action == "export")
+            {
+                var files = LibraryBackup.Export(_mediaLibrary, _player.NamedPlaylists.ToArray());
+                var published = LibraryBackup.PublishSnapshot(path, files);
+                return new AutomationReply
+                {
+                    Ok = true,
+                    Text = Path.Combine(published, LibraryBackup.FileName),
+                };
+            }
+
+            if (action == "restore")
+            {
+                var backup = LibraryBackup.ReadFromFile(path);
+                var restored = LibraryBackup.Restore(backup, _mediaLibrary, _player);
+                _libraryScanner?.Request();
+                RefreshLibrary(force: true);
+                return new AutomationReply
+                {
+                    Ok = true,
+                    Text = $"folders={restored.Folders};entries={restored.Entries};playlists={restored.Playlists}",
+                };
+            }
+
+            return AutomationReply.Failed("Unknown Mac library backup action: " + action);
+        }
+        catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException)
+        {
+            return AutomationReply.Failed(ex.Message);
         }
     }
 }

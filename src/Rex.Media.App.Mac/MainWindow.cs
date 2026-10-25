@@ -206,6 +206,9 @@ public sealed partial class MainWindow : IDisposable
                     }
 
                     break;
+                case "mac-library-backup":
+                    answered.SetResult(LibraryBackupSmokeAction(request.Id, request.Path));
+                    return;
                 case "mac-playlists":
                     if (!SavedPlaylistSmokeAction(request.Id, request.Path))
                     {

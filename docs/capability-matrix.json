@@ -3266,7 +3266,7 @@
       "oracles": "FILE",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {

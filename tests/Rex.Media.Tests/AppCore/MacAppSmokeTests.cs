@@ -44,6 +44,7 @@ public sealed class MacAppSmokeTests
     [Capability("AU-19", CapabilityPlatform.MacOS)]
     [Capability("UI-11", CapabilityPlatform.MacOS)]
     [Capability("LIB-03", CapabilityPlatform.MacOS)]
+    [Capability("LIB-10", CapabilityPlatform.MacOS)]
     [Capability("LIB-04", CapabilityPlatform.MacOS)]
     [Capability("PB-12", CapabilityPlatform.MacOS)]
     [Capability("VID-03", CapabilityPlatform.MacOS)]
@@ -369,6 +370,16 @@ public sealed class MacAppSmokeTests
             var folders = await Library(pipe, "folders");
             Assert.Contains("1 item", folders.Title, StringComparison.Ordinal);
             await Library(pipe, "capture-folders");
+            var backupRoot = Path.Combine(root, "backups");
+            Directory.CreateDirectory(backupRoot);
+            var backup = await Ask(pipe, new AutomationRequest
+            {
+                Command = "mac-library-backup",
+                Id = "export",
+                Path = backupRoot,
+            });
+            Assert.True(backup?.Ok == true && File.Exists(backup.Text),
+                "The native Mac app did not export a readable library backup: " + (backup?.Error ?? "no reply"));
             var cleared = await Library(pipe, "remove-folder");
             Assert.Contains("0 items", cleared.Title, StringComparison.Ordinal);
             Assert.Contains("0 folders", cleared.Title, StringComparison.Ordinal);
@@ -377,6 +388,17 @@ public sealed class MacAppSmokeTests
                 "Removing a watched folder must never delete an audio file.");
             Assert.True(File.Exists(Path.Combine(libraryFixture, "Sample Film.mp4")),
                 "Removing a watched folder must never delete a video file.");
+            var libraryRestored = await Ask(pipe, new AutomationRequest
+            {
+                Command = "mac-library-backup",
+                Id = "restore",
+                Path = backup!.Text,
+            });
+            Assert.True(libraryRestored?.Ok == true, "The native Mac app did not restore its library backup: " +
+                (libraryRestored?.Error ?? "no reply"));
+            Assert.Contains("folders=1", libraryRestored!.Text, StringComparison.Ordinal);
+            var restoredFolders = await Library(pipe, "folders");
+            Assert.Contains("1 item", restoredFolders.Title, StringComparison.Ordinal);
             foreach (var name in new[] { "folders", "cleared" })
             {
                 var file = new FileInfo(Path.Combine(libraryScreenshots, name + ".png"));
