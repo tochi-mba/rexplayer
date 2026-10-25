@@ -88,7 +88,11 @@ public sealed partial class MainWindow : IDisposable
         InitializeQueue();
         NSApplication.SharedApplication.MainMenu = BuildMenus();
         ApplyMacTheme();
-        NSTimer.CreateRepeatingScheduledTimer(TimeSpan.FromSeconds(1), _ => _player.SleepTick());
+        NSTimer.CreateRepeatingScheduledTimer(TimeSpan.FromSeconds(1), _ =>
+        {
+            _player.SleepTick();
+            NameMacControls();
+        });
     }
 
     /// <summary>Shows the window, opening what Finder handed over, or the queue the last run left.</summary>
@@ -96,6 +100,7 @@ public sealed partial class MainWindow : IDisposable
     {
         _window.Center();
         _window.MakeKeyAndOrderFront(null);
+        NameMacControls();
         if (files.Count > 0)
         {
             OpenHandedOver(files);
