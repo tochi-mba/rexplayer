@@ -72,6 +72,10 @@ internal static class Screenshots
         var scene = ScreenshotScenes.Find(name);
         Assert.True(scene.RequiredLane == "ci-windows" || scene.RequiredLane == Lane,
             $"Scene {name} requires the real {scene.RequiredLane} desktop, not {Lane}.");
+        if (scene.Owner is "LibraryFixtureVisualTests" or "LibraryEvidenceEdgeTests")
+        {
+            Pointer.ParkOutsideWindow(app);
+        }
         // WinUI exposes UIA elements before they have been painted. Require the
         // scene's semantic contract first, then independently inspect pixels.
         var ready = Wait.Within(AppProcess.Patience, () =>
