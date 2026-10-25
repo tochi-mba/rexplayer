@@ -35,4 +35,8 @@
     <ProjectReference Include="..\Rex.Media.Video.Metal\Rex.Media.Video.Metal.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\\..\\CHANGELOG.md" Link="CHANGELOG.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

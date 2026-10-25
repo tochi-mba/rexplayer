@@ -96,6 +96,7 @@ public sealed partial class MainWindow : IDisposable
         }
 
         ShowState();
+        ShowStartupGuidance();
     }
 
     public void OpenHandedOver(IReadOnlyList<string> files) => _player.OpenHandedOver(files, _settings.EnqueueFromSecondLaunch, DateTimeOffset.Now);
@@ -122,6 +123,7 @@ public sealed partial class MainWindow : IDisposable
         DisposeEffects();
         DisposeTrackTools();
         DisposeHistory();
+        DisposeStartupGuidance();
         _player.Dispose();
         _picture?.Presenter?.Dispose();
         _window.Dispose();
@@ -591,6 +593,9 @@ public sealed partial class MainWindow : IDisposable
                 return true;
             case CommandCatalog.Effects:
                 ShowEffects();
+                return true;
+            case CommandCatalog.WhatsNew:
+                ShowWhatsNew();
                 return true;
             case CommandCatalog.MediaInformation:
                 ShowMediaInformation();
