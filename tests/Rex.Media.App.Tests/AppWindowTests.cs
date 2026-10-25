@@ -25,7 +25,7 @@ public sealed partial class AppWindowTests : IDisposable
     /// A song with a beat: a kick on every beat at 120 a minute, hardest on the first of each bar,
     /// a snare on two and four, over a held chord. 48 kHz stereo, so the visualisations hear it all.
     /// </summary>
-    private string Music(int seconds)
+    private string Music(int seconds, bool audiobook = false)
     {
         const int Rate = 48_000;
         var random = new Random(5);
@@ -40,7 +40,15 @@ public sealed partial class AppWindowTests : IDisposable
             samples[i * 2] = samples[(i * 2) + 1] = (float)Math.Clamp(kick + snare + pad, -1, 1);
         }
         var path = Path.Combine(_media, "Terminator.wav");
-        File.WriteAllBytes(path, WavBuilder.Pcm(Rate, 2, 16, Pcm.Int16(samples)).Build());
+        var wav = WavBuilder.Pcm(Rate, 2, 16, Pcm.Int16(samples));
+        if (audiobook)
+        {
+            // Caption tests need speech-eligible audio rather than a song. Keep the
+            // deterministic sound while marking its WAV metadata as spoken-word.
+            wav.Info(("IGNR", "Audiobook"));
+        }
+
+        File.WriteAllBytes(path, wav.Build());
         return path;
     }
     /// <summary>A scratch data folder whose settings start with <paramref name="visualisation"/> showing.</summary>
