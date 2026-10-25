@@ -18,6 +18,12 @@ public sealed partial class MainWindow
     private NSPopUpButton? _styleOutline;
     private NSPopUpButton? _stylePolicy;
     private NSTextField? _styleNotice;
+    private NSTextField? _styleOutlineColour;
+    private NSTextField? _styleShadowColour;
+    private NSTextField? _styleBoxColour;
+    private NSSlider? _styleShadowOpacity;
+    private NSSlider? _styleShadowOffset;
+    private NSSlider? _styleBoxOpacity;
 
     private void ShowSubtitleStyle()
     {
@@ -47,6 +53,12 @@ public sealed partial class MainWindow
             _styleInBars = NSButton.CreateCheckbox("Place subtitles in letterbox bars when possible", () => { });
             _styleForceBottom = NSButton.CreateCheckbox("Force subtitles to the bottom", () => { });
             _styleOutline = EffectChoices(["No outline", "Thin", "Normal", "Thick"]);
+            _styleOutlineColour = new NSTextField(new CGRect(0, 0, 125, 24));
+            _styleShadowColour = new NSTextField(new CGRect(0, 0, 125, 24));
+            _styleBoxColour = new NSTextField(new CGRect(0, 0, 125, 24));
+            _styleShadowOpacity = NSSlider.FromValue(60, 0, 100, () => { });
+            _styleShadowOffset = NSSlider.FromValue(2, 0, 10, () => { });
+            _styleBoxOpacity = NSSlider.FromValue(0, 0, 100, () => { });
             _stylePolicy = EffectChoices(["Respect embedded subtitle styles", "Use my chosen style"]);
             _styleNotice = NSTextField.CreateWrappingLabel("");
             _styleNotice.TextColor = NSColor.SecondaryLabel;
@@ -62,6 +74,12 @@ public sealed partial class MainWindow
                 _styleInBars!.State = NSCellStateValue.Off;
                 _styleForceBottom!.State = NSCellStateValue.Off;
                 _styleOutline!.SelectItem((int)OutlineChoice.Normal);
+                _styleOutlineColour!.StringValue = "000000";
+                _styleShadowColour!.StringValue = "000000";
+                _styleShadowOpacity!.DoubleValue = 60;
+                _styleShadowOffset!.DoubleValue = 2;
+                _styleBoxColour!.StringValue = "000000";
+                _styleBoxOpacity!.DoubleValue = 0;
                 _stylePolicy!.SelectItem((int)SubtitleStyleChoice.Respect);
                 ApplySubtitleStyle();
             });
@@ -77,6 +95,12 @@ public sealed partial class MainWindow
                 StyleSliderRow("Bottom margin %", _styleMargin),
                 _styleBold, _styleInBars, _styleForceBottom,
                 EffectChoiceRow("Text outline", _styleOutline),
+                TimingRow("Outline colour (#RRGGBB)", _styleOutlineColour),
+                TimingRow("Shadow colour (#RRGGBB)", _styleShadowColour),
+                StyleSliderRow("Shadow opacity %", _styleShadowOpacity),
+                StyleSliderRow("Shadow offset", _styleShadowOffset),
+                TimingRow("Background colour (#RRGGBB)", _styleBoxColour),
+                StyleSliderRow("Background opacity %", _styleBoxOpacity),
                 EffectChoiceRow("Embedded styles", _stylePolicy),
                 actions, _styleNotice,
             ]);
@@ -84,7 +108,7 @@ public sealed partial class MainWindow
             stack.Alignment = NSLayoutAttribute.Leading;
             stack.Spacing = 10;
             stack.EdgeInsets = new NSEdgeInsets(20, 24, 20, 24);
-            stack.Frame = new CGRect(0, 0, 540, 620);
+            stack.Frame = new CGRect(0, 0, 540, 880);
             var scroll = new NSScrollView(new CGRect(0, 0, 560, 490))
             {
                 HasVerticalScroller = true,
@@ -103,6 +127,12 @@ public sealed partial class MainWindow
         _styleInBars!.State = State(_settings.SubtitlesInBars);
         _styleForceBottom!.State = State(_settings.SubtitlesAtBottom);
         _styleOutline!.SelectItem((int)_settings.SubtitleOutline);
+        _styleOutlineColour!.StringValue = _settings.SubtitleOutlineColor.ToString("X6", CultureInfo.InvariantCulture);
+        _styleShadowColour!.StringValue = _settings.SubtitleShadowColor.ToString("X6", CultureInfo.InvariantCulture);
+        _styleShadowOpacity!.DoubleValue = _settings.SubtitleShadowOpacity;
+        _styleShadowOffset!.DoubleValue = _settings.SubtitleShadowOffset;
+        _styleBoxColour!.StringValue = _settings.SubtitleBoxColor.ToString("X6", CultureInfo.InvariantCulture);
+        _styleBoxOpacity!.DoubleValue = _settings.SubtitleBoxOpacity;
         _stylePolicy!.SelectItem((int)_settings.SubtitleStyles);
         _subtitleStyleWindow.MakeKeyAndOrderFront(null);
     }
@@ -120,11 +150,12 @@ public sealed partial class MainWindow
 
     private void ApplySubtitleStyle()
     {
-        var colour = _styleColour!.StringValue.Trim().TrimStart('#');
-        if (colour.Length != 6 || !int.TryParse(colour, NumberStyles.HexNumber,
-            CultureInfo.InvariantCulture, out var rgb))
+        if (!TrySubtitleColour(_styleColour, out var rgb) ||
+            !TrySubtitleColour(_styleOutlineColour, out var outlineRgb) ||
+            !TrySubtitleColour(_styleShadowColour, out var shadowRgb) ||
+            !TrySubtitleColour(_styleBoxColour, out var boxRgb))
         {
-            _styleNotice!.StringValue = "Enter a six-digit hexadecimal colour, for example FFFFFF.";
+            _styleNotice!.StringValue = "Enter six-digit hexadecimal colours, for example FFFFFF.";
             return;
         }
 
@@ -140,6 +171,12 @@ public sealed partial class MainWindow
             SubtitlesInBars = IsChecked(_styleInBars),
             SubtitlesAtBottom = IsChecked(_styleForceBottom),
             SubtitleOutline = (OutlineChoice)(int)_styleOutline!.IndexOfSelectedItem,
+            SubtitleOutlineColor = outlineRgb,
+            SubtitleShadowColor = shadowRgb,
+            SubtitleShadowOpacity = (int)Math.Round(_styleShadowOpacity!.DoubleValue),
+            SubtitleShadowOffset = (int)Math.Round(_styleShadowOffset!.DoubleValue),
+            SubtitleBoxColor = boxRgb,
+            SubtitleBoxOpacity = (int)Math.Round(_styleBoxOpacity!.DoubleValue),
             SubtitleStyles = (SubtitleStyleChoice)(int)_stylePolicy!.IndexOfSelectedItem,
         }).Normalize();
         try
@@ -154,6 +191,13 @@ public sealed partial class MainWindow
         {
             _styleNotice!.StringValue = "Could not save subtitle style: " + ex.Message;
         }
+    }
+
+    private static bool TrySubtitleColour(NSTextField? field, out int rgb)
+    {
+        var value = field?.StringValue.Trim().TrimStart('#') ?? "";
+        return value.Length == 6 && int.TryParse(value, NumberStyles.HexNumber,
+            CultureInfo.InvariantCulture, out rgb);
     }
 
     private void DisposeSubtitleStyle()
