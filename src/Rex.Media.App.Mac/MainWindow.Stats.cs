@@ -71,8 +71,8 @@ public sealed partial class MainWindow
                 var now = DateTimeOffset.UtcNow;
                 var interval = _previousStats is null ? TimeSpan.Zero : now - _previousStatsAt;
                 _statsOverlay.StringValue = StatsText.Describe(stats, _player.Info,
-                    _player.AudioTrack, _previousStats, interval,
-                    MacDecoderPolicyDescription());
+                    _player.AudioTrack, _previousStats, interval, "macOS, in software")
+                    + Environment.NewLine + MacDecoderPolicyDescription();
                 _previousStats = stats;
                 _previousStatsAt = now;
             });
