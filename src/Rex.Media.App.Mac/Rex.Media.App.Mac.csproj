@@ -33,6 +33,7 @@
     <ProjectReference Include="..\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
     <ProjectReference Include="..\Rex.Media.Video\Rex.Media.Video.csproj" />
     <ProjectReference Include="..\Rex.Media.Video.Metal\Rex.Media.Video.Metal.csproj" />
+    <ProjectReference Include="..\Rex.Media.Speech\Rex.Media.Speech.csproj" />
   </ItemGroup>
 
   <ItemGroup>

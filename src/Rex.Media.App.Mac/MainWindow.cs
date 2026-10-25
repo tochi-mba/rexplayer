@@ -107,6 +107,7 @@ public sealed partial class MainWindow : IDisposable
         BeginCrashRecovery();
         StartMediaControls();
         BeginMacUpdateChecks();
+        StartMacSpeech();
     }
 
     public void OpenHandedOver(IReadOnlyList<string> files) => _player.OpenHandedOver(files, _settings.EnqueueFromSecondLaunch, DateTimeOffset.Now);
@@ -141,6 +142,7 @@ public sealed partial class MainWindow : IDisposable
         StopMediaControls();
         DisposeSubtitleStyle();
         DisposeMacUpdates();
+        DisposeMacSpeech();
         _player.Dispose();
         _picture?.Presenter?.Dispose();
         _window.Dispose();
@@ -460,6 +462,7 @@ public sealed partial class MainWindow : IDisposable
         app.AddItem(new NSMenuItem("Tracks & subtitle sync…", (_, _) => ShowTrackTools()));
         app.AddItem(new NSMenuItem("Subtitle appearance…", (_, _) => ShowSubtitleStyle()));
         app.AddItem(new NSMenuItem("Software updates…", (_, _) => ShowMacUpdates()));
+        app.AddItem(new NSMenuItem("Offline transcription…", (_, _) => ShowMacSpeech()));
         app.AddItem(new NSMenuItem("Recent media & quick slots…", (_, _) => ShowHistory()));
         app.AddItem(new NSMenuItem("Your library…", (_, _) => Run(CommandCatalog.ToggleLibrary)));
         app.AddItem(new NSMenuItem("Up Next…", (_, _) => ShowQueue()));

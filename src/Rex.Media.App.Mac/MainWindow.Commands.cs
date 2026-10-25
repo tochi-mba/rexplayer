@@ -153,6 +153,9 @@ public sealed partial class MainWindow
             case CommandCatalog.RestoreLibrary:
                 RestoreLibraryBackup();
                 return true;
+            case CommandCatalog.Transcribe:
+                AskMacSpeech();
+                return true;
             case CommandCatalog.CheckForUpdates:
                 ShowMacUpdates();
                 CheckForMacUpdates();
