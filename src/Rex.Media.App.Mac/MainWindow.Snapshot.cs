@@ -24,33 +24,31 @@ public sealed partial class MainWindow
         var panel = NSSavePanel.SavePanel;
         panel.Title = "Save video picture as PNG";
         panel.NameFieldStringValue = Path.GetFileName(suggested);
-        if (panel.RunModal() != 1 || panel.Url?.Path is not { } chosen)
+        panel.Begin(response =>
         {
-            return;
-        }
-
-        // A source-resolution snapshot is not a screenshot. Decode the exact time on a
-        // separate source so seeking and exporting never disturb ongoing playback.
-        var path = string.Equals(Path.GetExtension(chosen), ".png", StringComparison.OrdinalIgnoreCase)
-            ? chosen : Path.ChangeExtension(chosen, ".png");
-        Say("Saving the video frame…");
-        _ = Task.Run(() =>
-        {
-            try
+            if (response != 1 || panel.Url?.Path is not { } chosen) return;
+            // Decode from an independent source; choosing a destination must not pause playback.
+            var path = string.Equals(Path.GetExtension(chosen), ".png", StringComparison.OrdinalIgnoreCase)
+                ? chosen : Path.ChangeExtension(chosen, ".png");
+            Say("Saving the video frame…");
+            _ = Task.Run(() =>
             {
-                using var source = new FileByteSource(location);
-                var result = Snapshot.SaveAsPng(source,
-                    MediaRegistries.Decoders(new AppleDecoderFactory()),
-                    MediaTime.FromSeconds(position.TotalSeconds), path, CancellationToken.None);
-                OnWindowThread(() => Say("Saved " + result.Width + "×" + result.Height +
-                    " picture to " + Path.GetFileName(result.Path)));
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException
-                or InvalidOperationException or NotSupportedException)
-            {
-                _log.Warning(LogSource, "Video snapshot failed: " + ex.Message);
-                OnWindowThread(() => Say("Couldn't save the picture: " + ex.Message));
-            }
+                try
+                {
+                    using var source = new FileByteSource(location);
+                    var result = Snapshot.SaveAsPng(source,
+                        MediaRegistries.Decoders(new AppleDecoderFactory()),
+                        MediaTime.FromSeconds(position.TotalSeconds), path, CancellationToken.None);
+                    OnWindowThread(() => Say("Saved " + result.Width + "×" + result.Height +
+                        " picture to " + Path.GetFileName(result.Path)));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException
+                    or InvalidOperationException or NotSupportedException)
+                {
+                    _log.Warning(LogSource, "Video snapshot failed: " + ex.Message);
+                    OnWindowThread(() => Say("Couldn't save the picture: " + ex.Message));
+                }
+            });
         });
     }
 }
