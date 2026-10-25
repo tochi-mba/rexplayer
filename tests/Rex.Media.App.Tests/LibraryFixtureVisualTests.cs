@@ -175,7 +175,9 @@ public sealed partial class LibraryFixtureVisualTests
         bool CompactHomeReady() =>
             app.Find("LibrarySources").Current.BoundingRectangle.Width is >= 55 and <= 75
             && app.Text("LibrarySubtitle") == "3 songs · 0 videos · 1 picture"
-            && app.Find("LibraryShelfCards-Albums").Current.Name == "Albums";
+            && app.Window.FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty, "LibraryShelfCards-Albums"))
+                is { } albums && albums.Current.Name == "Albums";
 
         if (size == "compact")
         {
