@@ -922,6 +922,7 @@ public sealed partial class MainWindow : IDisposable
 
         _volume.DoubleValue = _player.Volume;
         ShowPosition();
+        UpdateDockTile();
         UpdateSubtitleOverlays();
         ShowChecks();
         RefreshPlaybackTools();
