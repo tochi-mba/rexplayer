@@ -18,6 +18,8 @@ public sealed partial class MainWindow
     private NSSlider? _preferencesPictureSeconds;
     private NSTextField? _preferencesMaxVolumeValue;
     private NSTextField? _preferencesPictureSecondsValue;
+    private NSTextField? _preferencesSnapshotPattern;
+    private NSButton? _preferencesSnapshotSequential;
 
     /// <summary>Shows the native Mac surface for the shared settings used by this shell.</summary>
     private void ShowPreferences()
@@ -75,6 +77,12 @@ public sealed partial class MainWindow
         _preferencesPictureSeconds = Slider(1, 60, UpdatePreferenceLabels);
         var pictures = PreferenceRow("Show each picture for", _preferencesPictureSeconds, _preferencesPictureSecondsValue);
 
+        _preferencesSnapshotPattern = new NSTextField(new CGRect(0, 0, 300, 24))
+        {
+            PlaceholderString = "{title} {time} (or {n})",
+        };
+        ((NSView)_preferencesSnapshotPattern).AccessibilityLabel = "Snapshot filename pattern";
+        _preferencesSnapshotSequential = CheckBox("Number snapshots if the name is already used");
         var cancel = NSButton.CreateButton("Cancel", () => _preferencesWindow.OrderOut(null));
         var save = NSButton.CreateButton("Save", SavePreferences);
         save.KeyEquivalent = "\r";
@@ -96,6 +104,9 @@ public sealed partial class MainWindow
             _preferencesHardwareDecoding,
             _preferencesH264Hardware,
             _preferencesHevcHardware,
+            PreferencesHeading("Snapshots"),
+            TimingRow("Filename tokens: {title}, {time}, {n}", _preferencesSnapshotPattern),
+            _preferencesSnapshotSequential,
             PreferencesHeading("Appearance"),
             EffectChoiceRow("Theme", _preferencesTheme),
             PreferencesHeading("Opening media"),
@@ -110,7 +121,7 @@ public sealed partial class MainWindow
         explanation.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
         volume.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
         pictures.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-        stack.Frame = new CGRect(0, 0, 550, 690);
+        stack.Frame = new CGRect(0, 0, 550, 820);
         var scroll = new NSScrollView(new CGRect(0, 0, 560, 540))
         {
             HasVerticalScroller = true,
@@ -157,6 +168,8 @@ public sealed partial class MainWindow
         _preferencesHardwareDecoding!.State = State(_settings.HardwareVideoDecoding);
         _preferencesH264Hardware!.State = State(_settings.HardwareH264Decoding);
         _preferencesHevcHardware!.State = State(_settings.HardwareHevcDecoding);
+        _preferencesSnapshotPattern!.StringValue = _settings.SnapshotNamePattern;
+        _preferencesSnapshotSequential!.State = State(_settings.SnapshotSequential);
         _preferencesResumeMode!.SelectItem((int)_settings.ResumeMode);
         _preferencesTheme!.SelectItem((int)_settings.Theme);
         _preferencesMaxVolume!.DoubleValue = _settings.MaxVolumePercent;
@@ -181,6 +194,8 @@ public sealed partial class MainWindow
             HardwareVideoDecoding = IsChecked(_preferencesHardwareDecoding),
             HardwareH264Decoding = IsChecked(_preferencesH264Hardware),
             HardwareHevcDecoding = IsChecked(_preferencesHevcHardware),
+            SnapshotNamePattern = _preferencesSnapshotPattern!.StringValue,
+            SnapshotSequential = IsChecked(_preferencesSnapshotSequential),
             ResumeMode = (ResumeBehavior)(int)_preferencesResumeMode!.IndexOfSelectedItem,
             Theme = (ThemeChoice)(int)_preferencesTheme!.IndexOfSelectedItem,
             MaxVolumePercent = (int)Math.Round(_preferencesMaxVolume!.DoubleValue),
