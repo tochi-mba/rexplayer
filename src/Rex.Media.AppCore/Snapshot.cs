@@ -37,19 +37,37 @@ public static class Snapshot
     /// <paramref name="folder"/>, such as "Sungba 0-01-23.png", numbered when that name is taken.
     /// Characters Windows does not allow in file names become underscores.
     /// </summary>
-    public static string FileFor(string folder, string title, TimeSpan at, Func<string, bool>? exists = null)
+    public static string FileFor(string folder, string title, TimeSpan at, Func<string, bool>? exists = null,
+        string? pattern = null, bool sequential = true)
     {
         exists ??= File.Exists;
         var invalid = Path.GetInvalidFileNameChars().Concat(['<', '>', ':', '"', '/', '\\', '|', '?', '*']).ToHashSet();
         var safe = new string([.. title.Select(c => invalid.Contains(c) || char.IsControl(c) ? '_' : c)]).Trim().TrimEnd('.');
-        var stem = string.Create(CultureInfo.InvariantCulture, $"{(safe.Length > 0 ? safe : "snapshot")} {(int)at.TotalHours}-{at.Minutes:00}-{at.Seconds:00}");
-        var path = Path.Combine(folder, stem + ".png");
-        for (var n = 2; exists(path); n++)
+        safe = safe.Length > 0 ? safe : "snapshot";
+        var timestamp = string.Create(CultureInfo.InvariantCulture, $"{(int)at.TotalHours}-{at.Minutes:00}-{at.Seconds:00}");
+        var template = string.IsNullOrWhiteSpace(pattern) ? "{title} {time}" : pattern.Trim();
+        var numberedToken = template.Contains("{n}", StringComparison.Ordinal);
+
+        string FileAt(int sequence)
         {
-            path = Path.Combine(folder, string.Create(CultureInfo.InvariantCulture, $"{stem} ({n}).png"));
+            var name = template.Replace("{title}", safe, StringComparison.Ordinal)
+                .Replace("{time}", timestamp, StringComparison.Ordinal)
+                .Replace("{n}", sequence.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+            var cleaned = new string([.. name.Select(c => invalid.Contains(c) || char.IsControl(c) ? '_' : c)]).Trim().TrimEnd('.');
+            if (cleaned.Length == 0) cleaned = safe + " " + timestamp;
+            if (sequential && !numberedToken && sequence > 1)
+                cleaned += " (" + sequence.ToString(CultureInfo.InvariantCulture) + ")";
+            return Path.Combine(folder, cleaned + ".png");
         }
 
-        return path;
+        var result = FileAt(1);
+        if (sequential)
+        {
+            for (var n = 2; exists(result); n++)
+                result = FileAt(n);
+        }
+
+        return result;
     }
 
     /// <summary>
