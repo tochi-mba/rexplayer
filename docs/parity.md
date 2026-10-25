@@ -6,7 +6,7 @@ platform while the other catches up; under *locked* every must row is verified o
 applicable with a reason, and CI blocks a release otherwise (ADR-0020). A **gap** is a difference someone has
 accepted for now: its note says why and its issue says who closes it.
 
-Totals: 70 rows differ (48 must), 2 not applicable, 0 gaps.
+Totals: 62 rows differ (40 must), 2 not applicable, 0 gaps.
 
 ## Playback core
 
@@ -16,8 +16,6 @@ Totals: 70 rows differ (48 must), 2 not applicable, 0 gaps.
 | PB-10 | Bookmarks (per file) | should | verified | built |  |
 | PB-11 | Resume where you left off | must | verified | planned |  |
 | PB-16 | Snapshot | must | verified | planned |  |
-| PB-17 | Track selection | must | built | planned |  |
-| PB-20 | Subtitle delay & sync | must | built | planned |  |
 | PB-23 | Start/stop/run time per item | should | built | planned |  |
 | PB-27 | Media key / external control | must | built | planned |  |
 
@@ -31,7 +29,6 @@ Totals: 70 rows differ (48 must), 2 not applicable, 0 gaps.
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| SUB-16 | Drop a subtitle file on the video | must | verified | planned |  |
 | SUB-18 | Word timing | should | verified | planned |  |
 | SUB-19 | Local transcription | should | verified | planned |  |
 | SUB-20 | Library transcription | should | verified | planned |  |
@@ -49,9 +46,9 @@ Totals: 70 rows differ (48 must), 2 not applicable, 0 gaps.
 |---|---|---|---|---|---|
 | AU-01 | Default-device output | must | verified-hardware | built |  |
 | AU-06 | Mute | must | verified | built |  |
-| AU-07 | 10-band graphic equaliser | must | verified | planned |  |
-| AU-11 | Stereo mode | must | verified | planned |  |
-| AU-13 | ReplayGain / R128 | should | verified | planned |  |
+| AU-07 | 10-band graphic equaliser | must | verified | built |  |
+| AU-11 | Stereo mode | must | verified | built |  |
+| AU-13 | ReplayGain / R128 | should | verified | built |  |
 | AU-15 | Pitch-preserving speed | must | verified | planned |  |
 | AU-18 | Visualisations | should | verified | planned |  |
 | AU-19 | Audio-only presentation | must | verified | planned |  |
@@ -86,13 +83,11 @@ Totals: 70 rows differ (48 must), 2 not applicable, 0 gaps.
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| LIB-01 | Playlist pane | must | built | planned |  |
-| LIB-02 | Adding media | must | verified | planned |  |
-| LIB-03 | Save / load playlists | must | verified | planned |  |
-| LIB-04 | Named playlists | must | verified | planned |  |
-| LIB-05 | Media library | must | verified | planned |  |
-| LIB-07 | Recent media | must | built | planned |  |
-| LIB-08 | Playlist quick slots | could | verified | planned |  |
+| LIB-02 | Adding media | must | verified | built |  |
+| LIB-03 | Save / load playlists | must | verified | built |  |
+| LIB-04 | Named playlists | must | verified | built |  |
+| LIB-05 | Media library | must | verified | built |  |
+| LIB-08 | Playlist quick slots | could | verified | built |  |
 | LIB-09 | Missing files | should | verified | planned |  |
 | LIB-10 | Library backup / export | should | verified | planned |  |
 
@@ -100,12 +95,9 @@ Totals: 70 rows differ (48 must), 2 not applicable, 0 gaps.
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| UI-01 | Main window | must | verified | planned |  |
-| UI-02 | Menu system | must | built | planned |  |
-| UI-04 | Fullscreen controller | must | verified | planned |  |
-| UI-07 | Effects & filters panel (Ctrl+E) | must | built | planned |  |
-| UI-10 | Preferences | must | built | planned |  |
-| UI-11 | Hotkey editor | must | verified | planned |  |
+| UI-01 | Main window | must | verified | built |  |
+| UI-04 | Fullscreen controller | must | verified | built |  |
+| UI-11 | Hotkey editor | must | verified | built |  |
 | UI-13 | Themes | must | built | planned |  |
 | UI-14 | First run | must | verified | planned |  |
 | UI-15 | What's new | should | verified | planned |  |

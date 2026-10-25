@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 211 planned, 27 built, 55 verified, 27 post-1.0, 2 not-applicable.
+macOS: 192 planned, 45 built, 56 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -27,10 +27,10 @@ macOS: 211 planned, 27 built, 55 verified, 27 post-1.0, 2 not-applicable.
 | PB-14 | Gapless playback | Sample-exact splice for same-format items; bridge or 50 ms crossfade otherwise | M2 | must | verified | verified |
 | PB-15 | Crossfade between tracks | 0–12 s setting (default off) | M6 | could | planned | planned |
 | PB-16 | Snapshot | Current frame at source resolution, without the OSD; PNG/JPEG/BMP; folder, filename pattern and sequential numbering configurable | M3/M11 | must | verified | planned |
-| PB-17 | Track selection | Video / audio / subtitle / secondary subtitle; preferred-language lists; "off" for each | M3–M5 | must | built | planned |
+| PB-17 | Track selection | Video / audio / subtitle / secondary subtitle; preferred-language lists; "off" for each | M3–M5 | must | built | built |
 | PB-18 | Program selection (TS) | Next/previous program (service id) for multi-program transport streams | M7 | should | planned | planned |
 | PB-19 | Audio delay | ±50 ms steps (J/K), reset, exact entry; range ±10 s; optionally remembered per file | M5 | must | built | built |
-| PB-20 | Subtitle delay & sync | ±50 ms steps (G/H); speed/FPS factor; three-key sync-by-bookmark (mark audio, mark subtitle, apply); reset | M5 | must | built | planned |
+| PB-20 | Subtitle delay & sync | ±50 ms steps (G/H); speed/FPS factor; three-key sync-by-bookmark (mark audio, mark subtitle, apply); reset | M5 | must | built | built |
 | PB-21 | Sleep timer | Stop or pause after N minutes or at the end of the current item, with a fade-out | M6 | should | verified | verified |
 | PB-22 | Play-and-exit / play-and-stop / play-and-pause | CLI and settings | M4 | must | verified | verified |
 | PB-23 | Start/stop/run time per item | `--start`, `--stop`, `--run-time`; per-item options in the playlist | M4 | should | built | planned |
@@ -130,7 +130,7 @@ macOS: 211 planned, 27 built, 55 verified, 27 post-1.0, 2 not-applicable.
 | SUB-13 | JACOsub, PJS, MPSub, USF, SCC, RealText, Kate | - | post | could/wont | post-1.0 | post-1.0 |
 | SUB-14 | Sidecar autoload | Same folder plus `Subs/`, `subs/`, `Subtitles/`, `subtitles/`; match levels exact / starts-with / contains / any; language codes in the filename (`movie.en.srt`, `movie.fr.forced.srt`) | M5 | must | verified | verified |
 | SUB-15 | Character encoding | BOM/UTF-8 detection, heuristic detector, fallback setting (system ANSI default) with an explicit list (Windows-125x, ISO-8859-x, Shift-JIS, EUC-KR, GB18030, Big5, KOI8-R/U, UTF-16) | M5 | must | built | built |
-| SUB-16 | Drop a subtitle file on the video | Loads it as a subtitle track and selects it | M5 | must | verified | planned |
+| SUB-16 | Drop a subtitle file on the video | Loads it as a subtitle track and selects it | M5 | must | verified | verified |
 | SUB-17 | Online subtitle search | Extension point only (§6.12); no service hard-wired in core | M14 | could | planned | planned |
 | SUB-18 | Word timing | WebVTT cue timestamps and ASS karaoke tags (\k, \K, \kf, \ko) time the runs of a cue; a cue splits into words with the time each is spoken | M16 | should | verified | planned |
 | SUB-19 | Local transcription | A transcript of the speech with word timestamps, made on this computer by a downloaded speech model (never bundled, permissive licence only); joins the track list as "Transcript", cached per file, exportable as SRT/VTT | M16 | should | verified | planned |
@@ -175,13 +175,13 @@ macOS: 211 planned, 27 built, 55 verified, 27 post-1.0, 2 not-applicable.
 | AU-04 | Bitstream passthrough | AC-3, E-AC-3, DTS, DTS-HD, TrueHD as IEC 61937 over HDMI/S/PDIF; per-format toggles; DSP bypass indicated | M11 | should | planned | planned |
 | AU-05 | Volume | 0–200% (slider tops at 125% by default, configurable to 200%); 5% steps (configurable); wheel over the video; soft-clip above 100%; remembered across sessions (setting); OSD feedback | M4 | must | verified | verified |
 | AU-06 | Mute | Digital silence; unmute restores the level | M4 | must | verified | built |
-| AU-07 | 10-band graphic equaliser | ISO octave bands 31/62/125/250/500/1k/2k/4k/8k/16k Hz, ±20 dB per band, preamp ±20 dB; 18 built-in presets (Flat, Classical, Club, Dance, Full bass, Full bass & treble, Full treble, Headphones, Large hall, Live, Party, Pop, Reggae, Rock, Ska, Soft, Soft rock, Techno); user presets; double-pass option; remembered | M5 | must | verified | planned |
+| AU-07 | 10-band graphic equaliser | ISO octave bands 31/62/125/250/500/1k/2k/4k/8k/16k Hz, ±20 dB per band, preamp ±20 dB; 18 built-in presets (Flat, Classical, Club, Dance, Full bass, Full bass & treble, Full treble, Headphones, Large hall, Live, Party, Pop, Reggae, Rock, Ska, Soft, Soft rock, Techno); user presets; double-pass option; remembered | M5 | must | verified | built |
 | AU-08 | Dynamic range compressor | RMS/peak blend, attack 1.5–400 ms (25), release 2–800 ms (100), threshold −30–0 dB (−11), ratio 1–20 (4), knee 1–10 dB (5), make-up 0–24 dB (7) | M11 | should | planned | planned |
 | AU-09 | Room reverb / spatialiser | Room size, width, wet, dry, damping | M11 | could | planned | planned |
 | AU-10 | Stereo widener | Delay 1–100 ms, feedback, cross-feed, dry mix | M11 | could | planned | planned |
-| AU-11 | Stereo mode | Stereo / mono / left only / right only / reverse; headphone cross-feed (S); matrix-surround decode (C) | M5 | must | verified | planned |
+| AU-11 | Stereo mode | Stereo / mono / left only / right only / reverse; headphone cross-feed (S); matrix-surround decode (C) | M5 | must | verified | built |
 | AU-12 | Channel layouts & downmix | Mono→7.1 input; standard-coefficient 5.1/7.1→stereo downmix, LFE policy, centre/surround levels; honours the Windows speaker configuration; upmix off by default | M5 | must | verified | verified |
-| AU-13 | ReplayGain / R128 | Off / track / album; preamp; fallback gain for untagged files; peak protection; reads ID3 TXXX, Vorbis, APE and Opus R128 tags | M5 | should | verified | planned |
+| AU-13 | ReplayGain / R128 | Off / track / album; preamp; fallback gain for untagged files; peak protection; reads ID3 TXXX, Vorbis, APE and Opus R128 tags | M5 | should | verified | built |
 | AU-14 | Loudness normaliser (real-time) | Target level, window; off by default | M11 | should | planned | planned |
 | AU-15 | Pitch-preserving speed | WSOLA time-stretch across 0.25–4×; toggle to "chipmunk" mode | M5 | must | verified | planned |
 | AU-16 | Pitch shift | ±12 semitones (fine cents) independent of speed | M11 | should | planned | planned |
@@ -317,14 +317,14 @@ macOS: 211 planned, 27 built, 55 verified, 27 post-1.0, 2 not-applicable.
 
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
-| LIB-01 | Playlist pane | Docked / undocked / hidden (Ctrl+L, Ctrl+U); columns: title, duration, artist, album, track, genre, year, file name, folder, type, size, date added, play count, last played (choose and reorder); click-to-sort, instant search filter, drag reorder, multi-select, remove, keep-only-selected, clear (Ctrl+W), jump to playing | M4/M6 | must | built | planned |
-| LIB-02 | Adding media | Open file(s) Ctrl+O, folder Ctrl+F, disc Ctrl+D, network Ctrl+N, capture Ctrl+C, paste location Ctrl+V; drag-and-drop (drop plays, Ctrl+drop enqueues, drop on the list inserts at that position); recursive folder expansion with natural sort; playlist files expand in place | M4 | must | verified | planned |
-| LIB-03 | Save / load playlists | Ctrl+Y / Ctrl+X in M3U8, XSPF or PLS; the current queue is restored at startup (setting, default on) | M6 | must | verified | planned |
-| LIB-04 | Named playlists | Create, rename, duplicate, delete; add to playlist from anywhere | M6 | must | verified | planned |
-| LIB-05 | Media library | Watched folders (opt-in suggestions: Videos, Music, Pictures); incremental scanning with change notifications and periodic rescan; bounded lazy thumbnails with decoded video fallback and sound-derived music artwork; purpose-built song, collection, video and picture layouts; search, play counts, recent views and immediate-resume Continue watching | M6 | must | verified | planned |
+| LIB-01 | Playlist pane | Docked / undocked / hidden (Ctrl+L, Ctrl+U); columns: title, duration, artist, album, track, genre, year, file name, folder, type, size, date added, play count, last played (choose and reorder); click-to-sort, instant search filter, drag reorder, multi-select, remove, keep-only-selected, clear (Ctrl+W), jump to playing | M4/M6 | must | built | built |
+| LIB-02 | Adding media | Open file(s) Ctrl+O, folder Ctrl+F, disc Ctrl+D, network Ctrl+N, capture Ctrl+C, paste location Ctrl+V; drag-and-drop (drop plays, Ctrl+drop enqueues, drop on the list inserts at that position); recursive folder expansion with natural sort; playlist files expand in place | M4 | must | verified | built |
+| LIB-03 | Save / load playlists | Ctrl+Y / Ctrl+X in M3U8, XSPF or PLS; the current queue is restored at startup (setting, default on) | M6 | must | verified | built |
+| LIB-04 | Named playlists | Create, rename, duplicate, delete; add to playlist from anywhere | M6 | must | verified | built |
+| LIB-05 | Media library | Watched folders (opt-in suggestions: Videos, Music, Pictures); incremental scanning with change notifications and periodic rescan; bounded lazy thumbnails with decoded video fallback and sound-derived music artwork; purpose-built song, collection, video and picture layouts; search, play counts, recent views and immediate-resume Continue watching | M6 | must | verified | built |
 | LIB-06 | Sidebar sources | Playlist, Library, Discs, Local network (DLNA servers, Windows shares, SAP), Internet (podcasts, provider extensions) | M6/M10 | must | planned | planned |
-| LIB-07 | Recent media | Menu + jump list; clear; "do not keep history" privacy switch | M6 | must | built | planned |
-| LIB-08 | Playlist quick slots | Ctrl+Shift+1..9 sets, Ctrl+1..9 plays a remembered playlist position | M6 | could | verified | planned |
+| LIB-07 | Recent media | Menu + jump list; clear; "do not keep history" privacy switch | M6 | must | built | built |
+| LIB-08 | Playlist quick slots | Ctrl+Shift+1..9 sets, Ctrl+1..9 plays a remembered playlist position | M6 | could | verified | built |
 | LIB-09 | Missing files | Greyed-out entries with "Locate…", and relink by folder | M6 | should | verified | planned |
 | LIB-10 | Library backup / export | Export or import the library and playlists (JSON + M3U8) | M6 | should | verified | planned |
 | LIB-11 | Crash-safe store | RexStore (§7.7): torn writes never lose more than the last record | M6 | must | verified | verified |
@@ -334,17 +334,17 @@ macOS: 211 planned, 27 built, 55 verified, 27 post-1.0, 2 not-applicable.
 
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
-| UI-01 | Main window | Video surface; seek bar (elapsed/remaining toggle on click, chapter ticks, buffered ranges, hover thumbnails); transport (play/pause, stop, previous, next, fullscreen, playlist, effects, loop, shuffle); volume + mute; status chips (hardware decode, cast target, recording, speed) | M4 | must | verified | planned |
-| UI-02 | Menu system | Classic menu bar (toggle) + command bar. Media: open file/multiple/folder/disc/network/capture, open location from clipboard, recent media, save playlist, convert/save, stream, quit at end of playlist, quit. Playback: title, chapter, program, bookmarks, play on (renderer), speed, jump forward/back, go to time, play/stop/previous/next, record, A-B loop, frame step, sleep timer. Audio: track, device, stereo mode, visualisation, volume up/down, mute. Video: track, fullscreen, fit window, zoom, aspect, crop, deinterlace + mode, snapshot, always on top, transform, 360°, stats overlay. Subtitle: add file, track, secondary track, text scale, delay and sync. Tools: effects and filters, track synchronisation, media information, codec information, program guide, log console, extensions, customise interface, preferences, keyboard shortcuts. View: playlist, dock playlist, library, minimal interface, fullscreen interface, picture-in-picture, always on top, status strip. Help: help, shortcuts, what's new, check for updates, report a problem, about | M4–M15 | must | built | planned |
+| UI-01 | Main window | Video surface; seek bar (elapsed/remaining toggle on click, chapter ticks, buffered ranges, hover thumbnails); transport (play/pause, stop, previous, next, fullscreen, playlist, effects, loop, shuffle); volume + mute; status chips (hardware decode, cast target, recording, speed) | M4 | must | verified | built |
+| UI-02 | Menu system | Classic menu bar (toggle) + command bar. Media: open file/multiple/folder/disc/network/capture, open location from clipboard, recent media, save playlist, convert/save, stream, quit at end of playlist, quit. Playback: title, chapter, program, bookmarks, play on (renderer), speed, jump forward/back, go to time, play/stop/previous/next, record, A-B loop, frame step, sleep timer. Audio: track, device, stereo mode, visualisation, volume up/down, mute. Video: track, fullscreen, fit window, zoom, aspect, crop, deinterlace + mode, snapshot, always on top, transform, 360°, stats overlay. Subtitle: add file, track, secondary track, text scale, delay and sync. Tools: effects and filters, track synchronisation, media information, codec information, program guide, log console, extensions, customise interface, preferences, keyboard shortcuts. View: playlist, dock playlist, library, minimal interface, fullscreen interface, picture-in-picture, always on top, status strip. Help: help, shortcuts, what's new, check for updates, report a problem, about | M4–M15 | must | built | built |
 | UI-03 | Video context menu | The same tree in context form (play/pause, stop, previous/next, record, jumps, speed, audio, video, subtitle, playback, tools, view, open media, play on, quit), reachable in minimal and fullscreen modes | M4 | must | built | built |
-| UI-04 | Fullscreen controller | Seek bar, transport, volume, tracks, effects, leave fullscreen; auto-hide (1.5 s), opacity, keyboard-focusable, touch-friendly | M4 | must | verified | planned |
+| UI-04 | Fullscreen controller | Seek bar, transport, volume, tracks, effects, leave fullscreen; auto-hide (1.5 s), opacity, keyboard-focusable, touch-friendly | M4 | must | verified | built |
 | UI-05 | Minimal interface | Ctrl+H hides chrome; right-click keeps every menu reachable | M4 | must | verified | verified |
 | UI-06 | Mini player & PiP | Compact audio player and the video PiP window (VID-28) | M15 | should | planned | planned |
-| UI-07 | Effects & filters panel (Ctrl+E) | Audio tab (equaliser, compressor, reverb, widener, pitch & speed, advanced); Video tab (essential, crop, colours, geometry, overlays, advanced); Synchronisation tab (audio delay, subtitle delay/speed, sync marks); presets save/load; per-file "remember these settings" option | M5/M11 | must | built | planned |
+| UI-07 | Effects & filters panel (Ctrl+E) | Audio tab (equaliser, compressor, reverb, widener, pitch & speed, advanced); Video tab (essential, crop, colours, geometry, overlays, advanced); Synchronisation tab (audio delay, subtitle delay/speed, sync marks); presets save/load; per-file "remember these settings" option | M5/M11 | must | built | built |
 | UI-08 | Media information (Ctrl+I) | General (editable tags + artwork), Metadata (all raw tags), Codec (per stream: codec + decoder used, language, channels, sample rate, bit depth, resolution, fps, pixel format, colour primaries/transfer/matrix/range, rotation, HDR metadata), Statistics (input and demux bitrate, discontinuities, decoded/displayed/late/dropped frames, audio decoded/played/lost buffers, buffer level, network throughput), Location; Ctrl+J opens the Codec tab | M4/M6 | must | built | built |
 | UI-09 | Log console (Ctrl+M) | Verbosity (error/warning/info/debug), source filter, search, copy, save, clear; "Copy diagnostics bundle" | M4 | must | verified | verified |
-| UI-10 | Preferences | Simple pages (Interface, Playback, Audio, Video, Subtitles & OSD, Input & codecs incl. a decode-ladder view, Network & privacy, Library, Hotkeys, Extensions, Advanced) + All settings: searchable, generated from the typed schema, "modified only" filter, per-setting reset; reset all; import/export | M4/M6 | must | built | planned |
-| UI-11 | Hotkey editor | Rebind any command; conflict detection; per-binding global toggle; mouse settings (wheel = volume / seek / none, horizontal wheel, middle-click and back/forward buttons); reset; export | M6 | must | verified | planned |
+| UI-10 | Preferences | Simple pages (Interface, Playback, Audio, Video, Subtitles & OSD, Input & codecs incl. a decode-ladder view, Network & privacy, Library, Hotkeys, Extensions, Advanced) + All settings: searchable, generated from the typed schema, "modified only" filter, per-setting reset; reset all; import/export | M4/M6 | must | built | built |
+| UI-11 | Hotkey editor | Rebind any command; conflict detection; per-binding global toggle; mouse settings (wheel = volume / seek / none, horizontal wheel, middle-click and back/forward buttons); reset; export | M6 | must | verified | built |
 | UI-12 | Customise interface | Toolbar editor: palette of every transport button (frame step, A-B, record, snapshot, loop, shuffle, speed, playlist, fullscreen, effects, stop, chapter nav, cast), drag to order, save/restore layouts | M14 | should | planned | planned |
 | UI-13 | Themes | System / light / dark; accent from the system or the REX signal colour; high contrast; Mica backdrop; theme packages (C) | M4/M15 | must | built | planned |
 | UI-14 | First run | Welcome, privacy choices (metadata lookups off by default, update checks on with an opt-out), file-association offer, short tour (house first-run tour pattern) | M4/M15 | must | verified | planned |

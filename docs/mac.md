@@ -21,9 +21,11 @@ It also shows the macOS version. Below macOS 12, see [an older Mac](#an-older-ma
 
 The Mac app provides the AppKit playback window, transport and seek controls, volume and
 mute, a Metal video surface, native audio output and codecs, Finder open/drop handling, a native
-queue and searchable watched-folder library, saved-position bookmarks, basic playback tools and
+queue and searchable watched-folder library, saved-position bookmarks, native playlist file and
+named-playlist controls, recent-media and quick-slot actions, track/subtitle synchronization tools,
+a shortcut editor with import/export, a 10-band audio equalizer with stereo and ReplayGain choices,
 preferences, selected shared playback commands, and media information. Support for richer library
-pages, subtitle rendering and editing, the complete preferences and effects interface, and many
+pages, subtitle rendering and editing, complete preferences, video effects, and many
 platform-specific conveniences is still in progress. A capability is not considered
 **verified** just because a shared engine has its implementation.
 
@@ -99,3 +101,14 @@ OpenCore Legacy Patcher, a free community tool:
    many models, but Monterey is the lightest that rexplayer supports).
 
 Macs from before 2012 cannot run macOS 12 at all, so rexplayer cannot run on them.
+
+## Mac parity work in progress
+
+The Mac capability entries marked **built** mean implementation work exists, not that all
+edge cases, controls, platform versions and behaviours have been checked. The remaining
+**planned** entries have not been completed. In particular, the native tracks panel now
+selects audio and primary/secondary subtitle tracks and aligns delay marks; the audio effects
+panel uses the shared sound settings. Full platform verification and status promotion to
+**verified** are separate tasks after implementation. See the generated [parity ledger](parity.md)
+for unresolved differences; do not treat the **gap** count in that document as the number of
+outstanding rows.
