@@ -11,7 +11,9 @@ $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName PresentationCore
 $inventory = Get-Content "tests/screenshot-scenes.json" -Raw | ConvertFrom-Json
 $owners = @("LibraryFixtureVisualTests", "LibraryEvidenceEdgeTests")
-$scenes = @($inventory.scenes | Where-Object { $_.owner -in $owners })
+$scenes = @($inventory.scenes | Where-Object {
+    $_.owner -in $owners -and $_.requiredLane -eq $FirstLane
+})
 if ($scenes.Count -lt 7) { throw "Expected at least seven stable offline fixture scenes." }
 
 function Read-Picture([string]$path) {

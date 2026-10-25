@@ -457,12 +457,14 @@ public sealed partial class MainWindow
             throw new MediaFormatException("The audio track gave no samples for its artwork.");
         }
 
-        // Color the same recording consistently across library moves and test roots.
-        // Keep its last two directories (such as author/book) to distinguish
-        // equally named tracks without hashing the machine-specific root path.
-        var directory = Path.GetDirectoryName(path);
-        var parent = Path.GetDirectoryName(directory);
-        var artworkIdentity = string.Join("/", Path.GetFileName(parent), Path.GetFileName(directory), Path.GetFileName(path));
+        // Use the recording's own tags and name, not its parent folders. Temporary
+        // library roots change on each launch and must not recolour the same song.
+        var tags = demuxer.Info.Metadata;
+        var artworkIdentity = string.Join("/",
+            tags.GetValueOrDefault(MetadataKeys.Artist),
+            tags.GetValueOrDefault(MetadataKeys.Album),
+            tags.GetValueOrDefault(MetadataKeys.Title),
+            Path.GetFileName(path));
         using var picture = AudioArtwork.Render([.. mono], sampleRate, artworkIdentity, options);
         using var output = new MemoryStream();
         PngWriter.Write(output, picture);

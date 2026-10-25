@@ -36,6 +36,24 @@ internal static partial class Pointer
 
     public static void RightClick(AppProcess app, AutomationElement element) => Mouse(app, element, RightDown, RightUp, 1);
 
+    /// <summary>Leave offline fixture screenshots free of hover-dependent highlights.</summary>
+    public static void ParkOutsideWindow(AppProcess app)
+    {
+        var desktop = WindowPicture.DesktopBounds;
+        var window = WindowPicture.Bounds(app.Handle);
+        var corners = new[]
+        {
+            (X: (int)desktop.Right - 2, Y: (int)desktop.Bottom - 2),
+            (X: (int)desktop.Left + 1, Y: (int)desktop.Bottom - 2),
+            (X: (int)desktop.Right - 2, Y: (int)desktop.Top + 1),
+            (X: (int)desktop.Left + 1, Y: (int)desktop.Top + 1),
+        };
+        var target = corners.FirstOrDefault(point => !window.Contains(point.X, point.Y));
+        Assert.True(corners.Any(point => !window.Contains(point.X, point.Y)),
+            "The screenshot window leaves no desktop space to park the pointer.");
+        MoveHoverPointer(target.X, target.Y);
+    }
+
     /// <summary>Move the real pointer over a fraction of a visible slider without clicking or seeking.</summary>
     public static void Hover(AppProcess app, AutomationElement element, double fraction)
     {
