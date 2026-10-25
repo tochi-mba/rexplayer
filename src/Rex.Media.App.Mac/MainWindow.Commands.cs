@@ -146,6 +146,9 @@ public sealed partial class MainWindow
             case CommandCatalog.CycleVisualizer:
                 CycleMusicVisualizer();
                 return true;
+            case CommandCatalog.VisualizerSettings:
+                ShowMusicVisualizers();
+                return true;
             case CommandCatalog.BackUpLibrary:
                 BackUpLibrary();
                 return true;
