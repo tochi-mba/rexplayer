@@ -131,6 +131,7 @@ public sealed partial class MainWindow : IDisposable
         DisposeTrackTools();
         DisposeHistory();
         DisposeStartupGuidance();
+        DisposeStats();
         _player.Dispose();
         _picture?.Presenter?.Dispose();
         _window.Dispose();
@@ -419,6 +420,7 @@ public sealed partial class MainWindow : IDisposable
         _welcome.TranslatesAutoresizingMaskIntoConstraints = false;
         content.AddSubview(_welcome);
         AddSubtitleOverlays(content);
+        AddStatsOverlay(content);
         _welcome.CenterXAnchor.ConstraintEqualTo(_picture.CenterXAnchor).Active = true;
         _welcome.CenterYAnchor.ConstraintEqualTo(_picture.CenterYAnchor).Active = true;
         _picture.TopAnchor.ConstraintEqualTo(content.TopAnchor).Active = true;
@@ -640,6 +642,9 @@ public sealed partial class MainWindow : IDisposable
             case CommandCatalog.Effects:
                 ShowEffects();
                 return true;
+            case CommandCatalog.ToggleStats:
+                ToggleStatsOverlay();
+                return true;
             case CommandCatalog.BackUpLibrary:
                 BackUpLibrary();
                 return true;
@@ -831,6 +836,7 @@ public sealed partial class MainWindow : IDisposable
         CommandCatalog.SleepAtEndOfItem => _player.SleepAtEndOfItem,
         CommandCatalog.ToggleFullScreen => IsFullScreen,
         CommandCatalog.ToggleAlwaysOnTop => _window.Level == NSWindowLevel.Floating,
+        CommandCatalog.ToggleStats => _statsVisible,
         CommandCatalog.MinimalInterface => _minimalInterface,
         _ => false,
     };

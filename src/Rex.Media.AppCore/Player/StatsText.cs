@@ -12,7 +12,7 @@ namespace Rex.Media.AppCore.Player;
 /// </summary>
 public static class StatsText
 {
-    public static string Describe(SessionStats stats, MediaInfo? info, int? audioTrack, SessionStats? earlier = null, TimeSpan interval = default)
+    public static string Describe(SessionStats stats, MediaInfo? info, int? audioTrack, SessionStats? earlier = null, TimeSpan interval = default, string osSoftwareName = "Windows, in software")
     {
         ArgumentNullException.ThrowIfNull(stats);
         var lines = new List<string>();
@@ -21,7 +21,7 @@ public static class StatsText
             var where = stats.VideoDecoderSource switch
             {
                 DecoderSource.OsHardware => "graphics card",
-                DecoderSource.OsSoftware => "Windows, in software",
+                DecoderSource.OsSoftware => osSoftwareName,
                 DecoderSource.Own => "rexplayer",
                 _ => "not decoding",
             };
