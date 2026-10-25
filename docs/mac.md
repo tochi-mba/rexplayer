@@ -195,12 +195,12 @@ consuming the key in unrelated windows. The Mac transport has an explicit Tab tr
 sequence and accessible labels on the primary interactive controls. Keyboard completeness
 (A11Y-02) remains **planned** because not every secondary panel has undergone a keyboard audit.
 
-The Mac playback Preferences window now exposes an option to allow or disallow
-hardware-assisted H.264/HEVC decoding for subsequently opened videos. The choice passes
-through the shared settings, decoder factory, and VideoToolbox session configuration. When
-disabled, VideoToolbox receives the documented decoder specification that requests software
-decoding. Automatic hardware selection is otherwise permitted, and the statistics overlay
-reports the *configured policy*, not an unproven claim about which device decoded a frame.
-Per-codec selection, software recovery evidence and detailed hardware-decoder statistics
-are not yet implemented; VID-01 therefore remains **planned** rather than being marked
-complete prematurely.
+The Mac playback Preferences window now exposes automatic hardware decoding, a global
+hardware-disable option, and separate hardware H.264/HEVC choices for subsequently opened
+videos. These choices pass through shared settings, the decoder factory, and VideoToolbox's
+documented decoder specification. When disabled for a codec, VideoToolbox is explicitly
+requested to decode it in software. Automatic hardware selection is otherwise permitted.
+The statistics overlay reports the *configured per-codec policy*, not an unproven claim
+about which device decoded a frame. Recovery evidence, detailed actual decoder hardware
+statistics, and complete zero-copy handling are still missing, so VID-01 remains
+**planned** rather than being marked complete prematurely.
