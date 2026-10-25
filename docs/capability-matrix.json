@@ -3409,7 +3409,7 @@
       "oracles": "UIA",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -3656,7 +3656,7 @@
       "oracles": "FILE",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {

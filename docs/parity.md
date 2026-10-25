@@ -114,7 +114,7 @@ Totals: 86 rows differ (62 must), 2 not applicable, 0 gaps.
 | UI-04 | Fullscreen controller | must | verified | planned |  |
 | UI-05 | Minimal interface | must | verified | planned |  |
 | UI-07 | Effects & filters panel (Ctrl+E) | must | built | planned |  |
-| UI-09 | Log console (Ctrl+M) | must | verified | planned |  |
+| UI-09 | Log console (Ctrl+M) | must | verified | built |  |
 | UI-10 | Preferences | must | built | planned |  |
 | UI-11 | Hotkey editor | must | verified | planned |  |
 | UI-13 | Themes | must | built | planned |  |
@@ -129,7 +129,7 @@ Totals: 86 rows differ (62 must), 2 not applicable, 0 gaps.
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
 | TOOL-09 | Updater | should | verified | planned |  |
-| TOOL-10 | Diagnostics bundle | should | verified | planned |  |
+| TOOL-10 | Diagnostics bundle | should | verified | built |  |
 | TOOL-11 | System probe | must | verified | planned |  |
 
 ## Platform integration

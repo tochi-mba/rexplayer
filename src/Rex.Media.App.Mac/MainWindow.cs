@@ -110,6 +110,7 @@ public sealed partial class MainWindow : IDisposable
 
         CloseLibrary();
         CloseQueue();
+        DisposeDiagnostics();
         DisposePreferences();
         DisposePlaybackTools();
         _player.Dispose();
@@ -486,9 +487,15 @@ public sealed partial class MainWindow : IDisposable
             case CommandCatalog.Help:
                 NSWorkspace.SharedWorkspace.OpenUrl(new NSUrl(HelpUrl));
                 return true;
-            case CommandCatalog.ShowLog or CommandCatalog.OpenLogFolder:
+            case CommandCatalog.ShowLog:
+                ShowLogConsole();
+                return true;
+            case CommandCatalog.OpenLogFolder:
                 Directory.CreateDirectory(_roots.LogFolder);
                 NSWorkspace.SharedWorkspace.OpenUrl(NSUrl.FromFilename(_roots.LogFolder));
+                return true;
+            case CommandCatalog.SaveDiagnostics:
+                SaveDiagnostics();
                 return true;
             case CommandCatalog.About:
                 NSApplication.SharedApplication.OrderFrontStandardAboutPanel(null);
