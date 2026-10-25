@@ -51,6 +51,14 @@ public sealed partial class MainWindow
 
         try
         {
+            // Cocoa's text system shapes the supplied Unicode and chooses script fallback.
+            // Natural paragraph direction lets Arabic and Hebrew runs lead RTL without
+            // reversing Latin titles, numeric timestamps or mixed-script subtitles.
+            using var paragraph = new NSMutableParagraphStyle
+            {
+                Alignment = NSTextAlignment.Center,
+                BaseWritingDirection = NSWritingDirection.Natural,
+            };
             using var styled = new NSMutableAttributedString("");
             for (var line = 0; line < visibleLines.Length; line++)
             {
@@ -68,6 +76,7 @@ public sealed partial class MainWindow
                     var attrs = new NSStringAttributes
                     {
                         Font = runFont,
+                        ParagraphStyle = paragraph,
                         ForegroundColor = MacSubtitleColour(look.ColorOf(run)),
                         StrokeColor = MacSubtitleColour(look.OutlineColor),
                         StrokeWidth = look.Outline > 0
