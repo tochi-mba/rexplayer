@@ -136,6 +136,7 @@ public sealed partial class MainWindow : IDisposable
         DisposeMusicPresentation();
         EndCrashRecovery();
         DisposePlaybackActivity();
+        DisposeSubtitleStyle();
         _player.Dispose();
         _picture?.Presenter?.Dispose();
         _window.Dispose();
@@ -453,6 +454,7 @@ public sealed partial class MainWindow : IDisposable
         app.AddItem(new NSMenuItem("Named playlists…", (_, _) => ShowSavedPlaylists()));
         app.AddItem(Entry(CommandCatalog.Effects, "Effects & filters…"));
         app.AddItem(new NSMenuItem("Tracks & subtitle sync…", (_, _) => ShowTrackTools()));
+        app.AddItem(new NSMenuItem("Subtitle appearance…", (_, _) => ShowSubtitleStyle()));
         app.AddItem(new NSMenuItem("Recent media & quick slots…", (_, _) => ShowHistory()));
         app.AddItem(new NSMenuItem("Your library…", (_, _) => Run(CommandCatalog.ToggleLibrary)));
         app.AddItem(new NSMenuItem("Up Next…", (_, _) => ShowQueue()));

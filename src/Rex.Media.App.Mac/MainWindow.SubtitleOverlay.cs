@@ -12,6 +12,8 @@ public sealed partial class MainWindow
     private NSTextField? _secondarySubtitleOverlay;
     private NSTextField? _videoMessageOverlay;
     private SessionState _lastTitleState = SessionState.Idle;
+    private NSLayoutConstraint? _subtitleBottomConstraint;
+    private NSLayoutConstraint? _secondaryTopConstraint;
 
     private void AddSubtitleOverlays(NSView container)
     {
@@ -26,8 +28,10 @@ public sealed partial class MainWindow
             label.TrailingAnchor.ConstraintEqualTo(_picture.TrailingAnchor, -28).Active = true;
         }
 
-        _primarySubtitleOverlay.BottomAnchor.ConstraintEqualTo(_picture!.BottomAnchor, -28).Active = true;
-        _secondarySubtitleOverlay.TopAnchor.ConstraintEqualTo(_picture.TopAnchor, 28).Active = true;
+        _subtitleBottomConstraint = _primarySubtitleOverlay.BottomAnchor.ConstraintEqualTo(_picture!.BottomAnchor, -28);
+        _subtitleBottomConstraint.Active = true;
+        _secondaryTopConstraint = _secondarySubtitleOverlay.TopAnchor.ConstraintEqualTo(_picture.TopAnchor, 28);
+        _secondaryTopConstraint.Active = true;
         _videoMessageOverlay.TopAnchor.ConstraintEqualTo(_secondarySubtitleOverlay.BottomAnchor, 12).Active = true;
     }
 
@@ -55,6 +59,20 @@ public sealed partial class MainWindow
             ?? NSFont.SystemFontOfSize(fontSize, _settings.SubtitleBold ? NSFontWeight.Semibold : NSFontWeight.Regular)!;
         _primarySubtitleOverlay.Font = font;
         _secondarySubtitleOverlay.Font = font;
+        var colour = _settings.SubtitleColor;
+        var rgba = NSColor.FromRgba(
+            (colour >> 16) & 0xff, (colour >> 8) & 0xff, colour & 0xff,
+            (int)Math.Round(_settings.SubtitleOpacity * 255.0 / 100));
+        _primarySubtitleOverlay.TextColor = rgba;
+        _secondarySubtitleOverlay.TextColor = rgba;
+        if (_subtitleBottomConstraint is not null && _secondaryTopConstraint is not null)
+        {
+            var margin = Math.Max(8, (double)_picture!.Bounds.Height *
+                _settings.SubtitleMargin / 100.0);
+            _subtitleBottomConstraint.Constant = _settings.SubtitlesInBars
+                ? -8 : -(nfloat)margin;
+            _secondaryTopConstraint.Constant = (nfloat)margin;
+        }
         var primary = _player.SubtitlesAt(_player.Position);
         var secondary = _player.SecondarySubtitlesAt(_player.Position);
         var visible = _player.Item is not null;
