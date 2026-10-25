@@ -8,6 +8,10 @@ public sealed partial class MainWindow
     private NSWindow? _savedPlaylistsWindow;
     private NSPopUpButton? _savedPlaylistPicker;
     private NSTextField? _savedPlaylistSummary;
+    private NSStackView? _savedPlaylistNameEditor;
+    private NSTextField? _savedPlaylistNamePrompt;
+    private NSTextField? _savedPlaylistNameField;
+    private Action<string>? _savePlaylistName;
 
     private void SavePlaylistWithPanel()
     {
@@ -58,14 +62,32 @@ public sealed partial class MainWindow
             _savedPlaylistPicker.Activated += (_, _) => RefreshSavedPlaylists();
             _savedPlaylistSummary = NSTextField.CreateLabel("");
             _savedPlaylistSummary.TextColor = NSColor.SecondaryLabel;
+            _savedPlaylistNamePrompt = NSTextField.CreateLabel("");
+            _savedPlaylistNameField = new NSTextField(new CGRect(0, 0, 465, 24))
+            {
+                PlaceholderString = "Playlist name",
+            };
+            ((NSView)_savedPlaylistNameField).AccessibilityLabel = "Playlist name";
+            var saveName = NSButton.CreateButton("Save name", CommitSavedPlaylistName);
+            saveName.KeyEquivalent = "\r";
+            var cancelName = NSButton.CreateButton("Cancel", HideSavedPlaylistNameEditor);
+            var nameActions = NSStackView.FromViews([saveName, cancelName]);
+            nameActions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
+            nameActions.Spacing = 8;
+            _savedPlaylistNameEditor = NSStackView.FromViews([
+                _savedPlaylistNamePrompt, _savedPlaylistNameField, nameActions,
+            ]);
+            _savedPlaylistNameEditor.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
+            _savedPlaylistNameEditor.Spacing = 8;
+            _savedPlaylistNameEditor.Hidden = true;
 
             var create = NSButton.CreateButton("Save queue as new…", () =>
             {
-                if (AskForPlaylistName("Name the playlist", "My playlist") is { } name)
+                ShowSavedPlaylistNameEditor("Name the playlist", "My playlist", name =>
                 {
                     _player.CreatePlaylist(name);
                     RefreshSavedPlaylists();
-                }
+                });
             });
             var play = NSButton.CreateButton("Play", () =>
             {
@@ -81,12 +103,13 @@ public sealed partial class MainWindow
             });
             var rename = NSButton.CreateButton("Rename…", () =>
             {
-                if (SelectedSavedPlaylistId() is { } id &&
-                    AskForPlaylistName("Rename the playlist", _player.NamedPlaylists.First(p => p.Id == id).Name) is { } name)
+                if (SelectedSavedPlaylistId() is not { } id) return;
+                var originalName = _player.NamedPlaylists.First(p => p.Id == id).Name;
+                ShowSavedPlaylistNameEditor("Rename the playlist", originalName, name =>
                 {
                     _player.RenamePlaylist(id, name);
                     RefreshSavedPlaylists();
-                }
+                });
             });
             var duplicate = NSButton.CreateButton("Duplicate", () =>
             {
@@ -112,7 +135,8 @@ public sealed partial class MainWindow
             second.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             second.Spacing = 8;
             var stack = NSStackView.FromViews([
-                heading, hint, _savedPlaylistPicker, _savedPlaylistSummary, first, second,
+                heading, hint, _savedPlaylistPicker, _savedPlaylistSummary,
+                _savedPlaylistNameEditor, first, second,
             ]);
             stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
             stack.Alignment = NSLayoutAttribute.Leading;
@@ -128,22 +152,36 @@ public sealed partial class MainWindow
         _savedPlaylistsWindow.MakeKeyAndOrderFront(null);
     }
 
-    private static string? AskForPlaylistName(string title, string initial)
+    private void ShowSavedPlaylistNameEditor(string prompt, string initial, Action<string> save)
     {
-        using var field = new NSTextField(new CGRect(0, 0, 320, 24))
+        _savePlaylistName = save;
+        _savedPlaylistNamePrompt!.StringValue = prompt;
+        _savedPlaylistNameField!.StringValue = initial;
+        _savedPlaylistNameEditor!.Hidden = false;
+        _savedPlaylistsWindow!.MakeFirstResponder(_savedPlaylistNameField);
+    }
+
+    private void CommitSavedPlaylistName()
+    {
+        var name = _savedPlaylistNameField?.StringValue.Trim();
+        if (string.IsNullOrWhiteSpace(name))
         {
-            StringValue = initial,
-        };
-        using var dialog = new NSAlert
+            _savedPlaylistNamePrompt!.StringValue = "Enter a playlist name before saving.";
+            return;
+        }
+
+        var save = _savePlaylistName;
+        HideSavedPlaylistNameEditor();
+        save?.Invoke(name);
+    }
+
+    private void HideSavedPlaylistNameEditor()
+    {
+        _savePlaylistName = null;
+        if (_savedPlaylistNameEditor is not null)
         {
-            MessageText = title,
-            InformativeText = "Give your collection a name.",
-            AccessoryView = field,
-        };
-        dialog.AddButton("Save");
-        dialog.AddButton("Cancel");
-        return dialog.RunModal() == 1000 && !string.IsNullOrWhiteSpace(field.StringValue)
-            ? field.StringValue.Trim() : null;
+            _savedPlaylistNameEditor.Hidden = true;
+        }
     }
 
     private string? SelectedSavedPlaylistId()
@@ -210,6 +248,7 @@ public sealed partial class MainWindow
 
     private void DisposeSavedPlaylists()
     {
+        HideSavedPlaylistNameEditor();
         _savedPlaylistsWindow?.Close();
         _savedPlaylistsWindow?.Dispose();
         _savedPlaylistsWindow = null;
