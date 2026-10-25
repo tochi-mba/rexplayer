@@ -683,6 +683,9 @@ public sealed partial class MainWindow : IDisposable
             case CommandCatalog.Effects:
                 ShowEffects();
                 return true;
+            case CommandCatalog.Snapshot:
+                SaveVideoSnapshot();
+                return true;
             case CommandCatalog.ToggleStats:
                 ToggleStatsOverlay();
                 return true;
