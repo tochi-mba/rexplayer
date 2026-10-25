@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 152 planned, 74 built, 67 verified, 27 post-1.0, 2 not-applicable.
+macOS: 149 planned, 77 built, 67 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -198,7 +198,7 @@ macOS: 152 planned, 74 built, 67 verified, 27 post-1.0, 2 not-applicable.
 
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
-| VID-01 | Hardware decoding policy | Auto (D3D11VA zero-copy) / off / per-codec; automatic software fallback on failure, with the reason in stats | M3 | must | verified | planned |
+| VID-01 | Hardware decoding policy | Auto (D3D11VA zero-copy) / off / per-codec; automatic software fallback on failure, with the reason in stats | M3 | must | verified | built |
 | VID-02 | Frame pacing | Flip-model vsync; cadence-correct 23.976/25/29.97 on 60/120/144 Hz; dropped/late accounting; optional refresh-rate matching in fullscreen | M3/M11 | must | built | built |
 | VID-03 | Fullscreen | F, double-click, Esc to leave; target monitor setting (current / specific); fullscreen controller auto-hides (1.5 s default) and the cursor hides after 1 s | M4 | must | verified | verified |
 | VID-04 | Window sizing | ¼, ½, 1:1, 2× (Alt+1..4); fit to screen; "resize window to video" setting; autoscale toggle (O) and scale factor (Alt+O / Alt+Shift+O) | M4 | must | verified | built |
@@ -244,7 +244,7 @@ macOS: 152 planned, 74 built, 67 verified, 27 post-1.0, 2 not-applicable.
 | OSD-08 | Forced-only mode | Show only forced subtitles (DVD/BD/PGS/flagged tracks) | M7 | should | planned | planned |
 | OSD-09 | Complex scripts & RTL | DirectWrite shaping for Arabic, Hebrew, Indic and CJK, bidi | M5 | must | built | built |
 | OSD-10 | Bitmap subtitle scaling | Scale or recolour PGS/VobSub | M11 | could | planned | planned |
-| OSD-11 | Kinetic captions | Words land one at a time as they are spoken, sized, coloured, placed and moved by how they were said: loudness, pitch, pace and pauses read from the sound; words from the subtitle track, the transcript, or both; energy, accent, palette, layout and glyphs settable | M16 | should | verified | planned |
+| OSD-11 | Kinetic captions | Words land one at a time as they are spoken, sized, coloured, placed and moved by how they were said: loudness, pitch, pace and pauses read from the sound; words from the subtitle track, the transcript, or both; energy, accent, palette, layout and glyphs settable | M16 | should | verified | built |
 
 ## Network input, discovery & casting
 
@@ -365,7 +365,7 @@ macOS: 152 planned, 74 built, 67 verified, 27 post-1.0, 2 not-applicable.
 | TOOL-06 | Single instance | "Use only one instance" (default on), "enqueue instead of play" (default off), explicit `--new-instance` | M4 | must | verified | verified |
 | TOOL-07 | Extensions | §7.8 model; extension points: commands/menus, playback observers, metadata/art/lyrics providers, link resolvers, subtitle providers, service-discovery providers, visualisers (C); manager UI (enable/disable/remove, declared capabilities shown at install); install from local `.rexext` packages; sample extensions + SDK docs + template in the repo | M14 | must | planned | planned |
 | TOOL-08 | Program guide | EPG from transport-stream EIT tables | M12 | could | planned | planned |
-| TOOL-09 | Updater | Automatic check (off / daily / weekly), background resumable download + sha256 verify, install automatically, on close, tonight or now with the session restored paused, remind / skip, release notes shown | M4 | should | verified | planned |
+| TOOL-09 | Updater | Automatic check (off / daily / weekly), background resumable download + sha256 verify, install automatically, on close, tonight or now with the session restored paused, remind / skip, release notes shown | M4 | should | verified | built |
 | TOOL-10 | Diagnostics bundle | Logs + redacted settings + system/codec report → zip for issue reports | M4 | should | verified | verified |
 | TOOL-11 | System probe | `rexplay probe --system`: MF decoders/encoders present, hardware decode caps per codec/resolution, audio endpoints, displays/HDR state | M3 | must | verified | verified |
 | TOOL-12 | Portable mode | Settings and library beside the exe when `rexplayer.portable` exists | M15 | should | planned | planned |
