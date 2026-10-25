@@ -21,11 +21,19 @@ public sealed partial class MainWindow
         return null;
     }
 
-    private static (int Controls, int Missing) NameMacControls()
+    private (int Controls, int Missing) NameMacControls()
     {
         var controls = 0;
         var missing = 0;
-        foreach (var window in NSApplication.SharedApplication.Windows)
+        // Not all .NET/AppKit bindings expose NSApplication.Windows. Inspect the
+        // windows owned by this player instance instead, including native panels.
+        NSWindow?[] windows =
+        [
+            _window, _libraryWindow, _queueWindow, _playbackTools,
+            _preferencesWindow, _musicVisualizerWindow, _updatesWindow,
+            _macCaptionSettings, _macSpeechWindow,
+        ];
+        foreach (var window in windows)
         {
             if (window.ContentView is not { } root) continue;
             var identifier = new string(window.Title.Select(c =>
