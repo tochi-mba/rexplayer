@@ -65,7 +65,11 @@ public sealed partial class MainWindow : IDisposable
         _player.Changed += (_, _) => ShowState();
         _player.PositionChanged += (_, _) => ShowPosition();
         _player.Message += (_, text) => Say(text);
-        _player.SubtitlesChanged += (_, _) => OnWindowThread(RefreshTrackTools);
+        _player.SubtitlesChanged += (_, _) => OnWindowThread(() =>
+        {
+            RefreshTrackTools();
+            UpdateSubtitleOverlays();
+        });
 
         _window = new NSWindow(new CGRect(0, 0, 960, 560), NSWindowStyle.Titled | NSWindowStyle.Closable | NSWindowStyle.Miniaturizable | NSWindowStyle.Resizable, NSBackingStore.Buffered, false)
         {
@@ -414,6 +418,7 @@ public sealed partial class MainWindow : IDisposable
         _welcome.Spacing = 18;
         _welcome.TranslatesAutoresizingMaskIntoConstraints = false;
         content.AddSubview(_welcome);
+        AddSubtitleOverlays(content);
         _welcome.CenterXAnchor.ConstraintEqualTo(_picture.CenterXAnchor).Active = true;
         _welcome.CenterYAnchor.ConstraintEqualTo(_picture.CenterYAnchor).Active = true;
         _picture.TopAnchor.ConstraintEqualTo(content.TopAnchor).Active = true;
@@ -610,6 +615,15 @@ public sealed partial class MainWindow : IDisposable
                 return true;
             case CommandCatalog.AddSubtitles:
                 AddSubtitleWithPanel();
+                return true;
+            case CommandCatalog.SubtitlesBigger:
+                ChangeSubtitleScale(+25);
+                return true;
+            case CommandCatalog.SubtitlesSmaller:
+                ChangeSubtitleScale(-25);
+                return true;
+            case CommandCatalog.ResetSubtitleSize:
+                ChangeSubtitleScale(0);
                 return true;
             case CommandCatalog.Preferences:
                 ShowPreferences();
@@ -851,6 +865,7 @@ public sealed partial class MainWindow : IDisposable
 
         _volume.DoubleValue = _player.Volume;
         ShowPosition();
+        UpdateSubtitleOverlays();
         ShowChecks();
         RefreshPlaybackTools();
         RefreshTrackTools();
@@ -867,6 +882,7 @@ public sealed partial class MainWindow : IDisposable
         var duration = _player.Duration;
         _seek.DoubleValue = duration > TimeSpan.Zero ? Math.Clamp(_player.Position / duration, 0, 1) : 0;
         _time.StringValue = duration > TimeSpan.Zero ? $"{Clock(_player.Position)} / {Clock(duration)}" : Clock(_player.Position);
+        UpdateSubtitleOverlays();
     }
 
     private void SeekToSlider()
@@ -892,8 +908,13 @@ public sealed partial class MainWindow : IDisposable
     private void Say(string text)
     {
         _message.StringValue = text;
+        SetVideoOSD(text);
         _clearMessage?.Invalidate();
-        _clearMessage = NSTimer.CreateScheduledTimer(TimeSpan.FromSeconds(3), _ => _message.StringValue = "");
+        _clearMessage = NSTimer.CreateScheduledTimer(TimeSpan.FromSeconds(3), _ =>
+        {
+            _message.StringValue = "";
+            SetVideoOSD("");
+        });
     }
 
     /// <summary>
