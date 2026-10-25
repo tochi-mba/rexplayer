@@ -72,6 +72,7 @@ public sealed class CliSystemTests
         using var document = JsonDocument.Parse(output);
         var data = document.RootElement.GetProperty("data");
         Assert.Equal(("10.0.26200.0", "A graphics card", false), (data.GetProperty("windows").GetString(), data.GetProperty("graphics").GetString(), data.GetProperty("graphicsInSoftware").GetBoolean()));
+        Assert.Equal(("Windows", "10.0.26200.0"), (data.GetProperty("platform").GetString(), data.GetProperty("operatingSystem").GetString()));
         Assert.Equal(48_000, data.GetProperty("audioOutput").GetProperty("sampleRate").GetInt32());
         var h264 = data.GetProperty("codecs").EnumerateArray().Single(c => c.GetProperty("codec").GetString() == "H264");
         Assert.False(h264.GetProperty("own").GetBoolean());
@@ -96,5 +97,13 @@ public sealed class CliSystemTests
     public void RexplayersOwnCodecsAreTheShippedDecoders()
     {
         Assert.Equal([CodecId.Pcm, CodecId.Alaw, CodecId.Mulaw, CodecId.Mp3, CodecId.Flac, CodecId.Vorbis], SystemReport.OwnCodecs());
+    }
+
+    [Fact]
+    public void HumanReportsNameTheHostPlatform()
+    {
+        var (_, output, _) = Run(() => Report with { Platform = "macOS", Windows = "Version 15" }, "probe", "--system");
+
+        Assert.StartsWith("macOS Version 15", output, StringComparison.Ordinal);
     }
 }

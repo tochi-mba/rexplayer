@@ -1,7 +1,9 @@
 using System.Reflection;
+using Rex.Media.AppCore;
 using Rex.Media.AppCore.Cli;
 using Rex.Media.AppCore.Platform;
 using Rex.Media.Audio.CoreAudio;
+using Rex.Media.Primitives;
 
 // The composition root of rexplay on a Mac: the console, Ctrl+C, the Mac's audio output and
 // VideoToolbox for H.264 and HEVC. Everything else is the command line in Rex.Media.AppCore, the
@@ -27,6 +29,45 @@ var host = new CliHost
     DataRoot = roots.Root,
     Cancellation = cancellation.Token,
     SectionCache = new Rex.Media.AppCore.Player.SectionAnalysisCache(roots.SectionCache),
+    SystemReport = MacSystemReport,
 };
 
 return CliApplication.Run(args, host);
+
+static SystemReport MacSystemReport()
+{
+    if (!OperatingSystem.IsMacOS())
+    {
+        return new SystemReport
+        {
+            Platform = "macOS",
+            Windows = System.Runtime.InteropServices.RuntimeInformation.OSDescription,
+            Graphics = null,
+        };
+    }
+
+    AudioFormat? output = null;
+    try
+    {
+        using var sink = new CoreAudioSink();
+        output = sink.Open(new AudioFormat(48_000, 2, SampleFormat.F32, ChannelLayout.Stereo));
+    }
+    catch (IOException)
+    {
+        // A computer with no selected output is still a valid report.
+    }
+
+    return new SystemReport
+    {
+        Platform = "macOS",
+        Windows = System.Runtime.InteropServices.RuntimeInformation.OSDescription,
+        Graphics = "Metal",
+        AudioOutput = output,
+        Decoders =
+        [
+            new WindowsDecoders(CodecId.Aac, ["AudioToolbox"], []),
+            new WindowsDecoders(CodecId.H264, ["VideoToolbox"], ["VideoToolbox"]),
+            new WindowsDecoders(CodecId.Hevc, ["VideoToolbox"], ["VideoToolbox"]),
+        ],
+    };
+}

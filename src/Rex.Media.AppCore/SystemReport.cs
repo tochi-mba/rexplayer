@@ -13,6 +13,10 @@ public sealed record WindowsDecoders(CodecId Codec, IReadOnlyList<string> Softwa
 /// </summary>
 public sealed record SystemReport
 {
+    /// <summary>The operating-system family whose adapters supplied this report.</summary>
+    public string Platform { get; init; } = "Windows";
+
+    /// <summary>The operating-system description. The historic property name stays for machine-protocol compatibility.</summary>
     public required string Windows { get; init; }
 
     public IReadOnlyList<WindowsDecoders> Decoders { get; init; } = [];
