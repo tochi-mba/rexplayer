@@ -3,6 +3,7 @@ using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Primitives;
+using Rex.Media.Settings;
 
 namespace Rex.Media.App.Mac;
 
@@ -17,6 +18,7 @@ public sealed partial class MainWindow
     private NSTextField? _playbackToolsTitle;
     private NSPopUpButton? _playbackSpeed;
     private NSTextField? _playbackSpeedHint;
+    private NSButton? _playbackPreservePitch;
     private NSButton? _nextAudioTrack;
     private readonly List<NSButton> _bookmarkActions = [];
     private readonly List<NSButton> _seekActions = [];
@@ -113,8 +115,22 @@ public sealed partial class MainWindow
                 }
             };
             ((NSView)_playbackSpeed).AccessibilityLabel = "Playback speed, pitch preserved";
-            _playbackSpeedHint = NSTextField.CreateLabel("Pitch is kept by the shared WSOLA sound engine.");
+            _playbackSpeedHint = NSTextField.CreateLabel("WSOLA keeps pitch, or use chipmunk mode.");
             _playbackSpeedHint.TextColor = NSColor.SecondaryLabel;
+            _playbackPreservePitch = NSButton.CreateCheckbox("Preserve pitch at different speeds", () =>
+            {
+                var preserve = IsChecked(_playbackPreservePitch);
+                _settings = _settings with { PreservePitch = preserve };
+                _player.SetPreservePitch(preserve);
+                try
+                {
+                    SettingsStore.Save(_roots.SettingsPath, _settings);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    _log.Warning(LogSource, "Pitch mode could not be saved: " + ex.Message);
+                }
+            });
             var hint = NSTextField.CreateLabel("Changes apply immediately. Bookmarks stay with this file.");
             hint.TextColor = NSColor.SecondaryLabel;
 
@@ -128,6 +144,7 @@ public sealed partial class MainWindow
                 PlaybackToolsHeading("Sound & sync"),
                 PlaybackToolsRow(_audioDescription, _nextAudioTrack),
                 PlaybackToolsRow(PlaybackToolsHeading("Playback speed"), _playbackSpeed),
+                _playbackPreservePitch,
                 _playbackSpeedHint,
                 _audioDelayDescription,
                 PlaybackToolsRow(earlier, later, reset),
@@ -235,6 +252,10 @@ public sealed partial class MainWindow
         _nextAudioTrack!.Enabled = _player.AudioTracks.Count > 1;
         _audioDelayDescription!.StringValue = string.Create(CultureInfo.InvariantCulture, $"Audio delay: {_player.AudioDelay.TotalMilliseconds:+0;-0;0} ms");
         _audioDelayEntry!.StringValue = _player.AudioDelay.TotalMilliseconds.ToString("0", CultureInfo.InvariantCulture);
+        if (_playbackPreservePitch is not null)
+        {
+            _playbackPreservePitch.State = State(_settings.PreservePitch);
+        }
         if (_playbackSpeed is not null)
         {
             var index = PlayerController.SpeedSteps.ToList().FindIndex(
