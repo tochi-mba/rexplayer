@@ -54,10 +54,13 @@ public sealed partial class MainWindow
                 panel.AllowsMultipleSelection = true;
                 panel.CanChooseFiles = true;
                 panel.CanChooseDirectories = false;
-                if (panel.RunModal() == 1)
+                panel.Begin(response =>
                 {
-                    _player.Open(panel.Urls.Select(url => url.Path!).ToList(), enqueue: true);
-                }
+                    if (response == 1)
+                    {
+                        _player.Open(panel.Urls.Select(url => url.Path!).ToList(), enqueue: true);
+                    }
+                });
             });
             _previousQueuePage = NSButton.CreateButton("Previous page", () =>
             {
@@ -262,17 +265,16 @@ public sealed partial class MainWindow
         panel.CanChooseFiles = true;
         panel.CanChooseDirectories = false;
         panel.AllowsMultipleSelection = false;
-        if (panel.RunModal() != 1 || panel.Url?.Path is not { } path)
+        panel.Begin(response =>
         {
-            return;
-        }
-
-        var index = _player.Playlist.IndexOf(item);
-        if (index >= 0)
-        {
-            _player.Relocate(index, path);
-            RefreshQueue();
-        }
+            if (response != 1 || panel.Url?.Path is not { } path) return;
+            var index = _player.Playlist.IndexOf(item);
+            if (index >= 0)
+            {
+                _player.Relocate(index, path);
+                RefreshQueue();
+            }
+        });
     }
 
     private void RelinkMissingQueueFiles()
@@ -282,14 +284,13 @@ public sealed partial class MainWindow
         panel.CanChooseDirectories = true;
         panel.CanChooseFiles = false;
         panel.AllowsMultipleSelection = false;
-        if (panel.RunModal() != 1 || panel.Url?.Path is not { } folder)
+        panel.Begin(response =>
         {
-            return;
-        }
-
-        // The controller intentionally relinks only unique file-name matches.
-        _player.RelinkMissing(folder);
-        RefreshQueue();
+            if (response != 1 || panel.Url?.Path is not { } folder) return;
+            // The controller intentionally relinks only unique file-name matches.
+            _player.RelinkMissing(folder);
+            RefreshQueue();
+        });
     }
 
     /// <summary>
