@@ -10,6 +10,10 @@ namespace Rex.Media.Codecs.Apple;
 /// </summary>
 public sealed class AppleDecoderFactory : IDecoderFactory
 {
+    private readonly bool _allowHardware;
+
+    public AppleDecoderFactory(bool allowHardware = true) => _allowHardware = allowHardware;
+
     public string Name => "macOS VideoToolbox and AudioToolbox";
 
     public DecoderSource Source => DecoderSource.OsSoftware;
@@ -32,6 +36,6 @@ public sealed class AppleDecoderFactory : IDecoderFactory
         : throw new PlatformNotSupportedException("AudioToolbox exists only on a Mac.");
 
     public IVideoDecoder CreateVideo(TrackInfo track) => OperatingSystem.IsMacOS()
-        ? new VtVideoDecoder(track)
+        ? new VtVideoDecoder(track, _allowHardware)
         : throw new PlatformNotSupportedException("VideoToolbox exists only on a Mac.");
 }
