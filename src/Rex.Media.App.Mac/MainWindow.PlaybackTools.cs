@@ -55,8 +55,22 @@ public sealed partial class MainWindow
             });
             _seekActions.Add(add);
             var jump = NSButton.CreateButton("Go to", () => _player.GoToBookmark((int)_bookmarkPicker.IndexOfSelectedItem));
-            var rename = NSButton.CreateButton("Rename", () => _player.RenameBookmark((int)_bookmarkPicker.IndexOfSelectedItem, _bookmarkName.StringValue));
-            var remove = NSButton.CreateButton("Remove", () => _player.DeleteBookmark((int)_bookmarkPicker.IndexOfSelectedItem));
+            var rename = NSButton.CreateButton("Rename", () =>
+            {
+                _player.RenameBookmark((int)_bookmarkPicker.IndexOfSelectedItem, _bookmarkName.StringValue);
+                RefreshPlaybackTools();
+            });
+            var remove = NSButton.CreateButton("Remove", () =>
+            {
+                var index = (int)_bookmarkPicker.IndexOfSelectedItem;
+                if (index < 0 || index >= _player.Bookmarks.Count) return;
+                var name = _player.Bookmarks[index].Name;
+                ConfirmInWindow("Remove saved moment '" + name + "' from this file?", () =>
+                {
+                    _player.DeleteBookmark(index);
+                    RefreshPlaybackTools();
+                });
+            });
             _bookmarkActions.AddRange([jump, rename, remove]);
 
             _audioDescription = NSTextField.CreateLabel("No audio track");
