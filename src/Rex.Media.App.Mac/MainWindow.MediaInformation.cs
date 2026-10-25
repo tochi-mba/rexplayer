@@ -1,4 +1,5 @@
 using Rex.Media.Primitives;
+using Rex.Media.AppCore.Player;
 
 namespace Rex.Media.App.Mac;
 
