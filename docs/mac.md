@@ -150,8 +150,9 @@ position, duration and state, and removes handlers at shutdown.
 The software updates window checks the owner's pinned GitHub release feed on the configured cadence
 or on demand. Mac universal ZIPs are downloaded with resumable transfers and accepted only after
 matching a companion SHA-256 file. The verified archive can be opened for manual installation.
-Automatic in-place installation, restart-session handoff, deferral and full updater parity
-remain **planned**; neither this UI nor the ledger implies they have been implemented.
+The UI also offers **Remind me later** and a persisted **Skip this version** choice.
+TOOL-09 is now **built** (partial implementation), not verified: automatic in-place installation,
+a paused-session restore after restart, and complete updater parity are still outstanding.
 
 ## Offline speech and kinetic captions implementation
 
@@ -163,9 +164,10 @@ and model-quality preferences, export to SRT/VTT/LRC/JSON, and a progressively f
 results and retry state. Speech does not leave this device.
 
 The Mac also draws source-timed kinetic words from the portable CaptionDirector and
-accepts the preset, layout, source, and energy commands. This rendering path remains
-partial until all movement, face-avoidance, typography, and per-word effects offered
-by the capability are implemented; therefore the full OSD-11 row remains planned.
+accepts the preset, layout, source, and energy commands. The Mac panel now selects subtitles, transcript, or subtitle text timed by a transcript
+using the shared word-alignment algorithm. It also exposes presets, layouts, palettes,
+glyphs, energy, and an accent colour. OSD-11 is **built**, not verified:
+face-avoidance, embedded effects, and the full range of expressive rendering remain incomplete.
 The speech capabilities above are **built**, not verified, until Mac runtime/model
 and UI testing is performed.
 
@@ -202,5 +204,33 @@ documented decoder specification. When disabled for a codec, VideoToolbox is exp
 requested to decode it in software. Automatic hardware selection is otherwise permitted.
 The statistics overlay reports both the *configured per-codec policy* and the decoder's
 reported source (hardware, software, or rexplayer). Recovery/fallback reasoning when a
-requested hardware decoder is unavailable and complete zero-copy handling remain missing,
-so VID-01 stays **planned** rather than being marked complete prematurely.
+requested hardware decoder is unavailable and complete zero-copy handling remain missing.
+VID-01 is marked **built**, not verified, because the policy UI and native decoding
+connections exist but the remaining performance and fallback obligations are unfinished.
+
+## Extended macOS parity implementation
+
+The native music view now draws the portable sound-reactive visualisation scenes
+from the real audio buffer, with a picker and sensitivity/beat-meter controls. The
+Mac picker excludes camera-dependent effects until their privacy and capture
+integration is implemented. AU-18 is therefore **built**, not verified, and the
+full visualisation catalogue is not claimed to be at Windows parity.
+
+Playback tools expose speed from 0.25× through 4×, with pitch-preserving WSOLA as
+the default and a deliberate pitch-changing “chipmunk” toggle. Both modes use the
+shared audio pipeline. AU-15 is **built**; the new audio-rate processor has portable
+test cases, but Mac output and track-transition evidence remain outstanding.
+
+Snapshot export now offers PNG, JPEG, and BMP at source resolution, and remembers
+the chosen directory. The filename pattern supports `{title}`, `{time}`, and `{n}`;
+automatic sequence numbering is configurable in Preferences. PB-16 remains
+**built** until Mac runtime evidence covers actual files and all formats.
+
+AppKit assigns stable accessibility identifiers and visible names/help to primary
+and dynamically created controls; an automation command reports controls missing
+labels. A11Y-01 is **built** pending an exhaustive accessible-tree and keyboard audit.
+
+The repository-wide parity ledger measures **status differences**, not just
+unimplemented controls. In particular, Windows **verified** and macOS **built**
+are still different until real native-platform verification has been recorded.
+Do not infer parity from the ledger's zero formally accepted `gap` rows.
