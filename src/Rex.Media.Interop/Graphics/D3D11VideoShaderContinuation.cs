@@ -81,6 +81,9 @@ internal static class D3D11VideoShaderContinuation
                     : extras.y < 1.5 ? float3(0.80, 0.66, 0.48)
                     : extras.y < 2.5 ? float3(0.70, 0.71, 0.72) : float3(0.40, 0.62, 0.48);
                 float lum = dot(colour, float3(0.2126, 0.7152, 0.0722));
+                // Black stays black: bars recorded into the picture and the deepest shadows are flat
+                // and would otherwise read as the farthest haze of all.
+                far *= smoothstep(0.015, 0.07, lum);
                 float3 hazed = lerp(colour, lerp(float3(lum, lum, lum), colour, 0.4), far);
                 hazed = lerp(hazed, fog, far * extras.x * 0.0085);
                 hazed = lerp(hazed, saturate((hazed - 0.5) * 1.12 + 0.5), 1 - far);
@@ -543,13 +546,15 @@ internal static class D3D11VideoShaderContinuation
                 // of the previous frame whose small patch best matches the current one. Then draw
                 // the picture further along that motion. Pixels without a clearly better match
                 // than standing still do not move, so a still or paused picture is unchanged.
-                float2 px = max(fwidth(uv), float2(0.00022, 0.00022));
+                // The patches are compared by brightness alone (one read a tap, not two), scaled
+                // to match the colour distances the margins were set for.
+                float2 px = measureStep(pixel);
                 float reach = 1 + pointer.w * 3;
-                float3 centre = readColourAt(uv, isYuv);
-                float3 east = readColourAt(uv + float2(px.x * 2, 0), isYuv);
-                float3 west = readColourAt(uv - float2(px.x * 2, 0), isYuv);
-                float3 south = readColourAt(uv + float2(0, px.y * 2), isYuv);
-                float3 north = readColourAt(uv - float2(0, px.y * 2), isYuv);
+                float centre = readLuma(uv, isYuv);
+                float east = readLuma(uv + float2(px.x * 2, 0), isYuv);
+                float west = readLuma(uv - float2(px.x * 2, 0), isYuv);
+                float south = readLuma(uv + float2(0, px.y * 2), isYuv);
+                float north = readLuma(uv - float2(0, px.y * 2), isYuv);
                 float stillError = 0;
                 float2 moved = 0;
                 float bestError = 1e9;
@@ -558,11 +563,11 @@ internal static class D3D11VideoShaderContinuation
                     float2 shift = k == 8 ? float2(0, 0)
                         : float2(cos(k * 0.78539816), sin(k * 0.78539816)) * px * reach;
                     float2 at = uv - shift;
-                    float error = length(centre - readPriorAt(at, isYuv))
-                        + length(east - readPriorAt(at + float2(px.x * 2, 0), isYuv))
-                        + length(west - readPriorAt(at - float2(px.x * 2, 0), isYuv))
-                        + length(south - readPriorAt(at + float2(0, px.y * 2), isYuv))
-                        + length(north - readPriorAt(at - float2(0, px.y * 2), isYuv));
+                    float error = 1.7 * (abs(centre - readPriorLuma(at, isYuv))
+                        + abs(east - readPriorLuma(at + float2(px.x * 2, 0), isYuv))
+                        + abs(west - readPriorLuma(at - float2(px.x * 2, 0), isYuv))
+                        + abs(south - readPriorLuma(at + float2(0, px.y * 2), isYuv))
+                        + abs(north - readPriorLuma(at - float2(0, px.y * 2), isYuv)));
                     if (k == 8) stillError = error;
                     else if (error < bestError) { bestError = error; moved = shift; }
                 }
@@ -572,7 +577,7 @@ internal static class D3D11VideoShaderContinuation
                 colour = lerp(colour, readColour(pushed, isYuv), effect.y);
             }
         #endif
-        """ + "\n" + D3D11VideoShaderInteractive.Source + "\n" + D3D11VideoShaderObjects.Source + "\n" + """
+        """ + "\n" + D3D11VideoShaderInteractive.Source + "\n" + D3D11VideoShaderObjects.Source + "\n" + D3D11VideoShaderWorld.Source + "\n" + """
             return colour;
         }
         // Effects work on the decoded picture, before the colour look. Off (or no strength) reads
