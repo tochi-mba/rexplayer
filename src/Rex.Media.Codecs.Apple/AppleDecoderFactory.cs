@@ -44,11 +44,11 @@ public sealed class AppleDecoderFactory : IDecoderFactory
         : throw new PlatformNotSupportedException("AudioToolbox exists only on a Mac.");
 
     public IVideoDecoder CreateVideo(TrackInfo track) => OperatingSystem.IsMacOS()
-        ? new VtVideoDecoder(track, _allowHardware && track.Codec switch
+        ? new VtVideoDecoder(track, _allowHardware && (track.Codec switch
         {
             CodecId.H264 => _allowH264Hardware,
             CodecId.Hevc => _allowHevcHardware,
             _ => false,
-        })
+        }))
         : throw new PlatformNotSupportedException("VideoToolbox exists only on a Mac.");
 }
