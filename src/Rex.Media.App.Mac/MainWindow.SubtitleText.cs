@@ -14,7 +14,8 @@ public sealed partial class MainWindow
         NSColor.FromRgba(colour.R, colour.G, colour.B, colour.A);
 
     private static void RenderMacSubtitleLines(NSTextField label, IReadOnlyList<SubtitleCue> cues,
-        TimeSpan position, SubtitleLook look, NSFont font, bool styleChanged)
+        TimeSpan position, SubtitleLook look, NSFont font, bool styleChanged,
+        double userScale)
     {
         // Preserve explicit per-run clocks, but do not fabricate timings for untimed text.
         var visibleLines = cues.SelectMany(cue => cue.Lines.Select(line =>
@@ -67,9 +68,15 @@ public sealed partial class MainWindow
 
                 foreach (var run in visibleLines[line])
                 {
+                    var runSize = look.RespectStyles && run.FontSize is { } embeddedSize
+                        ? (nfloat)Math.Clamp(embeddedSize * userScale, 11, 96)
+                        : font.PointSize;
+                    var family = look.RespectStyles ? run.Font : null;
+                    var requested = !string.IsNullOrWhiteSpace(family)
+                        ? NSFont.FromFontName(family, runSize) : null;
                     var runFont = look.IsBold(run)
-                        ? NSFont.SystemFontOfSize(font.PointSize, NSFontWeight.Semibold)!
-                        : font;
+                        ? requested ?? NSFont.SystemFontOfSize(runSize, NSFontWeight.Semibold)!
+                        : requested ?? (runSize == font.PointSize ? font : NSFont.SystemFontOfSize(runSize)!);
                     var attrs = new NSStringAttributes
                     {
                         Font = runFont,
