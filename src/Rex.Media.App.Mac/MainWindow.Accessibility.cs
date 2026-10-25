@@ -49,11 +49,11 @@ public sealed partial class MainWindow
                         {
                             NSButton button => button.Title,
                             NSSearchField search => search.PlaceholderString ?? "Search media",
-                            NSTextField input => input.PlaceholderString ?? input.ToolTip,
-                            NSTextView editor => editor.ToolTip,
+                            NSTextField input => input.ToolTip ?? NearbyMacLabel(node) ?? input.PlaceholderString,
+                            NSTextView editor => editor.ToolTip ?? NearbyMacLabel(node),
                             NSControl control => control.ToolTip ?? NearbyMacLabel(node),
                             _ => node.ToolTip ?? NearbyMacLabel(node),
-                         };
+                        };
                         if (!string.IsNullOrWhiteSpace(name))
                             node.AccessibilityLabel = name;
                     }
