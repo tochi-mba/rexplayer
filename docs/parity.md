@@ -6,7 +6,7 @@ platform while the other catches up; under *locked* every must row is verified o
 applicable with a reason, and CI blocks a release otherwise (ADR-0020). A **gap** is a difference someone has
 accepted for now: its note says why and its issue says who closes it.
 
-Totals: 50 rows differ (30 must), 2 not applicable, 0 gaps.
+Totals: 49 rows differ (29 must), 2 not applicable, 0 gaps.
 
 ## Playback core
 
@@ -71,7 +71,6 @@ Totals: 50 rows differ (30 must), 2 not applicable, 0 gaps.
 | OSD-04 | Dual subtitles | should | verified | built |  |
 | OSD-05 | ASS style policy | must | built | planned |  |
 | OSD-07 | OSD messages | must | verified | built |  |
-| OSD-09 | Complex scripts & RTL | must | built | planned |  |
 | OSD-11 | Kinetic captions | should | verified | planned |  |
 
 ## Playlist, library & persistence
