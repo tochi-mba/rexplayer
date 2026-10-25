@@ -193,16 +193,15 @@ public sealed partial class MainWindow
         panel.AllowsMultipleSelection = true;
         panel.CanChooseFiles = false;
         panel.CanChooseDirectories = true;
-        if (panel.RunModal() != 1)
+        panel.Begin(response =>
         {
-            return;
-        }
-
-        var reply = AddLibraryFolders(panel.Urls.Select(url => url.Path!).ToList());
-        if (!reply.Ok)
-        {
-            Say(reply.Error ?? "Could not add a library folder.");
-        }
+            if (response != 1) return;
+            var reply = AddLibraryFolders(panel.Urls.Select(url => url.Path!).ToList());
+            if (!reply.Ok)
+            {
+                Say(reply.Error ?? "Could not add a library folder.");
+            }
+        });
     }
 
     /// <summary>
