@@ -58,6 +58,7 @@ public sealed partial class MainWindow
         }
 
         _confirmationText.StringValue = question;
+        RevealMacChromeForPrompt();
         _confirmationBanner.Hidden = false;
         _window.MakeKeyAndOrderFront(null);
     }
@@ -72,10 +73,21 @@ public sealed partial class MainWindow
         _entryPrompt.StringValue = prompt;
         _entryField.StringValue = initial;
         _entryField.PlaceholderString = placeholder;
+        RevealMacChromeForPrompt();
         _entryBanner.Hidden = false;
         _window.MakeKeyAndOrderFront(null);
         _window.MakeFirstResponder(_entryField);
         _entryField.SelectText(null);
+    }
+
+    private void RevealMacChromeForPrompt()
+    {
+        // Prompts must remain visible even when a video uses minimal controls.
+        if (_minimalInterface)
+        {
+            _minimalInterface = false;
+            if (_chrome is not null) _chrome.Hidden = false;
+        }
     }
 
     private void SubmitEntryPrompt()
