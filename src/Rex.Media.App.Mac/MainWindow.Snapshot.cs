@@ -2,6 +2,7 @@ using Rex.Media.AppCore;
 using Rex.Media.Codecs.Apple;
 using Rex.Media.IO;
 using Rex.Media.Primitives;
+using Rex.Media.Settings;
 
 namespace Rex.Media.App.Mac;
 
@@ -19,8 +20,11 @@ public sealed partial class MainWindow
 
         var position = _player.Position;
         var images = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
-        var folder = Directory.Exists(images) ? images : _roots.Root;
-        var suggested = Snapshot.FileFor(folder, _player.Title, position);
+        var preferred = _settings.SnapshotFolder;
+        var folder = preferred is not null && Directory.Exists(preferred) ? preferred
+            : Directory.Exists(images) ? images : _roots.Root;
+        var suggested = Snapshot.FileFor(folder, _player.Title, position,
+            pattern: _settings.SnapshotNamePattern, sequential: _settings.SnapshotSequential);
         var panel = NSSavePanel.SavePanel;
         panel.Title = "Save video picture";
         panel.NameFieldStringValue = Path.GetFileName(suggested);
@@ -43,6 +47,17 @@ public sealed partial class MainWindow
                 return;
             }
 
+            // The destination folder is remembered for the next snapshot.
+            _settings = _settings with { SnapshotFolder = Path.GetDirectoryName(output) };
+            try
+            {
+                SettingsStore.Save(_roots.SettingsPath, _settings);
+                _player.Settings = _settings;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _log.Warning(LogSource, "The snapshot folder preference could not be saved: " + ex.Message);
+            }
             Say("Saving the video frame…");
             // Source-resolution decoding runs independently of current playback.
             _ = Task.Run(() =>
