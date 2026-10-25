@@ -166,6 +166,13 @@ public sealed partial class MainWindow : IDisposable
                 case "mac-diagnostics":
                     answered.SetResult(DiagnosticsSmokeAction(request.Id, request.Path));
                     return;
+                case "mac-window":
+                    answered.SetResult(new AutomationReply
+                    {
+                        Ok = true,
+                        Text = $"fullscreen={IsFullScreen};floating={_window.Level == NSWindowLevel.Floating};title={_window.Title}",
+                    });
+                    return;
                 case "status":
                     break;
                 case "ui.add-folder":
@@ -240,7 +247,7 @@ public sealed partial class MainWindow : IDisposable
                 Ok = true,
                 State = _player.State.ToString(),
                 Title = request.Command == "mac-queue"
-                    ? (_queueSummary?.StringValue ?? "") + " | " + (_queueShuffle?.Title ?? "")
+                    ? (_queueSummary?.StringValue ?? "") + " | " + (_queueShuffle?.Title ?? "") + " | " + (_queueRepeat?.Title ?? "")
                     : request.Command == "mac-library"
                         ? LibrarySmokeTitle()
                         : _player.Item is null ? null : _player.Title,

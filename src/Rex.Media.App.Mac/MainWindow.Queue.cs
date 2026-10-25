@@ -331,7 +331,7 @@ public sealed partial class MainWindow
         }
 
         if (action == "next-page" || action == "previous-page"
-            || action == "shuffle" || action == "last-play-next")
+            || action == "shuffle" || action == "repeat" || action == "last-play-next")
         {
             // Use the actual controls. Direct references keep pagination tests fast when
             // the document view contains the maximum 75 visible entries.
@@ -340,6 +340,7 @@ public sealed partial class MainWindow
                 "next-page" => _nextQueuePage,
                 "previous-page" => _previousQueuePage,
                 "shuffle" => _queueShuffle,
+                "repeat" => _queueRepeat,
                 _ => FindQueueSmokeButton("Play next", last: true),
             };
             if (button is not { Enabled: true })
@@ -348,7 +349,7 @@ public sealed partial class MainWindow
             }
 
             button.PerformClick(button);
-            if (action is "shuffle" or "last-play-next")
+            if (action is "shuffle" or "repeat" or "last-play-next")
             {
                 // Playlist.Changed schedules a refresh on the UI thread; update the result
                 // synchronously so the automation reply reports the new mode / next item.

@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 214 planned, 31 built, 48 verified, 27 post-1.0, 2 not-applicable.
+macOS: 213 planned, 26 built, 54 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -22,7 +22,7 @@ macOS: 214 planned, 31 built, 48 verified, 27 post-1.0, 2 not-applicable.
 | PB-09 | Titles & chapters | Next/previous chapter and title; chapter menu; chapter marks on the seek bar | M3/M11 | must | planned | planned |
 | PB-10 | Bookmarks (per file) | Named positions with add, rename, delete and jump; stored in RexStore | M6 | should | verified | built |
 | PB-11 | Resume where you left off | Ask / always / never; a 10 s threshold at either end; per-file resume points (hashed keys); the prompt is an in-window banner, never a modal | M6 | must | verified | planned |
-| PB-12 | Repeat & shuffle | Repeat off / one / all; shuffle with no repeats until the list is exhausted | M4 | must | verified | built |
+| PB-12 | Repeat & shuffle | Repeat off / one / all; shuffle with no repeats until the list is exhausted | M4 | must | verified | verified |
 | PB-13 | Stop after current / pause after current | One-shot toggles | M6 | should | verified | verified |
 | PB-14 | Gapless playback | Sample-exact splice for same-format items; bridge or 50 ms crossfade otherwise | M2 | must | verified | verified |
 | PB-15 | Crossfade between tracks | 0–12 s setting (default off) | M6 | could | planned | planned |
@@ -180,7 +180,7 @@ macOS: 214 planned, 31 built, 48 verified, 27 post-1.0, 2 not-applicable.
 | AU-09 | Room reverb / spatialiser | Room size, width, wet, dry, damping | M11 | could | planned | planned |
 | AU-10 | Stereo widener | Delay 1–100 ms, feedback, cross-feed, dry mix | M11 | could | planned | planned |
 | AU-11 | Stereo mode | Stereo / mono / left only / right only / reverse; headphone cross-feed (S); matrix-surround decode (C) | M5 | must | verified | planned |
-| AU-12 | Channel layouts & downmix | Mono→7.1 input; standard-coefficient 5.1/7.1→stereo downmix, LFE policy, centre/surround levels; honours the Windows speaker configuration; upmix off by default | M5 | must | verified | planned |
+| AU-12 | Channel layouts & downmix | Mono→7.1 input; standard-coefficient 5.1/7.1→stereo downmix, LFE policy, centre/surround levels; honours the Windows speaker configuration; upmix off by default | M5 | must | verified | verified |
 | AU-13 | ReplayGain / R128 | Off / track / album; preamp; fallback gain for untagged files; peak protection; reads ID3 TXXX, Vorbis, APE and Opus R128 tags | M5 | should | verified | planned |
 | AU-14 | Loudness normaliser (real-time) | Target level, window; off by default | M11 | should | planned | planned |
 | AU-15 | Pitch-preserving speed | WSOLA time-stretch across 0.25–4×; toggle to "chipmunk" mode | M5 | must | verified | planned |
@@ -200,7 +200,7 @@ macOS: 214 planned, 31 built, 48 verified, 27 post-1.0, 2 not-applicable.
 |---|---|---|---|---|---|---|
 | VID-01 | Hardware decoding policy | Auto (D3D11VA zero-copy) / off / per-codec; automatic software fallback on failure, with the reason in stats | M3 | must | verified | planned |
 | VID-02 | Frame pacing | Flip-model vsync; cadence-correct 23.976/25/29.97 on 60/120/144 Hz; dropped/late accounting; optional refresh-rate matching in fullscreen | M3/M11 | must | built | built |
-| VID-03 | Fullscreen | F, double-click, Esc to leave; target monitor setting (current / specific); fullscreen controller auto-hides (1.5 s default) and the cursor hides after 1 s | M4 | must | verified | built |
+| VID-03 | Fullscreen | F, double-click, Esc to leave; target monitor setting (current / specific); fullscreen controller auto-hides (1.5 s default) and the cursor hides after 1 s | M4 | must | verified | verified |
 | VID-04 | Window sizing | ¼, ½, 1:1, 2× (Alt+1..4); fit to screen; "resize window to video" setting; autoscale toggle (O) and scale factor (Alt+O / Alt+Shift+O) | M4 | must | verified | planned |
 | VID-05 | Aspect ratio | Default, 16:9, 4:3, 1:1, 16:10, 2.21:1, 2.35:1, 2.39:1, 5:4, custom W:H; cycle with A | M4 | must | verified | planned |
 | VID-06 | Crop | Presets 16:10, 16:9, 4:3, 1.85:1, 2.21:1, 2.35:1, 2.39:1, 5:3, 5:4, 1:1 (cycle C); per-edge pixel crop keys; automatic black-bar detection | M4/M11 | must | built | planned |
@@ -224,7 +224,7 @@ macOS: 214 planned, 31 built, 48 verified, 27 post-1.0, 2 not-applicable.
 | VID-24 | Scaling quality | Bilinear / Catmull-Rom / Lanczos3; chroma upsampling quality | M11 | should | planned | planned |
 | VID-25 | Late-frame policy | Drop late frames (default on), skip-to-keyframe when far behind, stats | M3 | must | verified | verified |
 | VID-26 | Title on start | OSD shows the title for 3 s (configurable, can be disabled), position setting | M4 | should | verified | planned |
-| VID-27 | Always on top | Never / always / while playing | M4 | must | verified | built |
+| VID-27 | Always on top | Never / always / while playing | M4 | must | verified | verified |
 | VID-28 | Picture-in-picture | Compact always-on-top mini window with minimal controls | M15 | should | planned | planned |
 | VID-29 | Power management | Display stays awake while video plays; audio-only blocks system sleep but not the screen saver; released when paused or stopped | M4 | must | built | planned |
 | VID-30 | Frame export | Export the current frame, or every Nth frame of a range, to images | M11 | could | planned | planned |
@@ -327,7 +327,7 @@ macOS: 214 planned, 31 built, 48 verified, 27 post-1.0, 2 not-applicable.
 | LIB-08 | Playlist quick slots | Ctrl+Shift+1..9 sets, Ctrl+1..9 plays a remembered playlist position | M6 | could | verified | planned |
 | LIB-09 | Missing files | Greyed-out entries with "Locate…", and relink by folder | M6 | should | verified | planned |
 | LIB-10 | Library backup / export | Export or import the library and playlists (JSON + M3U8) | M6 | should | verified | planned |
-| LIB-11 | Crash-safe store | RexStore (§7.7): torn writes never lose more than the last record | M6 | must | verified | built |
+| LIB-11 | Crash-safe store | RexStore (§7.7): torn writes never lose more than the last record | M6 | must | verified | verified |
 | LIB-12 | Ratings, duplicates finder | - | post | could | post-1.0 | post-1.0 |
 
 ## UI surface
@@ -349,7 +349,7 @@ macOS: 214 planned, 31 built, 48 verified, 27 post-1.0, 2 not-applicable.
 | UI-13 | Themes | System / light / dark; accent from the system or the REX signal colour; high contrast; Mica backdrop; theme packages (C) | M4/M15 | must | built | planned |
 | UI-14 | First run | Welcome, privacy choices (metadata lookups off by default, update checks on with an opt-out), file-association offer, short tour (house first-run tour pattern) | M4/M15 | must | verified | planned |
 | UI-15 | What's new | Shown once after an update (house pattern) | M4 | should | verified | planned |
-| UI-16 | Window title | `<title> - rexplayer`; token format configurable | M4 | should | verified | built |
+| UI-16 | Window title | `<title> - rexplayer`; token format configurable | M4 | should | verified | verified |
 | UI-17 | In-window confirmations | No modal pop-ups during playback; system dialogs only before a window exists (house rule) | M4 | must | built | planned |
 | UI-18 | Mouse & touch | Wheel volume (default) or seek; double-click fullscreen; middle-click pause; back/forward buttons = previous/next; touch: tap shows controls, double-tap left/right edge seeks ∓10 s, pinch zoom in zoom/360° modes | M4/M15 | must/should | built | planned |
 

@@ -29,6 +29,10 @@ public sealed class MacAppSmokeTests
     [Capability("TOOL-06", CapabilityPlatform.MacOS)]
     [Capability("TOOL-10", CapabilityPlatform.MacOS)]
     [Capability("UI-09", CapabilityPlatform.MacOS)]
+    [Capability("PB-12", CapabilityPlatform.MacOS)]
+    [Capability("VID-03", CapabilityPlatform.MacOS)]
+    [Capability("VID-27", CapabilityPlatform.MacOS)]
+    [Capability("UI-16", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
         var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
@@ -162,6 +166,18 @@ public sealed class MacAppSmokeTests
             Assert.True(opened?.Ok == true, "The app did not acknowledge the open request: " + (opened?.Error ?? "no reply") + ". Its log ends:" + LogTail(root));
             var playing = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Title: not null, State: "Playing" or "Ended" or "Paused" }, app, root);
             Assert.False(string.IsNullOrWhiteSpace(playing.Title), "The app opened the video but reports no title.");
+            var titled = await Ask(pipe, new AutomationRequest { Command = "mac-window" });
+            Assert.Contains(playing.Title, titled?.Text, StringComparison.Ordinal);
+            await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleAlwaysOnTop });
+            var floating = await Ask(pipe, new AutomationRequest { Command = "mac-window" });
+            Assert.Contains("floating=True", floating?.Text, StringComparison.Ordinal);
+            await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleAlwaysOnTop });
+            await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleFullScreen });
+            await Until(
+                () => Ask(pipe, new AutomationRequest { Command = "mac-window" }),
+                reply => reply?.Text?.Contains("fullscreen=True", StringComparison.Ordinal) == true,
+                app, root);
+            await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.LeaveFullScreen });
             await Queue(pipe, "capture-current");
             // The short video fixture can finish before the queue interactions start.
             // Stop its session so synthetic (intentionally nonexistent) queue entries
@@ -179,6 +195,8 @@ public sealed class MacAppSmokeTests
             Assert.Contains("Next: Queue sample 074", promoted.Title, StringComparison.Ordinal);
             var shuffled = await Queue(pipe, "shuffle");
             Assert.Contains("Shuffle: On", shuffled.Title, StringComparison.Ordinal);
+            var repeated = await Queue(pipe, "repeat");
+            Assert.Contains("Repeat: All", repeated.Title, StringComparison.Ordinal);
             await Queue(pipe, "capture-shuffled");
             await Queue(pipe, "verify-accessibility");
             await Queue(pipe, "minimum");

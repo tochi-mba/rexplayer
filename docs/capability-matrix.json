@@ -159,7 +159,7 @@
       "oracles": "EVT",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
@@ -1758,7 +1758,7 @@
       "oracles": "PCM (per-channel markers)",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "verified"
       }
     },
     {
@@ -1953,7 +1953,7 @@
       "oracles": "UIA PIX",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
@@ -2265,7 +2265,7 @@
       "oracles": "UIA",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
@@ -3279,7 +3279,7 @@
       "oracles": "STORE (crash-point property tests)",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
@@ -3500,7 +3500,7 @@
       "oracles": "UIA",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
