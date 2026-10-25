@@ -43,6 +43,11 @@ public sealed partial class MainWindow
         _preferencesHistory = CheckBox("Remember recently played media and saved positions");
         _preferencesRestoreQueue = CheckBox("Restore the queue when rexplayer starts");
         _preferencesEnqueue = CheckBox("Files handed over by another launch join the queue");
+        var clearHistory = NSButton.CreateButton("Clear playback history", () =>
+        {
+            _player.ClearHistory();
+            Say("Playback history cleared");
+        });
 
         _preferencesMaxVolumeValue = NSTextField.CreateLabel("");
         _preferencesMaxVolumeValue.Font = NSFont.MonospacedDigitSystemFontOfSize(12, NSFontWeight.Regular)!;
@@ -67,6 +72,7 @@ public sealed partial class MainWindow
             PreferencesHeading("Memory"),
             _preferencesHistory,
             _preferencesRestoreQueue,
+            clearHistory,
             PreferencesHeading("Playback"),
             volume,
             pictures,

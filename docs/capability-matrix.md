@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 252 planned, 9 built, 32 verified, 27 post-1.0, 2 not-applicable.
+macOS: 241 planned, 17 built, 35 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -357,9 +357,9 @@ macOS: 252 planned, 9 built, 32 verified, 27 post-1.0, 2 not-applicable.
 
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
-| TOOL-01 | `rexplay` CLI (human mode) | Verbs: play, enqueue, pause, resume, stop, seek, status, next, previous, volume, tracks, snapshot, convert, probe, devices, settings get/set, keys, extensions, version, help. Flags: `--start/--stop/--run-time`, `--fullscreen`, `--no-video/--no-audio`, `--audio-device`, `--sub-file`, `--audio-delay/--sub-delay`, `--rate`, `--volume`, `--loop/--repeat/--shuffle`, `--play-and-exit`, `--new-instance`, `--enqueue`, `--log-file`, `--verbose`, `--output <chain.json>`, headless test sinks `--vout capture --aout wav:<dir>` | M1–M14 | must | built | planned |
-| TOOL-02 | Machine mode | `rexplay agent <cmd>` / `--json`: exactly one JSON document, `protocolVersion`, `capabilities` self-description, exit 0/1, no prompts (house contract) | M0+ | must | verified | planned |
-| TOOL-03 | Local automation / remote-control interface | Named-pipe JSON-RPC + event subscription (§9.2), current-user only, size-bounded, deadline-controlled (house IPC invariants); optional localhost text console (C) | M4 | must | verified | planned |
+| TOOL-01 | `rexplay` CLI (human mode) | Verbs: play, enqueue, pause, resume, stop, seek, status, next, previous, volume, tracks, snapshot, convert, probe, devices, settings get/set, keys, extensions, version, help. Flags: `--start/--stop/--run-time`, `--fullscreen`, `--no-video/--no-audio`, `--audio-device`, `--sub-file`, `--audio-delay/--sub-delay`, `--rate`, `--volume`, `--loop/--repeat/--shuffle`, `--play-and-exit`, `--new-instance`, `--enqueue`, `--log-file`, `--verbose`, `--output <chain.json>`, headless test sinks `--vout capture --aout wav:<dir>` | M1–M14 | must | built | built |
+| TOOL-02 | Machine mode | `rexplay agent <cmd>` / `--json`: exactly one JSON document, `protocolVersion`, `capabilities` self-description, exit 0/1, no prompts (house contract) | M0+ | must | verified | verified |
+| TOOL-03 | Local automation / remote-control interface | Named-pipe JSON-RPC + event subscription (§9.2), current-user only, size-bounded, deadline-controlled (house IPC invariants); optional localhost text console (C) | M4 | must | verified | verified |
 | TOOL-04 | HTTP web remote | Off by default; password required; LAN bind with an explicit choice; mobile-friendly page (transport, seek, volume, playlist, library browse); JSON API over the same command bus; CSRF tokens; rate-limited login | M14 | should | planned | planned |
 | TOOL-05 | Global hotkeys | Opt-in per binding (RegisterHotKey); conflicts reported | M14 | should | planned | planned |
 | TOOL-06 | Single instance | "Use only one instance" (default on), "enqueue instead of play" (default off), explicit `--new-instance` | M4 | must | verified | planned |
@@ -375,7 +375,7 @@ macOS: 252 planned, 9 built, 32 verified, 27 post-1.0, 2 not-applicable.
 
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
-| WIN-01 | Distribution | Per-user Inno installer (no admin), portable zip, winget manifest at 1.0 | M0/M15 | must | built | planned |
+| WIN-01 | Distribution | Per-user Inno installer (no admin), portable zip, winget manifest at 1.0 | M0/M15 | must | built | built |
 | WIN-02 | File associations | Groups: Video (mp4 m4v mkv webm avi mov wmv asf ts m2ts mts mpg mpeg vob flv 3gp ogv y4m), Audio (mp3 flac m4a aac wav ogg oga opus wma aif aiff caf ac3 eac3 dts mka), Playlists (m3u m3u8 pls xspf cue asx wpl), Disc images (iso); per-user ProgIDs + RegisteredApplications capabilities so rexplayer appears in Default Apps; never hijacks: the installer task deep-links to Default Apps | M15 | must | built | built |
 | WIN-03 | Explorer verbs | "Play with rexplayer", "Add to rexplayer playlist" (classic menu, HKCU); modern top-level Windows 11 menu through a sparse package (C, post-1.0) | M15 | must | planned | not-applicable |
 | WIN-04 | AutoPlay handlers | Audio CD, DVD movie, Blu-ray movie, removable-media folders | M15 | should | planned | not-applicable |
@@ -387,7 +387,7 @@ macOS: 252 planned, 9 built, 32 verified, 27 post-1.0, 2 not-applicable.
 | WIN-10 | Theme & materials | Follows system light/dark live; Mica | M4 | must | built | planned |
 | WIN-11 | Power awareness | VID-29 power requests; pause on sleep, re-open devices on resume | M4/M11 | must | built | planned |
 | WIN-12 | Architectures | x64 (M); ARM64 native (S) through cross-platform `Vector128` SIMD paths | M0/M15 | must/should | planned | planned |
-| WIN-13 | Minimum OS | Windows 10 1809 (build 17763) and Windows 11; Windows 11 is the primary target | M0 | must | built | planned |
+| WIN-13 | Minimum OS | Windows 10 1809 (build 17763) and Windows 11; Windows 11 is the primary target | M0 | must | built | built |
 | WIN-14 | Crash recovery | Global handlers (house), "rexplayer closed unexpectedly - resume where you were?" on next start, opt-in local minidumps, nothing uploaded | M4 | must | verified | planned |
 | WIN-15 | Share / "Open with" from apps | - | post | could | post-1.0 | post-1.0 |
 | WIN-16 | URL protocol handler | Deliberately not registered (attack surface without user value) | - | wont | post-1.0 | post-1.0 |
@@ -406,20 +406,20 @@ macOS: 252 planned, 9 built, 32 verified, 27 post-1.0, 2 not-applicable.
 | I18N-02 | Right-to-left UI | FlowDirection mirroring | M15 | should | planned | planned |
 | I18N-03 | Language picker | System default + override | M15 | should | planned | planned |
 | I18N-04 | Shipped languages | 1.0 ships English (house British spelling); translations accepted post-1.0 | M15 | must | planned | planned |
-| I18N-05 | Culture handling | Locale-aware display; invariant culture for files, protocols and logs | M1+ | must | built | planned |
+| I18N-05 | Culture handling | Locale-aware display; invariant culture for files, protocols and logs | M1+ | must | built | built |
 
 ## Privacy, security & diagnostics
 
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
-| PRIV-01 | No telemetry | No analytics, no account, no crash upload, ever | M0 | must | built | planned |
-| PRIV-02 | Network policy | Network only for user-opened URLs, update checks (opt-out), opt-in metadata, and discovery while the cast/network panels are in use | M4 | must | built | planned |
-| PRIV-03 | History controls | Turn off recent/resume history; clear everything | M6 | must | verified | planned |
+| PRIV-01 | No telemetry | No analytics, no account, no crash upload, ever | M0 | must | built | built |
+| PRIV-02 | Network policy | Network only for user-opened URLs, update checks (opt-out), opt-in metadata, and discovery while the cast/network panels are in use | M4 | must | built | built |
+| PRIV-03 | History controls | Turn off recent/resume history; clear everything | M6 | must | verified | verified |
 | PRIV-04 | Credentials | Windows Credential Manager only, never plain text | M8 | must | planned | planned |
-| SEC-01 | Hostile-input hardening | Fuzzing (§9.10); bounds-checked spans; configurable allocation caps (box/element size, track count ≤ 128, frame size ≤ 16384², subtitle events, playlist entries); per-parse time budgets; `unsafe` only in Interop and audited SIMD kernels (RepositoryTest) | M1+ | must | built | planned |
+| SEC-01 | Hostile-input hardening | Fuzzing (§9.10); bounds-checked spans; configurable allocation caps (box/element size, track count ≤ 128, frame size ≤ 16384², subtitle events, playlist entries); per-parse time budgets; `unsafe` only in Interop and audited SIMD kernels (RepositoryTest) | M1+ | must | built | built |
 | SEC-02 | Decoder isolation | MF transforms run in-process at 1.0; out-of-process decode host is a post-1.0 hardening option | post | could | post-1.0 | post-1.0 |
 | SEC-03 | Extension trust | Capability manifest shown at install; quarantine on faults; documented "trusted code" stance | M14 | must | planned | planned |
 | SEC-04 | Network services off by default | Web remote and stream-out need explicit enabling and show a firewall explanation | M9/M14 | must | planned | planned |
 | SEC-05 | Update integrity | HTTPS, owner-pinned release URL, sha256 verification; Authenticode once signing exists (§11) | M4 | must | verified | planned |
-| SYS-01 | Logging | House rotating logger (never throws, critical always written) + ETW EventSource | M1 | must | built | planned |
+| SYS-01 | Logging | House rotating logger (never throws, critical always written) + ETW EventSource | M1 | must | built | built |
 | SYS-02 | Settings safety | Atomic writes, cross-process lock, `.rex-backup`, schema version + migrations, Normalize() clamps (house patterns) | M4 | must | built | built |

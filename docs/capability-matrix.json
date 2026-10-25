@@ -3539,7 +3539,7 @@
       "oracles": "CLI",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -3552,7 +3552,7 @@
       "oracles": "CLI",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "verified"
       }
     },
     {
@@ -3565,7 +3565,7 @@
       "oracles": "CLI EVT",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "verified"
       }
     },
     {
@@ -3708,7 +3708,7 @@
       "oracles": "CLI (smoke)",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -3866,7 +3866,7 @@
       "oracles": "-",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -4048,7 +4048,7 @@
       "oracles": "CLI",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -4061,7 +4061,7 @@
       "oracles": "NET (no-egress E2E: FakeOrigin as proxy sees zero unexpected requests)",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -4074,7 +4074,7 @@
       "oracles": "NET",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -4087,7 +4087,7 @@
       "oracles": "STORE",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "verified"
       }
     },
     {
@@ -4113,7 +4113,7 @@
       "oracles": "FUZZ",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -4178,7 +4178,7 @@
       "oracles": "FILE",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
