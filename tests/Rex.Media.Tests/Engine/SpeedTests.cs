@@ -53,6 +53,26 @@ public sealed class SpeedTests
     }
 
     [Fact]
+    [Capability("AU-15")]
+    public async Task PitchModeCanBeSetBeforeOpenAndChangedInAReadySession()
+    {
+        using var harness = new SessionHarness(autoPlay: false);
+        Assert.True(harness.Session.PreservePitch);
+
+        await harness.Session.SetPitchPreservingAsync(false);
+        Assert.False(harness.Session.PreservePitch);
+        await harness.Session.OpenAsync(SessionHarness.Source(Second()));
+        Assert.Equal(SessionState.Ready, harness.Session.State);
+
+        await harness.Session.SetPitchPreservingAsync(true);
+        Assert.True(harness.Session.PreservePitch);
+        await harness.Session.SetPitchPreservingAsync(false);
+        Assert.False(harness.Session.PreservePitch);
+        await harness.Session.StopAsync();
+        Assert.Equal(SessionState.Idle, harness.Session.State);
+    }
+
+    [Fact]
     public void TheAudioClockCountsMediaTimeAtTheSpeed()
     {
         var sink = new RecordingAudioSink(channels: 1);
