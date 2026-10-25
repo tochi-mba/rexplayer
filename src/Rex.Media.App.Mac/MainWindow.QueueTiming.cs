@@ -5,6 +5,16 @@ namespace Rex.Media.App.Mac;
 /// <summary>Per-queue-entry start, end and run-time editing without changing the original file.</summary>
 public sealed partial class MainWindow
 {
+    private static NSStackView TimingRow(string title, NSTextField field)
+    {
+        var label = NSTextField.CreateLabel(title);
+        label.WidthAnchor.ConstraintEqualTo(130).Active = true;
+        var row = NSStackView.FromViews([label, field]);
+        row.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
+        row.Spacing = 8;
+        return row;
+    }
+
     private void EditQueueTiming(PlaylistItem item)
     {
         var index = _player.Playlist.IndexOf(item);
@@ -28,9 +38,9 @@ public sealed partial class MainWindow
             PlaceholderString = "Optional run time",
         };
         var fields = NSStackView.FromViews([
-            EffectChoiceRow("Start", start),
-            EffectChoiceRow("Stop", stop),
-            EffectChoiceRow("Run time", run),
+            TimingRow("Start", start),
+            TimingRow("Stop", stop),
+            TimingRow("Run time", run),
         ]);
         fields.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
         fields.Spacing = 10;
