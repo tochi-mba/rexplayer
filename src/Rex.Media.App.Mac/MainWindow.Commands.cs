@@ -153,6 +153,12 @@ public sealed partial class MainWindow
             case CommandCatalog.RestoreLibrary:
                 RestoreLibraryBackup();
                 return true;
+            case CommandCatalog.ToggleKineticCaptions:
+                ToggleMacKinetic();
+                return true;
+            case CommandCatalog.KineticCaptionSettings:
+                ShowMacKineticSettings();
+                return true;
             case CommandCatalog.Transcribe:
                 AskMacSpeech();
                 return true;

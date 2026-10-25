@@ -143,6 +143,7 @@ public sealed partial class MainWindow : IDisposable
         DisposeSubtitleStyle();
         DisposeMacUpdates();
         DisposeMacSpeech();
+        DisposeMacKinetic();
         _player.Dispose();
         _picture?.Presenter?.Dispose();
         _window.Dispose();
@@ -434,6 +435,7 @@ public sealed partial class MainWindow : IDisposable
         AddSubtitleOverlays(content);
         AddStatsOverlay(content);
         AddMusicPresentation(content);
+        AddMacKineticLayer(content);
         _welcome.CenterXAnchor.ConstraintEqualTo(_picture.CenterXAnchor).Active = true;
         _welcome.CenterYAnchor.ConstraintEqualTo(_picture.CenterYAnchor).Active = true;
         _picture.TopAnchor.ConstraintEqualTo(content.TopAnchor).Active = true;
@@ -463,6 +465,7 @@ public sealed partial class MainWindow : IDisposable
         app.AddItem(new NSMenuItem("Subtitle appearance…", (_, _) => ShowSubtitleStyle()));
         app.AddItem(new NSMenuItem("Software updates…", (_, _) => ShowMacUpdates()));
         app.AddItem(new NSMenuItem("Offline transcription…", (_, _) => ShowMacSpeech()));
+        app.AddItem(new NSMenuItem("Kinetic captions…", (_, _) => ShowMacKineticSettings()));
         app.AddItem(new NSMenuItem("Recent media & quick slots…", (_, _) => ShowHistory()));
         app.AddItem(new NSMenuItem("Your library…", (_, _) => Run(CommandCatalog.ToggleLibrary)));
         app.AddItem(new NSMenuItem("Up Next…", (_, _) => ShowQueue()));

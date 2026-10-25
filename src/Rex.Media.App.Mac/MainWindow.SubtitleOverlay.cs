@@ -76,8 +76,9 @@ public sealed partial class MainWindow
         var primary = _player.SubtitlesAt(_player.Position);
         var secondary = _player.SecondarySubtitlesAt(_player.Position);
         var visible = _player.Item is not null;
-        SetSubtitleLines(_primarySubtitleOverlay, visible ? primary : [], _player.Position);
-        SetSubtitleLines(_secondarySubtitleOverlay, visible ? secondary : [], _player.Position);
+        var regular = visible && (!MacKineticVisible || _settings.KineticCaptions.KeepSubtitles);
+        SetSubtitleLines(_primarySubtitleOverlay, regular ? primary : [], _player.Position);
+        SetSubtitleLines(_secondarySubtitleOverlay, regular ? secondary : [], _player.Position);
     }
 
     private static void SetSubtitleLines(NSTextField label, IReadOnlyList<SubtitleCue> cues, TimeSpan position)
