@@ -502,6 +502,15 @@ public sealed record PlayerSettings
     /// <summary>Whether pointing at the timeline decodes and shows the exact video frame there.</summary>
     public bool SeekPreview { get; init; }
 
+    /// <summary>Last selected snapshot directory; null chooses the pictures folder.</summary>
+    public string? SnapshotFolder { get; init; }
+
+    /// <summary>Snapshot name tokens: {title}, {time} (hours-minutes-seconds) and optional {n}.</summary>
+    public string SnapshotNamePattern { get; init; } = "{title} {time}";
+
+    /// <summary>Append a sequence number instead of overwriting an existing automatic name.</summary>
+    public bool SnapshotSequential { get; init; } = true;
+
     /// <summary>Allow hardware video decoding when the native platform supports it. Reopening a video applies changes.</summary>
     public bool HardwareVideoDecoding { get; init; } = true;
 
@@ -894,6 +903,9 @@ public sealed record PlayerSettings
             LibraryRoute = string.IsNullOrWhiteSpace(LibraryRoute?.View) ? null : LibraryRoute,
             AudioLanguages = AudioLanguages?.Trim() ?? "",
             SubtitleLanguages = SubtitleLanguages?.Trim() ?? "",
+            SnapshotFolder = string.IsNullOrWhiteSpace(SnapshotFolder) ? null : SnapshotFolder.Trim(),
+            SnapshotNamePattern = string.IsNullOrWhiteSpace(SnapshotNamePattern)
+                ? "{title} {time}" : SnapshotNamePattern.Trim()[..Math.Min(120, SnapshotNamePattern.Trim().Length)],
             SubtitleFont = string.IsNullOrWhiteSpace(SubtitleFont) ? "Segoe UI" : SubtitleFont.Trim(),
             SubtitleSize = Math.Clamp(SubtitleSize, 50, 400),
             SubtitleColor = Rgb(SubtitleColor),
