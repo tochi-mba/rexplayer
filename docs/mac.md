@@ -122,8 +122,9 @@ mouse/trackpad input; and playback-statistics and subtitle overlays. Shared resu
 and missing-media recovery features now have Mac entry points.
 
 A row marked **built** has code but is not fully proved on macOS. Unimplemented capabilities stay
-**planned**. The extensive visualizer catalogue, speech transcription, system media-key integration,
-updater integrity, and full subtitle typography still need implementation. The snapshot UI currently
+**planned**. The extensive visualizer catalogue and full subtitle typography still need implementation.
+Offline transcription, native system media controls, and checksum-verified update downloads
+now have Mac implementation paths; full installation and release verification remain separate. The snapshot UI currently
 exports PNG; JPEG and BMP controls remain outstanding. See the generated [parity ledger](parity.md).
 
 ## Second implementation pass
@@ -134,7 +135,8 @@ prompt after an interruption. The app also holds appropriately scoped macOS proc
 while video or music plays, and drops them when playback stops. The subtitle overlay honours
 source-provided per-run word timings and exposes controls for font, colour, opacity, weight,
 margin and style policy. The styling work is partial: complete embedded-style, outlined/shadowed
-text, letterbox placement and kinetic-caption parity are still planned.
+text and kinetic-caption parity are still planned. Source cue top/middle/bottom positions,
+forced-bottom placement and letterbox-aware margins now have native Mac implementation.
 
 All newly advanced capabilities are recorded as **built**, not verified. No full Mac parity
 verification has been performed as part of this implementation batch.
@@ -166,3 +168,19 @@ partial until all movement, face-avoidance, typography, and per-word effects off
 by the capability are implemented; therefore the full OSD-11 row remains planned.
 The speech capabilities above are **built**, not verified, until Mac runtime/model
 and UI testing is performed.
+
+## Nonblocking playback interactions
+
+Playback commands now accept time and location entry directly in the player rather than opening
+blocking alerts. Media information and queue timing use separate, nonmodal AppKit windows;
+playlist naming uses an inline editor, and destructive history, bookmark and playlist actions
+ask for confirmation inside the main window. Native file-opening, saving, library-backup,
+subtitle, shortcut, snapshot, speech-export and diagnostics pickers use completion callbacks
+instead of modal event loops. The UI-17 parity row is **built**, not verified, until keyboard,
+accessibility and runtime coverage is complete.
+
+Subtitle overlays now follow source top/middle/bottom positions when allowed, honor the
+force-bottom choice and calculate margins against the current letterboxed video frame. The
+second subtitle stream stays at the top by default to avoid overlapping the primary stream.
+OSD-03 is **built**, while complete text styling, rich embedded subtitle formats and visual
+verification remain separate work.
