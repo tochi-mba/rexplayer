@@ -18,11 +18,16 @@ public sealed partial class MainWindow
         panel.CanChooseFiles = false;
         panel.AllowsMultipleSelection = false;
         panel.Title = "Choose where to save a new library backup";
-        if (panel.RunModal() != 1 || panel.Url?.Path is not { } parent)
+        panel.Begin(response =>
         {
-            return;
-        }
+            if (response != 1 || panel.Url?.Path is not { } parent) return;
+            PublishMacLibraryBackup(parent);
+        });
+    }
 
+    private void PublishMacLibraryBackup(string parent)
+    {
+        if (_mediaLibrary is null) return;
         IReadOnlyList<(string Path, byte[] Bytes)> files;
         try
         {
@@ -64,11 +69,16 @@ public sealed partial class MainWindow
         panel.CanChooseFiles = true;
         panel.AllowsMultipleSelection = false;
         panel.Title = "Choose rexplayer library.json from a backup";
-        if (panel.RunModal() != 1 || panel.Url?.Path is not { } path)
+        panel.Begin(response =>
         {
-            return;
-        }
+            if (response != 1 || panel.Url?.Path is not { } path) return;
+            ReadMacLibraryBackup(path);
+        });
+    }
 
+    private void ReadMacLibraryBackup(string path)
+    {
+        if (_mediaLibrary is null) return;
         try
         {
             // This verifies the completed backup's digests before the first library write.
