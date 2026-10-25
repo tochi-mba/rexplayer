@@ -52,6 +52,9 @@ public sealed class UpdateDownloader(HttpClient http, string folder)
     /// </summary>
     private const int UnixWouldBlock = 11;
 
+    /// <summary>The same refusal on macOS, whose EWOULDBLOCK is 35; Windows' error 35 never arrives bare either.</summary>
+    private const int MacWouldBlock = 35;
+
     /// <summary>Whether something is playing; while it is, the download keeps to <see cref="BusyBytesPerSecond"/>.</summary>
     public Func<bool> Busy { get; init; } = () => false;
 
@@ -74,10 +77,11 @@ public sealed class UpdateDownloader(HttpClient http, string folder)
     }
 
     /// <summary>
-    /// Brings <paramref name="pending"/>'s installer in, reporting the fraction done to
-    /// <paramref name="progress"/>. A verified installer already there is used as it is.
+    /// Brings <paramref name="pending"/>'s installer in, reporting the bytes in and the total (0 when
+    /// unknown) to <paramref name="progress"/>; a report of every byte means the file is being
+    /// checked. A verified installer already there is used as it is.
     /// </summary>
-    public DownloadReport Download(PendingUpdate pending, Action<double>? progress, CancellationToken cancellation)
+    public DownloadReport Download(PendingUpdate pending, Action<long, long>? progress, CancellationToken cancellation)
     {
         ArgumentNullException.ThrowIfNull(pending);
         using var stall = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
@@ -106,7 +110,7 @@ public sealed class UpdateDownloader(HttpClient http, string folder)
                     file.SetLength(0);
                 }
 
-                if (FreeSpace(folder) < Math.Max(0, pending.Size - file.Length) + SpareBytes)
+                if (Free(folder) < Math.Max(0, pending.Size - file.Length) + SpareBytes)
                 {
                     return new DownloadReport(DownloadOutcome.NoSpace, "there is not enough free disk space");
                 }
@@ -120,6 +124,9 @@ public sealed class UpdateDownloader(HttpClient http, string folder)
                 {
                     return new DownloadReport(DownloadOutcome.Failed, "the download was incomplete");
                 }
+
+                // Every byte is in; what follows is the check against the checksum.
+                progress?.Invoke(file.Length, Math.Max(pending.Size, file.Length));
             }
 
             if (!Matches(part, checksum, pending))
@@ -130,7 +137,6 @@ public sealed class UpdateDownloader(HttpClient http, string folder)
 
             File.Move(part, installer, overwrite: true);
             File.WriteAllText(installer + ".sha256", checksum);
-            progress?.Invoke(1);
             return new DownloadReport(DownloadOutcome.Ready);
         }
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException or UnauthorizedAccessException or ObjectDisposedException or InvalidOperationException)
@@ -138,6 +144,8 @@ public sealed class UpdateDownloader(HttpClient http, string folder)
             return cancellation.IsCancellationRequested ? new DownloadReport(DownloadOutcome.Cancelled)
                 : stall.IsCancellationRequested ? new DownloadReport(DownloadOutcome.Failed, "the connection stopped sending")
                 : ex is IOException io ? Classify(io)
+                : ex is HttpRequestException { StatusCode: { } status } ? new DownloadReport(DownloadOutcome.Failed, $"the server answered {(int)status}")
+                : ex is HttpRequestException ? new DownloadReport(DownloadOutcome.Failed, "the download server could not be reached")
                 : new DownloadReport(DownloadOutcome.Failed, ex.Message);
         }
     }
@@ -147,7 +155,7 @@ public sealed class UpdateDownloader(HttpClient http, string folder)
     {
         ArgumentNullException.ThrowIfNull(error);
         var busy = new DownloadReport(DownloadOutcome.Busy, "another rexplayer window is downloading it");
-        return error.HResult == UnixWouldBlock ? busy : (error.HResult & 0xFFFF) switch
+        return error.HResult is UnixWouldBlock or MacWouldBlock ? busy : (error.HResult & 0xFFFF) switch
         {
             ErrorDiskFull or ErrorHandleDiskFull => new DownloadReport(DownloadOutcome.NoSpace, "the disk is full"),
             ErrorSharingViolation or ErrorLockViolation => busy,
@@ -198,6 +206,22 @@ public sealed class UpdateDownloader(HttpClient http, string folder)
         }
     }
 
+    /// <summary>
+    /// The free space, or "plenty" when the drive cannot say (a network share, say): the write
+    /// itself then reports a full disk.
+    /// </summary>
+    private long Free(string path)
+    {
+        try
+        {
+            return FreeSpace(path);
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            return long.MaxValue;
+        }
+    }
+
     private static bool Matches(string path, string checksum, PendingUpdate pending)
     {
         using var file = File.OpenRead(path);
@@ -214,7 +238,7 @@ public sealed class UpdateDownloader(HttpClient http, string folder)
     }
 
     /// <summary>Appends the rest of the installer to <paramref name="file"/>; a report when that fails, else null.</summary>
-    private DownloadReport? Fetch(FileStream file, PendingUpdate pending, Action<double>? progress, CancellationTokenSource stall)
+    private DownloadReport? Fetch(FileStream file, PendingUpdate pending, Action<long, long>? progress, CancellationTokenSource stall)
     {
         var offset = file.Length;
         using var request = new HttpRequestMessage(HttpMethod.Get, pending.InstallerUrl);
@@ -244,7 +268,7 @@ public sealed class UpdateDownloader(HttpClient http, string folder)
             return new DownloadReport(DownloadOutcome.Failed, $"the server answered {(int)response.StatusCode}");
         }
 
-        var total = pending.Size > 0 ? pending.Size : offset + (response.Content.Headers.ContentLength ?? 0);
+        var total = pending.Size > 0 ? pending.Size : response.Content.Headers.ContentLength is { } length ? offset + length : 0;
         using var body = response.Content.ReadAsStream(stall.Token);
         using var watch = stall.Token.Register(body.Dispose);
         var buffer = new byte[64 * 1024];
@@ -259,10 +283,7 @@ public sealed class UpdateDownloader(HttpClient http, string folder)
             }
 
             file.Write(buffer, 0, read);
-            if (total > 0)
-            {
-                progress?.Invoke(Math.Min(1, (double)file.Length / total));
-            }
+            progress?.Invoke(file.Length, total);
 
             // While something plays, each read takes at least as long as the gentle speed allows.
             var due = TimeSpan.FromSeconds((double)read / BusyBytesPerSecond) - clock.Elapsed;

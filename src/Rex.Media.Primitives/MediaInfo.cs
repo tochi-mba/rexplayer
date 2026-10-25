@@ -21,6 +21,12 @@ public sealed record MediaInfo
     /// <summary>Embedded cover art (encoded image bytes), if the file carries any.</summary>
     public byte[]? CoverArt { get; init; }
 
+    /// <summary>
+    /// How many bytes the container says it reaches (the end of its last box or segment), when it
+    /// says; more than the file holds while the file is still being written or downloaded.
+    /// </summary>
+    public long? DeclaredLength { get; init; }
+
     public TrackInfo? FirstTrack(MediaKind kind) => Tracks.FirstOrDefault(track => track.Kind == kind);
 }
 
@@ -32,8 +38,14 @@ public static class MetadataKeys
 {
     public const string Title = "title";
     public const string Artist = "artist";
+
+    /// <summary>The tag's own list of a song's artists (ARTISTS), each value apart from "artist", which is one credit.</summary>
+    public const string Artists = "artists";
     public const string Album = "album";
     public const string AlbumArtist = "album_artist";
+    /// <summary>The writer of an audiobook, separate from its narrator or performing artist.</summary>
+    public const string Author = "author";
+    public const string Narrator = "narrator";
     public const string Genre = "genre";
     public const string Date = "date";
     public const string Track = "track";
@@ -47,4 +59,13 @@ public static class MetadataKeys
     public const string ReplayGainTrackPeak = "replaygain_track_peak";
     public const string ReplayGainAlbumGain = "replaygain_album_gain";
     public const string ReplayGainAlbumPeak = "replaygain_album_peak";
+
+    /// <summary>What the file says it is when it is not music: "podcast" or "audiobook" (the MP4 media kind, the podcast flag of MP4 and ID3).</summary>
+    public const string MediaType = "media_type";
+
+    /// <summary>The <see cref="MediaType"/> of a podcast episode.</summary>
+    public const string Podcast = "podcast";
+
+    /// <summary>The <see cref="MediaType"/> of an audiobook.</summary>
+    public const string Audiobook = "audiobook";
 }

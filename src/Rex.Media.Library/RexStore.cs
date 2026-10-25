@@ -28,6 +28,13 @@ public sealed class RexStore
     /// <summary>Lines of the log that were damaged and skipped when it was read.</summary>
     public int Skipped { get; private set; }
 
+    /// <summary>
+    /// Why the last change could not reach the disk (a full disk, the log locked by another
+    /// window), or null once it could. Changes are kept in memory meanwhile, and the next change
+    /// that can be written rewrites the whole log with them.
+    /// </summary>
+    public string? WriteProblem { get; private set; }
+
     public int Count
     {
         get
@@ -52,9 +59,18 @@ public sealed class RexStore
             return store;
         }
 
-        foreach (var line in File.ReadAllLines(path, Encoding.UTF8))
+        // Read as bytes and checked line by line where they lie: a store can hold records of many
+        // megabytes, and decoding each line to text only to encode it again for its checksum
+        // doubled the work of every launch.
+        ReadOnlySpan<byte> rest = File.ReadAllBytes(path);
+        rest = rest.StartsWith(Utf8Bom) ? rest[Utf8Bom.Length..] : rest;
+        while (!rest.IsEmpty)
         {
-            if (line.Length == 0)
+            var end = rest.IndexOf((byte)'\n');
+            var line = end < 0 ? rest : rest[..end];
+            rest = end < 0 ? [] : rest[(end + 1)..];
+            line = line.EndsWith((byte)'\r') ? line[..^1] : line;
+            if (line.IsEmpty)
             {
                 continue;
             }
@@ -196,10 +212,18 @@ public sealed class RexStore
                 text.Append(Line(key, value)).Append('\n');
             }
 
-            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Path))!);
-            AtomicFile.Write(Path, Encoding.UTF8.GetBytes(text.ToString()));
-            _lines = _values.Count;
-            Skipped = 0;
+            try
+            {
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Path))!);
+                AtomicFile.Write(Path, Encoding.UTF8.GetBytes(text.ToString()));
+                _lines = _values.Count;
+                Skipped = 0;
+                WriteProblem = null;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                WriteProblem = ex.Message;
+            }
         }
     }
 
@@ -210,24 +234,34 @@ public sealed class RexStore
             return;
         }
 
-        // Rewritten once the log is mostly lines that no longer count.
-        if (_lines >= 64 && _lines > _values.Count * 4)
+        // Rewritten once the log is mostly lines that no longer count, or when earlier changes
+        // could not be written: the rewrite holds every live value, theirs included.
+        if (WriteProblem is not null || (_lines >= 64 && _lines > _values.Count * 4))
         {
             Compact();
             return;
         }
 
-        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Path))!);
-        using var stream = new FileStream(Path, FileMode.Append, FileAccess.Write, FileShare.Read, 4096, FileOptions.WriteThrough);
         var text = new StringBuilder();
         foreach (var (key, value) in changes)
         {
             text.Append(Line(key, value)).Append('\n');
         }
 
-        stream.Write(Encoding.UTF8.GetBytes(text.ToString()));
-        stream.Flush(flushToDisk: true);
-        _lines += changes.Count;
+        try
+        {
+            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Path))!);
+            using var stream = new FileStream(Path, FileMode.Append, FileAccess.Write, FileShare.Read, 4096, FileOptions.WriteThrough);
+            stream.Write(Encoding.UTF8.GetBytes(text.ToString()));
+            stream.Flush(flushToDisk: true);
+            _lines += changes.Count;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A full disk or a log another window holds must not fail what the player was doing:
+            // the change stays in memory and goes to the disk with the next one that can.
+            WriteProblem = ex.Message;
+        }
     }
 
     /// <summary>"checksum json": the CRC-32 of the JSON in hexadecimal, a space, then the record.</summary>
@@ -249,14 +283,20 @@ public sealed class RexStore
         return Crc.Crc32.Compute(buffer.WrittenSpan).ToString("x8", CultureInfo.InvariantCulture) + " " + Encoding.UTF8.GetString(buffer.WrittenSpan);
     }
 
-    private static (string Key, string? Value)? Parse(string line)
+    private static ReadOnlySpan<byte> Utf8Bom => [0xEF, 0xBB, 0xBF];
+
+    /// <summary>
+    /// One line's record: its key and value (null forgets the key); null when the line is damaged
+    /// or is not a record. The JSON is read in one pass, without building a document of it.
+    /// </summary>
+    private static (string Key, string? Value)? Parse(ReadOnlySpan<byte> line)
     {
-        if (line.Length < 10 || line[8] != ' ' || !uint.TryParse(line.AsSpan(0, 8), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var checksum))
+        if (line.Length < 10 || line[8] != (byte)' ' || !uint.TryParse(line[..8], NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var checksum))
         {
             return null;
         }
 
-        var json = Encoding.UTF8.GetBytes(line[9..]);
+        var json = line[9..];
         if (Crc.Crc32.Compute(json) != checksum)
         {
             return null;
@@ -264,15 +304,36 @@ public sealed class RexStore
 
         try
         {
-            using var document = JsonDocument.Parse(json);
-            var root = document.RootElement;
-            return root.ValueKind == JsonValueKind.Object && root.TryGetProperty("k", out var key) && key.ValueKind == JsonValueKind.String
-                ? (key.GetString()!, root.TryGetProperty("v", out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null)
-                : null;
+            return ReadRecord(json);
         }
         catch (JsonException)
         {
             return null;
         }
+    }
+
+    /// <summary>An object with a text "k" and, unless it forgets the key, a text "v"; anything else in it is ignored.</summary>
+    private static (string Key, string? Value)? ReadRecord(ReadOnlySpan<byte> json)
+    {
+        var reader = new Utf8JsonReader(json);
+        if (!reader.Read() || reader.TokenType != JsonTokenType.StartObject)
+        {
+            return null;
+        }
+
+        string? key = null;
+        string? value = null;
+        while (reader.Read() && reader.TokenType == JsonTokenType.PropertyName)
+        {
+            var name = reader.ValueTextEquals("k"u8) ? 'k' : reader.ValueTextEquals("v"u8) ? 'v' : ' ';
+            reader.Read();
+            var text = reader.TokenType == JsonTokenType.String ? reader.GetString() : null;
+            (key, value) = name switch { 'k' => (text, value), 'v' => (key, text), _ => (key, value) };
+            reader.Skip();
+        }
+
+        // Nothing may follow the object: the reader throws on anything after it.
+        _ = reader.Read();
+        return key is null ? null : (key, value);
     }
 }

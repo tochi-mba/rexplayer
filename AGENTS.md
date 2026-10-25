@@ -30,6 +30,9 @@ tests where a test can enforce them; the rest are enforced in review.
 7. **Commits.** Plain imperative English, no conventional prefixes, no co-author trailers. One change
    per pull request, rebase-merged. A release is a change of `Version` in `Directory.Build.props`
    with a matching CHANGELOG heading, committed as "Version X.Y.Z so the release publishes".
+8. **Parity.** rexplayer ships on Windows and macOS from one tag. A feature lands on both shells, or
+   its row in `docs/capability-matrix.json` says `gap` with a note and an issue; `docs/parity.md`
+   (generated) is the list of every difference, and it is read in every review (ADR-0020).
 
 ## Machine interface
 
@@ -100,15 +103,17 @@ Data lives in `%LocalAppData%\REX\rexplayer`; the installer puts the programs in
 |---|---|---|
 | Pure | `./dev.ps1 test` then `./dev.ps1 gate` | Every engine decision, exact samples, the repository rules |
 | Adapters | `./dev.ps1 adapters` | Windows' own components (Media Foundation decoders) give what an independent decoder gives |
-| Performance | `./dev.ps1 perf` | Throughput holds against `tests/perf-baselines.json`; steady-state playback allocates nothing |
+| Performance | `./dev.ps1 perf` | Throughput and costs hold against `tests/perf-baselines.json`; steady-state playback allocates nothing |
+| Whole player | `./dev.ps1 measure [-LowEnd]` (local, needs FFmpeg) | Launch, opening, seeking, steady playback, memory, the panels and the library, measured as people feel them, also on an imitation of a weak computer |
 | Window | `./dev.ps1 ui` (opens windows; run it in the background) | The real rexplayer.exe, driven through UI Automation with no audible sound |
 | Command line | `./dev.ps1 smoke` | The published `rexplay.exe` keeps its JSON contract and plays a fixture exactly |
 | Site | `./dev.ps1 site`, `node --test tests/site/app.test.mjs`, `npx playwright test` | The site's links, assets, accessibility and behaviour |
 
 Tests that prove a row of the capability matrix carry `[Capability("ID")]`; a row may be marked
-verified only while such a test exists.
+verified on a platform only while such a test runs there. A portable test proves every platform;
+a test in a platform project (`Rex.Media.Windows.Tests`, `Rex.Media.App.Tests`) proves its own.
 
 ## Generated files
 
-`docs/capability-matrix.md` is generated from `docs/capability-matrix.json`. Never edit it by hand:
-change the JSON, then run the tests with `REXPLAYER_WRITE_DOCS=1`.
+`docs/capability-matrix.md` and `docs/parity.md` are generated from `docs/capability-matrix.json`.
+Never edit them by hand: change the JSON, then run the tests with `REXPLAYER_WRITE_DOCS=1`.

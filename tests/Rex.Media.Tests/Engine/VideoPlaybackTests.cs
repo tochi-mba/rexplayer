@@ -182,6 +182,45 @@ public sealed class VideoPlaybackTests
     }
 
     [Fact]
+    public async Task PicturesPacedByTheClockAreTimedAndTheFiguresCanStartAfresh()
+    {
+        var presenter = new RecordingVideoPresenter();
+        var sink = new ManualClockSink();
+        using var harness = Harness(presenter, sink: sink);
+
+        await harness.Session.OpenAsync(SessionHarness.Source(Clip(5), "clip.mkv"));
+        WaitUntil(() => presenter.Shown.Count == 1);
+        sink.PlayedSamples = 360;
+        WaitUntil(() => presenter.Shown.Count == 2);
+        sink.PlayedSamples = 680;
+        WaitUntil(() => presenter.Shown.Count == 3);
+
+        // The first picture is shown at once and starts the run; the two after it waited for their time.
+        var cadence = (await harness.Session.GetStatsAsync()).Cadence;
+        Assert.Equal(2, cadence.Pictures);
+        Assert.True(cadence.LatenessWorstMs < 1000, $"The worst lateness was {cadence.LatenessWorstMs} ms.");
+
+        await harness.Session.ClearCadenceAsync();
+        Assert.Equal(0, (await harness.Session.GetStatsAsync()).Cadence.Pictures);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task DecodersAreOfferedTheGraphicsCardOnlyWhenAllowed(bool allowed)
+    {
+        var device = new object();
+        var decoder = new FakeVideoDecoderFactory();
+        var presenter = new RecordingVideoPresenter { Gpu = device };
+        using var harness = new SessionHarness(demuxer: new MatroskaDemuxerFactory(), videoDecoder: decoder, presenter: presenter, graphicsCardDecoding: allowed);
+
+        await harness.Session.OpenAsync(SessionHarness.Source(Clip(2), "clip.mkv"));
+        await harness.FinishAsync();
+
+        Assert.Same(allowed ? device : null, decoder.OfferedGpu);
+    }
+
+    [Fact]
     [Capability("PB-19")]
     public async Task DelayingTheSoundShowsThePicturesThatMuchSooner()
     {

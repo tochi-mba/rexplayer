@@ -3,30 +3,24 @@ using System.Windows.Automation;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.Primitives;
 using Rex.Media.TestKit;
-
 namespace Rex.Media.App.Tests;
-
 /// <summary>
 /// The window's own features, each driven through the menus or the automation pipe and checked
 /// on the real window: menus, full screen, always on top, the minimal interface, subtitles, sizing
 /// to the video, preferences, media information, the log, and names for everything a screen reader meets.
 /// </summary>
 [Collection("desktop")]
-public sealed class AppWindowTests : IDisposable
+public sealed partial class AppWindowTests : IDisposable
 {
     private readonly string _media = Path.Combine(Path.GetTempPath(), "rexplayer-ui-media-" + Guid.NewGuid().ToString("N"));
-
     public AppWindowTests() => Directory.CreateDirectory(_media);
-
     public void Dispose() => Directory.Delete(_media, recursive: true);
-
     private string Song(int seconds)
     {
         var path = Path.Combine(_media, "Sungba.wav");
         File.WriteAllBytes(path, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * seconds])).Build());
         return path;
     }
-
     /// <summary>
     /// A song with a beat: a kick on every beat at 120 a minute, hardest on the first of each bar,
     /// a snare on two and four, over a held chord. 48 kHz stereo, so the visualisations hear it all.
@@ -45,12 +39,10 @@ public sealed class AppWindowTests : IDisposable
             var pad = 0.06 * (Math.Sin(Math.Tau * 220 * t) + Math.Sin(Math.Tau * 277.2 * t) + Math.Sin(Math.Tau * 329.6 * t));
             samples[i * 2] = samples[(i * 2) + 1] = (float)Math.Clamp(kick + snare + pad, -1, 1);
         }
-
         var path = Path.Combine(_media, "Terminator.wav");
         File.WriteAllBytes(path, WavBuilder.Pcm(Rate, 2, 16, Pcm.Int16(samples)).Build());
         return path;
     }
-
     /// <summary>A scratch data folder whose settings start with <paramref name="visualisation"/> showing.</summary>
     private static string RootShowing(string visualisation)
     {
@@ -59,34 +51,8 @@ public sealed class AppWindowTests : IDisposable
         File.WriteAllText(Path.Combine(root, "settings.json"), "{ \"firstRunDone\": true, \"lastSeenVersion\": \"" + AppProcess.Version + "\", \"updateChecks\": \"Off\", \"visualizer\": \"" + visualisation + "\" }");
         return root;
     }
-
     private static AutomationElement[] All(AutomationElement root, ControlType type) =>
         [.. root.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, type)).Cast<AutomationElement>()];
-
-    [Fact]
-    [Capability("UI-02")]
-    public void EveryMenuOffersItsCommandsByName()
-    {
-        using var app = AppProcess.Start();
-        var found = new HashSet<string>(StringComparer.Ordinal);
-
-        foreach (var menu in new[] { "MediaMenu", "PlaybackMenu", "AudioMenu", "SubtitleMenu", "VideoMenu", "ViewMenu", "HelpMenu" })
-        {
-            var expander = (ExpandCollapsePattern)app.Find(menu).GetCurrentPattern(ExpandCollapsePattern.Pattern);
-            expander.Expand();
-            var items = Wait.Until(() => All(app.Window, ControlType.MenuItem).Where(item => item.Current.AutomationId.StartsWith("Command-", StringComparison.Ordinal)).ToArray() is { Length: > 0 } some ? some : null);
-            Assert.All(items, item => Assert.False(string.IsNullOrWhiteSpace(item.Current.Name), item.Current.AutomationId));
-            found.UnionWith(items.Select(item => item.Current.AutomationId["Command-".Length..]));
-            expander.Collapse();
-        }
-
-        Assert.Superset(
-            new HashSet<string>([CommandCatalog.OpenFile, CommandCatalog.PlayPause, CommandCatalog.CycleAudioTrack, CommandCatalog.AddSubtitles, CommandCatalog.ToggleFullScreen, CommandCatalog.CycleCrop, CommandCatalog.Preferences, CommandCatalog.ShowLog, CommandCatalog.CheckForUpdates]),
-            found);
-        Assert.Equal(0, app.Close());
-    }
-
-
     [Fact]
     [Capability("VID-23")]
     public void VideoLookMenuChangesTheSavedStyleAndReturnsToOriginal()
@@ -98,7 +64,6 @@ public sealed class AppWindowTests : IDisposable
         looks.Expand();
         app.Press("VideoLook-Monochrome");
         Wait.For(() => app.SavedSettings.VideoLook == VideoLook.Monochrome, "the picture look to be saved");
-
         videoMenu.Expand();
         looks = (ExpandCollapsePattern)app.Find("VideoLook-Menu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
         looks.Expand();
@@ -106,7 +71,6 @@ public sealed class AppWindowTests : IDisposable
         Wait.For(() => app.SavedSettings.VideoLook == VideoLook.Original, "Original to restore the video");
         Assert.Equal(0, app.Close());
     }
-
     [Fact]
     [Capability("VID-23")]
     public void VideoEffectsAreSelectedInTheirOwnMenuAndSavedIndependentlyFromLooks()
@@ -116,10 +80,11 @@ public sealed class AppWindowTests : IDisposable
         menu.Expand();
         var effects = (ExpandCollapsePattern)app.Find("VideoEffect-Menu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
         effects.Expand();
+        // Neon contours sits in the Contours group.
+        ((ExpandCollapsePattern)app.Find("VideoEffect-Group-Contours").GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
         app.Press("VideoEffect-NeonEdges");
         Wait.For(() => app.SavedSettings.VideoEffect == VideoEffect.NeonEdges, "the effect choice to be saved");
         Assert.Equal(VideoLook.Original, app.SavedSettings.VideoLook);
-
         menu.Expand();
         effects = (ExpandCollapsePattern)app.Find("VideoEffect-Menu").GetCurrentPattern(ExpandCollapsePattern.Pattern);
         effects.Expand();
@@ -127,7 +92,6 @@ public sealed class AppWindowTests : IDisposable
         Wait.For(() => app.SavedSettings.VideoEffect == VideoEffect.Off, "effect Off to be restored");
         Assert.Equal(0, app.Close());
     }
-
     [Fact]
     public void SubjectLockControlsAreIndependentOfPictureEffectsAndCanCloseCleanly()
     {
@@ -135,7 +99,6 @@ public sealed class AppWindowTests : IDisposable
         // picture keeps the presentation surface available for deterministic toolbar checks.
         using var app = AppProcess.Start([RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.snapshot-0.24.png")]);
         Wait.For(() => !app.IsShown("VideoBlank"), "the picture to be visible");
-
         var videoMenu = (ExpandCollapsePattern)app.Find("VideoMenu")
             .GetCurrentPattern(ExpandCollapsePattern.Pattern);
         videoMenu.Expand();
@@ -147,7 +110,6 @@ public sealed class AppWindowTests : IDisposable
         Assert.Equal(50.0, ((RangeValuePattern)app.Find("SubjectTolerance")
             .GetCurrentPattern(RangeValuePattern.Pattern)).Current.Value);
         Assert.Equal(VideoEffect.Off, app.SavedSettings.VideoEffect);
-
         // The primary actions must fit horizontally inside the picture. The remaining
         // controls are in a vertically scrollable card, never in a clipped action row.
         var stage = app.Find("Stage").Current.BoundingRectangle;
@@ -157,7 +119,6 @@ public sealed class AppWindowTests : IDisposable
             Assert.True(action.Left >= stage.Left && action.Right <= stage.Right + 1,
                 $"{id} is clipped by the right edge of the picture");
         }
-
         Assert.Equal(ToggleState.On, ((TogglePattern)app.Find("SubjectFollow")
             .GetCurrentPattern(TogglePattern.Pattern)).Current.ToggleState);
         Assert.Equal(ToggleState.On, ((TogglePattern)app.Find("SubjectShowBox")
@@ -170,7 +131,6 @@ public sealed class AppWindowTests : IDisposable
             .GetCurrentPattern(TogglePattern.Pattern)).Current.ToggleState);
         app.Toggle("SubjectShowBox");
         app.Toggle("SubjectFollow");
-
         // This invokes actual presenter selection, rather than merely opening the toolbar.
         // Even a low-texture fixture must respond (either a lock or an explicit refusal).
         app.Press("SubjectCenter");
@@ -184,53 +144,44 @@ public sealed class AppWindowTests : IDisposable
             "the selection command to reach the video presenter",
             () => $"Last status: {app.Text("SubjectStatusText")}. App log tail: "
                 + string.Join(" | ", app.LogText.Split('\n').TakeLast(15)));
-
         app.Press("SubjectReset");
         Assert.True(app.IsShown("SubjectSelect"));
         app.Press("SubjectClose");
         Wait.For(() => !app.IsShown("SubjectSelect"), "the selection tools to close");
         Assert.Equal(0, app.Close());
     }
-
     [Fact]
     [Capability("PB-06")]
     public void PlaybackSpeedCanBeSlowedRaisedAndRestoredFromItsControl()
     {
         using var app = AppProcess.Start([Song(30)]);
-
         Wait.For(() => app.Text("SpeedButton") == "Playback speed, 1\u00D7", "the normal speed to be shown");
         app.Press("SpeedButton");
         Assert.Contains("current speed", app.Find("SpeedRate-1").Current.Name, StringComparison.Ordinal);
         app.Press("SpeedRate-0.5");
         Wait.For(() => app.Text("SpeedButton") == "Playback speed, 0.5\u00D7", "the slower speed to be shown");
-
         app.Run(CommandCatalog.SlightlyFaster);
         Wait.For(() => app.Text("SpeedButton") == "Playback speed, 0.6\u00D7", "the fine speed step to be shown");
         app.Press("SpeedButton");
         app.Press("SpeedRate-2");
         Wait.For(() => app.Text("SpeedButton") == "Playback speed, 2\u00D7", "the faster speed to be shown");
-
         app.Run(CommandCatalog.NormalSpeed);
         Wait.For(() => app.Text("SpeedButton") == "Playback speed, 1\u00D7", "the reset speed to be shown");
         Assert.Equal(0, app.Close());
     }
-
     [Fact]
     [Capability("VID-03")]
     [Capability("UI-04")]
     public void FullScreenHidesTheMenusAndLeavingBringsThemBack()
     {
         using var app = AppProcess.Start();
-
         app.Run(CommandCatalog.ToggleFullScreen);
         Wait.For(() => !app.IsShown("Menu"), "the menus to go in full screen");
         Assert.True(app.IsShown("PlayPauseButton"), "Moving into full screen shows the controls for a moment.");
-
         app.Run(CommandCatalog.LeaveFullScreen);
         Wait.For(() => app.IsShown("Menu"), "the menus to come back");
         Assert.Equal(0, app.Close());
     }
-
     [Fact]
     [Capability("VID-27")]
     public void AlwaysOnTopKeepsTheWindowAboveOthersUntilTurnedOff()
@@ -238,14 +189,12 @@ public sealed class AppWindowTests : IDisposable
         using var app = AppProcess.Start();
         var window = (WindowPattern)app.Window.GetCurrentPattern(WindowPattern.Pattern);
         Assert.False(window.Current.IsTopmost);
-
         app.Run(CommandCatalog.ToggleAlwaysOnTop);
         Wait.For(() => window.Current.IsTopmost, "the window to stay on top");
         app.Run(CommandCatalog.ToggleAlwaysOnTop);
         Wait.For(() => !window.Current.IsTopmost, "the window to stop staying on top");
         Assert.Equal(0, app.Close());
     }
-
     [Fact]
     [Capability("SUB-14")]
     [Capability("OSD-01")]
@@ -259,9 +208,7 @@ public sealed class AppWindowTests : IDisposable
             Hello from the subtitles
             """);
         using var app = AppProcess.Start([film]);
-
         Wait.For(() => app.IsShown("SubtitleText") && app.Text("SubtitleText") == "Hello from the subtitles", "the subtitle to show");
-
         app.Run(CommandCatalog.ToggleSubtitles);
         Wait.For(() => !app.IsShown("SubtitleText"), "the subtitle to go");
         app.Run(CommandCatalog.SubtitlesBigger);
@@ -297,6 +244,21 @@ public sealed class AppWindowTests : IDisposable
         Assert.Equal(0, app.Close());
     }
 
+    [Fact]
+    [Capability("UI-02")]
+    public void ZCyclesPictureEffectsWhenVideoIsShowing()
+    {
+        using var app = AppProcess.Start([RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4")]);
+        Wait.For(() => app.Text("NowPlaying") == "Basquiat"
+            && app.Find("Stage").Current.Name == "VIDEO playback stage",
+            "the video's metadata and decoded geometry to be ready");
+
+        app.Run(CommandCatalog.CycleVisualizer);
+
+        Wait.For(() => app.SavedSettings.VideoEffect == VideoEffect.PrismFlow, "the next picture effect to be kept");
+        Assert.Equal(0, app.Close());
+    }
+
     [Theory]
     [Capability("AU-18")]
     [InlineData("Vinyl")]
@@ -307,6 +269,21 @@ public sealed class AppWindowTests : IDisposable
     [InlineData("Ripples")]
     [InlineData("Strobe")]
     [InlineData("Resonance")]
+    [InlineData("Groove")]
+    [InlineData("Flight")]
+    [InlineData("Cymatics")]
+    [InlineData("Ridgelines")]
+    [InlineData("Synthwave")]
+    [InlineData("Fireworks")]
+    [InlineData("Lightning")]
+    [InlineData("Lava")]
+    [InlineData("Constellation")]
+    [InlineData("Galaxy")]
+    [InlineData("Kaleidoscope")]
+    [InlineData("Murmuration")]
+    [InlineData("Ink")]
+    [InlineData("Skyline")]
+    [InlineData("Mandala")]
     public void EachVisualisationLightsTheStageAndMovesWithTheMusic(string visualisation)
     {
         using var app = AppProcess.Start([Music(30)], RootShowing(visualisation));
@@ -325,7 +302,10 @@ public sealed class AppWindowTests : IDisposable
         }).ToList();
         var lit = frames.Average(frame => WindowPicture.Brightness(frame, area));
         var change = frames.Zip(frames.Skip(1), (a, b) => WindowPicture.Change(a, b, area)).Average();
-        Assert.True(lit is > 0.01 and < 0.8, $"{visualisation} lit {lit:0.000} of the stage.");
+        // Stars, shells and ink occupy only a few pixels at once; they should be visible
+        // and moving, not forced to illuminate the entire scene like a broad colour wash.
+        var minimumLight = visualisation is "Constellation" or "Galaxy" or "Fireworks" or "Ink" ? 0.003 : 0.01;
+        Assert.True(lit > minimumLight && lit < 0.8, $"{visualisation} lit {lit:0.000} of the stage.");
         Assert.True(change > 0.002, $"{visualisation} changed {change:0.0000} between moments.");
         Assert.DoesNotContain("could not be drawn", app.LogText, StringComparison.Ordinal);
         Assert.Equal(0, app.Close());
@@ -418,6 +398,7 @@ public sealed class AppWindowTests : IDisposable
         using var app = AppProcess.Start([song]);
 
         Wait.For(() => app.IsShown("Cover"), "the folder's cover");
+        Assert.Equal("Cover for Sungba", app.Find("Cover").Current.Name);
         Wait.For(() => app.IsShown("Lyrics"), "the lyrics");
         Assert.True(app.IsShown("Visualizer"));
 
@@ -428,6 +409,32 @@ public sealed class AppWindowTests : IDisposable
         Wait.For(() => !app.SavedSettings.ShowLyrics, "no lyrics to be kept");
         app.Run(CommandCatalog.ToggleLyrics);
         Wait.For(() => app.IsShown("Lyrics"), "the lyrics to come back");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Theory]
+    [Capability("META-09")]
+    [InlineData(null, "No lyrics found in this song or beside it.")]
+    [InlineData("A line without source timings", "Untimed lyrics; no line or word times were supplied.")]
+    [InlineData("[00:01.00]Line one\n[00:02.00]Line two", "Timed lyrics; only line starts were supplied.")]
+    [InlineData("[00:01.00]<00:01.00>First <00:01.40>word\n[00:02.00]Line two", "Partly word-timed lyrics; untimed words are shown without invented timing.")]
+    [InlineData("[00:01.00]<00:01.00>First <00:01.40>word\n[00:02.00]<00:02.00>Last", "Word-timed lyrics; highlights follow exact source timestamps.")]
+    public void PlayerAnnouncesTheActualLyricsMode(string? lrc, string expected)
+    {
+        var song = Song(30);
+        var sidecar = Path.ChangeExtension(song, ".lrc");
+        if (lrc is null)
+        {
+            File.Delete(sidecar);
+        }
+        else
+        {
+            File.WriteAllText(sidecar, lrc);
+        }
+
+        using var app = AppProcess.Start([song]);
+        Wait.For(() => app.Text("LyricsStatus") == expected, "the factual lyrics mode to be announced");
+        Assert.Equal(expected, app.Text("LyricsStatus"));
         Assert.Equal(0, app.Close());
     }
 
@@ -449,6 +456,78 @@ public sealed class AppWindowTests : IDisposable
     }
 
     [Fact]
+    [Capability("META-09")]
+    public void KeyboardScrollingTimedLyricsPausesFollowingUntilExplicitlyResumed()
+    {
+        var song = Song(40);
+        File.WriteAllText(Path.ChangeExtension(song, ".lrc"),
+            "[00:00.00]First line\n[00:10.00]Second line\n[00:20.00]Third line\n[00:30.00]Fourth line\n");
+        using var app = AppProcess.Start([song]);
+        Wait.For(() => app.IsShown("LyricLine-1"), "the timed lyrics to be available");
+        Input.Focus(app);
+        app.Find("LyricLine-1").SetFocus();
+        Input.Press("PageDown");
+        Wait.For(() => app.IsShown("LyricsFollow"), "manual scroll to reveal Return to current lyric line");
+
+        var resume = app.Find("LyricsFollow");
+        Assert.Contains("Return to current lyric line", resume.Current.Name, StringComparison.Ordinal);
+        app.Press("LyricsFollow");
+        Wait.For(() => !app.IsShown("LyricsFollow"), "resuming line following to hide the button");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("META-09")]
+    public void MovingToAnotherTimedSongPreservesFocusedLyricNavigation()
+    {
+        var first = Song(30);
+        var next = Path.Combine(_media, "Next.wav");
+        File.WriteAllBytes(next, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * 30])).Build());
+        File.WriteAllText(Path.ChangeExtension(first, ".lrc"), "[00:00.00]First song\n[00:20.00]Later line");
+        File.WriteAllText(Path.ChangeExtension(next, ".lrc"), "[00:00.00]Next song\n[00:20.00]Last line");
+        var playlist = Path.Combine(_media, "Focus.m3u8");
+        File.WriteAllText(playlist, "Sungba.wav\nNext.wav\n");
+        using var app = AppProcess.Start([playlist]);
+
+        Wait.For(() => app.IsShown("LyricLine-0"), "the first track's timed lyrics");
+        Input.Focus(app);
+        app.Find("LyricLine-0").SetFocus();
+        Wait.For(() => app.Find("LyricLine-0").Current.HasKeyboardFocus, "focused initial lyrics");
+        app.Run(CommandCatalog.Faster);
+        app.Run(CommandCatalog.PlayPause);
+        Assert.True(app.Find("LyricLine-0").Current.HasKeyboardFocus);
+        Assert.Equal("Timed lyrics; only line starts were supplied.", app.Text("LyricsStatus"));
+        app.Run(CommandCatalog.PlayPause);
+        app.Run(CommandCatalog.Next);
+        Wait.For(() => app.Text("NowPlaying") == "Next", "the next song to load");
+        Wait.For(() => app.Text("LyricLine-0") == "Go to 0:00: Next song",
+            "the second track's lyric control to replace the first");
+        Wait.For(() => app.Find("LyricLine-0").Current.HasKeyboardFocus,
+            "the focus to return inside lyric navigation after a track change");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    public void SeekBarResetsWhenGaplessPlaylistAdvancesToTheNextFile()
+    {
+        var first = Song(6);
+        var second = Path.Combine(_media, "Next.wav");
+        File.WriteAllBytes(second, WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * 20])).Build());
+        var playlist = Path.Combine(_media, "Mix.m3u8");
+        File.WriteAllText(playlist, "Sungba.wav\nNext.wav\n");
+        using var app = AppProcess.Start([playlist]);
+        var seekBar = (RangeValuePattern)app.Find("SeekBar").GetCurrentPattern(RangeValuePattern.Pattern);
+
+        Wait.For(() => seekBar.Current.Value >= 0.5, "the first song to advance");
+        Wait.For(() => app.Text("NowPlaying") == "Next", "the gapless next song to start");
+        // A bar that kept counting from the first song would read 6 or more; one that reset reads
+        // well under that for a while, however slowly the runner gets to look.
+        Wait.For(() => seekBar.Current.Value < 5.0, "the seek bar to reset to the next song", () => seekBar.Current.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("LIB-09")]
     public void AnEntryWhoseFileHasGoneIsMarkedMissingAndOffersToFindIt()
     {
@@ -458,8 +537,8 @@ public sealed class AppWindowTests : IDisposable
         using var app = AppProcess.Start([playlist]);
         app.Run(CommandCatalog.TogglePlaylist);
 
-        var gone = Wait.Until(() => app.Find("PlaylistView").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Terminator (missing)")));
-        Assert.NotNull(app.Find("PlaylistView").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "\u25B6 Sungba")));
+        var gone = Wait.Until(() => app.Find("PlaylistView").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Terminator. Missing")));
+        Assert.NotNull(app.Find("PlaylistView").FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Playing. Sungba")));
         ((SelectionItemPattern)gone!.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         Assert.Equal(0, app.Close());
     }
@@ -503,11 +582,18 @@ public sealed class AppWindowTests : IDisposable
         File.WriteAllText(Path.Combine(root, "settings.json"), $$"""{ "firstRunDone": true, "lastSeenVersion": "{{AppProcess.Version}}", "updateChecks": "Off", "pictureSeconds": 1 }""");
         using var app = AppProcess.Start([_media], root);
 
-        // The folder is a slideshow: each picture in turn, a second each, the GIF moving.
-        Wait.For(() => app.Text("NowPlaying") == "anim", "the GIF");
-        Wait.For(() => app.Text("NowPlaying") == "photo", "the next picture");
+        // Each image stays on screen for one second; Windows UI automation may only
+        // attach after an early title has already gone. Observe the durable playback
+        // log instead, and still prove that every image opens in slideshow order.
+        Wait.For(() => app.LogText.Contains("Opened anim.gif as", StringComparison.Ordinal), "the GIF to open");
+        Wait.For(() => app.LogText.Contains("Opened photo.jpg as", StringComparison.Ordinal), "the JPEG to open");
         Wait.For(() => app.LogText.Contains("Opened photo.png as PNG", StringComparison.Ordinal), "the last picture");
-        Assert.Contains("Video: GIF via rexplayer GIF into Direct3D 11", app.LogText, StringComparison.Ordinal);
+        var log = app.LogText;
+        var gif = log.IndexOf("Opened anim.gif as", StringComparison.Ordinal);
+        var jpeg = log.IndexOf("Opened photo.jpg as", StringComparison.Ordinal);
+        var png = log.IndexOf("Opened photo.png as PNG", StringComparison.Ordinal);
+        Assert.True(gif >= 0 && gif < jpeg && jpeg < png, "Pictures did not open in slideshow order.");
+        Assert.Contains("Video: GIF via rexplayer GIF into Direct3D 11", log, StringComparison.Ordinal);
         Assert.DoesNotContain("could not be played", app.LogText, StringComparison.Ordinal);
         Assert.Equal(0, app.Close());
     }
@@ -545,6 +631,9 @@ public sealed class AppWindowTests : IDisposable
         ((SelectionItemPattern)song!.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         app.Press("LibraryPlay");
         Wait.For(() => app.Text("NowPlaying") == "Sungba", "the song to play");
+        Wait.For(() => !app.IsShown("LibraryPane"), "the player to return after the song starts");
+        app.Run(CommandCatalog.ToggleLibrary);
+        Wait.For(() => app.IsShown("LibraryPane"), "the library to reopen");
 
         ((ValuePattern)app.Find("LibrarySearch").GetCurrentPattern(ValuePattern.Pattern)).SetValue("no such song");
         Wait.For(() => app.IsShown("LibraryEmptyText") && app.Text("LibraryEmptyText") == "Nothing in the library matches that.", "no results");
@@ -627,6 +716,15 @@ public sealed class AppWindowTests : IDisposable
 
         var root = Path.Combine(Path.GetTempPath(), "rexplayer-ui-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
+        // Cards picked over the streaming browse, so each view's title, count and list can be read.
+        var cards = new Rex.Media.Settings.LibraryViewChoice(Rex.Media.Settings.LibraryLook.Grid, CardSize: 200) { LookChosen = true };
+        Rex.Media.Settings.SettingsStore.Save(Path.Combine(root, "settings.json"), new Rex.Media.Settings.PlayerSettings
+        {
+            FirstRunDone = true,
+            LastSeenVersion = AppProcess.Version,
+            UpdateChecks = Rex.Media.Settings.UpdateCadence.Off,
+            LibraryViews = new Dictionary<string, Rex.Media.Settings.LibraryViewChoice> { ["Movies"] = cards, ["TvShows"] = cards },
+        });
         var library = new Rex.Media.Library.MediaLibrary(Rex.Media.Library.RexStore.Open(Path.Combine(root, "library.log")));
         library.AddFolder(_media);
         Assert.Equal(paths.Length, library.Scan(_media, paths.Select(path =>
@@ -634,6 +732,8 @@ public sealed class AppWindowTests : IDisposable
             var info = new FileInfo(path);
             return new Rex.Media.Library.LibraryFile(path, info.Length, info.LastWriteTimeUtc);
         }), _ => Rex.Media.Library.LibraryKind.Video).Added);
+        // The film is read as feature length; the fixture itself lasts seconds, which says clip.
+        library.SetDetails(paths[0], LibraryScene.VideoInfo(TimeSpan.FromHours(2)));
 
         using var app = AppProcess.Start(root: root);
         app.Run(CommandCatalog.ToggleLibrary);
@@ -664,39 +764,47 @@ public sealed class AppWindowTests : IDisposable
         using var app = AppProcess.Start([Song(30)]);
         Wait.For(() => app.Text("NowPlaying") == "Sungba", "the song to start");
 
-        void Open(params string[] menus)
-        {
-            foreach (var menu in menus)
-            {
-                Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, menu)));
-                ((ExpandCollapsePattern)app.Find(menu).GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
-            }
-        }
-
         AutomationElement Wanted(string automationId) =>
             Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, automationId)))!;
 
-        Open("MediaMenu", "PlaylistsMenu");
-        ((InvokePattern)Wanted("NewNamedPlaylist").GetCurrentPattern(InvokePattern.Pattern)).Invoke();
+        ((InvokePattern)app.OpenMenu("NewNamedPlaylist", "MediaMenu", "PlaylistsMenu").GetCurrentPattern(InvokePattern.Pattern)).Invoke();
         ((ValuePattern)Wanted("PlaylistName").GetCurrentPattern(ValuePattern.Pattern)).SetValue("Asake");
         app.Press("PrimaryButton");
         Wait.For(() => app.LogText.Contains("Made the playlist Asake", StringComparison.Ordinal), "the playlist to be made");
 
-        Open("MediaMenu", "PlaylistsMenu", "NamedPlaylist-Asake");
-        ((InvokePattern)Wanted("DeleteNamed-Asake").GetCurrentPattern(InvokePattern.Pattern)).Invoke();
+        ((InvokePattern)app.OpenMenu("DeleteNamed-Asake", "MediaMenu", "PlaylistsMenu", "NamedPlaylist-Asake").GetCurrentPattern(InvokePattern.Pattern)).Invoke();
         Wanted("PrimaryButton");
         app.Press("PrimaryButton");
         Wait.For(() => app.LogText.Contains("Deleted the playlist Asake", StringComparison.Ordinal), "the playlist to be deleted");
 
-        Open("MediaMenu", "PlaylistsMenu");
-        Wanted("NewNamedPlaylist");
+        app.OpenMenu("NewNamedPlaylist", "MediaMenu", "PlaylistsMenu");
         Assert.Null(app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, "NamedPlaylist-Asake")));
         Assert.Equal(0, app.Close());
     }
 
     [Fact]
+    public void ALocalDownloadWaitShowsItsStatusAndClearsWhenBytesArrive()
+    {
+        var path = Path.Combine(_media, "Downloading.wav");
+        var wav = WavBuilder.Pcm(8000, 1, 16, Pcm.Int16(new float[8000 * 20])).Build();
+        const int initialLength = 44 + 4000;
+        File.WriteAllBytes(path, wav[..initialLength]);
+
+        using var app = AppProcess.Start([path]);
+        Wait.For(() => app.IsShown("DownloadBufferOverlay"), "the download waiting message");
+
+        using (var stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+        {
+            stream.Write(wav.AsSpan(initialLength));
+        }
+
+        Wait.For(() => !app.IsShown("DownloadBufferOverlay"), "playback to continue after download");
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
     [Capability("PB-11")]
-    public void ASongLeftPartWayOffersToCarryOnFromThere()
+    public void ASongResumesAutomaticallyAndStartOverReturnsToTheBeginning()
     {
         var song = Song(60);
         string root;
@@ -711,10 +819,16 @@ public sealed class AppWindowTests : IDisposable
         }
 
         using var second = AppProcess.Start([song], root);
-        Wait.For(() => second.IsShown("ResumeBar"), "the offer to carry on");
-        second.Press("ResumeButton");
-        Wait.For(() => !second.IsShown("ResumeBar"), "the offer to go");
         Wait.For(() => second.Text("Elapsed") is { } elapsed && (elapsed.StartsWith("0:2", StringComparison.Ordinal) || elapsed.StartsWith("0:3", StringComparison.Ordinal)), "the song to carry on from where it was");
+        Assert.False(second.IsShown("ResumeBar"));
+        Assert.Equal("Start this media from the beginning", second.Find("StartOverButton").Current.Name);
+        second.Press("StartOverButton");
+        Wait.For(() => second.Text("Elapsed").StartsWith("0:0", StringComparison.Ordinal), "Start over to seek to the beginning");
+
+        // Start over forgets the old place: going back to it has nowhere to go.
+        second.Run(CommandCatalog.Resume);
+        Wait.For(() => second.LogText.Contains("There is nowhere to go back to.", StringComparison.Ordinal), "Resume to find nothing to go back to");
+        Assert.StartsWith("0:0", second.Text("Elapsed"), StringComparison.Ordinal);
         Assert.Equal(0, second.Close());
     }
 
@@ -739,14 +853,33 @@ public sealed class AppWindowTests : IDisposable
 
     [Fact]
     [Capability("UI-05")]
-    public void TheMinimalInterfaceLeavesOnlyThePicture()
+    public void TheMinimalInterfaceKeepsPlaybackAndTheTimeline()
     {
-        using var app = AppProcess.Start();
+        using var app = AppProcess.Start([Song(30)]);
 
+        Screenshots.PinViewport(app, 1000, 700);
         app.Run(CommandCatalog.MinimalInterface);
-        Wait.For(() => !app.IsShown("PlayPauseButton") && !app.IsShown("Menu"), "the controls and menus to go");
-        app.Run(CommandCatalog.MinimalInterface);
-        Wait.For(() => app.IsShown("PlayPauseButton") && app.IsShown("Menu"), "the controls and menus to come back");
+        Wait.For(() => app.IsShown("SeekBar") && app.IsShown("PlayPauseButton")
+            && app.IsShown("Elapsed") && app.IsShown("Remaining")
+            && app.IsShown("VolumeBar") && !app.IsShown("Menu")
+            && app.IsShown("MinimalInterfaceButton")
+            && app.IsShown("LibraryButton") && app.IsShown("FullScreenButton")
+            && !app.IsShown("StopButton") && !app.IsShown("ShuffleButton"),
+            "the timeline and essential controls to remain in compact mode");
+        Assert.True(app.Find("SeekBar").Current.IsEnabled);
+        Screenshots.Match(app, "native-minimal-interface-playing");
+        var nativeSize = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
+        nativeSize.Resize(720, 640);
+        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 720) < 2 &&
+            Math.Abs(app.Window.Current.BoundingRectangle.Height - 640) < 2,
+            "the minimal player to honor native compact resizing");
+        Assert.True(app.Find("SeekBar").Current.IsEnabled);
+        Screenshots.Match(app, "native-minimal-interface-compact");
+        app.Press("MinimalInterfaceButton");
+        Wait.For(() => app.IsShown("SeekBar") && app.IsShown("PlayPauseButton")
+            && app.IsShown("StopButton") && app.IsShown("ShuffleButton")
+            && app.IsShown("Menu") && !app.IsShown("MinimalInterfaceButton"), "the complete controls to come back");
+        Screenshots.Match(app, "native-minimal-interface-restored");
         Assert.Equal(0, app.Close());
     }
 
@@ -755,45 +888,41 @@ public sealed class AppWindowTests : IDisposable
     public void TheWindowSizesItselfToTheVideo()
     {
         using var app = AppProcess.Start([RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4")]);
-        // The file's own title replaces its name once its details are read; only then is its size known.
-        Wait.For(() => app.Text("NowPlaying") == "Basquiat", "the video's details");
-        // Half, actual and double size: each step adds the video's height times the step, whatever
-        // the display's scale. (Widths are not compared: a window this narrow meets Windows' minimum.)
-        var half = Resize(app, CommandCatalog.ScaleHalf);
-        var actual = Resize(app, CommandCatalog.ScaleOriginal);
-        var doubled = Resize(app, CommandCatalog.ScaleDouble);
+        // A media title can be known before the video decoder has revealed its geometry.
+        Wait.For(() => app.Text("NowPlaying") == "Basquiat"
+            && app.Find("Stage").Current.Name == "VIDEO playback stage",
+            "the video's metadata and decoded geometry to be ready");
+        // The committed H.264 test pattern is only 128×72. At half/original
+        // scale its requested client height can be below WinUI's minimum.
+        // Those commands must still execute correctly even if Windows clamps
+        // the outer window to the same physical height.
+        var half = Resize(app, CommandCatalog.ScaleHalf, "50 %");
+        var actual = Resize(app, CommandCatalog.ScaleOriginal, "100 %");
+        var doubled = Resize(app, CommandCatalog.ScaleDouble, "200 %");
 
-        Assert.InRange((doubled - actual) / (actual - half), 1.9, 2.1);
+        Assert.True(actual >= half - 1, "100% scaling must not shrink below the 50% window.");
+        Assert.True(doubled >= actual - 1, "200% scaling must not shrink below the 100% window.");
+        if (actual - half > 1)
+        {
+            Assert.InRange((doubled - actual) / (actual - half), 1.9, 2.1);
+        }
+        else
+        {
+            // The minimum size clamps the lower scale steps, but the largest
+            // scale must still fit inside the window and never make it smaller.
+            Assert.True(half >= 320, "Windows' minimum outer window height must be respected.");
+        }
         Assert.Equal(0, app.Close());
     }
 
-    /// <summary>Runs a window-size command and gives the window's height once it has settled.</summary>
-    private static double Resize(AppProcess app, string command)
+    /// <summary>Run the native resize command, and account for Windows enforcing its minimum size.</summary>
+    private static double Resize(AppProcess app, string command, string expectedNotice)
     {
-        var before = app.Window.Current.BoundingRectangle.Height;
         app.Run(command);
-        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Height - before) > 1, "the window to change size");
+        Wait.For(() => app.LogText.Contains(expectedNotice, StringComparison.Ordinal),
+            command + " to execute and announce the requested video scale");
         Thread.Sleep(300);
         return app.Window.Current.BoundingRectangle.Height;
-    }
-
-    [Fact]
-    [Capability("UI-10")]
-    public void PreferencesChangeTheSettingsAndAreKept()
-    {
-        using var app = AppProcess.Start();
-
-        app.Run(CommandCatalog.Preferences);
-        var jump = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Short jump (seconds)")));
-        ((RangeValuePattern)jump.GetCurrentPattern(RangeValuePattern.Pattern)).SetValue(25);
-        var artwork = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Artwork detail (%)")));
-        ((RangeValuePattern)artwork.GetCurrentPattern(RangeValuePattern.Pattern)).SetValue(135);
-        var generated = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Generate artwork from music when no cover exists")));
-        ((TogglePattern)generated.GetCurrentPattern(TogglePattern.Pattern)).Toggle();
-        app.Press("PrimaryButton");
-
-        Wait.For(() => app.SavedSettings is { ShortJumpSeconds: 25, AudioArtworkDetail: 135, GenerateAudioArtwork: false }, "the preferences to be saved");
-        Assert.Equal(0, app.Close());
     }
 
     [Fact]
@@ -839,11 +968,13 @@ public sealed class AppWindowTests : IDisposable
     {
         using var app = AppProcess.Start();
 
+        Wait.For(() => app.LogText.Contains("[INFO] app: rexplayer", StringComparison.Ordinal),
+            "the startup message to reach the live log");
         app.Run(CommandCatalog.ShowLog);
         var log = ((ValuePattern)app.Find("LogText").GetCurrentPattern(ValuePattern.Pattern)).Current.Value;
         app.Press("CloseButton");
 
-        Assert.Contains("[INFO] app: rexplayer", log, StringComparison.Ordinal);
+        Assert.Contains("[INFO] timing: app at ", log, StringComparison.Ordinal);
         Assert.Equal(0, app.Close());
     }
 

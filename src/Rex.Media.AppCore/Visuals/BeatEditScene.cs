@@ -258,6 +258,14 @@ public sealed class BeatEditScene : VisualScene
 
     private VisualPicture Mirrored(VisualPicture picture)
     {
+        // A disconnected camera can provide an incomplete frame. Sampling already
+        // treats it as black; never allocate a mirror or copy beyond its bytes.
+        if (picture.Width <= 0 || picture.Height <= 0 || picture.Bgra is null
+            || picture.Width > picture.Bgra.Length / 4 / picture.Height)
+        {
+            return picture;
+        }
+
         if (_mirrored is null || _mirrored.Width != picture.Width || _mirrored.Height != picture.Height)
         {
             _mirrored = new VisualPicture(new byte[picture.Width * picture.Height * 4], picture.Width, picture.Height);
@@ -292,7 +300,7 @@ public sealed class BeatEditScene : VisualScene
 
         var (cos, sin) = (Math.Cos(tilt) / zoom, Math.Sin(tilt) / zoom);
         var flash = (float)_flash;
-        var keep = (float)echo;
+        var keep = (float)Math.Pow(echo, Math.Clamp(context.Dt, 0, 0.25) * VisualContext.TrailRate);
         Raster.Rows(h, y =>
         {
             var slice = glitched ? _sliceShift[y * _sliceShift.Length / h] : 0;

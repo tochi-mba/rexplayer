@@ -74,6 +74,19 @@ public sealed class Id3v2Tests
     }
 
     [Fact]
+    [Capability("META-01")]
+    public void UserTextWithSeveralValuesKeepsEveryOne()
+    {
+        var tag = Read(Id3Builder.V24()
+            .UserText("ARTISTS", "A$AP Rocky" + (char)0 + "Brent Faiyaz" + (char)0)
+            .Text("TPE1", "A$AP Rocky/Brent Faiyaz")
+            .Build());
+
+        Assert.Equal("A$AP Rocky; Brent Faiyaz", tag.Metadata[MetadataKeys.Artists]);
+        Assert.Equal("A$AP Rocky/Brent Faiyaz", tag.Metadata[MetadataKeys.Artist]);
+    }
+
+    [Fact]
     public void AToolsPrivateCommentIsUsedOnlyWhenNothingElseIs()
     {
         var onlyPrivate = Read(Id3Builder.V24().Comment("iTunNORM", "garbage").Build());
@@ -173,6 +186,20 @@ public sealed class Id3v2Tests
         Assert.Empty(tag.Pictures);
         Assert.Empty(tag.Chapters);
         Assert.False(tag.Metadata.ContainsKey("no terminator"));
+    }
+
+    [Fact]
+    public void AudiobookId3UserTextKeepsAuthorSeparateFromNarratorAndArtist()
+    {
+        var tag = Read(Id3Builder.V24()
+            .UserText("BOOK_AUTHOR", "Roald Dahl")
+            .UserText("READ BY", "Kate Winslet")
+            .Text("TPE1", "Kate Winslet")
+            .Build());
+
+        Assert.Equal("Roald Dahl", tag.Metadata[MetadataKeys.Author]);
+        Assert.Equal("Kate Winslet", tag.Metadata[MetadataKeys.Narrator]);
+        Assert.Equal("Kate Winslet", tag.Metadata[MetadataKeys.Artist]);
     }
 
     [Fact]
@@ -320,6 +347,31 @@ public sealed class VorbisCommentTests
     public void FieldNamesMapToTheCanonicalKeys(string field, string key)
     {
         Assert.Equal(key, VorbisComments.CanonicalName(field));
+    }
+
+    [Theory]
+    [InlineData("AUTHOR", MetadataKeys.Author)]
+    [InlineData("BOOKAUTHOR", MetadataKeys.Author)]
+    [InlineData("Book Author", MetadataKeys.Author)]
+    [InlineData("WRITTEN_BY", MetadataKeys.Author)]
+    [InlineData("NARRATOR", MetadataKeys.Narrator)]
+    [InlineData("READ BY", MetadataKeys.Narrator)]
+    [InlineData("Reader", MetadataKeys.Narrator)]
+    public void AudiobookVorbisFieldsHaveDedicatedWritingAndReadingCredits(string field, string expected)
+    {
+        Assert.Equal(expected, VorbisComments.CanonicalName(field));
+    }
+
+    [Fact]
+    [Capability("META-01")]
+    public void RepeatedArtistFieldsAndTheListOfArtistsAreEachRead()
+    {
+        var metadata = new Dictionary<string, string>();
+
+        VorbisComments.Read(FlacBuilder.VorbisComments("v", ["ARTIST=beabadoobee", "artist=The Marías", "ARTISTS=beabadoobee", "ARTISTS=The Marías"]), metadata);
+
+        Assert.Equal("beabadoobee; The Marías", metadata[MetadataKeys.Artist]);
+        Assert.Equal("beabadoobee; The Marías", metadata[MetadataKeys.Artists]);
     }
 
     [Fact]

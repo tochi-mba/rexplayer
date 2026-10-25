@@ -18,6 +18,12 @@ public sealed class EngineOptions
 
     public RexLog Log { get; init; } = RexLog.InMemory();
 
+    /// <summary>
+    /// Where the session marks how long opening, the first sound and the first picture took (the
+    /// timing lines of the log); null marks nothing.
+    /// </summary>
+    public Milestones? Milestones { get; init; }
+
     public TimeProvider Time { get; init; } = TimeProvider.System;
 
     public ResamplerQuality ResamplerQuality { get; init; } = ResamplerQuality.Normal;
@@ -31,6 +37,12 @@ public sealed class EngineOptions
     /// </summary>
     public Func<IVideoPresenter>? VideoPresenterFactory { get; init; }
 
+    /// <summary>
+    /// Whether video decoders may decode on the graphics card behind the presenter. Off, every
+    /// picture is decoded by the processor, as on a computer whose graphics card cannot decode.
+    /// </summary>
+    public bool GraphicsCardDecoding { get; init; } = true;
+
     /// <summary>Packets waiting for the video decoder. The queue may hold up to four times this while audio is starving.</summary>
     public int VideoQueueCapacity { get; init; } = 32;
 
@@ -42,6 +54,12 @@ public sealed class EngineOptions
 
     /// <summary>How often position events are posted while playing.</summary>
     public TimeSpan PositionInterval { get; init; } = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>
+    /// How long playback waits at a temporary end of a growing local file before accepting that the
+    /// download stalled. The wait is cancellable immediately by a seek, stop, or shutdown.
+    /// </summary>
+    public TimeSpan GrowingFileStallTimeout { get; init; } = TimeSpan.FromSeconds(30);
 }
 
 /// <summary>How exactly a seek lands.</summary>

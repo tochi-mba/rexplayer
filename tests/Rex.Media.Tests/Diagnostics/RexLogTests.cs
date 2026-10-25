@@ -29,6 +29,76 @@ public sealed class RexLogTests : IDisposable
         Assert.Equal(["warning", "error", "critical"], log.Tail(10).Select(e => e.Message));
     }
 
+    /// <summary>The messages in the log file; none while it is missing or being written.</summary>
+    private string[] FileLines()
+    {
+        try
+        {
+            using var stream = new FileStream(
+                Path.Combine(_directory, "rexplayer.log"),
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+            return [.. reader.ReadToEnd()
+                .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
+                .Select(line => line[(line.IndexOf(": ", StringComparison.Ordinal) + 2)..])];
+        }
+        catch (IOException)
+        {
+            return [];
+        }
+    }
+
+    [Fact]
+    public void WrittenBehindEntriesReachTheFileInOrderAndAFlushWritesWhatWaits()
+    {
+        var log = new RexLog(new RexLogOptions { Directory = _directory, WriteBehind = true, Minimum = LogLevel.Debug });
+
+        for (var i = 0; i < 200; i++)
+        {
+            log.Info("test", i.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        log.Flush();
+        Assert.Equal(Enumerable.Range(0, 200).Select(i => i.ToString(System.Globalization.CultureInfo.InvariantCulture)), FileLines());
+        log.Flush();
+        Assert.Equal(200, FileLines().Length);
+    }
+
+    [Fact]
+    public void WrittenBehindEntriesArriveWithoutAFlush()
+    {
+        var log = new RexLog(new RexLogOptions { Directory = _directory, WriteBehind = true });
+
+        log.Info("test", "soon");
+
+        Assert.True(SpinWait.SpinUntil(() => FileLines() is ["soon"], TimeSpan.FromSeconds(10)), "The entry never reached the file.");
+        log.Info("test", "again");
+        Assert.True(SpinWait.SpinUntil(() => FileLines() is ["soon", "again"], TimeSpan.FromSeconds(10)), "The second entry never reached the file.");
+    }
+
+    [Fact]
+    public void ACriticalEntryWritesEverythingWaitingAndItselfAtOnce()
+    {
+        var log = new RexLog(new RexLogOptions { Directory = _directory, WriteBehind = true });
+
+        log.Info("test", "before");
+        log.Critical("test", "crash");
+
+        Assert.Equal(["before", "crash"], FileLines());
+    }
+
+    [Fact]
+    public void WithoutWritingBehindEachEntryIsOnTheDiskAtOnce()
+    {
+        var log = new RexLog(new RexLogOptions { Directory = _directory });
+
+        log.Info("test", "now");
+
+        Assert.Equal(["now"], FileLines());
+    }
+
     [Fact]
     public void TheRingKeepsTheNewestEntries()
     {

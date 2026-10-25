@@ -32,6 +32,33 @@ public static class Visualizers
         VisualizerChoice.Aurora => "Aurora",
         VisualizerChoice.Embers => "Embers",
         VisualizerChoice.Resonance => "Resonance",
+        VisualizerChoice.Groove => "Groove",
+        VisualizerChoice.Flight => "Flight",
+        VisualizerChoice.Cymatics => "Cymatics",
+        VisualizerChoice.Ridgelines => "Ridgelines",
+        VisualizerChoice.Synthwave => "Synthwave",
+        VisualizerChoice.Fireworks => "Fireworks",
+        VisualizerChoice.Lightning => "Lightning",
+        VisualizerChoice.Lava => "Lava lamp",
+        VisualizerChoice.Constellation => "Constellation",
+        VisualizerChoice.Galaxy => "Galaxy",
+        VisualizerChoice.Kaleidoscope => "Kaleidoscope",
+        VisualizerChoice.Murmuration => "Murmuration",
+        VisualizerChoice.Ink => "Ink",
+        VisualizerChoice.Skyline => "Skyline",
+        VisualizerChoice.Mandala => "Mandala",
+        VisualizerChoice.Clones => "Clones",
+        VisualizerChoice.TimeWarp => "Time warp",
+        VisualizerChoice.Aura => "Aura",
+        VisualizerChoice.LedWall => "LED wall",
+        VisualizerChoice.Stardust => "Stardust",
+        VisualizerChoice.HallOfMirrors => "Hall of mirrors",
+        VisualizerChoice.LightPainting => "Light painting",
+        VisualizerChoice.Scanner => "Scanner",
+        VisualizerChoice.Shatter => "Shatter",
+        VisualizerChoice.Spotlight => "Spotlight",
+        VisualizerChoice.InfinityMirror => "Infinity mirror",
+        VisualizerChoice.Water => "Water",
         VisualizerChoice.Ripples => "Ripples",
         VisualizerChoice.Strobe => "Strobe",
         VisualizerChoice.Silhouette => "Camera silhouette",
@@ -88,22 +115,6 @@ public static class Visualizers
         var t = (float)(at - from);
         var (a, b) = (stops[from], stops[from + 1]);
         return new Argb(255, Mix(a.R, b.R, t), Mix(a.G, b.G, t), Mix(a.B, b.B, t));
-    }
-
-    /// <summary>The band carrying the most energy, for colours that follow the pitch; 0 in silence.</summary>
-    public static int DominantBand(IReadOnlyList<float> levels)
-    {
-        ArgumentNullException.ThrowIfNull(levels);
-        var band = 0;
-        for (var i = 1; i < levels.Count; i++)
-        {
-            if (levels[i] > levels[band])
-            {
-                band = i;
-            }
-        }
-
-        return band;
     }
 
     /// <summary>A colour from its hue (degrees), saturation and value, each brought into range; what is not a number is black.</summary>

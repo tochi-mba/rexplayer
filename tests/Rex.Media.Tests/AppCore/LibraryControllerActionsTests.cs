@@ -10,9 +10,11 @@ public sealed class LibraryControllerActionsTests
 {
     private static readonly byte[] Recording = ControllerHarness.Count(0, 8000 * 30);
 
-    private static ControllerHarness Harness(bool autoPlay = false)
+    private static ControllerHarness Harness(bool autoPlay = false,
+        Action<Rex.Media.Primitives.AudioFrame, CancellationToken>? beforeAudioWrite = null)
     {
-        var test = new ControllerHarness(autoPlay: autoPlay, settings: new PlayerSettings { TitleSeconds = 0 });
+        var test = new ControllerHarness(autoPlay: autoPlay, settings: new PlayerSettings { TitleSeconds = 0 },
+            beforeAudioWrite: beforeAudioWrite);
         test.Files["a.wav"] = Recording;
         test.Files["b.wav"] = Recording;
         test.Files["c.wav"] = Recording;
@@ -81,14 +83,11 @@ public sealed class LibraryControllerActionsTests
         var item = library.Entry(a)!;
         Assert.Equal(a, PlayerController.ItemOf(item).Location);
         Assert.Equal(item.Title, PlayerController.ItemOf(item).Title);
-        Assert.Equal(Rex.Media.AppCore.Library.WatchState.Unwatched, controller.WatchStateOf(item));
         controller.Memory.Left(a, TimeSpan.FromSeconds(12), TimeSpan.FromSeconds(40));
-        Assert.Equal(Rex.Media.AppCore.Library.WatchState.InProgress, controller.WatchStateOf(item));
 
         controller.MarkWatched([a]);
         Assert.Null(controller.LeftAt(a));
         Assert.Equal(1, library.Entry(a)!.Plays);
-        Assert.Equal(Rex.Media.AppCore.Library.WatchState.Finished, controller.WatchStateOf(library.Entry(a)!));
         controller.MarkUnwatched([a, b]);
         Assert.Equal(0, library.Entry(a)!.Plays);
         Assert.Null(library.Entry(a)!.LastPlayed);
@@ -128,9 +127,26 @@ public sealed class LibraryControllerActionsTests
     }
 
     [Fact]
+    public void DeletingAPlayingFileDoesNotRecreateItsResumePoint()
+    {
+        using var test = Harness();
+        var controller = test.Controller;
+        controller.Open(["a.wav"]);
+        test.PumpUntil(c => c.State == SessionState.Ready && c.CanSeek);
+        controller.Seek(TimeSpan.FromSeconds(15));
+        test.PumpUntil(c => c.Position >= TimeSpan.FromSeconds(10));
+        controller.ForgetDeleted(["a.wav"]);
+        Assert.Null(controller.LeftAt("a.wav"));
+        Assert.Equal(SessionState.Idle, controller.State);
+    }
+
+    [Fact]
     public void ForgettingAnActivelyPlayingFileStopsTheSessionAndRemovesQueueReferences()
     {
-        using var test = Harness(autoPlay: true);
+        // The in-memory recording sink can play both tiny files before a slow CI runner
+        // observes Playing. Keep the first audio write blocked until the deletion is tested.
+        using var audioGate = new ManualResetEventSlim(false);
+        using var test = Harness(autoPlay: true, beforeAudioWrite: (_, token) => audioGate.Wait(token));
         var controller = test.Controller;
         controller.Open(["a.wav", "b.wav"]);
         test.PumpUntil(c => c.State == SessionState.Playing && c.Item?.Location == "a.wav");
@@ -140,12 +156,16 @@ public sealed class LibraryControllerActionsTests
         Assert.False(controller.IsPlaying);
         Assert.DoesNotContain(controller.Playlist.Items, item => item.Location == "a.wav");
         Assert.Single(controller.Playlist.Items);
+        audioGate.Set();
     }
 
     [Fact]
     public void PausingAnActiveItemDoesNotRestartItOrChangeItsPosition()
     {
-        using var test = Harness(autoPlay: true);
+        // The recording sink runs much faster than real-time: without a gate it can finish the
+        // whole recording before the test observes Playing, even though pausing is correct.
+        using var audioGate = new ManualResetEventSlim(false);
+        using var test = Harness(autoPlay: true, beforeAudioWrite: (_, token) => audioGate.Wait(token));
         var controller = test.Controller;
         controller.Open(["a.wav"]);
         test.PumpUntil(c => c.State == SessionState.Playing);
@@ -156,5 +176,6 @@ public sealed class LibraryControllerActionsTests
         test.Pump();
         Assert.Equal(after, controller.Position);
         Assert.False(controller.IsPlaying);
+        audioGate.Set();
     }
 }

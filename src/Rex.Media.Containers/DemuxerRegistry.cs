@@ -54,12 +54,51 @@ public sealed class DemuxerRegistry
         return best;
     }
 
-    /// <summary>Opens the source with the best demuxer, or explains in plain words why none fits.</summary>
+    /// <summary>
+    /// Opens the source with the best demuxer, or explains in plain words why none fits. A file with
+    /// junk in front of its format's signature (a damaged or badly cut file) opens from the signature.
+    /// </summary>
     public IDemuxer Open(IByteSource source, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(source);
-        var factory = Probe(source, cancellationToken) ?? throw new MediaFormatException(DescribeUnknown(source, cancellationToken));
-        return factory.Open(source, cancellationToken);
+        if (Probe(source, cancellationToken) is { } factory)
+        {
+            return factory.Open(source, cancellationToken);
+        }
+
+        if (source.Length is { } length && Signature(source, cancellationToken) is { } offset)
+        {
+            var rest = new SliceByteSource(source, offset, length - offset);
+            if (Probe(rest, cancellationToken) is { } found)
+            {
+                return found.Open(rest, cancellationToken);
+            }
+        }
+
+        throw new MediaFormatException(DescribeUnknown(source, cancellationToken));
+    }
+
+    /// <summary>
+    /// Where the first container signature lies in the first <see cref="ProbeSize"/> bytes, past the
+    /// start: Matroska's EBML header, an MP4 box type, "fLaC", an Ogg page, a RIFF WAVE or an AIFF form.
+    /// </summary>
+    private static long? Signature(IByteSource source, CancellationToken cancellationToken)
+    {
+        var head = new byte[ProbeSize];
+        var span = head.AsSpan(0, source.Read(0, head, cancellationToken));
+        for (var at = 1; at + 12 <= span.Length; at++)
+        {
+            var here = span[at..];
+            if (here.StartsWith((ReadOnlySpan<byte>)[0x1A, 0x45, 0xDF, 0xA3]) || here.StartsWith("fLaC"u8) || here.StartsWith("OggS\0"u8)
+                || (here[4..].StartsWith("ftyp"u8) && here[0] == 0)
+                || (here.StartsWith("RIFF"u8) && here[8..].StartsWith("WAVE"u8))
+                || (here.StartsWith("FORM"u8) && (here[8..].StartsWith("AIFF"u8) || here[8..].StartsWith("AIFC"u8))))
+            {
+                return at;
+            }
+        }
+
+        return null;
     }
 
     private static string DescribeUnknown(IByteSource source, CancellationToken cancellationToken)

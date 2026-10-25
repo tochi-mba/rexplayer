@@ -47,16 +47,23 @@ public sealed class GaplessTests
         // A long first file cannot be prefetched entirely through the bounded packet queue.
         // Pause before playback starts, then close with a queued unopened source. This also
         // exercises disposal of the pending queue deterministically for the coverage gate.
-        var pending = new TrackedSource(Count(3, 400));
+        // A single next item can be picked up by the demuxer before closing, leaving nothing
+        // pending to prove the disposal path. Queue a bounded set behind a paused long recording:
+        // at least the tail remains in the pending queue, then every source must be disposed.
+        var pending = Enumerable.Range(0, 32).Select(i => new TrackedSource(Count(i, 400))).ToArray();
         using (var harness = new SessionHarness(autoPlay: false))
         {
             await harness.Session.OpenAsync(SessionHarness.Source(Count(0, 800_000)));
-            await harness.Session.QueueNextAsync(pending);
+            foreach (var source in pending)
+            {
+                await harness.Session.QueueNextAsync(source);
+            }
+
             Assert.Equal(SessionState.Ready, harness.Session.State);
-            Assert.False(pending.Disposed);
+            Assert.False(pending[^1].Disposed);
         }
 
-        Assert.True(pending.Disposed);
+        Assert.All(pending, source => Assert.True(source.Disposed));
     }
 
     [Fact]

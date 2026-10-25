@@ -38,6 +38,9 @@ public sealed record LogEntry(DateTimeOffset Timestamp, LogLevel Level, string S
 public sealed class RexLog
 {
     private readonly object _gate = new();
+    private readonly object _fileGate = new();
+    private readonly List<LogEntry> _pending = [];
+    private bool _draining;
     private readonly LogEntry[] _ring;
     private readonly TimeProvider _clock;
     private int _ringStart;
@@ -50,6 +53,11 @@ public sealed class RexLog
         Options = options;
         _clock = clock ?? TimeProvider.System;
         _ring = new LogEntry[Math.Max(16, options.RingCapacity)];
+        if (options.WriteBehind)
+        {
+            // Nothing written behind is lost when the process ends, Environment.Exit included.
+            AppDomain.CurrentDomain.ProcessExit += (_, _) => Flush();
+        }
     }
 
     /// <summary>A log that keeps entries in memory only, for tests and the CLI's quiet mode.</summary>
@@ -93,13 +101,85 @@ public sealed class RexLog
                 _ringStart = (_ringStart + 1) % _ring.Length;
             }
 
-            if (Options.FileEnabled || level == LogLevel.Critical)
+            if ((Options.FileEnabled || level == LogLevel.Critical) && Options.WriteBehind && level != LogLevel.Critical)
             {
-                AppendToFile(entry);
+                // Written behind, on the thread pool: the thread that logs (the window's, a
+                // decoder's) does not wait for the disk.
+                _pending.Add(entry);
+                if (!_draining)
+                {
+                    _draining = true;
+                    // Use a dedicated background thread at normal priority. A below-normal
+                    // writer can be starved by CPU-heavy decoding or test polling, leaving log
+                    // messages unwritten for seconds even though their caller returned promptly.
+                    // It remains a background thread: only log I/O happens here.
+                    var writer = new Thread(static state => ((RexLog)state!).Drain())
+                    {
+                        IsBackground = true,
+                        Priority = ThreadPriority.Normal,
+                        Name = "rexplayer log writer",
+                    };
+                    writer.Start(this);
+                }
             }
         }
 
+        if (level == LogLevel.Critical || (Options.FileEnabled && !Options.WriteBehind))
+        {
+            // What a crash leaves must be on the disk before anything else can happen: whatever waits goes first.
+            FlushWith(entry);
+        }
+
         EntryWritten?.Invoke(this, entry);
+    }
+
+    /// <summary>Writes every entry still waiting to be written behind; with nothing waiting it does nothing.</summary>
+    public void Flush() => FlushWith(null);
+
+    /// <summary>Writes what waits, then <paramref name="also"/>, in one go and in order.</summary>
+    private void FlushWith(LogEntry? also)
+    {
+        lock (_fileGate)
+        {
+            LogEntry[] batch;
+            lock (_gate)
+            {
+                batch = [.. _pending];
+                _pending.Clear();
+            }
+
+            if (also is not null)
+            {
+                batch = [.. batch, also];
+            }
+
+            AppendToFile(batch);
+        }
+    }
+
+    /// <summary>The background writer: writes what waits until nothing does.</summary>
+    private void Drain()
+    {
+        while (true)
+        {
+            lock (_fileGate)
+            {
+                LogEntry[] batch;
+                lock (_gate)
+                {
+                    if (_pending.Count == 0)
+                    {
+                        _draining = false;
+                        return;
+                    }
+
+                    batch = [.. _pending];
+                    _pending.Clear();
+                }
+
+                AppendToFile(batch);
+            }
+        }
     }
 
     /// <summary>The newest <paramref name="count"/> entries, oldest first.</summary>
@@ -118,10 +198,11 @@ public sealed class RexLog
         }
     }
 
-    private void AppendToFile(LogEntry entry)
+    /// <summary>Appends <paramref name="entries"/> to the file in one write, rotating it first when it is full. Called holding the file gate.</summary>
+    private void AppendToFile(IReadOnlyList<LogEntry> entries)
     {
         var path = FilePath;
-        if (path is null || _fileBroken)
+        if (path is null || _fileBroken || entries.Count == 0)
         {
             return;
         }
@@ -135,7 +216,13 @@ public sealed class RexLog
                 Rotate(path);
             }
 
-            File.AppendAllText(path, entry.Format() + Environment.NewLine, Encoding.UTF8);
+            var text = new StringBuilder();
+            foreach (var entry in entries)
+            {
+                text.Append(entry.Format()).Append(Environment.NewLine);
+            }
+
+            File.AppendAllText(path, text.ToString(), Encoding.UTF8);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -176,6 +263,14 @@ public sealed record RexLogOptions
     public string FileName { get; init; } = "rexplayer.log";
 
     public bool FileEnabled { get; init; } = true;
+
+    /// <summary>
+    /// Entries reach the file shortly after, written in batches on the thread pool, so the thread
+    /// that logs never waits for the disk (a line written and closed took about a millisecond);
+    /// <see cref="RexLog.Flush"/> writes what waits, and critical entries and the end of the
+    /// process write everything at once. Off, each entry is on the disk before Write returns.
+    /// </summary>
+    public bool WriteBehind { get; init; }
 
     public LogLevel Minimum { get; init; } = LogLevel.Info;
 

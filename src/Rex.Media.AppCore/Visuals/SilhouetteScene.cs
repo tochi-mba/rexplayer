@@ -1,7 +1,7 @@
 namespace Rex.Media.AppCore.Visuals;
 
 /// <summary>
-/// The listener as the camera sees them (AU-18), filling the stage: a glowing outline that flares
+/// The listener as the camera sees them (AU-18), the whole picture fitted to the stage: a glowing outline that flares
 /// on the beat, a figure filled with the spectrum (bass at the feet), sparks thrown off the outline,
 /// echoes of every move trailing away in changing colours, or a neon outline split three ways that
 /// spreads with the bass. The room can show dimly behind. The camera's picture never leaves the
@@ -24,7 +24,7 @@ public sealed class SilhouetteScene : VisualScene
         _flash = pulse.Drop ? 1 : Math.Max(0, _flash - (context.Dt / 0.6));
         if (style == 3)
         {
-            canvas.Feedback(0.86f, 1.012, 0, 0, 0);
+            context.Trail(0.86, 1.012, 0, 0, 0);
         }
         else
         {
@@ -49,6 +49,12 @@ public sealed class SilhouetteScene : VisualScene
                 for (var x = 0; x < canvas.Width; x++)
                 {
                     var (sx, sy) = ((x - roomLeft) / roomScale, (y - roomTop) / roomScale);
+                    if (sx < 0 || sy < 0 || sx > room.Width - 1 || sy > room.Height - 1)
+                    {
+                        // Beside a camera picture narrower than the stage: no room, not its edge drawn out.
+                        continue;
+                    }
+
                     var grey = ((room.Sample(sx, sy, 0) * 0.1f) + (room.Sample(sx, sy, 1) * 0.6f) + (room.Sample(sx, sy, 2) * 0.3f)) * 0.14f;
                     var i = (y * canvas.Width) + x;
                     canvas.R[i] += grey;
@@ -95,16 +101,9 @@ public sealed class SilhouetteScene : VisualScene
         canvas.Bloom(0.35f, 0.9f, 5);
     }
 
-    /// <summary>Where a picture of <paramref name="across"/> by <paramref name="down"/> sits scaled to fill the stage, cut at its edges.</summary>
-    internal static (double Scale, double Left, double Top) Cover(int width, int height, int across, int down)
-    {
-        var scale = Math.Max((double)width / across, (double)height / down);
-        return (scale, (width - (across * scale)) / 2, (height - (down * scale)) / 2);
-    }
-
     /// <summary>
-    /// Keep the entire camera figure visible within the stage instead of cropping the
-    /// top and bottom of a 4:3 camera on a widescreen audio visualisation.
+    /// Where a picture of <paramref name="across"/> by <paramref name="down"/> sits scaled to fit the
+    /// stage whole, so a 4:3 camera on a wide stage keeps the listener's head and feet.
     /// </summary>
     internal static (double Scale, double Left, double Top) Fit(int width, int height, int across, int down)
     {

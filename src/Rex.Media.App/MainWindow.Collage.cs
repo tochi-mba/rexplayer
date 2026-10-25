@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Rex.Media.Settings;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
@@ -39,29 +40,50 @@ public sealed partial class MainWindow
                 : item is LibraryGroup && _librarySource == LibrarySource.TvShows ? LibraryKind.Video
                 : LibraryKind.Music;
             var poster = _librarySource == LibrarySource.Movies || item is LibraryGroup && _librarySource == LibrarySource.TvShows;
-            ratios[offset] = CollageLayout.AspectRatio(kind, poster, index);
+            ratios[offset] = item is LibraryEntry { Kind: LibraryKind.Picture } picture
+                ? CollageLayout.PictureAspectRatio(picture.PictureWidth, picture.PictureHeight, index)
+                : CollageLayout.AspectRatio(kind, poster, index);
         }
 
         args.SetDesiredAspectRatios(ratios);
     }
 
     // Both events matter: a recycled item may keep its container while receiving a new data item.
-    private void OnCollageItemLoaded(object sender, RoutedEventArgs args) => LoadCollagePicture(sender);
+    internal void OnCollageItemLoaded(object sender, RoutedEventArgs args) => LoadCollagePicture(sender);
 
-    private void OnCollageItemDataChanged(FrameworkElement sender, DataContextChangedEventArgs args) => LoadCollagePicture(sender);
+    internal void OnCollageItemDataChanged(FrameworkElement sender, DataContextChangedEventArgs args) => LoadCollagePicture(sender);
 
     private void LoadCollagePicture(object sender)
     {
-        if (sender is FrameworkElement { DataContext: LibraryRow row })
+        // The tile's data context is its row (the template binds it): an items view never sets it
+        // for a compiled template, so without that binding no tile would ask for its picture.
+        if (sender is FrameworkElement { DataContext: LibraryRow row } tile)
         {
-            RequestLibraryPicture(row);
+            FollowCollageTile(tile, row);
+            RequestLibraryPicture(row, CollagePosters(row));
         }
     }
 
+    /// <summary>Whether a collage tile is poster-shaped, as the collage lays it out.</summary>
+    private bool CollagePosters(LibraryRow row) =>
+        _librarySource == LibrarySource.Movies || (row.Item is LibraryGroup && _librarySource == LibrarySource.TvShows);
+
     private void OnCollageDoubleTapped(object sender, DoubleTappedRoutedEventArgs args)
     {
-        Activate(LibraryCollage.SelectedItem as LibraryRow);
+        if (_settings.MediaOpenClickMode == MediaOpenClick.DoubleClick)
+        {
+            Activate(TappedRow(args.OriginalSource) ?? LibraryCollage.SelectedItem as LibraryRow);
+        }
+
         args.Handled = true;
+    }
+
+    private void OnCollageTapped(object sender, TappedRoutedEventArgs args)
+    {
+        if (_settings.MediaOpenClickMode == MediaOpenClick.SingleClick)
+        {
+            Activate(TappedRow(args.OriginalSource));
+        }
     }
 
     private void OnCollageKeyDown(object sender, KeyRoutedEventArgs args)
@@ -73,11 +95,11 @@ public sealed partial class MainWindow
                 args.Handled = true;
                 break;
             case VirtualKey.F2 when LibraryCollage.SelectedItem is LibraryRow { Item: NamedPlaylist playlist }:
-                _ = RenamePlaylistAsync(playlist.Id);
+                Forget(RenamePlaylistAsync(playlist.Id));
                 args.Handled = true;
                 break;
             case VirtualKey.Delete when LibraryCollage.SelectedItems.Count > 0:
-                _ = ChooseLibraryDeletionAsync();
+                Forget(ChooseLibraryDeletionAsync());
                 args.Handled = true;
                 break;
             case VirtualKey.Back when _libraryGroup is not null:

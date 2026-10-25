@@ -20,45 +20,7 @@ namespace Rex.Media.App;
 public sealed partial class MainWindow
 {
     private const string HelpUrl = "https://tochi-mba.github.io/rexplayer/";
-
-    /// <summary>The menus, by menu, in order; each entry is a command id, or null for a separator.</summary>
-    private static readonly (string Menu, string?[] Commands)[] MenuLayout =
-    [
-        ("Media", [CommandCatalog.OpenFile, CommandCatalog.OpenFolder, CommandCatalog.OpenLocation, CommandCatalog.PasteLocation, null, CommandCatalog.OpenPlaylist, CommandCatalog.SavePlaylist, null, CommandCatalog.Quit]),
-        ("Playback", [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, null,
-            CommandCatalog.SkipSection, CommandCatalog.NextEpisode, null,
-            CommandCatalog.JumpForwardShort, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardMedium, CommandCatalog.JumpBackMedium, CommandCatalog.GoToTime, null,
-            CommandCatalog.Faster, CommandCatalog.Slower, CommandCatalog.NormalSpeed, null,
-            CommandCatalog.CycleRepeat, CommandCatalog.ToggleShuffle, CommandCatalog.ShowPosition, null,
-            CommandCatalog.AddBookmark, CommandCatalog.Resume, null,
-            CommandCatalog.StopAfterCurrent, CommandCatalog.PauseAfterCurrent, null,
-            CommandCatalog.SleepPrefix + "15", CommandCatalog.SleepPrefix + "30", CommandCatalog.SleepPrefix + "60", CommandCatalog.SleepAtEndOfItem, CommandCatalog.SleepOff]),
-        ("Audio", [CommandCatalog.CycleAudioTrack, null, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, null,
-            CommandCatalog.AudioEarlier, CommandCatalog.AudioLater, CommandCatalog.ResetAudioDelay, null, CommandCatalog.Effects, CommandCatalog.CycleVisualizer, CommandCatalog.VisualizerSettings, CommandCatalog.ToggleLyrics]),
-        ("Subtitles", [CommandCatalog.AddSubtitles, null, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles, null,
-            CommandCatalog.SubtitlesEarlier, CommandCatalog.SubtitlesLater, CommandCatalog.ResetSubtitleDelay, null,
-            CommandCatalog.SubtitlesBigger, CommandCatalog.SubtitlesSmaller, CommandCatalog.ResetSubtitleSize]),
-        ("Video", [CommandCatalog.ToggleFullScreen, null, CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, null,
-            CommandCatalog.ZoomIn, CommandCatalog.ZoomOut, CommandCatalog.ResetZoom, CommandCatalog.ToggleNavigator, null, CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble, null,
-            CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
-        ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ToggleLibrary, CommandCatalog.BackUpLibrary, CommandCatalog.RestoreLibrary, null, CommandCatalog.ClearPlaylist, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, null, CommandCatalog.ClearHistory, CommandCatalog.Preferences, CommandCatalog.KeyboardAndMouse]),
-        ("Help", [CommandCatalog.ShortcutSheet, CommandCatalog.Help, null, CommandCatalog.ShowLog, CommandCatalog.OpenLogFolder, CommandCatalog.SaveDiagnostics, null, CommandCatalog.CheckForUpdates]),
-    ];
-
     private bool IsFullScreen => AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen;
-
-    /// <summary>The picture's right-click menu (UI-03): the same commands, reachable even in full screen and the minimal interface.</summary>
-    private static readonly (string Title, string?[] Commands)[] ContextLayout =
-    [
-        ("", [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, null, CommandCatalog.ToggleFullScreen, CommandCatalog.MinimalInterface]),
-        ("Audio", [CommandCatalog.CycleAudioTrack, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, CommandCatalog.CycleVisualizer, CommandCatalog.VisualizerSettings]),
-        ("Subtitles", [CommandCatalog.AddSubtitles, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles]),
-        ("Video", [CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, CommandCatalog.ZoomIn, CommandCatalog.ResetZoom, CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
-        ("Media", [CommandCatalog.OpenFile, CommandCatalog.OpenFolder, CommandCatalog.PasteLocation, CommandCatalog.TogglePlaylist, CommandCatalog.MediaInformation]),
-        ("", [null, CommandCatalog.Preferences, CommandCatalog.Quit]),
-    ];
-
-
     /// <summary>The current rate remains visible while the player is paused or changing items.</summary>
     private void ShowSpeed()
     {
@@ -68,9 +30,7 @@ public sealed partial class MainWindow
         var keys = string.Join(" and ", new[] { _keymap.Label(CommandCatalog.Faster), _keymap.Label(CommandCatalog.Slower) }.Where(key => key.Length > 0));
         ToolTipService.SetToolTip(SpeedButton, "Playback speed: " + label + ". Choose a rate" + (keys.Length > 0 ? ", or use " + keys + " to change it." : "."));
     }
-
     private static string SpeedLabel(double speed) => speed.ToString("0.##", CultureInfo.InvariantCulture) + "\u00D7";
-
     /// <summary>Offer slower and faster speeds in one place, including one-touch return to normal.</summary>
     private void OnSpeedButton(object sender, RoutedEventArgs e)
     {
@@ -102,14 +62,13 @@ public sealed partial class MainWindow
 
         menu.ShowAt(SpeedButton);
     }
-
     private void BuildMenus()
     {
         _menuChecks.Clear();
         _videoLookItems.Clear();
         _videoEffectItems.Clear();
         _sectionMenuUpdates.Clear();
-        foreach (var (title, commands) in MenuLayout)
+        foreach (var (title, commands) in MenuBarLayout.Menus)
         {
             var menu = Menu.Items.First(item => item.Title == title);
             menu.Items.Clear();
@@ -117,7 +76,7 @@ public sealed partial class MainWindow
         }
 
         var context = new MenuFlyout();
-        foreach (var (title, commands) in ContextLayout)
+        foreach (var (title, commands) in ContextMenuLayout.Groups)
         {
             if (title.Length == 0)
             {
@@ -145,8 +104,8 @@ public sealed partial class MainWindow
         AddEpisodeSectionMenus(Menu.Items.First(item => item.Title == "Video").Items, "Video");
         BuildMemoryMenus();
         BuildNamedPlaylistMenus();
+        BuildTranscriptMenus();
     }
-
     private void Fill(IList<MenuFlyoutItemBase> items, string?[] commands, string prefix)
     {
         foreach (var id in commands)
@@ -157,9 +116,18 @@ public sealed partial class MainWindow
                 continue;
             }
 
+            if (MenuBarLayout.SubMenus.TryGetValue(id, out var group))
+            {
+                var sub = new MenuFlyoutSubItem { Text = group.Title };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(sub, "Submenu-" + MenuBarLayout.SubMenuId(id));
+                Fill(sub.Items, group.Commands, prefix);
+                items.Add(sub);
+                continue;
+            }
+
             var command = CommandCatalog.Find(id)!;
-            MenuFlyoutItem item = IsOnOff(id) ? new ToggleMenuFlyoutItem { IsChecked = IsOn(id) } : new MenuFlyoutItem();
-            (item.Text, item.KeyboardAcceleratorTextOverride) = (command.Title, _keymap.Label(id));
+            MenuFlyoutItem item = MenuBarLayout.IsOnOff(id) ? new ToggleMenuFlyoutItem { IsChecked = IsOn(id) } : new MenuFlyoutItem();
+            (item.Text, item.KeyboardAcceleratorTextOverride) = (CommandCatalog.TitleOf(command, _settings), _keymap.Label(id));
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, prefix + id);
             item.Click += (_, _) => Run(id);
             items.Add(item);
@@ -169,16 +137,8 @@ public sealed partial class MainWindow
             }
         }
     }
-
     // Menu items that are on or off, ticked to match.
     private readonly List<(ToggleMenuFlyoutItem Item, string Command)> _menuChecks = [];
-
-    /// <summary>Whether a command switches something on and off (rather than doing a thing once), so its menu item carries a tick.</summary>
-    private static bool IsOnOff(string command) => command is CommandCatalog.ToggleShuffle or CommandCatalog.CycleRepeat or CommandCatalog.Mute
-        or CommandCatalog.ToggleSubtitles or CommandCatalog.ToggleNavigator or CommandCatalog.StopAfterCurrent or CommandCatalog.PauseAfterCurrent
-        or CommandCatalog.SleepAtEndOfItem or CommandCatalog.ToggleFullScreen or CommandCatalog.ToggleAlwaysOnTop or CommandCatalog.ToggleStats
-        or CommandCatalog.TogglePlaylist or CommandCatalog.ToggleLyrics or CommandCatalog.ToggleLibrary or CommandCatalog.MinimalInterface;
-
     /// <summary>Whether what <paramref name="command"/> switches is on now.</summary>
     private bool IsOn(string command) => command switch
     {
@@ -198,7 +158,6 @@ public sealed partial class MainWindow
         CommandCatalog.ToggleLibrary => LibraryOpen,
         _ => _settings.MinimalInterface,
     };
-
     /// <summary>Ticks every on-and-off menu item to match what is on now: after every command and every change of the player.</summary>
     private void ShowMenuChecks()
     {
@@ -207,14 +166,16 @@ public sealed partial class MainWindow
             item.IsChecked = IsOn(command);
         }
     }
-
     /// <summary>Runs a command: playback commands go to the player, the rest are the window's own.</summary>
     private void Run(string command)
     {
         RunCommand(command);
         ShowMenuChecks();
+        if (command == CommandCatalog.ClearHistory)
+        {
+            RefreshJumpListLater();
+        }
     }
-
     private void RunCommand(string command)
     {
         if (_player.Execute(command))
@@ -222,8 +183,16 @@ public sealed partial class MainWindow
             return;
         }
 
+        // Z follows the media in front of the user: pictures cycle picture effects, while
+        // audio-only playback keeps cycling its visualisations.
+        if (command == CommandCatalog.CycleVisualizer && HasVideo)
+        {
+            CycleVideoEffect();
+            return;
+        }
+
         App.Log.Debug(LogSource, "Command " + command);
-        if (RunSubtitleCommand(command) || RunVisualizerCommand(command) || RunPlaylistCommand(command) || RunZoomCommand(command))
+        if (RunSubtitleCommand(command) || RunKineticCaptionCommand(command) || RunVisualizerCommand(command) || RunPlaylistCommand(command) || RunZoomCommand(command))
         {
             return;
         }
@@ -240,15 +209,21 @@ public sealed partial class MainWindow
                 SetLibraryOpen(!LibraryOpen);
                 break;
             case CommandCatalog.BackUpLibrary:
-                _ = BackUpLibraryAsync();
+                Forget(BackUpLibraryAsync());
                 break;
             case CommandCatalog.RestoreLibrary:
-                _ = RestoreLibraryAsync();
+                Forget(RestoreLibraryAsync());
                 break;
             case CommandCatalog.TogglePlaylist:
                 var show = PlaylistPane.Visibility != Visibility.Visible;
                 PlaylistPane.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
                 PlaylistButton.IsChecked = show;
+                _queuePaneWasVisible = false;
+                if (show)
+                {
+                    ShowPlaylist();
+                }
+
                 RememberLater();
                 break;
             case CommandCatalog.ClearPlaylist:
@@ -289,7 +264,7 @@ public sealed partial class MainWindow
                 Say("Crop: " + _crop.Name);
                 break;
             case CommandCatalog.Snapshot:
-                _ = SnapshotAsync();
+                Forget(SnapshotAsync());
                 break;
             case CommandCatalog.ToggleStats:
                 _settings = _settings with { StatsOverlay = !_settings.StatsOverlay };
@@ -297,47 +272,54 @@ public sealed partial class MainWindow
                 RememberLater();
                 break;
             case CommandCatalog.OpenFile:
-                _ = OpenFilesAsync();
+                Forget(OpenFilesAsync());
                 break;
             case CommandCatalog.OpenFolder:
-                _ = OpenFolderAsync();
+                Forget(OpenFolderAsync());
                 break;
             case CommandCatalog.OpenLocation:
-                _ = OpenLocationAsync();
+                Forget(OpenLocationAsync());
                 break;
             case CommandCatalog.PasteLocation:
-                _ = PasteAsync();
+                Forget(PasteAsync());
                 break;
             case CommandCatalog.GoToTime:
-                _ = GoToTimeAsync();
+                Forget(GoToTimeAsync());
                 break;
             case CommandCatalog.ShortcutSheet:
-                _ = ShowShortcutsAsync();
+                Forget(ShowShortcutsAsync());
                 break;
             case CommandCatalog.MediaInformation:
-                _ = ShowMediaInformationAsync();
+                Forget(ShowMediaInformationAsync());
                 break;
             case CommandCatalog.CheckForUpdates:
-                _ = CheckForUpdatesAsync(asked: true);
+                Forget(CheckForUpdatesAsync(asked: true));
+                break;
+            case CommandCatalog.WhatsNew:
+                Forget(ShowWhatsNewAsync());
+                break;
+            case CommandCatalog.About:
+                Forget(ShowAboutAsync());
                 break;
             case CommandCatalog.Effects:
-                _ = ShowEffectsAsync();
+                Forget(ShowEffectsAsync());
                 break;
             case CommandCatalog.Preferences:
-                _ = ShowPreferencesAsync();
+                Forget(ShowPreferencesAsync());
                 break;
             case CommandCatalog.KeyboardAndMouse:
-                _ = ShowKeyboardAndMouseAsync();
+                Forget(ShowKeyboardAndMouseAsync());
                 break;
             case CommandCatalog.ShowLog:
-                _ = ShowLogAsync();
+                Forget(ShowLogAsync());
                 break;
             case CommandCatalog.OpenLogFolder:
+                App.Log.Flush();
                 Directory.CreateDirectory(App.LogFolder);
                 _ = Windows.System.Launcher.LaunchFolderPathAsync(App.LogFolder);
                 break;
             case CommandCatalog.SaveDiagnostics:
-                _ = SaveDiagnosticsAsync();
+                Forget(SaveDiagnosticsAsync());
                 break;
             case CommandCatalog.Help:
                 _ = Windows.System.Launcher.LaunchUriAsync(new Uri(HelpUrl));
@@ -347,7 +329,6 @@ public sealed partial class MainWindow
                 break;
         }
     }
-
     private void SetFullScreen(bool fullScreen)
     {
         if (fullScreen == IsFullScreen)
@@ -364,39 +345,59 @@ public sealed partial class MainWindow
         Controls.RequestedTheme = fullScreen ? ElementTheme.Dark : ElementTheme.Default;
         if (fullScreen)
         {
-            Menu.Visibility = Visibility.Collapsed;
+            // Full-screen uses its own timed transport, not the compact window controls.
+            ApplyMinimalInterface();
             ShowFullScreenControls();
         }
         else
         {
             _controlsTimer.Stop();
+            _pointerTimer.Stop();
             ShowPointer(true);
             ApplyMinimalInterface();
             ApplyAlwaysOnTop();
         }
 
-        // An update bar waits out full-screen playback and comes back on leaving it.
-        ConsiderUpdatePrompt();
+        // The update card waits out full-screen playback and comes back on leaving it.
+        ShowUpdates();
     }
-
     private void ShowFullScreenControls()
     {
+        _pointerTimer.Stop();
         ShowPointer(true);
         Controls.Visibility = Visibility.Visible;
         _controlsTimer.Stop();
         _controlsTimer.Start();
     }
-
     private void HideFullScreenControls()
     {
-        if (IsFullScreen && !Controls.FocusState.HasFlag(FocusState.Keyboard))
+        if (IsFullScreen && !FocusIsInside(Controls))
         {
             Controls.Visibility = Visibility.Collapsed;
-            ShowPointer(false);
+            _pointerTimer.Stop();
+            _pointerTimer.Start();
         }
     }
+    /// <summary>Whether keyboard focus is on <paramref name="bar"/> or on anything inside it, such as one of its buttons.</summary>
+    private bool FocusIsInside(UIElement bar)
+    {
+        if (Content?.XamlRoot is not { } root || Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(root) is not Control { FocusState: FocusState.Keyboard } focused)
+        {
+            return false;
+        }
 
-    /// <summary>The pointer hides with the full-screen controls and comes back with them.</summary>
+        return Rex.Media.AppCore.Shell.FocusWithin.IsInside<DependencyObject>(focused, bar, Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent);
+    }
+    /// <summary>The pointer is the last piece of full-screen chrome to leave.</summary>
+    private void HideFullScreenPointer()
+    {
+        if (IsFullScreen && Controls.Visibility == Visibility.Collapsed)
+        {
+            ShowPointer(false);
+            App.Log.Debug(LogSource, "Hid the pointer over the full-screen picture.");
+        }
+    }
+    /// <summary>The pointer follows full-screen activity without obscuring a settled picture.</summary>
     private static void ShowPointer(bool shown)
     {
         if (OperatingSystem.IsWindows())
@@ -404,14 +405,57 @@ public sealed partial class MainWindow
             Rex.Media.Interop.Windowing.PointerVisibility.SetHidden(!shown);
         }
     }
-
+    /// <summary>
+    /// Compact window chrome without hiding the timeline, time labels, Play/Pause or volume.
+    /// Full-screen controls still follow the separate auto-hide timer.
+    /// </summary>
     private void ApplyMinimalInterface()
     {
-        var chrome = _settings.MinimalInterface || IsFullScreen ? Visibility.Collapsed : Visibility.Visible;
-        Menu.Visibility = chrome;
-        Controls.Visibility = chrome;
-    }
+        var minimal = _settings.MinimalInterface && !IsFullScreen;
+        Menu.Visibility = minimal || IsFullScreen ? Visibility.Collapsed : Visibility.Visible;
+        MinimalInterfaceButton.Visibility = minimal ? Visibility.Visible : Visibility.Collapsed;
+        if (minimal && StageChaptersButton.Visibility == Visibility.Visible)
+        {
+            if (Content.XamlRoot is { } xamlRoot)
+            {
+                var focused = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(xamlRoot);
+                if (ReferenceEquals(focused, StageChaptersButton)
+                    || (focused is MenuFlyoutItemBase menuItem && StageChapterMenu.Items.Contains(menuItem)))
+                {
+                    PlayPauseButton.Focus(FocusState.Programmatic);
+                }
+            }
 
+            // Hiding the button alone can leave an already-open popup clickable.
+            StageChapterMenu.Hide();
+        }
+
+        StageChaptersButton.Visibility = !minimal && _stageView.ShowChapters && _stageView.CanSeek
+            && _player.CanSeek && StageChapterMenu.Items.Count > 0
+            ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var secondary in new UIElement[]
+        {
+            StartOverButton, PreviousButton, StopButton, NextButton, ShuffleButton,
+            RepeatButton, PlaylistButton, TransportSeparator,
+        })
+        {
+            secondary.Visibility = minimal ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        Controls.Padding = minimal ? new Thickness(12, 3, 12, 5) : new Thickness(16, 10, 16, 12);
+        Controls.RowSpacing = minimal ? 1 : 8;
+        VolumeBar.Width = minimal ? 88 : 120;
+        if (!IsFullScreen)
+        {
+            Controls.Visibility = Visibility.Visible;
+        }
+    }
+    /// <summary>Restore the controls and keep keyboard focus on a visible playback action.</summary>
+    private void OnRestoreFullInterface(object sender, RoutedEventArgs e)
+    {
+        Run(CommandCatalog.MinimalInterface);
+        PlayPauseButton.Focus(FocusState.Programmatic);
+    }
     private void ApplyAlwaysOnTop()
     {
         if (AppWindow.Presenter is OverlappedPresenter overlapped)
@@ -420,7 +464,6 @@ public sealed partial class MainWindow
                 || (_settings.AlwaysOnTop == AlwaysOnTop.WhilePlaying && _player.IsPlaying);
         }
     }
-
     /// <summary>Sizes the window so the picture shows at <paramref name="factor"/> times its own size, pixel for pixel.</summary>
     private void ScaleToVideo(double factor)
     {
@@ -449,7 +492,6 @@ public sealed partial class MainWindow
             (int)Math.Round((displayHeight * factor) + chromeHeight)));
         Say(string.Create(CultureInfo.InvariantCulture, $"{factor * 100:0} %"));
     }
-
     /// <summary>Video keeps the screen on; sound alone only keeps the PC awake (VID-29).</summary>
     private void KeepAwake(bool display, bool system)
     {
@@ -463,7 +505,6 @@ public sealed partial class MainWindow
             ApplyAlwaysOnTop();
         }
     }
-
     /// <summary>Saves the picture on screen, at the source's own size and without the overlays, to Pictures\rexplayer.</summary>
     private async Task SnapshotAsync()
     {
@@ -490,7 +531,6 @@ public sealed partial class MainWindow
             Say("The snapshot could not be taken: " + ex.Message);
         }
     }
-
     /// <summary>Hands the chosen aspect ratio and crop to the presenter, redrawing at once when paused.</summary>
     private void ApplyShape()
     {
@@ -506,7 +546,6 @@ public sealed partial class MainWindow
             }
         });
     }
-
     /// <summary>Shows or hides the statistics, refreshed every second while shown.</summary>
     private void ApplyStatsOverlay()
     {
@@ -514,14 +553,13 @@ public sealed partial class MainWindow
         if (_settings.StatsOverlay)
         {
             _statsTimer.Start();
-            _ = RefreshStatsAsync();
+            Forget(RefreshStatsAsync());
         }
         else
         {
             _statsTimer.Stop();
         }
     }
-
     private async Task RefreshStatsAsync()
     {
         var stats = await _player.StatsAsync();
@@ -529,51 +567,68 @@ public sealed partial class MainWindow
         Stats.Text = stats is null ? "Nothing is playing." : StatsText.Describe(stats, _player.Info, _player.AudioTrack, _lastStats, now - _lastStatsAt);
         (_lastStats, _lastStatsAt) = (stats, now);
     }
-
     /// <summary>
     /// Answers the automation pipe (TOOL-03): a later launch's files, a command by id, or the state.
     /// Called on the pipe's thread, so the work is done on the window's.
     /// </summary>
     public Task<AutomationReply> AnswerAsync(AutomationRequest request)
     {
+        if ((AnswerMeasurement(request) ?? AnswerFault(request)) is { } measured)
+        {
+            return measured;
+        }
+
         var answered = new TaskCompletionSource<AutomationReply>(TaskCreationOptions.RunContinuationsAsynchronously);
         var queued = DispatcherQueue.TryEnqueue(() =>
         {
-            switch (request.Command)
+            try
             {
-                case "open":
-                    if (request.Paths.Count > 0)
-                    {
-                        _player.OpenHandedOver(request.Paths, request.Enqueue, request.LaunchedAt ?? DateTimeOffset.Now);
-                    }
+                if (ShellAutomation.IsUiRequest(request.Command))
+                {
+                    Forget(AnswerUiAsync(request, answered));
+                    return;
+                }
 
-                    ComeForward();
-                    break;
-                case "run" when request.Id is { } id && CommandCatalog.Find(id) is not null:
-                    Run(id);
-                    break;
-                case "run":
-                    answered.SetResult(AutomationReply.Failed($"There is no command \"{request.Id}\"."));
-                    return;
-                case "status":
-                    break;
-                default:
-                    answered.SetResult(AutomationReply.Failed($"\"{request.Command}\" is not a request; try open, run or status."));
-                    return;
+                switch (request.Command)
+                {
+                    case "open":
+                        if (request.Paths.Count > 0)
+                        {
+                            _player.OpenHandedOver(request.Paths, request.Enqueue, request.LaunchedAt ?? DateTimeOffset.Now);
+                        }
+
+                        ComeForward();
+                        break;
+                    case "run" when request.Id is { } id && CommandCatalog.Find(id) is not null:
+                        Run(id);
+                        break;
+                    case "run":
+                        answered.SetResult(AutomationReply.Failed($"There is no command \"{request.Id}\"."));
+                        return;
+                    case "status":
+                        break;
+                    default:
+                        answered.SetResult(AutomationReply.Failed($"\"{request.Command}\" is not a request; try open, run, seek, status, metrics, measure or a ui. command such as ui.tree."));
+                        return;
+                }
+
+                answered.SetResult(new AutomationReply
+                {
+                    Ok = true,
+                    State = _player.State.ToString(),
+                    Title = _player.Item is null ? null : _player.Title,
+                    Position = _player.Position.TotalSeconds,
+                    Duration = _player.Duration > TimeSpan.Zero ? _player.Duration.TotalSeconds : null,
+                });
             }
-
-            answered.SetResult(new AutomationReply
+            catch (Exception ex)
             {
-                Ok = true,
-                State = _player.State.ToString(),
-                Title = _player.Item is null ? null : _player.Title,
-                Position = _player.Position.TotalSeconds,
-                Duration = _player.Duration > TimeSpan.Zero ? _player.Duration.TotalSeconds : null,
-            });
+                App.Log.Critical(LogSource, $"The automation request \"{request.Command}\" failed; the window carries on: {ex}");
+                answered.SetResult(AutomationReply.Failed(ex.Message));
+            }
         });
         return queued ? answered.Task : Task.FromResult(AutomationReply.Failed("The player is closing."));
     }
-
     /// <summary>Brings the window back from the taskbar and to the front.</summary>
     private void ComeForward()
     {
@@ -584,13 +639,12 @@ public sealed partial class MainWindow
 
         Activate();
     }
-
     private T Prepared<T>(T picker)
     {
         WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
         return picker;
     }
-
+    private void OnWelcomeOpen(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => Forget(OpenFilesAsync());
     private async Task OpenFilesAsync()
     {
         var picker = Prepared(new FileOpenPicker { SuggestedStartLocation = PickerLocationId.VideosLibrary, ViewMode = PickerViewMode.List });
@@ -601,7 +655,6 @@ public sealed partial class MainWindow
             _player.Open(PathsOf(files));
         }
     }
-
     private async Task OpenFolderAsync()
     {
         var picker = Prepared(new FolderPicker { SuggestedStartLocation = PickerLocationId.MusicLibrary });
@@ -614,11 +667,24 @@ public sealed partial class MainWindow
 
     private async Task OpenLocationAsync()
     {
-        var box = new TextBox { PlaceholderText = @"A file or folder, such as C:\Music\Album", MinWidth = 420 };
+        var box = new TextBox { PlaceholderText = @"A local file or folder, such as C:\Music\Album", MinWidth = 420 };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(box, "LocationBox");
-        if (await Ask("Open a location", box, "Open") && box.Text.Trim().Trim('"') is { Length: > 0 } location)
+        if (await Ask("Open a local location", box, "Open") && box.Text.Trim().Trim('"') is { Length: > 0 } location)
         {
-            _player.Open([location]);
+            var (supported, _) = MediaFiles.FilterClipboardPaths([location], Directory.Exists);
+            if (supported.Count == 0)
+            {
+                Say("Only local media files and folders can be opened. Network streams and remote locations are not supported.");
+                return;
+            }
+
+            if (!File.Exists(location) && !Directory.Exists(location))
+            {
+                Say("That local file or folder could not be found.");
+                return;
+            }
+
+            _player.Open(supported);
         }
     }
 
@@ -628,26 +694,66 @@ public sealed partial class MainWindow
         var content = Clipboard.GetContent();
         if (content.Contains(StandardDataFormats.StorageItems))
         {
-            _player.Open(PathsOf(await content.GetStorageItemsAsync()));
+            var (supported, skipped) = MediaFiles.FilterClipboardPaths(PathsOf(await content.GetStorageItemsAsync()), Directory.Exists);
+            if (supported.Count == 0)
+            {
+                Say("The clipboard has no media rexplayer can open.");
+                return;
+            }
+
+            if (skipped > 0)
+            {
+                Say($"Skipped {skipped} clipboard item{(skipped == 1 ? "" : "s")} that rexplayer cannot open.");
+            }
+
+            _player.Open(supported);
         }
-        else if (content.Contains(StandardDataFormats.Text) && (await content.GetTextAsync()).Trim().Trim('"') is { Length: > 0 } text)
+        else if (content.Contains(StandardDataFormats.Text))
         {
-            _player.Open([text]);
+            var (supported, skipped) = MediaFiles.FilterClipboardText(await content.GetTextAsync(), Directory.Exists);
+            if (supported.Count == 0)
+            {
+                Say("The clipboard has no media rexplayer can open.");
+                return;
+            }
+
+            if (skipped > 0)
+            {
+                Say($"Skipped {skipped} clipboard item{(skipped == 1 ? "" : "s")} that rexplayer cannot open.");
+            }
+
+            _player.Open(supported);
         }
     }
 
     private async Task GoToTimeAsync()
     {
-        if (!_player.CanSeek)
+        if (!_stageView.CanSeek || !_player.CanSeek)
         {
+            if (_player.Item is not null)
+            {
+                Say(PlayerController.CannotSeekNotice);
+            }
+
             return;
         }
 
+        var item = _player.Item;
+        var info = _player.Info;
         var box = new TextBox { Text = TimeText.Format(_player.Position, _player.Duration), MinWidth = 200 };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(box, "GoToTimeBox");
         box.SelectAll();
         if (await Ask("Go to a time", box, "Go"))
         {
+            // The dialog can remain open while a new item is queued from a second
+            // launch or playback advances. Never apply an old time to a new file.
+            if (!ReferenceEquals(_player.Item, item)
+                || !ReferenceEquals(_player.Info, info) || !_stageView.CanSeek || !_player.CanSeek)
+            {
+                Say("The media changed before the seek could be applied.");
+                return;
+            }
+
             if (TimeText.TryParse(box.Text) is { } time)
             {
                 _player.Seek(time);
@@ -668,7 +774,8 @@ public sealed partial class MainWindow
             foreach (var command in group)
             {
                 var keys = string.Join(", ", _keymap.ShortcutsFor(command.Id));
-                list.Children.Add(new TextBlock { Text = keys.Length > 0 ? $"{command.Title}: {keys}" : command.Title });
+                var title = CommandCatalog.TitleOf(command, _settings);
+                list.Children.Add(new TextBlock { Text = keys.Length > 0 ? $"{title}: {keys}" : title });
             }
         }
 
@@ -752,6 +859,18 @@ public sealed partial class MainWindow
     /// </summary>
     private async Task SaveDiagnosticsAsync()
     {
+        var explanation = new TextBlock
+        {
+            Text = "This saves a ZIP on your computer; rexplayer never uploads it. The bundle includes the application log, your settings and this PC's codec/graphics details. Your Windows user-profile path is masked, but filenames, other local folders and addresses may still appear. Review it before sharing.",
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 480,
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(explanation, "DiagnosticsPrivacyNotice");
+        if (!await Ask("Save private diagnostics locally?", explanation, "Choose ZIP location"))
+        {
+            return;
+        }
+
         var picker = Prepared(new FileSavePicker { SuggestedStartLocation = PickerLocationId.Desktop, SuggestedFileName = DiagnosticsBundle.FileName(DateTimeOffset.Now) });
         picker.FileTypeChoices.Add("Zip archive", [".zip"]);
         if (await picker.PickSaveFileAsync() is not { } file)
@@ -764,6 +883,7 @@ public sealed partial class MainWindow
             await Task.Run(() =>
             {
                 using var output = File.Create(file.Path);
+                App.Log.Flush();
                 DiagnosticsBundle.Write(
                     output,
                     [("rexplayer.log", ReadShared(App.Log.FilePath)), ("settings.json", ReadShared(App.SettingsPath)), ("system.txt", DescribeSystem())],

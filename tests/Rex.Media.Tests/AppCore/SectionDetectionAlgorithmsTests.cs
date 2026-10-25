@@ -16,6 +16,12 @@ public sealed class SectionDetectionAlgorithmsTests
         IReadOnlyList<CreditFrameSample>? frames = null) =>
         new(path, "12345:678", EpisodeLength, Hits(300 + openOffset), Hits(75000 + closeOffset, hashes: 50_000), frames ?? []);
 
+    private static LandmarkMatch? Best(IReadOnlyList<AudioLandmark> first, IReadOnlyList<AudioLandmark> second) =>
+        LandmarkMatcher.MatchAll(first, second, 1).SingleOrDefault();
+
+    private static CreditRun? Strongest(IReadOnlyList<CreditFrameSample> frames, TimeSpan duration) =>
+        CreditFrameEvidence.Runs(frames, duration).OrderByDescending(run => run.Confidence).FirstOrDefault();
+
     private static CreditFrameSample Frame(int second, double dark = 0.90, double bright = 0.07, double strokes = 0.2) =>
         new(TimeSpan.FromSeconds(second), 0.11, dark, bright, Enumerable.Repeat(0.1f, CreditFrameEvidence.Bands).ToArray(), strokes);
 
@@ -48,13 +54,13 @@ public sealed class SectionDetectionAlgorithmsTests
     [Fact]
     public void OffsetVotesRequireADenseContinuousRunAndRejectIsolatedNoise()
     {
-        Assert.Null(LandmarkMatcher.Match([], []));
-        Assert.Null(LandmarkMatcher.Match(Hits(10, 2), Hits(20, 2)));
-        Assert.Null(LandmarkMatcher.Match(Hits(10, 30), Hits(20, 30).Select(x => x with { Hash = x.Hash + 9000 }).ToArray()));
-        Assert.Null(LandmarkMatcher.Match(Hits(10, 7).Concat(Hits(2000, 7)).ToArray(), Hits(9000, 7).Concat(Hits(11000, 7)).ToArray()));
+        Assert.Null(Best([], []));
+        Assert.Null(Best(Hits(10, 2), Hits(20, 2)));
+        Assert.Null(Best(Hits(10, 30), Hits(20, 30).Select(x => x with { Hash = x.Hash + 9000 }).ToArray()));
+        Assert.Null(Best(Hits(10, 7).Concat(Hits(2000, 7)).ToArray(), Hits(9000, 7).Concat(Hits(11000, 7)).ToArray()));
         var first = Hits(350);
         var second = Hits(350, offset: 900);
-        var match = Assert.IsType<LandmarkMatch>(LandmarkMatcher.Match(first, second));
+        var match = Assert.IsType<LandmarkMatch>(Best(first, second));
         Assert.Equal(first.Count, match.Anchors);
         Assert.Equal(TimeSpan.FromSeconds((350 + 900) * AudioLandmarks.SecondsPerFrame), match.SecondStart);
         Assert.Equal(TimeSpan.FromSeconds(350 * AudioLandmarks.SecondsPerFrame), match.FirstStart);
@@ -63,23 +69,23 @@ public sealed class SectionDetectionAlgorithmsTests
         // Two shared stretches at one offset, more than three seconds apart, are two runs.
         var split = Hits(100, 30).Concat(Hits(2000, 90, hashes: 5000)).ToArray();
         var other = split.Select(hit => hit with { Frame = hit.Frame + 500 }).ToArray();
-        Assert.Equal(90, LandmarkMatcher.Match(split, other)!.Anchors);
+        Assert.Equal(90, Best(split, other)!.Anchors);
         Assert.Equal(2, LandmarkMatcher.MatchAll(split, other).Count);
         Assert.Single(LandmarkMatcher.MatchAll(split, other, limit: 1));
         Assert.Throws<ArgumentOutOfRangeException>(() => LandmarkMatcher.MatchAll(split, other, limit: 0));
 
         // Fewer than sixteen anchors, or anchors spread thinner than two a second, are chance.
         var tooFew = Enumerable.Range(0, 15).Select(i => new AudioLandmark((uint)i, i * 8)).ToArray();
-        Assert.Null(LandmarkMatcher.Match(tooFew, tooFew));
+        Assert.Null(Best(tooFew, tooFew));
         var sparse = Enumerable.Range(0, 40).Select(i => new AudioLandmark((uint)i, i * 90)).ToArray();
-        Assert.Null(LandmarkMatcher.Match(sparse, sparse));
+        Assert.Null(Best(sparse, sparse));
         var tooBrief = Enumerable.Range(0, 20).Select(i => new AudioLandmark((uint)i, i * 3)).ToArray();
-        Assert.Null(LandmarkMatcher.Match(tooBrief, tooBrief));
+        Assert.Null(Best(tooBrief, tooBrief));
         var negative = Hits(50, 40);
         var secondNegative = negative.Select(hit => hit with { Frame = hit.Frame - 100 }).ToArray();
-        Assert.Null(LandmarkMatcher.Match(negative, secondNegative));
-        Assert.Throws<ArgumentNullException>(() => LandmarkMatcher.Match(null!, second));
-        Assert.Throws<ArgumentNullException>(() => LandmarkMatcher.Match(first, null!));
+        Assert.Null(Best(negative, secondNegative));
+        Assert.Throws<ArgumentNullException>(() => Best(null!, second));
+        Assert.Throws<ArgumentNullException>(() => Best(first, null!));
     }
 
     [Fact]
@@ -100,7 +106,7 @@ public sealed class SectionDetectionAlgorithmsTests
         // Half the landmarks land one 32 ms hop later in the other episode: still one match.
         var first = Hits(500);
         var second = first.Select((hit, index) => hit with { Frame = hit.Frame + 300 + (index % 2) }).ToArray();
-        var match = Assert.IsType<LandmarkMatch>(LandmarkMatcher.Match(first, second));
+        var match = Assert.IsType<LandmarkMatch>(Best(first, second));
         Assert.Equal(220, match.Anchors);
     }
 
@@ -125,6 +131,12 @@ public sealed class SectionDetectionAlgorithmsTests
         Assert.Equal(["Utopia.S01E03.mkv"], EpisodeGrouping.Siblings("Utopia.S01E02.mkv", files));
         Assert.Empty(EpisodeGrouping.Siblings("film.mkv", files));
         Assert.Throws<ArgumentNullException>(() => EpisodeGrouping.Siblings("Utopia.S01E02.mkv", null!));
+        Assert.Throws<ArgumentOutOfRangeException>(() => EpisodeGrouping.Siblings("Utopia.S01E02.mkv", files, -1));
+
+        // The nearest episodes first, one file for each, as many as asked for.
+        var season = new[] { "Show.S01E01.mkv", "Show.S01E09.mkv", "Show.S01E04.mkv", "Show.S01E06.mkv", "Show.S01E04.720p.mkv", "Show.S01E05.mkv" };
+        Assert.Equal(["Show.S01E04.720p.mkv", "Show.S01E06.mkv", "Show.S01E01.mkv"], EpisodeGrouping.Siblings("Show.S01E05.mkv", season, 3));
+        Assert.Empty(EpisodeGrouping.Siblings("Show.S01E05.mkv", season, 0));
     }
 
     [Fact]
@@ -149,14 +161,47 @@ public sealed class SectionDetectionAlgorithmsTests
     }
 
     [Fact]
+    public void MultiEpisodeFilesDoNotClaimTheSameEpisodeAsSeparateSiblings()
+    {
+        var doubleEpisode = EpisodeGrouping.Identify("Show.S01E01E02.mkv")!;
+        var second = EpisodeGrouping.Identify("Show.S01E02.mkv")!;
+        var third = EpisodeGrouping.Identify("Show.S01E03.mkv")!;
+
+        Assert.False(EpisodeGrouping.AreSiblings(doubleEpisode, second));
+        Assert.False(EpisodeGrouping.AreSiblings(second, doubleEpisode));
+        Assert.True(EpisodeGrouping.AreSiblings(doubleEpisode, third));
+        Assert.Equal(["Show.S01E03.mkv"], EpisodeGrouping.Siblings(
+            "Show.S01E01E02.mkv",
+            ["Show.S01E01.mkv", "Show.S01E02.mkv", "Show.S01E03.mkv", "Show.S00E01.mkv"]));
+
+        // Even if the target does not overlap either file, a combined candidate
+        // and its single-episode duplicate cannot both occupy the sibling list.
+        Assert.Equal(["Show.S01E06.mkv", "Show.S01E04.mkv"], EpisodeGrouping.Siblings(
+            "Show.S01E07.mkv",
+            ["Show.S01E05E06.mkv", "Show.S01E06.mkv", "Show.S01E04.mkv"]));
+        Assert.Empty(EpisodeGrouping.Siblings("Show.S01E07.mkv", ["Show.S01E06.mkv"], limit: 0));
+    }
+
+    [Fact]
     public void TheNextEpisodeFollowsTheLastNumberInTheSameSeason()
     {
         var folder = new[] { "Show.S01E01E02.mkv", "Show.S01E03.mkv", "Show.S01E05.mkv", "Show.S01E04.mkv",
             "Show.S02E01.mkv", "Other.S01E03.mkv", "Show.S01E03.Featurette.mkv", "Show.S00E04.mkv" };
         Assert.Equal("Show.S01E03.mkv", EpisodeGrouping.Next("Show.S01E01E02.mkv", folder));
         Assert.Equal("Show.S01E04.mkv", EpisodeGrouping.Next("Show.S01E03.mkv", folder));
-        Assert.Null(EpisodeGrouping.Next("Show.S01E05.mkv", folder));
+        // The nearest later season wins, even when the library has no intervening season.
+        Assert.Equal("Show.S02E01.mkv", EpisodeGrouping.Next("Show.S01E05.mkv", folder));
+        Assert.Null(EpisodeGrouping.Next("Show.S02E01.mkv", folder));
+        Assert.Equal("Show.S03E01.mkv", EpisodeGrouping.Next("Show.S01E05.mkv", ["Show.S03E01.mkv", "Show.S01E04.mkv"]));
+        Assert.Equal("Show.S03E02.mkv", EpisodeGrouping.Next("Show.S01E05.mkv",
+            ["Show.S05E01.mkv", "Show.S03E04.mkv", "Other.S02E01.mkv", "Show.S00E03.mkv", "Show.S03E02.mkv"]));
+        Assert.Null(EpisodeGrouping.Next("Show.S03E02.mkv", ["Show.S01E03.mkv", "Show.S00E01.mkv", "Other.S04E01.mkv"]));
         Assert.Null(EpisodeGrouping.Next("film.mkv", folder));
+        Assert.True(EpisodeGrouping.IsSeasonFolder("Season 2"));
+        Assert.True(EpisodeGrouping.IsSeasonFolder("S02"));
+        Assert.False(EpisodeGrouping.IsSeasonFolder("Featurettes"));
+        Assert.False(EpisodeGrouping.IsSeasonFolder("Season 2 Extras"));
+        Assert.False(EpisodeGrouping.IsSeasonFolder(""));
         Assert.Throws<ArgumentNullException>(() => EpisodeGrouping.Next("Show.S01E03.mkv", null!));
     }
 
@@ -241,30 +286,30 @@ public sealed class SectionDetectionAlgorithmsTests
 
         // Moderately dark text counts only while it scrolls between pictures a second apart.
         var rolling = Enumerable.Range(0, 30).Select(i => Moving(2390 + i, (i % 3) * 3)).ToArray();
-        var run = Assert.IsType<CreditRun>(CreditFrameEvidence.Find(rolling, EpisodeLength));
+        var run = Assert.IsType<CreditRun>(Strongest(rolling, EpisodeLength));
         Assert.Equal(TimeSpan.FromSeconds(2389.5), run.Start);
         var still = Enumerable.Range(0, 30).Select(i => Moving(2390 + i, 0)).ToArray();
-        Assert.Null(CreditFrameEvidence.Find(still, EpisodeLength));
+        Assert.Null(Strongest(still, EpisodeLength));
     }
 
     [Fact]
     public void EndCreditRunsKeepAScenePlayingAfterThem()
     {
-        Assert.Null(CreditFrameEvidence.Find([], EpisodeLength));
-        Assert.Null(CreditFrameEvidence.Find(Enumerable.Range(0, 2).Select(i => Frame(2400 + i)).ToArray(), EpisodeLength));
+        Assert.Null(Strongest([], EpisodeLength));
+        Assert.Null(Strongest(Enumerable.Range(0, 2).Select(i => Frame(2400 + i)).ToArray(), EpisodeLength));
         Assert.Empty(CreditFrameEvidence.Runs(Enumerable.Range(0, 15).Select(i => Frame(i)).ToArray(), TimeSpan.FromMinutes(5)));
-        Assert.Null(CreditFrameEvidence.Find(Enumerable.Range(0, 15).Select(i => Frame(2000 + i, dark: 0.2)).ToArray(), EpisodeLength));
-        Assert.Throws<ArgumentNullException>(() => CreditFrameEvidence.Find(null!, EpisodeLength));
+        Assert.Null(Strongest(Enumerable.Range(0, 15).Select(i => Frame(2000 + i, dark: 0.2)).ToArray(), EpisodeLength));
+        Assert.Throws<ArgumentNullException>(() => CreditFrameEvidence.Runs(null!, EpisodeLength));
 
         // Fifty seconds of scene after the credits: the credits end where the scene starts.
         var credits = Enumerable.Range(0, 90).Select(i => Frame(2440 + i)).ToArray();
         var after = Enumerable.Range(0, 40).Select(i => Frame(2530 + i, dark: 0.10)).ToArray();
-        var result = Assert.IsType<CreditRun>(CreditFrameEvidence.Find([.. credits, .. after], EpisodeLength));
+        var result = Assert.IsType<CreditRun>(Strongest([.. credits, .. after], EpisodeLength));
         Assert.Equal(TimeSpan.FromSeconds(2439.5), result.Start);
         Assert.Equal(TimeSpan.FromSeconds(2529.5), result.End);
         Assert.False(result.ReachesEnd);
         Assert.True(result.Confidence >= SectionProposals.OfferThreshold);
-        Assert.Null(CreditFrameEvidence.Find(Enumerable.Range(0, 20).Select(i =>
+        Assert.Null(Strongest(Enumerable.Range(0, 20).Select(i =>
             Frame(2400 + i, bright: 0)).ToArray(), EpisodeLength));
     }
 
@@ -274,7 +319,7 @@ public sealed class SectionDetectionAlgorithmsTests
         var end = (int)EpisodeLength.TotalSeconds;
         var credits = Enumerable.Range(0, 40).Select(i => Frame(end - 50 + i)).ToArray();
         var logo = Enumerable.Range(0, 9).Select(i => Frame(end - 10 + i, dark: 0.0, bright: 0.2)).ToArray();
-        var run = Assert.IsType<CreditRun>(CreditFrameEvidence.Find([.. credits, .. logo], EpisodeLength));
+        var run = Assert.IsType<CreditRun>(Strongest([.. credits, .. logo], EpisodeLength));
         Assert.True(run.ReachesEnd);
         Assert.Equal(EpisodeLength, run.End);
     }
@@ -306,7 +351,7 @@ public sealed class SectionDetectionAlgorithmsTests
 
         // With the real credits at the end as well, those win.
         var real = Enumerable.Range(0, 45).Select(i => Frame(end - 50 + i)).ToArray();
-        var best = Assert.IsType<CreditRun>(CreditFrameEvidence.Find([.. gag, .. lastScene, .. real], EpisodeLength));
+        var best = Assert.IsType<CreditRun>(Strongest([.. gag, .. lastScene, .. real], EpisodeLength));
         Assert.Equal(TimeSpan.FromSeconds(end - 50.5), best.Start);
     }
 
@@ -400,14 +445,16 @@ public sealed class SectionDetectionAlgorithmsTests
         Assert.True(memory.Proposals(episode.Path, "signature-2")!.IntroRejected);
         memory.RejectProposal(episode.Path, EpisodeSectionKind.Intro, false);
         Assert.False(memory.Proposals(episode.Path, "signature-2")!.IntroRejected);
-        var cache = new SectionAnalysisCache();
-        cache.Set(episode);
-        Assert.Equal(episode.Signature, cache.Get(episode.Path, episode.Signature)!.Signature);
-        Assert.Equal(episode.Opening, cache.Get(episode.Path, episode.Signature)!.Opening);
-        Assert.Null(cache.Get(episode.Path, "new-signature"));
         Assert.Throws<ArgumentNullException>(() => memory.SetProposals(episode.Path, null!));
-        Assert.Throws<ArgumentNullException>(() => cache.Set(null!));
-        memory.RejectProposal("no such file", EpisodeSectionKind.Credits, true);
+        Assert.Throws<ArgumentNullException>(() => memory.WithRejections(episode.Path, null!));
+
+        // A rejection made before anything was kept (while the analysis still runs) is kept,
+        // and applies to what is detected afterwards.
+        memory.RejectProposal("Show.S01E09.mkv", EpisodeSectionKind.Credits, true);
+        Assert.Null(memory.Proposals("Show.S01E09.mkv", "signature-9"));
+        Assert.True(memory.WithRejections("Show.S01E09.mkv", proposal with { Signature = "signature-9" }).CreditsRejected);
+        memory.SetProposals("Show.S01E09.mkv", proposal with { Signature = "signature-9" });
+        Assert.True(memory.Proposals("Show.S01E09.mkv", "signature-9")!.CreditsRejected);
         Assert.Equal(proposal.Candidates.Count, memory.Proposals(episode.Path, "signature-2")!.Candidates.Count);
     }
 

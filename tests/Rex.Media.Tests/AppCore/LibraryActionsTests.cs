@@ -1,4 +1,6 @@
 using Rex.Media.AppCore.Library;
+using Rex.Media.AppCore.Player;
+using Rex.Media.Library;
 using Rex.Media.Settings;
 using Rex.Media.TestKit;
 
@@ -57,13 +59,21 @@ public sealed class LibraryActionsTests
 
         var many = LibraryActions.DeletePrompt(["a", "b", "c", "d", "e", "f", "g"]);
         Assert.Equal("Delete 7 files?", many.Title);
-        Assert.Equal("a\nb\nc\nd\ne\nand 2 more\n\nThey go to the Recycle Bin, where it can be brought back, and the library forgets them.", many.Body);
-        Assert.Equal("a\nb\n\nThey go to the Recycle Bin, where it can be brought back, and the library forgets them.", LibraryActions.DeletePrompt(["a", "b"]).Body);
+        Assert.Equal("a\nb\nc\nd\ne\nand 2 more\n\nThey go to the Recycle Bin, where they can be brought back, and the library forgets them.", many.Body);
+        Assert.Equal("a\nb\n\nThey go to the Recycle Bin, where they can be brought back, and the library forgets them.", LibraryActions.DeletePrompt(["a", "b"]).Body);
 
         Assert.Equal("Remove Sungba.mp3 from the library?", LibraryActions.RemovePrompt(["Sungba.mp3"]).Title);
-        Assert.Equal("The file stays where it is; the library stops showing it until the folder is added again.", LibraryActions.RemovePrompt(["Sungba.mp3"]).Body);
+        Assert.Equal("The file stays where it is; the library stops showing it. You can use Undo immediately while the file is still available; otherwise re-add the watched folder.", LibraryActions.RemovePrompt(["Sungba.mp3"]).Body);
         Assert.Equal("Remove 2 items from the library?", LibraryActions.RemovePrompt(["a", "b"]).Title);
-        Assert.Equal("a\nb\n\nThe files stay where they are; the library stops showing them until the folder is added again.", LibraryActions.RemovePrompt(["a", "b"]).Body);
+        Assert.Equal("a\nb\n\nThe files stay where they are; the library stops showing them. You can use Undo immediately while the files are still available; otherwise re-add the watched folder.", LibraryActions.RemovePrompt(["a", "b"]).Body);
+
+        Assert.Equal(new Prompt("Stop watching this folder?",
+            "Music\n\nNo files will be deleted. This folder will leave the library and stop being scanned. You can add the folder again later."),
+            LibraryActions.StopWatchingPrompt(["Music"]));
+        Assert.Equal(new Prompt("Stop watching 2 folders?",
+            "Music\nFilms\n\nNo files will be deleted. These folders will leave the library and stop being scanned. You can add them again later."),
+            LibraryActions.StopWatchingPrompt(["Music", "Films"]));
+        Assert.Throws<ArgumentNullException>(() => LibraryActions.StopWatchingPrompt(null!));
 
         Assert.Equal(new Prompt("Delete Mix?", "The playlist goes; the files in it stay where they are."), LibraryActions.DeletePlaylistPrompt(["Mix"]));
         Assert.Equal(new Prompt("Delete 2 playlists?", "Mix\nRoad\n\nThe playlists go; the files in them stay where they are."), LibraryActions.DeletePlaylistPrompt(["Mix", "Road"]));
@@ -71,5 +81,66 @@ public sealed class LibraryActionsTests
         Assert.Throws<ArgumentNullException>(() => LibraryActions.DeletePrompt(null!));
         Assert.Throws<ArgumentNullException>(() => LibraryActions.RemovePrompt(null!));
         Assert.Throws<ArgumentNullException>(() => LibraryActions.DeletePlaylistPrompt(null!));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void ExplorerRevealsSelectedFilesInTheirFoldersWithoutDuplicateSelections()
+    {
+        var music = Path.Combine(Path.GetTempPath(), "reveal-music");
+        var videos = Path.Combine(Path.GetTempPath(), "reveal-video");
+        var first = Path.Combine(music, "song.wav");
+        var second = Path.Combine(music, "other.wav");
+        var third = Path.Combine(videos, "clip.mp4");
+        var groups = LibraryActions.RevealGroups([first, second, first, third, "", "  ", "relative.wav"]);
+
+        Assert.Equal(2, groups.Count);
+        Assert.Equal(music, groups[0].Folder);
+        Assert.Equal([first, second], groups[0].Files);
+        Assert.Equal(videos, groups[1].Folder);
+        Assert.Equal([third], groups[1].Files);
+        var safe = LibraryActions.RevealGroups([first, second, third,
+            "https://example.com/media/video.mp4", "relative\\clip.mp4"]);
+        Assert.Equal(groups.Select(group => group.Folder), safe.Select(group => group.Folder));
+        Assert.Equal(groups.SelectMany(group => group.Files), safe.SelectMany(group => group.Files));
+        Assert.False(LibraryActions.CanRevealFile(null));
+        Assert.False(LibraryActions.CanRevealFile(""));
+        Assert.False(LibraryActions.CanRevealFile("a relative path.mp4"));
+        Assert.False(LibraryActions.CanRevealFile("https://example.test/stream.mp4"));
+        Assert.False(LibraryActions.CanRevealFile("bad\\0file.mp4"));
+        Assert.False(LibraryActions.CanRevealFile(Path.Combine(music, "broken\0name.mp3")));
+        Assert.False(LibraryActions.CanRevealFile("file://example.test/not-a-local-file.mp3"));
+        Assert.True(LibraryActions.CanRevealFile(first));
+        Assert.Empty(LibraryActions.RevealGroups([]));
+        Assert.Throws<ArgumentNullException>(() => LibraryActions.RevealGroups(null!));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void TheDeleteKeyDeletesOnlyTheFilesALinesMenuWouldDelete()
+    {
+        // Delete on a watched folder's line used to offer to delete every file under the folder,
+        // where its menu only stops watching it.
+        var song = new LibraryEntry { Path = Path.Combine(Path.GetTempPath(), "Sungba.mp3"), Kind = LibraryKind.Music, Title = "Sungba" };
+        Assert.True(LibraryActions.DeletesFiles(song));
+        Assert.True(LibraryActions.DeletesFiles(new LibraryGroup("Work Of Art", null, [song])));
+        Assert.False(LibraryActions.DeletesFiles(Path.GetTempPath()));
+        Assert.False(LibraryActions.DeletesFiles(new NamedPlaylist("1", "Mix", [])));
+        Assert.False(LibraryActions.DeletesFiles(null));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void ARightClickActsOnTheLinePointedAtUnlessItIsAlreadyChosen()
+    {
+        // Right-clicking an unchosen line used to open a menu for the old choice, or "Choose
+        // something first" when nothing was chosen, never for the line under the pointer.
+        string[] chosen = ["Sungba", "Terminator"];
+        Assert.Same(chosen, LibraryActions.ContextLines(chosen, "Terminator"));
+        Assert.Same(chosen, LibraryActions.ContextLines(chosen, null));
+        Assert.Equal(["Lonely At The Top"], LibraryActions.ContextLines(chosen, "Lonely At The Top"));
+        Assert.Equal(["Sungba"], LibraryActions.ContextLines([], "Sungba"));
+        Assert.Empty(LibraryActions.ContextLines(Array.Empty<string>(), null));
+        Assert.Throws<ArgumentNullException>(() => LibraryActions.ContextLines<string>(null!, "Sungba"));
     }
 }

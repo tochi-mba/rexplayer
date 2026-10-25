@@ -43,6 +43,11 @@ public sealed partial class MainWindow
             var label = _keymap.Label(command);
             ToolTipService.SetToolTip(button, label.Length > 0 ? $"{text} ({label})" : text);
         }
+
+        if (_shell is not null)
+        {
+            ShowTransportTooltips();
+        }
     }
 
     /// <summary>Registers the shortcuts chosen to work everywhere; says which another program already has.</summary>
@@ -103,9 +108,13 @@ public sealed partial class MainWindow
         : point.Properties.IsXButton2Pressed ? ShortcutEditing.SideButtonCommand(_settings.SideButtons, forward: true)
         : null;
 
-    /// <summary>The keyboard and mouse editor: nothing applies until Save.</summary>
-    private async Task ShowKeyboardAndMouseAsync()
+    /// <summary>
+    /// The keyboard and mouse editor: nothing applies until Save. <paramref name="jumps"/> are the
+    /// settings whose jump lengths the editor names, such as Preferences' changes not yet saved.
+    /// </summary>
+    private async Task ShowKeyboardAndMouseAsync(PlayerSettings? jumps = null)
     {
+        var named = jumps ?? _settings;
         var changes = new Dictionary<string, string>(_settings.Shortcuts, StringComparer.Ordinal);
         var global = new HashSet<string>(_settings.GlobalShortcuts, StringComparer.Ordinal);
         string? editing = null;
@@ -126,10 +135,10 @@ public sealed partial class MainWindow
         capturePanel.Children.Add(new StackPanel { VerticalAlignment = VerticalAlignment.Bottom, Orientation = Orientation.Horizontal, Spacing = 8, Children = { apply, cancel } });
         var rows = new StackPanel { Spacing = 2 };
 
-        var wheel = Choice("Turning the wheel over the picture", ["Changes the volume", "Jumps a little", "Does nothing"], (int)_settings.Wheel);
-        var sideways = Choice("Tilting the wheel", ["Changes the volume", "Jumps a little", "Does nothing"], (int)_settings.SidewaysWheel);
+        var wheel = Choice("Turning the wheel over the picture", ShortcutEditing.WheelChoiceTitles(named), (int)_settings.Wheel);
+        var sideways = Choice("Tilting the wheel", ShortcutEditing.WheelChoiceTitles(named), (int)_settings.SidewaysWheel);
         var middle = Choice("The middle button", ["Plays or pauses", "Goes full screen", "Mutes", "Does nothing"], (int)_settings.MiddleButton);
-        var side = Choice("The back and forward buttons", ["Go to the previous and next item", "Jump back and forward", "Do nothing"], (int)_settings.SideButtons);
+        var side = Choice("The back and forward buttons", ShortcutEditing.SideButtonChoiceTitles(named), (int)_settings.SideButtons);
         var ctrlWheel = Choice("Ctrl with the wheel, and pinching a touchpad", ["Zooms the picture", "Sizes the subtitles"], (int)_settings.CtrlWheel);
         var pans = Check("Zoomed in, the wheel and two-finger scrolling move about the picture", _settings.WheelPansWhenZoomed);
 
@@ -147,7 +156,7 @@ public sealed partial class MainWindow
             foreach (var group in CommandCatalog.All.GroupBy(command => command.Group))
             {
                 var shown = group.Where(command => filter.Length == 0
-                    || command.Title.Contains(filter, StringComparison.CurrentCultureIgnoreCase)
+                    || CommandCatalog.TitleOf(command, named).Contains(filter, StringComparison.CurrentCultureIgnoreCase)
                     || keymap.ShortcutsFor(command.Id).Any(chord => chord.ToString().Contains(filter, StringComparison.OrdinalIgnoreCase))).ToList();
                 if (shown.Count == 0)
                 {
@@ -163,34 +172,35 @@ public sealed partial class MainWindow
 
             if (keymap.Conflicts is [var first, ..])
             {
-                Say($"{first.Chord} is both {CommandCatalog.Find(first.First)!.Title} and {CommandCatalog.Find(first.Second)!.Title}; it does the first. Give one of them another shortcut.");
+                Say($"{first.Chord} is both {CommandCatalog.TitleOf(CommandCatalog.Find(first.First)!, named)} and {CommandCatalog.TitleOf(CommandCatalog.Find(first.Second)!, named)}; it does the first. Give one of them another shortcut.");
             }
         }
 
         UIElement Row(Command command, Keymap keymap)
         {
             var chords = keymap.ShortcutsFor(command.Id);
+            var name = CommandCatalog.TitleOf(command, named);
             var row = new Grid { ColumnSpacing = 8 };
             foreach (var width in new[] { new GridLength(1, GridUnitType.Star), GridLength.Auto, GridLength.Auto, GridLength.Auto, GridLength.Auto })
             {
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
             }
 
-            var title = new TextBlock { Text = command.Title, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+            var title = new TextBlock { Text = name, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
             var change = new Button { Content = chords.Count > 0 ? string.Join(", ", chords) : "None", MinWidth = 120 };
             AutomationProperties.SetAutomationId(change, "Shortcut-" + command.Id);
-            AutomationProperties.SetName(change, $"{command.Title}: {(chords.Count > 0 ? string.Join(", ", chords) : "no shortcut")}. Change");
+            AutomationProperties.SetName(change, $"{name}: {(chords.Count > 0 ? string.Join(", ", chords) : "no shortcut")}. Change");
             change.Click += (_, _) =>
             {
                 editing = command.Id;
-                capture.Header = $"Press the new shortcut for {command.Title}, or type it (such as Ctrl+M), then Enter";
+                capture.Header = $"Press the new shortcut for {name}, or type it (such as Ctrl+M), then Enter";
                 capture.Text = "";
                 capturePanel.Visibility = Visibility.Visible;
                 capture.Focus(FocusState.Programmatic);
             };
             var clear = new Button { Content = new FontIcon { Glyph = "\uE711", FontSize = 12 }, IsEnabled = chords.Count > 0 };
             AutomationProperties.SetAutomationId(clear, "ShortcutClear-" + command.Id);
-            AutomationProperties.SetName(clear, "Remove the shortcut of " + command.Title);
+            AutomationProperties.SetName(clear, "Remove the shortcut of " + name);
             ToolTipService.SetToolTip(clear, "No shortcut");
             clear.Click += (_, _) =>
             {
@@ -199,7 +209,7 @@ public sealed partial class MainWindow
             };
             var reset = new Button { Content = new FontIcon { Glyph = "\uE777", FontSize = 12 }, IsEnabled = ShortcutEditing.IsChanged(changes, command.Id) };
             AutomationProperties.SetAutomationId(reset, "ShortcutReset-" + command.Id);
-            AutomationProperties.SetName(reset, "Give " + command.Title + " its own shortcut back");
+            AutomationProperties.SetName(reset, "Give " + name + " its own shortcut back");
             ToolTipService.SetToolTip(reset, "Its own shortcut");
             reset.Click += (_, _) =>
             {
@@ -208,7 +218,7 @@ public sealed partial class MainWindow
             };
             var everywhere = new CheckBox { Content = "Everywhere", IsChecked = global.Contains(command.Id), MinWidth = 0 };
             AutomationProperties.SetAutomationId(everywhere, "ShortcutGlobal-" + command.Id);
-            AutomationProperties.SetName(everywhere, command.Title + " works while another program is in front");
+            AutomationProperties.SetName(everywhere, name + " works while another program is in front");
             ToolTipService.SetToolTip(everywhere, "Works while another program is in front");
             everywhere.Checked += (_, _) => global.Add(command.Id);
             everywhere.Unchecked += (_, _) => global.Remove(command.Id);
@@ -243,7 +253,7 @@ public sealed partial class MainWindow
             if (made.TakenFrom is { } from)
             {
                 var left = new Keymap(changes).ShortcutsFor(from);
-                Say($"{chord} was the shortcut for {CommandCatalog.Find(from)!.Title}; {(left.Count > 0 ? "it keeps " + string.Join(", ", left) : "it has none now")}.");
+                Say($"{chord} was the shortcut for {CommandCatalog.TitleOf(CommandCatalog.Find(from)!, named)}; {(left.Count > 0 ? "it keeps " + string.Join(", ", left) : "it has none now")}.");
             }
             else
             {
@@ -310,10 +320,17 @@ public sealed partial class MainWindow
         {
             var picker = Prepared(new FileSavePicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary, SuggestedFileName = "rexplayer keyboard and mouse" });
             picker.FileTypeChoices.Add("Keyboard and mouse", [".json"]);
-            if (await picker.PickSaveFileAsync() is { } file)
+            try
             {
-                await File.WriteAllTextAsync(file.Path, ShortcutEditing.Export(Edited()));
-                Say("Saved to " + file.Path);
+                if (await picker.PickSaveFileAsync() is { } file)
+                {
+                    await File.WriteAllTextAsync(file.Path, ShortcutEditing.Export(Edited()));
+                    Say("Saved to " + file.Path);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
+            {
+                Say("The shortcuts could not be saved: " + ex.Message);
             }
         };
         var import = new Button { Content = "Load from a file..." };

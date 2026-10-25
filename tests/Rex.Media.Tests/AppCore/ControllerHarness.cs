@@ -18,11 +18,15 @@ namespace Rex.Media.Tests.AppCore;
 /// </summary>
 internal sealed class ControllerHarness : IDisposable
 {
-    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(10);
+    // A ceiling, not a delay: a healthy run returns as soon as the condition holds. Background
+    // work such as episode analysis runs at the lowest thread priority on purpose, so on a
+    // machine busy with builds it can wait well past a few seconds before it is scheduled.
+    internal static readonly TimeSpan Patience = TimeSpan.FromSeconds(60);
 
     private readonly object _gate = new();
     private readonly Queue<Action> _pending = new();
     private readonly List<SessionEvent> _engineEvents = [];
+    private Action<SessionEvent>? _currentSessionListener;
 
     /// <param name="autoPlay">Whether sessions start playing as soon as they open.</param>
     /// <param name="settings">The controller's settings.</param>
@@ -34,7 +38,9 @@ internal sealed class ControllerHarness : IDisposable
     /// <param name="log">Where the controller writes what it does; its own in-memory log when null.</param>
     /// <param name="pictures">Give sessions a stand-in video decoder and somewhere to show pictures.</param>
     /// <param name="beforeAudioWrite">An optional cancellable barrier before recording a frame.</param>
-    public ControllerHarness(bool autoPlay = true, PlayerSettings? settings = null, Func<string, IByteSource>? openSource = null, bool diskFolders = false, Dictionary<string, string[]>? sidecars = null, Rex.Media.Library.RexStore? store = null, TimeProvider? time = null, Rex.Media.Diagnostics.RexLog? log = null, bool pictures = false, Action<Rex.Media.Primitives.AudioFrame, CancellationToken>? beforeAudioWrite = null)
+    /// <param name="milestones">Where the controller and its sessions mark their timing lines; nowhere when null.</param>
+    /// <param name="readFile">Optional file reader for deterministic errors while finding covers and lyrics.</param>
+    public ControllerHarness(bool autoPlay = true, PlayerSettings? settings = null, Func<string, IByteSource>? openSource = null, bool diskFolders = false, Dictionary<string, string[]>? sidecars = null, Rex.Media.Library.RexStore? store = null, TimeProvider? time = null, Rex.Media.Diagnostics.RexLog? log = null, bool pictures = false, Action<Rex.Media.Primitives.AudioFrame, CancellationToken>? beforeAudioWrite = null, Rex.Media.Diagnostics.Milestones? milestones = null, Func<string, byte[]>? readFile = null)
     {
         var demuxers = new DemuxerRegistry().Add(new WavDemuxerFactory()).Add(new Rex.Media.Containers.Matroska.MatroskaDemuxerFactory());
         var decoders = new DecoderRegistry().Add(new PcmDecoderFactory());
@@ -46,6 +52,7 @@ internal sealed class ControllerHarness : IDisposable
         Controller = new PlayerController(
             listener =>
             {
+                _currentSessionListener = listener;
                 var sink = new RecordingAudioSink(channels: 1);
                 sink.BeforeWrite += beforeAudioWrite;
                 lock (_gate)
@@ -54,7 +61,7 @@ internal sealed class ControllerHarness : IDisposable
                 }
 
                 return new MediaSession(
-                    new EngineOptions { Demuxers = demuxers, Decoders = decoders, AudioSinkFactory = () => sink, AutoPlay = autoPlay, PositionInterval = TimeSpan.Zero, VideoPresenterFactory = pictures ? () => new RecordingVideoPresenter() : null },
+                    new EngineOptions { Demuxers = demuxers, Decoders = decoders, AudioSinkFactory = () => sink, AutoPlay = autoPlay, PositionInterval = TimeSpan.Zero, VideoPresenterFactory = pictures ? () => new RecordingVideoPresenter() : null, Milestones = milestones },
                     sessionEvent =>
                     {
                         lock (_gate)
@@ -72,13 +79,14 @@ internal sealed class ControllerHarness : IDisposable
             diskFolders ? null : location => [location],
             new Random(1),
             diskFolders ? null : media => Rex.Media.Subtitles.SubtitleSidecars.Find(media, folder => folder == Path.GetDirectoryName(media) ? sidecars?.GetValueOrDefault(media) ?? [] : []),
-            diskFolders ? null : path => Files.TryGetValue(path, out var bytes) ? bytes : throw new FileNotFoundException(path),
+            readFile ?? (diskFolders ? null : path => Files.TryGetValue(path, out var bytes) ? bytes : throw new FileNotFoundException(path)),
             diskFolders ? null : (path, bytes) => Files[path] = path.Contains("readonly", StringComparison.Ordinal) ? throw new UnauthorizedAccessException(path + " is read-only.") : bytes,
             store,
             time,
             log,
             diskFolders ? null : folder => Files.Keys.Where(path => (Path.GetDirectoryName(path) ?? "") == folder),
             diskFolders ? null : Files.ContainsKey);
+        Controller.Milestones = milestones;
         Controller.Message += (_, text) => Messages.Add(text);
 
         // The window always listens to both.
@@ -114,6 +122,15 @@ internal sealed class ControllerHarness : IDisposable
             return [.. Sinks.SelectMany(sink => sink.Channel(0))];
         }
     }
+
+    /// <summary>
+    /// Delivers a deliberately delayed event from the current session through the same
+    /// controller dispatcher used by native engine reports. This proves stale
+    /// coalesced position updates cannot undo a completed paused seek.
+    /// </summary>
+    public void ReportFromCurrentSession(SessionEvent sessionEvent) =>
+        (_currentSessionListener ?? throw new InvalidOperationException("No current session."))
+        (sessionEvent);
 
     /// <summary>Runs what the sessions have reported so far, as the window's thread would.</summary>
     public void Pump()

@@ -24,3 +24,38 @@ public interface IByteSource : IDisposable
     /// </summary>
     int Read(long position, Span<byte> destination, CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// A byte source whose currently readable extent can change. A temporary end is not necessarily
+/// the end of the media: callers may wait for the writer without polling the source themselves.
+/// </summary>
+public interface IGrowingByteSource : IByteSource
+{
+    /// <summary>A stable observation used to distinguish growth, truncation and replacement.</summary>
+    ByteSourceExtent Extent { get; }
+
+    /// <summary>
+    /// Waits until the extent differs from <paramref name="observed"/>, the timeout expires, or the
+    /// operation is cancelled. Implementations wake promptly on cancellation.
+    /// </summary>
+    ByteSourceChange WaitForChange(ByteSourceExtent observed, TimeSpan timeout, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Whether some of the <paramref name="length"/> bytes at <paramref name="position"/> have not
+    /// arrived yet though the source is already that long (a sparse download filling in): a reader
+    /// that came up short there waits for them rather than passing over what they hold.
+    /// </summary>
+    bool IsPending(long position, long length) => false;
+}
+
+/// <summary>The observable identity and readable length of a source at one instant.</summary>
+public readonly record struct ByteSourceExtent(long Length, long Revision);
+
+/// <summary>What happened while waiting at a temporary end.</summary>
+public enum ByteSourceChange
+{
+    TimedOut,
+    Grew,
+    Truncated,
+    Replaced,
+}

@@ -156,6 +156,23 @@ public static class ShortcutEditing
         _ => null,
     };
 
+    /// <summary>
+    /// The wheel's choices as the editor offers them, in <see cref="WheelChoice"/> order, naming the
+    /// jump a turn makes as <paramref name="settings"/> have it: "Jumps 5 seconds".
+    /// </summary>
+    public static string[] WheelChoiceTitles(PlayerSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        return ["Changes the volume", "Jumps " + CommandCatalog.Length(settings.VeryShortJumpSeconds), "Does nothing"];
+    }
+
+    /// <summary>The back and forward buttons' choices, in <see cref="SideButtonChoice"/> order, naming their jump's length.</summary>
+    public static string[] SideButtonChoiceTitles(PlayerSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        return ["Go to the previous and next item", "Jump back and forward " + CommandCatalog.Length(settings.ShortJumpSeconds), "Do nothing"];
+    }
+
     private static void Known(string commandId)
     {
         ArgumentNullException.ThrowIfNull(commandId);

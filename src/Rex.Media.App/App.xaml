@@ -7,6 +7,28 @@
       <ResourceDictionary.MergedDictionaries>
         <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
       </ResourceDictionary.MergedDictionaries>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="LibraryCanvasBrush" Color="#F2F5F0" />
+          <SolidColorBrush x:Key="LibrarySurfaceBrush" Color="#FFFFFF" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="LibraryCanvasBrush" Color="#101713" />
+          <SolidColorBrush x:Key="LibrarySurfaceBrush" Color="#19221C" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="HighContrast">
+          <SolidColorBrush x:Key="LibraryCanvasBrush" Color="{ThemeResource SystemColorWindowColor}" />
+          <SolidColorBrush x:Key="LibrarySurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+      <!-- Reusable Windows library layout tokens: one source for both XAML and adaptive code. -->
+      <x:Double x:Key="LibraryNavigationNarrowBreakpoint">760</x:Double>
+      <x:Double x:Key="LibraryNavigationExpandedWidth">200</x:Double>
+      <x:Double x:Key="LibraryNavigationCompactWidth">64</x:Double>
+      <x:Double x:Key="LibraryNavigationItemHeight">44</x:Double>
+      <x:Double x:Key="LibraryBrandFontSize">20</x:Double>
+      <Thickness x:Key="LibraryNavigationItemMargin">8,2</Thickness>
+      <CornerRadius x:Key="LibraryNavigationItemRadius">10</CornerRadius>
       <!-- The REX signal colour, for the playing entry and the seek bar's progress. -->
       <Color x:Key="SignalColor">#D7FF3F</Color>
       <SolidColorBrush x:Key="SignalBrush" Color="{StaticResource SignalColor}" />

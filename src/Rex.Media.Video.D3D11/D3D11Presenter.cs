@@ -46,6 +46,11 @@ public sealed class D3D11Presenter : IVideoPresenter
     private bool _navigator;
     private readonly SubjectEditSession _subjectEdit;
     private VideoFrame? _originalForEditing;
+    private int _subjectStep = 1;
+    private (ColorInfo Color, int Bits, float[] Rows)? _matrix;
+    private bool _hidden;
+    private bool _missedPicture;
+    private long _picturesDrawn;
 
     private D3D11Presenter(D3D11VideoRenderer renderer, VideoWindow? window, bool onScreen)
     {
@@ -59,6 +64,19 @@ public sealed class D3D11Presenter : IVideoPresenter
     public bool SmoothChroma { get; set; } = true;
 
     public string Name => _renderer.IsSoftware ? "Direct3D 11 (software)" : "Direct3D 11";
+
+    /// <summary>Whether pictures are drawn in software, and the graphics adapter's vendor and own memory, for the device profile.</summary>
+    public (bool Software, uint VendorId, long DedicatedVideoMemory) Adapter
+    {
+        get
+        {
+            lock (_gate)
+            {
+                var (vendor, memory) = _renderer.AdapterIdentity;
+                return (_renderer.IsSoftware, vendor, memory);
+            }
+        }
+    }
 
     /// <summary>The device, so a decoder on the graphics card can leave its pictures where they are drawn.</summary>
     public object? Gpu => _renderer.Gpu;
@@ -188,6 +206,30 @@ public sealed class D3D11Presenter : IVideoPresenter
         }
     }
 
+    /// <summary>
+    /// Subject Lock looks at every this-many-th sample across and down (1 or 2), from the next
+    /// picture: 2 follows the subject in a half-size copy, a quarter of the work, on a computer
+    /// that cannot spare the time (DeviceBudget.SubjectStep). A change asks for the subject again.
+    /// </summary>
+    public int SubjectStep
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _subjectStep;
+            }
+        }
+
+        set
+        {
+            lock (_gate)
+            {
+                _subjectStep = Math.Clamp(value, 1, 2);
+            }
+        }
+    }
+
     /// <summary>Select a region of the decoded picture, independent of the current visual effect.</summary>
     public void SelectSubject(float left, float top, float width, float height)
     {
@@ -197,12 +239,42 @@ public sealed class D3D11Presenter : IVideoPresenter
         }
     }
 
-    /// <summary>Select the best box around a click, settled on the next picture drawn or redrawn.</summary>
-    public bool SelectSubjectAround(float x, float y)
+    /// <summary>
+    /// Select the object around a click, settled on the next picture drawn or redrawn; on a
+    /// <paramref name="paused"/> picture an installed segmentation model may outline it first.
+    /// </summary>
+    public bool SelectSubjectAround(float x, float y, bool paused = false)
     {
         lock (_gate)
         {
-            return _subjectEdit.SelectAround(x, y);
+            return _subjectEdit.SelectAround(x, y, paused);
+        }
+    }
+
+    /// <summary>The optional models Subject Lock may use on paused pictures (ADR-0019); null for none. The caller owns them.</summary>
+    public void UseSubjectModels(Rex.Media.Vision.IPromptSegmenter? segmenter, Rex.Media.Vision.IInpainter? inpainter, Rex.Media.Vision.IMaskTracker? tracker)
+    {
+        lock (_gate)
+        {
+            _subjectEdit.UseModels(segmenter, inpainter, tracker);
+        }
+    }
+
+    /// <summary>
+    /// Shows a model's answer for the paused picture once it has come: the picture is processed
+    /// again, which applies it. True when it redrew.
+    /// </summary>
+    public bool RefreshSubject()
+    {
+        lock (_gate)
+        {
+            if (!_subjectEdit.HasModelAnswer || _originalForEditing is null)
+            {
+                return false;
+            }
+
+            Redraw();
+            return true;
         }
     }
 
@@ -212,6 +284,15 @@ public sealed class D3D11Presenter : IVideoPresenter
         lock (_gate)
         {
             _subjectEdit.SetErase(enabled);
+        }
+    }
+
+    /// <summary>How the removal preview hides the selection, from the next picture drawn.</summary>
+    public void SetSubjectRemovalMode(RemovalMode mode)
+    {
+        lock (_gate)
+        {
+            _subjectEdit.SetRemovalMode(mode);
         }
     }
 
@@ -254,18 +335,19 @@ public sealed class D3D11Presenter : IVideoPresenter
         lock (_gate)
         {
             var region = _subjectEdit.Region;
-            return (_subjectEdit.Locked, _subjectEdit.Tracking, _subjectEdit.Erase,
+            // The preview asked for, which stays asked for while a lost subject is looked for.
+            return (_subjectEdit.Locked, _subjectEdit.Tracking, _subjectEdit.RemovalWanted,
                 region.Left, region.Top, region.Width, region.Height,
                 _subjectEdit.Confidence, _subjectEdit.EstimatedPixels, _subjectEdit.Status);
         }
     }
 
     /// <summary>Where the removal preview's last fill came from: pixels the video showed, and pixels synthesised.</summary>
-    public (bool Erase, int ObservedPixels, int EstimatedPixels) SubjectFill()
+    public (bool Erase, int ObservedPixels, int EstimatedPixels, RemovalFillSource Source, RemovalMode Mode) SubjectFill()
     {
         lock (_gate)
         {
-            return (_subjectEdit.Erase, _subjectEdit.ObservedPixels, _subjectEdit.EstimatedPixels);
+            return (_subjectEdit.RemovalWanted, _subjectEdit.ObservedPixels, _subjectEdit.EstimatedPixels, _subjectEdit.FillSource, _subjectEdit.Mode);
         }
     }
 
@@ -277,6 +359,37 @@ public sealed class D3D11Presenter : IVideoPresenter
             _pendingSize = (Math.Max(1, width), Math.Max(1, height));
         }
     }
+
+    /// <summary>
+    /// The window went out of sight (minimised): from now on pictures are neither uploaded, drawn
+    /// nor presented, and a redraw waits, until <see cref="ShowPictures"/>. Whoever sends pictures carries on
+    /// as before, so playback and its timing are untouched.
+    /// </summary>
+    public void HidePictures()
+    {
+        lock (_gate)
+        {
+            _hidden = true;
+        }
+    }
+
+    /// <summary>
+    /// The window is in sight again; pictures are drawn from the next one. True when a picture was
+    /// left undrawn meanwhile, so the last picture drawn is older than the latest; the caller then
+    /// redraws or asks for the latest picture again (HiddenWindow.Restore decides which).
+    /// </summary>
+    public bool ShowPictures()
+    {
+        lock (_gate)
+        {
+            var missed = _missedPicture;
+            (_hidden, _missedPicture) = (false, false);
+            return missed;
+        }
+    }
+
+    /// <summary>How many pictures have been presented to the screen, for the measurements.</summary>
+    public long PicturesDrawn => Interlocked.Read(ref _picturesDrawn);
 
     /// <summary>The display's scale (1.5 at 150 %), so a composition swap chain maps one buffer pixel to one screen pixel.</summary>
     public void SetScale(float scaleX, float scaleY)
@@ -295,6 +408,12 @@ public sealed class D3D11Presenter : IVideoPresenter
     {
         lock (_gate)
         {
+            if (_hidden)
+            {
+                // Drawn when the window is back (ShowPictures), at the size it has then.
+                return;
+            }
+
             ApplySize();
             if (_subjectEdit.Locked && _originalForEditing is not null)
             {
@@ -331,6 +450,7 @@ public sealed class D3D11Presenter : IVideoPresenter
             }
 
             _renderer.Present(waitForRefresh: false);
+            _picturesDrawn++;
         }
     }
 
@@ -340,6 +460,7 @@ public sealed class D3D11Presenter : IVideoPresenter
         lock (_gate)
         {
             _last = null;
+            _missedPicture = false;
             _originalForEditing?.Dispose();
             _originalForEditing = null;
             _subjectEdit.Reset();
@@ -356,6 +477,14 @@ public sealed class D3D11Presenter : IVideoPresenter
         ArgumentNullException.ThrowIfNull(frame);
         lock (_gate)
         {
+            if (_hidden)
+            {
+                // Nobody can see it: no upload, no drawing, no present. The motion trail starts
+                // afresh with the next picture shown, as it does after any gap.
+                _missedPicture = true;
+                return;
+            }
+
             ApplySize();
             if (_historyWanted)
             {
@@ -384,7 +513,7 @@ public sealed class D3D11Presenter : IVideoPresenter
             // doubled memory traffic on 4K hardware surfaces even when erasure was off.
             var original = frame.Surface is D3D11Surface gpu
                 ? ReadGpuFrame(frame, gpu)
-                : ColorConverter.ToBgra(frame);
+                : AnalysisConverter.ToBgra(frame, _subjectStep);
             _originalForEditing?.Dispose();
             _originalForEditing = original;
             using var edited = _subjectEdit.Process(original);
@@ -405,7 +534,7 @@ public sealed class D3D11Presenter : IVideoPresenter
             _renderer.CopySurfacePlanes(surface, original.Width, original.Height,
                 original.Format == PixelFormat.P010, frame.Plane(0), frame.Stride(0),
                 frame.Plane(1), frame.Stride(1));
-            return ColorConverter.ToBgra(frame);
+            return AnalysisConverter.ToBgra(frame, _subjectStep);
         }
         finally
         {
@@ -436,8 +565,9 @@ public sealed class D3D11Presenter : IVideoPresenter
         {
             var tenBit = frame.Format == PixelFormat.P010;
             _renderer.UploadSurface(surface, tenBit ? VideoPlaneFormat.P010 : VideoPlaneFormat.Nv12, frame.Width, frame.Height);
-            Draw(frame, tenBit ? YuvTransform.For(color, 10).ForShader(65535.0 / 64) : YuvTransform.For(color, 8).ForShader(255));
+            Draw(frame, Matrix(color, tenBit ? 10 : 8));
             _renderer.Present(waitForRefresh: _onScreen);
+            _picturesDrawn++;
             return;
         }
 
@@ -445,18 +575,19 @@ public sealed class D3D11Presenter : IVideoPresenter
         {
             case PixelFormat.Nv12:
                 _renderer.Upload(VideoPlaneFormat.Nv12, frame.Width, frame.Height, frame.Plane(0), frame.Stride(0), frame.Plane(1), frame.Stride(1));
-                Draw(frame, YuvTransform.For(color, 8).ForShader(255));
+                Draw(frame, Matrix(color, 8));
                 break;
             case PixelFormat.P010:
                 _renderer.Upload(VideoPlaneFormat.P010, frame.Width, frame.Height, frame.Plane(0), frame.Stride(0), frame.Plane(1), frame.Stride(1));
-                Draw(frame, YuvTransform.For(color, 10).ForShader(65535.0 / 64));
+                Draw(frame, Matrix(color, 10));
                 break;
             case PixelFormat.Bgra32:
                 _renderer.Upload(VideoPlaneFormat.Bgra, frame.Width, frame.Height, frame.Plane(0), frame.Stride(0), default, 0);
                 Draw(frame, BgraMatrix);
                 break;
             default:
-                using (var bgra = ColorConverter.ToBgra(frame))
+                // Converted to the nearest level in fixed point: the same picture as the exact conversion to the eye, many times sooner.
+                using (var bgra = AnalysisConverter.ToBgra(frame))
                 {
                     _renderer.Upload(VideoPlaneFormat.Bgra, bgra.Width, bgra.Height, bgra.Plane(0), bgra.Stride(0), default, 0);
                     Draw(bgra, BgraMatrix);
@@ -466,6 +597,23 @@ public sealed class D3D11Presenter : IVideoPresenter
         }
 
         _renderer.Present(waitForRefresh: _onScreen);
+        _picturesDrawn++;
+    }
+
+    /// <summary>
+    /// The shader's colour matrix for pictures of <paramref name="color"/> at <paramref name="bits"/>,
+    /// made once and kept while the pictures stay alike: working it out for every picture made new
+    /// arrays a frame. The arrays are only ever read.
+    /// </summary>
+    private float[] Matrix(ColorInfo color, int bits)
+    {
+        if (_matrix is not { } known || known.Color != color || known.Bits != bits)
+        {
+            known = (color, bits, bits > 8 ? YuvTransform.For(color, 10).ForShader(65535.0 / 64) : YuvTransform.For(color, 8).ForShader(255));
+            _matrix = known;
+        }
+
+        return known.Rows;
     }
 
     /// <summary>The offscreen picture as drawn, as a BGRA frame the caller disposes.</summary>

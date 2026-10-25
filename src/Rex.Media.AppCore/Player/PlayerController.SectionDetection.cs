@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+
 namespace Rex.Media.AppCore.Player;
 
 /// <summary>
@@ -112,7 +115,7 @@ public sealed partial class PlayerController
         {
             IsBackground = true,
             // Analysis yields to playback, which shares the processor with it.
-            Priority = ThreadPriority.Lowest,
+            Priority = ThreadPriority.BelowNormal,
             Name = "rexplayer section detection",
         };
         worker.Start();
@@ -130,14 +133,15 @@ public sealed partial class PlayerController
     {
         try
         {
-            var signature = SectionAnalysis.SignatureOf(path);
-            var cached = Memory.Proposals(path, signature);
-            Publish(path, cached, token);
             var folder = Path.GetDirectoryName(path)!;
             var files = Directory.EnumerateFiles(folder)
                 .Where(file => EpisodeExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
                 .ToArray();
-            var next = EpisodeGrouping.Next(path, files);
+            var siblings = EpisodeGrouping.Siblings(path, files, SectionDetector.SiblingsCompared);
+            var signature = DetectionSignature(path, siblings);
+            var cached = Memory.Proposals(path, signature);
+            Publish(path, cached, token);
+            var next = EpisodeGrouping.Next(path, files) ?? NextSeason(path, folder);
             _dispatch(() =>
             {
                 if (!token.IsCancellationRequested && Item?.Location == path && next is not null)
@@ -146,12 +150,13 @@ public sealed partial class PlayerController
                     Changed?.Invoke(this, EventArgs.Empty);
                 }
             });
-            if (analyzer is null || cached is { Candidates.Count: > 0 })
+            // An empty result is still a result. Re-decoding an episode and its season on every
+            // open merely because no intro or credits were found defeats the cache.
+            if (analyzer is null || cached is not null)
             {
                 return;
             }
 
-            var siblings = EpisodeGrouping.Siblings(path, files).Take(24);
             EpisodeAnalysis? main = null;
             var others = new List<EpisodeAnalysis>();
             foreach (var candidate in siblings.Prepend(path))
@@ -191,12 +196,12 @@ public sealed partial class PlayerController
 
                 if (others.Count != 1 && candidate != siblings.LastOrDefault())
                 {
-                    Publish(path, SectionDetector.Detect(main, others), token);
+                    Publish(path, SectionDetector.Detect(main, others) with { Signature = signature }, token);
                 }
             }
 
             token.ThrowIfCancellationRequested();
-            var proposals = SectionDetector.Detect(main!, others);
+            var proposals = SectionDetector.Detect(main!, others) with { Signature = signature };
             Memory.SetProposals(path, proposals);
             Publish(path, proposals, token);
         }
@@ -209,6 +214,49 @@ public sealed partial class PlayerController
         {
             _log.Warning("sections", "Background analysis unavailable: " + ex.Message);
         }
+        catch (Exception ex)
+        {
+            // A reader's own fault leaves the episode without sections; on this thread it would end the player.
+            _log.Error("sections", $"Background analysis of {path} failed: {ex}");
+        }
+    }
+
+    /// <summary>
+    /// Identity of every recording which can affect a detection. The selected sibling paths are
+    /// included as well as their file signatures, so adding, removing, moving or replacing an
+    /// episode invalidates the result. <see cref="SectionAnalysis.FeatureVersion"/> is already in
+    /// every file signature and therefore invalidates results when detector parameters change.
+    /// </summary>
+    internal static string DetectionSignature(string path, IReadOnlyList<string> siblings)
+    {
+        var text = new StringBuilder();
+        foreach (var file in siblings.Prepend(path))
+        {
+            var identity = Path.GetFullPath(file);
+            if (OperatingSystem.IsWindows())
+            {
+                identity = identity.ToUpperInvariant();
+            }
+
+            text.Append(identity).Append('\0').Append(SectionAnalysis.SignatureOf(file)).Append('\n');
+        }
+
+        return "set:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString())));
+    }
+
+    /// <summary>After a season's last episode in a "Season 1" folder, the first episode in the folder of the next season.</summary>
+    private static string? NextSeason(string path, string folder)
+    {
+        if (!EpisodeGrouping.IsSeasonFolder(Path.GetFileName(folder)) || Path.GetDirectoryName(folder) is not { } show)
+        {
+            return null;
+        }
+
+        var files = Directory.EnumerateDirectories(show)
+            .Where(other => other != folder && EpisodeGrouping.IsSeasonFolder(Path.GetFileName(other)))
+            .SelectMany(Directory.EnumerateFiles)
+            .Where(file => EpisodeExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase));
+        return EpisodeGrouping.Next(path, files);
     }
 
     /// <summary>Shows <paramref name="proposals"/> if this episode is still the one playing.</summary>
@@ -291,7 +339,7 @@ public sealed partial class PlayerController
             return true;
         }
 
-        var at = Playlist.CurrentIndex + 1;
+        var at = Playlist.NextIndex;
         Playlist.Insert(at, [new PlaylistItem(next)]);
         Start(Playlist.JumpTo(at));
         return true;
@@ -318,6 +366,21 @@ public sealed partial class PlayerController
             SetSectionBounds(kind, candidate.Start, candidate.End);
     }
 
+    /// <summary>
+    /// Saves boundaries typed into the section editor, in seconds, onto <paramref name="editing"/>
+    /// only: another episode may have opened while the editor was showing. An empty box (NaN), an
+    /// infinite value or one outside the video is refused before it reaches
+    /// <see cref="TimeSpan.FromSeconds(double)"/>, which would throw for it.
+    /// </summary>
+    public bool SetSectionBounds(EpisodeSectionKind kind, double startSeconds, double endSeconds, PlaylistItem editing)
+    {
+        var length = Duration.TotalSeconds;
+        return ReferenceEquals(editing, Item) &&
+            double.IsFinite(startSeconds) && double.IsFinite(endSeconds) &&
+            startSeconds >= 0 && startSeconds <= length && endSeconds >= 0 && endSeconds <= length &&
+            SetSectionBounds(kind, TimeSpan.FromSeconds(startSeconds), TimeSpan.FromSeconds(endSeconds));
+    }
+
     /// <summary>Sets both boundaries of one section exactly, leaving the other section alone.</summary>
     public bool SetSectionBounds(EpisodeSectionKind kind, TimeSpan start, TimeSpan end)
     {
@@ -338,5 +401,236 @@ public sealed partial class PlayerController
         Say((kind == EpisodeSectionKind.Intro ? "Intro" : "Credits") + " saved for this episode.");
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
+    }
+}
+
+
+/// <summary>
+/// Analyses numbered TV episodes in the library even before any is opened. One below-normal
+/// worker shares the player's per-file feature cache and saved proposals, yields immediately to
+/// playback, and never opens a playback session. Re-queuing checks signatures, so unchanged
+/// episodes require no decoding and a replaced sibling invalidates every dependent proposal.
+/// </summary>
+public sealed class LibrarySectionAnalysis : IDisposable
+{
+    private static readonly HashSet<string> Extensions = new(
+        [".mkv", ".mp4", ".m4v", ".avi", ".mov", ".webm", ".ts"],
+        StringComparer.OrdinalIgnoreCase);
+
+    private readonly PlayerMemory _memory;
+    private readonly SectionAnalysisCache _cache;
+    private readonly Func<string, CancellationToken, EpisodeAnalysis> _analyzer;
+    private readonly Rex.Media.Diagnostics.RexLog _log;
+    private readonly object _gate = new();
+    private readonly AutoResetEvent _wake = new(false);
+    private readonly CancellationTokenSource _stop = new();
+    private readonly Thread? _worker;
+    private string[] _files = [];
+    private List<string> _pending = [];
+    private CancellationTokenSource? _active;
+    private bool _paused;
+
+    /// <summary>False leaves the queue for deterministic calls to <see cref="RunPending"/> in tests.</summary>
+    public LibrarySectionAnalysis(PlayerMemory memory, SectionAnalysisCache cache,
+        Func<string, CancellationToken, EpisodeAnalysis> analyzer, Rex.Media.Diagnostics.RexLog log, bool background = true)
+    {
+        _memory = memory ?? throw new ArgumentNullException(nameof(memory));
+        _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+        _analyzer = analyzer ?? throw new ArgumentNullException(nameof(analyzer));
+        _log = log ?? throw new ArgumentNullException(nameof(log));
+        if (background)
+        {
+            _worker = new Thread(Work)
+            {
+                IsBackground = true,
+                Priority = ThreadPriority.BelowNormal,
+                Name = "rexplayer library section analysis",
+            };
+            _worker.Start();
+        }
+    }
+
+    /// <summary>Replaces the library's known video files, including when a scan adds or removes files.</summary>
+    public void SetQueue(IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        var eligible = paths.Where(path => !string.IsNullOrWhiteSpace(path) && Path.IsPathFullyQualified(path)
+                && Extensions.Contains(Path.GetExtension(path)) && EpisodeGrouping.Identify(path) is not null)
+            .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToArray();
+        lock (_gate)
+        {
+            if (_stop.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _files = eligible;
+            _pending = [.. eligible];
+            _active?.Cancel();
+        }
+
+        _wake.Set();
+    }
+
+    /// <summary>When playback begins, interrupt even the currently decoding episode.</summary>
+    public void SetPaused(bool paused)
+    {
+        lock (_gate)
+        {
+            if (_stop.IsCancellationRequested || _paused == paused)
+            {
+                return;
+            }
+
+            _paused = paused;
+            if (paused)
+            {
+                _active?.Cancel();
+            }
+        }
+
+        _wake.Set();
+    }
+
+    /// <summary>Consume everything currently queued, or return when paused or stopped.</summary>
+    public void RunPending()
+    {
+        while (true)
+        {
+            string path;
+            string[] files;
+            CancellationTokenSource active;
+            lock (_gate)
+            {
+                if (_stop.IsCancellationRequested || _paused || _pending.Count == 0)
+                {
+                    return;
+                }
+
+                path = _pending[0];
+                _pending.RemoveAt(0);
+                files = _files;
+                _active = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token);
+                active = _active;
+            }
+
+            try
+            {
+                Analyze(path, files, active.Token);
+            }
+            catch (OperationCanceledException) when (active.IsCancellationRequested)
+            {
+                // Playing takes priority; this episode is placed back in the queue below.
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or
+                Rex.Media.Primitives.MediaFormatException or InvalidOperationException or ArgumentException)
+            {
+                _log.Warning("sections", "Could not analyse library episode " + path + ": " + ex.Message);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // A reader's own fault leaves this episode unanalysed; on this thread it would end the player.
+                _log.Error("sections", $"Analysing library episode {path} failed: {ex}");
+            }
+            finally
+            {
+                lock (_gate)
+                {
+                    if (ReferenceEquals(_active, active))
+                    {
+                        _active = null;
+                    }
+
+                    if (active.IsCancellationRequested && !_stop.IsCancellationRequested &&
+                        _files.Contains(path, StringComparer.OrdinalIgnoreCase) &&
+                        !_pending.Contains(path, StringComparer.OrdinalIgnoreCase))
+                    {
+                        _pending.Insert(0, path);
+                    }
+                }
+
+                active.Dispose();
+            }
+        }
+    }
+
+    private void Analyze(string path, IReadOnlyList<string> files, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        var folder = Path.GetDirectoryName(path);
+        var inFolder = files.Where(other => string.Equals(Path.GetDirectoryName(other), folder,
+            StringComparison.OrdinalIgnoreCase));
+        var siblings = EpisodeGrouping.Siblings(path, inFolder, SectionDetector.SiblingsCompared);
+        var signature = PlayerController.DetectionSignature(path, siblings);
+        if (_memory.Proposals(path, signature) is not null)
+        {
+            return;
+        }
+
+        EpisodeAnalysis Features(string file)
+        {
+            token.ThrowIfCancellationRequested();
+            var stamp = SectionAnalysis.SignatureOf(file);
+            if (_cache.Get(file, stamp) is { } kept)
+            {
+                return kept;
+            }
+
+            var made = _analyzer(file, token);
+            token.ThrowIfCancellationRequested();
+            _cache.Set(made);
+            return made;
+        }
+
+        var episode = Features(path);
+        var compared = new List<EpisodeAnalysis>();
+        foreach (var sibling in siblings)
+        {
+            token.ThrowIfCancellationRequested();
+            try
+            {
+                compared.Add(Features(sibling));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or
+                Rex.Media.Primitives.MediaFormatException or InvalidOperationException)
+            {
+                _log.Warning("sections", "Could not analyse sibling " + sibling + ": " + ex.Message);
+            }
+        }
+
+        token.ThrowIfCancellationRequested();
+        var result = SectionDetector.Detect(episode, compared) with { Signature = signature };
+        _memory.SetProposals(path, result);
+    }
+
+    private void Work()
+    {
+        while (!_stop.IsCancellationRequested)
+        {
+            RunPending();
+            _wake.WaitOne(TimeSpan.FromSeconds(1));
+        }
+    }
+
+    /// <summary>Stop promptly, without preventing the app from closing if a decoder misbehaves.</summary>
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            if (_stop.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _stop.Cancel();
+            _active?.Cancel();
+        }
+
+        _wake.Set();
+        if (_worker is null || _worker.Join(TimeSpan.FromSeconds(5)))
+        {
+            _wake.Dispose();
+            _stop.Dispose();
+        }
     }
 }

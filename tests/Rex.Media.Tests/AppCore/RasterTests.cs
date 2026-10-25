@@ -1,3 +1,4 @@
+using Rex.Media.TestKit;
 using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Visuals;
 
@@ -175,6 +176,29 @@ public sealed class RasterTests
         Assert.Throws<ArgumentException>(() => canvas.Picture(new byte[3], 2, 2, (x, y) => (x, y)));
         Assert.Throws<ArgumentException>(() => canvas.Picture(picture.Bgra, 0, 2, (x, y) => (x, y)));
         Assert.Throws<ArgumentNullException>(() => canvas.Picture(picture.Bgra, 2, 2, null!));
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void MissingOrPartialCameraFramesAndBadCoordinatesNeverCrashRendering()
+    {
+        var invalid = new[]
+        {
+            new VisualPicture([], 0, 0),
+            new VisualPicture([], 2, 2),
+            new VisualPicture([1, 2, 3], 1, 1),
+            new VisualPicture([0, 0, 0, 255], int.MaxValue, int.MaxValue),
+        };
+        foreach (var frame in invalid)
+        {
+            Assert.Equal(0, frame.Sample(0.5, 0.5, 1));
+        }
+
+        var valid = new VisualPicture([12, 24, 48, 255], 1, 1);
+        Assert.Equal(12 / 255f, valid.Sample(double.NaN, double.NegativeInfinity, 0));
+        Assert.Equal(24 / 255f, valid.Sample(double.PositiveInfinity, double.NaN, 1));
+        Assert.Equal(0, valid.Sample(0, 0, -1));
+        Assert.Equal(0, valid.Sample(0, 0, 3));
     }
 
     [Fact]

@@ -15,6 +15,7 @@ public sealed class VideoEffectsTests
             foreach (var option in VideoStyleOptions.ForEffect(effect))
             {
                 Assert.False(string.IsNullOrWhiteSpace(option.Help), $"{option.Key} has no tooltip");
+                Assert.False(option.Help.StartsWith("Adjusts", StringComparison.Ordinal), $"{option.Key} has a placeholder tooltip");
                 Assert.DoesNotContain((char)0x2014, option.Label + option.Help);
                 Assert.DoesNotContain((char)0x00B7, option.Label + option.Help);
                 Assert.StartsWith($"effect.{effect}.", option.Key, StringComparison.Ordinal);
@@ -87,6 +88,17 @@ public sealed class VideoEffectsTests
         Assert.Equal("Mood", VideoLooks.Category(VideoLook.Dusk));
         Assert.Equal("Stylised", VideoLooks.Category(VideoLook.Chrome));
         Assert.Equal("Essentials", VideoLooks.Category(VideoLook.Vivid));
+
+        VideoEffect[] weather = [VideoEffect.SnowSettle, VideoEffect.Thunderstorm, VideoEffect.StageLights, VideoEffect.Aurora];
+        Assert.Equal(weather, Enum.GetValues<VideoEffect>().Where(effect => VideoEffects.Category(effect) == "Weather & light"));
+        VideoEffect[] steered = [VideoEffect.StageLights, VideoEffect.Droste, VideoEffect.Disintegrate, VideoEffect.PageCurl,
+            VideoEffect.Bubbles, VideoEffect.TinyPlanet];
+        Assert.All(steered, effect => Assert.True(VideoEffects.UsesPointer(effect), effect.ToString()));
+        Assert.All(Enum.GetValues<VideoEffect>().Where(effect => effect >= VideoEffect.SnowSettle),
+            effect => Assert.False(VideoEffects.UsesHistory(effect, 100, 50, 1), effect.ToString()));
+        Assert.Equal("Print & texture", VideoEffects.Category(VideoEffect.StencilGraffiti));
+        Assert.Equal("Motion & geometry", VideoEffects.Category(VideoEffect.TinyPlanet));
+        Assert.Equal("Playful", VideoEffects.Category(VideoEffect.Hologram));
     }
 
     [Fact]
@@ -95,7 +107,7 @@ public sealed class VideoEffectsTests
         Assert.Empty(VideoStyleOptions.ForEffect(VideoEffect.Off));
         Assert.Equal(new EffectControls(0, 100, 0, 0), VideoStyleOptions.Controls(VideoEffect.Off, null, 80));
         Assert.Equal("Off", VideoEffects.PickerLabel(VideoEffect.Off));
-        Assert.Equal("Neon contours", VideoEffects.PickerLabel(VideoEffect.NeonEdges));
+        Assert.Equal("Neon contours (Contours)", VideoEffects.PickerLabel(VideoEffect.NeonEdges));
         Assert.Equal("Ghostwire (Contours)", VideoEffects.PickerLabel(VideoEffect.Ghostwire));
         Assert.Equal("Tape wear (Playful)", VideoEffects.PickerLabel(VideoEffect.TapeWear));
     }
@@ -155,8 +167,11 @@ public sealed class VideoEffectsTests
     }
 
     [Theory]
-    [InlineData(VideoEffect.GhostwireMotion, 65, 35, 3, false)]
-    [InlineData(VideoEffect.GhostwireMotion, 65, 35, 1, false)]
+    [InlineData(VideoEffect.GhostwireMotion, 65, 35, 3, true)]
+    [InlineData(VideoEffect.GhostwireMotion, 65, 35, 1, true)]
+    [InlineData(VideoEffect.GhostwireMotion, 0, 35, 1, false)]
+    [InlineData(VideoEffect.NeonEdges, 90, 0, 0, true)]
+    [InlineData(VideoEffect.TopographicContours, 65, 0, 0, true)]
     [InlineData(VideoEffect.GhostwireMotion, 65, 0, 0, true)]
     [InlineData(VideoEffect.GhostwireMotion, 65, 35, 2, true)]
     [InlineData(VideoEffect.MotionSmear, 65, 60, 40, true)]
@@ -164,7 +179,9 @@ public sealed class VideoEffectsTests
     [InlineData(VideoEffect.MotionSmear, 0, 60, 40, false)]
     [InlineData(VideoEffect.ChromaticRift, 65, 0, 1, true)]
     [InlineData(VideoEffect.ChromaticRift, 65, 0, 0, false)]
-    [InlineData(VideoEffect.Ghostwire, 100, 100, 100, false)]
+    [InlineData(VideoEffect.Ghostwire, 100, 100, 100, true)]
+    [InlineData(VideoEffect.LumenWeave, 100, 40, 0, false)]
+    [InlineData(VideoEffect.ThermalMap, 100, 100, 100, false)]
     [InlineData(VideoEffect.Off, 100, 100, 100, false)]
     public void OnlyEffectsThatReadThePreviousPictureKeepIt(VideoEffect effect, int strength, int third, int fourth, bool expected) =>
         Assert.Equal(expected, VideoEffects.UsesHistory(effect, strength, third, fourth));

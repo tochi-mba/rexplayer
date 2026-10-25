@@ -32,6 +32,9 @@ public sealed partial class PlayerController : IDisposable
     private readonly Func<string, IEnumerable<string>>? _listFolder;
     private readonly Func<string, bool> _exists;
     private readonly List<TrackFailedEvent> _trackFailures = [];
+
+    /// <summary>Whether the window has been told the item playing is damaged: it is told once.</summary>
+    private bool _damageSaid;
     private double _fade = 1;
     private DateTimeOffset? _lastLaunch;
 
@@ -42,10 +45,14 @@ public sealed partial class PlayerController : IDisposable
     public static readonly TimeSpan HandOverBurst = TimeSpan.FromMilliseconds(600);
     private readonly Action<Action> _dispatch;
     private MediaSession? _session;
+    private readonly List<Task> _sessionsClosing = [];
     private bool _openedInSession;
     private PlaylistItem? _queued;
     private bool _queueTried;
     private int _failuresInARow;
+    // A paused seek has no position clock tick until decoding completes. Do not
+    // allow a coalesced pre-seek tick to overwrite the requested position.
+    private bool _seekAwaitingCompletion;
 
     /// <param name="newSession">Makes a session that reports to the given listener.</param>
     /// <param name="openSource">Opens a location for reading; it may throw when the location cannot be read.</param>
@@ -185,6 +192,9 @@ public sealed partial class PlayerController : IDisposable
     public bool ReadSound(Span<float> left, Span<float> right, TimeSpan lead = default) => _session?.ReadSound(left, right, lead) ?? false;
 
     /// <summary>The engine's counters for what is playing, or null when nothing is.</summary>
+    /// <summary>Starts the figures for how steadily pictures are presented afresh, as a measurement begins.</summary>
+    public Task ClearCadenceAsync() => _session?.ClearCadenceAsync() ?? Task.CompletedTask;
+
     public Task<SessionStats?> StatsAsync() =>
         _session is { } session ? session.GetStatsAsync().ContinueWith(stats => stats.IsCompletedSuccessfully ? stats.Result : null, TaskScheduler.Default) : Task.FromResult<SessionStats?>(null);
 
@@ -256,7 +266,14 @@ public sealed partial class PlayerController : IDisposable
             return;
         }
 
+        // After the last item ended, seeking plays it again, so it is the queue's current item again.
+        if (Playlist.Current is null && Item is { } replayed && Playlist.IndexOf(replayed) is >= 0 and var index)
+        {
+            Playlist.JumpTo(index);
+        }
+
         Position = target < TimeSpan.Zero ? TimeSpan.Zero : target > Duration ? Duration : target;
+        _seekAwaitingCompletion = true;
         _log.Debug(LogSource, $"Seeking to {TimeText.Format(Position, Duration)}.");
         _ = Observe(_session.SeekAsync(new MediaTime((Item!.Start + Position).Ticks)));
         PositionChanged?.Invoke(this, EventArgs.Empty);
@@ -290,8 +307,8 @@ public sealed partial class PlayerController : IDisposable
     {
         _log.Info(LogSource, "Stopped.");
         RememberPosition();
-        ResumeOffer = null;
         EndSession();
+        _seekAwaitingCompletion = false;
         State = SessionState.Idle;
         Position = TimeSpan.Zero;
         Changed?.Invoke(this, EventArgs.Empty);
@@ -303,32 +320,46 @@ public sealed partial class PlayerController : IDisposable
         CancelSectionDetection();
         RememberPosition();
         EndSession();
+        // Each session's video thread borrows the window's presenter. Do not let the window
+        // release that presenter while any current or previous session is still drawing.
+        Task.WhenAll(_sessionsClosing).GetAwaiter().GetResult();
     }
 
     /// <summary>
     /// Starts <paramref name="item"/> in a session of its own, or stops when there is nothing to
     /// start; part-way and on a chosen audio track when asked (switching tracks restarts the item).
+    /// Only a start that moves on from a failed item (<paramref name="afterFailure"/>) keeps the
+    /// count of failures in a row; any other start, the user's above all, begins it afresh.
     /// </summary>
-    private void Start(PlaylistItem? item, TimeSpan startAt = default, int? audioTrack = null, bool paused = false)
+    private void Start(PlaylistItem? item, TimeSpan startAt = default, int? audioTrack = null, bool paused = false, bool afterFailure = false, bool exactPosition = false)
     {
+        if (!afterFailure)
+        {
+            _failuresInARow = 0;
+        }
+
         if (item is null)
         {
             Stop();
             return;
         }
 
-        startAt = BeforeStart(item, startAt, audioTrack);
+        _seekAwaitingCompletion = false;
+        Reach("start");
+        startAt = BeforeStart(item, startAt, audioTrack, exactPosition);
         _log.Info(LogSource, $"Starting \"{item.Title}\" ({item.Location})"
             + (item.IsPart ? $", the part from {TimeText.Format(item.Start, TimeSpan.Zero)}{(item.End is { } partEnd ? " to " + TimeText.Format(partEnd, TimeSpan.Zero) : "")}" : "")
             + (startAt > TimeSpan.Zero ? $", at {TimeText.Format(startAt, TimeSpan.Zero)}" : "")
             + (audioTrack is { } track ? $", audio track {track}" : "")
             + (paused ? ", paused" : "") + ".");
         _trackFailures.Clear();
+        _damageSaid = false;
         ForgetPresentation();
         EndSession();
         Item = item;
         Info = null;
         AudioTrack = null;
+        _audioSwitch = null;
         FindSubtitles(item);
         Failure = null;
         Position = startAt;
@@ -365,6 +396,7 @@ public sealed partial class PlayerController : IDisposable
         // A failure to open arrives as the session's move to Faulted, in order with its other events.
         var from = item.Start + startAt;
         _ = Observe(session.OpenAsync(source, from > TimeSpan.Zero ? new MediaTime(from.Ticks) : null));
+
     }
 
     private void EndSession()
@@ -376,8 +408,10 @@ public sealed partial class PlayerController : IDisposable
             _queued = null;
             _queueTried = false;
 
-            // Stopping joins the session's threads, which can take a moment: never on the window's thread.
-            _ = Task.Run(old.Dispose);
+            // Switching media must not block the window. Remember every background shutdown so
+            // the final Dispose can join them all before the window releases its presenter.
+            _sessionsClosing.RemoveAll(task => task.IsCompletedSuccessfully);
+            _sessionsClosing.Add(Task.Run(old.Dispose));
         }
     }
 
@@ -387,13 +421,13 @@ public sealed partial class PlayerController : IDisposable
         _log.Error(LogSource, $"{item.Location} could not be played: {reason}");
         Failure = reason;
         State = SessionState.Faulted;
-        Message?.Invoke(this, $"{item.Title} could not be played: {reason}");
+        Message?.Invoke(this, DamageNotices.Failed(Playlist.Items.Count > 1 ? item.Title : null, reason));
         Changed?.Invoke(this, EventArgs.Empty);
 
         // Move on, unless every entry has now failed in a row: then there is nothing left worth trying.
         if (++_failuresInARow < Playlist.Items.Count && Playlist.Next(automatic: false) is { } next)
         {
-            Start(next);
+            Start(next, afterFailure: true);
         }
     }
 

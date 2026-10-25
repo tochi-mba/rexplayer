@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The music pages' layouts: the music Home's square and round cards, an album's numbered track
+     lines and the Songs table. Hover and focus reveal Play through composition transitions, and
+     the window keeps the handlers; this dictionary is created the first time a music page is laid
+     out, not at launch. -->
+<ResourceDictionary
+    x:Class="Rex.Media.App.LibraryMusicTemplates"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Rex.Media.App">
+  <!-- A card on the music Home: square for albums, mixes and playlists, round for artists; its play button plays without opening. -->
+  <DataTemplate x:Key="MusicCardTemplate" x:DataType="local:MusicRow">
+    <Grid Padding="6" RowSpacing="8" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}"
+          PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited" GettingFocus="OnCardGettingFocus" LosingFocus="OnCardLosingFocus">
+      <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+      <Grid>
+        <Border CornerRadius="{x:Bind PictureCorners}" Background="{ThemeResource LayerFillColorDefaultBrush}">
+          <Grid>
+            <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="44" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" Opacity="{x:Bind PictureOpacity, Mode=OneWay}">
+              <Image.OpacityTransition><ScalarTransition Duration="0:0:0.2" /></Image.OpacityTransition>
+            </Image>
+            <Border Visibility="{x:Bind PlayingVisibility, Mode=OneWay}" Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="9" Padding="8,3" Margin="9"
+                    HorizontalAlignment="Center" VerticalAlignment="Top">
+              <TextBlock Text="NOW PLAYING" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+            </Border>
+          </Grid>
+        </Border>
+        <Button x:Name="CardPlay" Opacity="0" Width="44" Height="44" CornerRadius="22" Padding="0" Margin="8" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                Style="{ThemeResource AccentButtonStyle}" Click="OnMusicCardPlay" IsTabStop="False" AllowFocusOnInteraction="False"
+                AutomationProperties.AutomationId="MusicCardPlay" AutomationProperties.Name="Play" ToolTipService.ToolTip="Play">
+          <FontIcon Glyph="&#xE768;" FontSize="16" />
+        </Button>
+      </Grid>
+      <StackPanel Grid.Row="1">
+        <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
+        <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" FontSize="12"
+                   Visibility="{x:Bind DetailVisibility, Mode=OneWay}" />
+      </StackPanel>
+    </Grid>
+  </DataTemplate>
+  <!-- An album's track line: its number (the equaliser in its place while it plays), the title (in the accent colour while it
+       plays) with featured artists under it, a subtle bar of its plays, the quick actions on hover, and its length in tabular figures.
+       The list's own item style gives the rounded hover and selection fills, so playing never fills the line. -->
+  <DataTemplate x:Key="MusicTrackTemplate" x:DataType="local:MusicRow">
+    <Grid ColumnSpacing="14" MinHeight="52" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}"
+          PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="32" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="56" />
+        <ColumnDefinition Width="72" />
+        <ColumnDefinition Width="52" />
+      </Grid.ColumnDefinitions>
+      <TextBlock Text="{x:Bind Badge}" Visibility="{x:Bind NumberVisibility, Mode=OneWay}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                 Foreground="{ThemeResource TextFillColorSecondaryBrush}" Typography.NumeralAlignment="Tabular" />
+      <local:PlayingBars Visibility="{x:Bind PlayingVisibility, Mode=OneWay}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+      <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+        <TextBlock Text="{x:Bind Name}" Foreground="{x:Bind TitleBrush, Mode=OneWay}" TextTrimming="CharacterEllipsis" MaxLines="1" />
+        <TextBlock Text="{x:Bind Featured}" Visibility="{x:Bind FeaturedVisibility}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxLines="1" FontSize="12" />
+      </StackPanel>
+      <Grid Grid.Column="2" Width="48" Height="3" VerticalAlignment="Center" HorizontalAlignment="Right" ToolTipService.ToolTip="{x:Bind PlaysText}" AutomationProperties.Name="{x:Bind PlaysText}">
+        <Border CornerRadius="1.5" Background="{ThemeResource ControlStrokeColorDefaultBrush}" />
+        <Border CornerRadius="1.5" Width="{x:Bind PlayBar}" HorizontalAlignment="Left" Background="{ThemeResource TextFillColorSecondaryBrush}" />
+      </Grid>
+      <StackPanel x:Name="CardPlay" Grid.Column="3" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Right" VerticalAlignment="Center" Opacity="0">
+        <Button Padding="7" Background="Transparent" BorderThickness="0" Click="OnRowPlay" IsTabStop="False" AllowFocusOnInteraction="False"
+                AutomationProperties.AutomationId="LibraryRowPlay" AutomationProperties.Name="Play" ToolTipService.ToolTip="Play from this song">
+          <FontIcon Glyph="&#xE768;" FontSize="14" />
+        </Button>
+        <Button Padding="7" Background="Transparent" BorderThickness="0" Click="OnRowQueue" IsTabStop="False" AllowFocusOnInteraction="False"
+                AutomationProperties.AutomationId="LibraryRowQueue" AutomationProperties.Name="Add to queue" ToolTipService.ToolTip="Add to the end of the playlist">
+          <FontIcon Glyph="&#xE710;" FontSize="14" />
+        </Button>
+      </StackPanel>
+      <TextBlock Grid.Column="4" Text="{x:Bind Extra}" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Typography.NumeralAlignment="Tabular" />
+    </Grid>
+  </DataTemplate>
+  <!-- The Songs table: 40 px art (dimmed under the equaliser while the song plays, Play over it on hover), the title (in the accent
+       colour while it plays), the artist and album as links to their pages, plays as a number and the length, both right-aligned
+       in tabular figures. The columns match SongsTableHeader in MainWindow.AlbumPage.cs exactly. -->
+  <DataTemplate x:Key="MusicSongRowTemplate" x:DataType="local:MusicRow">
+    <Grid ColumnSpacing="14" MinHeight="52" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}"
+          PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="40" />
+        <ColumnDefinition Width="2*" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="56" />
+        <ColumnDefinition Width="72" />
+        <ColumnDefinition Width="52" />
+      </Grid.ColumnDefinitions>
+      <Border Width="40" Height="40" CornerRadius="4" VerticalAlignment="Center" Background="{ThemeResource LayerFillColorDefaultBrush}">
+        <Grid>
+          <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="16" Opacity="0.38" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" Opacity="{x:Bind PictureOpacity, Mode=OneWay}">
+            <Image.OpacityTransition><ScalarTransition Duration="0:0:0.2" /></Image.OpacityTransition>
+          </Image>
+          <Border Background="#8C000000" Visibility="{x:Bind PlayingVisibility, Mode=OneWay}" />
+          <local:PlayingBars Visibility="{x:Bind PlayingVisibility, Mode=OneWay}" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <ProgressRing Visibility="{x:Bind DownloadVisibility, Mode=OneWay}" Value="{x:Bind DownloadPercent, Mode=OneWay}" IsIndeterminate="False" Maximum="100" Width="18" Height="18" Margin="2"
+                        HorizontalAlignment="Right" VerticalAlignment="Top" Foreground="White" Background="#C0181818" IsHitTestVisible="False"
+                        ToolTipService.ToolTip="{x:Bind DownloadText, Mode=OneWay}" AutomationProperties.AutomationId="LibraryDownloadBadge" AutomationProperties.Name="{x:Bind DownloadText, Mode=OneWay}" />
+        </Grid>
+      </Border>
+      <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+        <TextBlock Text="{x:Bind Name}" Foreground="{x:Bind TitleBrush, Mode=OneWay}" TextTrimming="CharacterEllipsis" MaxLines="1" />
+        <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Visibility="{x:Bind DownloadVisibility, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxLines="1" FontSize="12" />
+      </StackPanel>
+      <HyperlinkButton Grid.Column="2" Padding="0" VerticalAlignment="Center" HorizontalAlignment="Left" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Click="OnArtistLink" PointerEntered="OnLinkPointerEntered" PointerExited="OnLinkPointerExited" IsTabStop="False"
+                       AutomationProperties.Name="{x:Bind Artist}" ToolTipService.ToolTip="{x:Bind Artist}">
+        <TextBlock Text="{x:Bind Artist}" TextTrimming="CharacterEllipsis" MaxLines="1" />
+      </HyperlinkButton>
+      <HyperlinkButton Grid.Column="3" Padding="0" VerticalAlignment="Center" HorizontalAlignment="Left" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Click="OnAlbumLink" PointerEntered="OnLinkPointerEntered" PointerExited="OnLinkPointerExited" IsTabStop="False"
+                       AutomationProperties.Name="{x:Bind Album}" ToolTipService.ToolTip="{x:Bind Album}">
+        <TextBlock Text="{x:Bind Album}" TextTrimming="CharacterEllipsis" MaxLines="1" />
+      </HyperlinkButton>
+      <TextBlock Grid.Column="4" Text="{x:Bind PlaysNumber}" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                 Typography.NumeralAlignment="Tabular" AutomationProperties.Name="{x:Bind PlaysText}" />
+      <!-- One layer over the line holds Play over the art and the quick actions, so pointing or focusing shows both together. -->
+      <Grid x:Name="CardPlay" Grid.ColumnSpan="7" ColumnSpacing="14" Opacity="0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="40" />
+          <ColumnDefinition Width="2*" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="56" />
+          <ColumnDefinition Width="72" />
+          <ColumnDefinition Width="52" />
+        </Grid.ColumnDefinitions>
+        <Button Width="40" Height="40" Padding="0" CornerRadius="4" VerticalAlignment="Center" Background="#99000000" BorderThickness="0" Click="OnRowPlay" IsTabStop="False" AllowFocusOnInteraction="False"
+                AutomationProperties.AutomationId="MusicSongArtPlay" AutomationProperties.Name="Play" ToolTipService.ToolTip="Play this, with the rest of the view after it">
+          <FontIcon Glyph="&#xE768;" FontSize="14" Foreground="White" />
+        </Button>
+        <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Right" VerticalAlignment="Center">
+          <Button Padding="7" Background="Transparent" BorderThickness="0" Click="OnRowPlay" IsTabStop="False" AllowFocusOnInteraction="False"
+                  AutomationProperties.AutomationId="LibraryRowPlay" AutomationProperties.Name="Play" ToolTipService.ToolTip="Play this, with the rest of the view after it">
+            <FontIcon Glyph="&#xE768;" FontSize="14" />
+          </Button>
+          <Button Padding="7" Background="Transparent" BorderThickness="0" Click="OnRowQueue" IsTabStop="False" AllowFocusOnInteraction="False"
+                  AutomationProperties.AutomationId="LibraryRowQueue" AutomationProperties.Name="Add to queue" ToolTipService.ToolTip="Add to the end of the playlist">
+            <FontIcon Glyph="&#xE710;" FontSize="14" />
+          </Button>
+        </StackPanel>
+      </Grid>
+      <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Center">
+        <FontIcon Glyph="{x:Bind TranscriptGlyph, Mode=OneWay}" Visibility="{x:Bind TranscriptVisibility, Mode=OneWay}" FontSize="13"
+                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" ToolTipService.ToolTip="{x:Bind TranscriptText, Mode=OneWay}"
+                  AutomationProperties.AutomationId="LibraryTranscriptBadge" AutomationProperties.Name="{x:Bind TranscriptText, Mode=OneWay}" />
+        <TextBlock Text="{x:Bind Extra}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Typography.NumeralAlignment="Tabular" />
+      </StackPanel>
+    </Grid>
+  </DataTemplate>
+</ResourceDictionary>

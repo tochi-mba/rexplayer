@@ -17,7 +17,12 @@ internal static class ThreadLoop
         {
             // The session is closing; there is nothing to report.
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.Runtime.InteropServices.ExternalException)
+        // A malformed file can expose an unexpected parser or decoder exception. Allowing it
+        // to escape the pipeline thread terminates the whole process. The session still reports
+        // the underlying exception through its normal fault path; it must not silently vanish.
+#pragma warning disable CA1031 // This is the outermost thread safety boundary.
+        catch (Exception ex)
+#pragma warning restore CA1031
         {
             onFailure(ex);
         }

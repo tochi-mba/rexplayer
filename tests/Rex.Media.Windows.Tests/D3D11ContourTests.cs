@@ -126,4 +126,43 @@ public sealed class D3D11ContourTests
             drawn.ForEach(pair => pair.picture.Dispose());
         }
     }
+
+    [Fact]
+    public void EveryLookChangesThePictureInItsOwnWay()
+    {
+        // Five looks once fell through to Night vision in the shader; every look must differ from
+        // every other on a colourful picture.
+        using var picture = EffectPictures.Bgra(96, 64, (x, y) => (x * 255 / 95, y * 255 / 63, (x + y) * 255 / 158));
+        var looks = Enum.GetValues<VideoLook>();
+        var drawn = new List<(VideoLook Look, VideoFrame Picture)>();
+        try
+        {
+            foreach (var look in looks)
+            {
+                using var presenter = D3D11Presenter.Offscreen(picture.Width, picture.Height);
+                presenter.SetLook(look);
+                presenter.Present(picture);
+                drawn.Add((look, presenter.ReadBack()));
+            }
+
+            var alike = new List<string>();
+            foreach (var (look, frame) in drawn)
+            {
+                foreach (var (other, otherFrame) in drawn.Where(pair => pair.Look > look))
+                {
+                    var apart = MeanDifference(frame, otherFrame);
+                    if (apart < 2)
+                    {
+                        alike.Add($"{look} vs {other}: {apart:F2} levels");
+                    }
+                }
+            }
+
+            Assert.True(alike.Count == 0, string.Join("; ", alike));
+        }
+        finally
+        {
+            drawn.ForEach(pair => pair.Picture.Dispose());
+        }
+    }
 }

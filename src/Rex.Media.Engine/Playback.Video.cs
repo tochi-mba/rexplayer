@@ -1,4 +1,3 @@
-using Rex.Media.Codecs;
 using Rex.Media.Diagnostics;
 using Rex.Media.Primitives;
 
@@ -31,6 +30,10 @@ public sealed partial class MediaSession
         private long _videoFramesDecoded;
         private long _videoFramesPresented;
         private long _videoFramesDropped;
+        private readonly FrameCadence _cadence = new();
+
+        /// <summary>Forgets how steadily pictures have been presented so far, so the figures cover only what follows.</summary>
+        public void ClearCadence() => _cadence.Clear();
 
         private int VideoHardCapacity => _session._options.VideoQueueCapacity * 4;
 
@@ -125,15 +128,22 @@ public sealed partial class MediaSession
                     state.Generation = item.Generation;
                     var seek = SeekFor(item.Generation);
                     state.Target = seek.Mode == SeekMode.Precise ? seek.Target : MediaTime.Zero;
-                    _videoItem.VideoDecoder?.Flush();
+                    (state.Shown, state.OnTarget) = (false, false);
+                    if (_videoItem.VideoDecoder is { } flushed)
+                    {
+                        Guarded(_videoItem, "flushed", flushed.Flush);
+                    }
+
+                    _cadence.Restart();
                 }
 
                 if (item.Owner is MediaItem owner && !ReferenceEquals(owner, _videoItem))
                 {
                     // The run has moved to the next item: what the last one's decoder holds is shown first.
-                    DrainAndShow(_videoItem.VideoDecoder, state);
+                    DrainAndShow(_videoItem, state);
                     Volatile.Write(ref _videoItem, owner);
                     state.Target = MediaTime.Zero;
+                    (state.Shown, state.OnTarget) = (false, false);
                     lock (_endGate)
                     {
                         _videoEndedGeneration = -1;
@@ -145,7 +155,7 @@ public sealed partial class MediaSession
                 var decoder = _videoItem.VideoDecoder;
                 if (item.EndOfStream)
                 {
-                    DrainAndShow(decoder, state);
+                    DrainAndShow(_videoItem, state);
                     StreamEnded(video: true, state.Generation);
                     continue;
                 }
@@ -155,11 +165,13 @@ public sealed partial class MediaSession
                 {
                     decoder!.Decode(packet, state.Decoded);
                 }
-                catch (MediaFormatException ex)
+                catch (Exception ex) when (Recoverable(ex))
                 {
-                    // A damaged picture is skipped; the decoder picks up again at the next keyframe.
+                    // A damaged picture is skipped; the decoder picks up again at the next keyframe,
+                    // and the sound plays on meanwhile.
                     Interlocked.Increment(ref _corruptPackets);
-                    _session._log.Warning(LogSource, "A video packet could not be decoded: " + ex.Message);
+                    ReportDamage(_videoItem);
+                    _session._log.Warning(LogSource, "A video packet could not be decoded: " + ExceptionDiagnostics.Summary(ex));
                     DisposeAll(state.Decoded);
                     continue;
                 }
@@ -168,15 +180,19 @@ public sealed partial class MediaSession
             }
         }
 
-        /// <summary>Shows everything a decoder still holds, batch by batch, releasing each batch before asking for the next.</summary>
-        private void DrainAndShow(IVideoDecoder? decoder, VideoState state)
+        /// <summary>
+        /// Shows everything an item's decoder still holds, batch by batch, releasing each batch before
+        /// asking for the next. A decoder that fails part-way keeps the pictures it gave; the rest are lost.
+        /// </summary>
+        private void DrainAndShow(MediaItem item, VideoState state)
         {
-            if (decoder is null)
+            if (item.VideoDecoder is not { } decoder)
             {
                 return;
             }
 
-            while (!decoder.Drain(state.Decoded))
+            var empty = false;
+            while (Guarded(item, "drained", () => empty = decoder.Drain(state.Decoded)) && !empty)
             {
                 Show(state);
             }
@@ -196,13 +212,16 @@ public sealed partial class MediaSession
                     using var frame = frames[next++];
                     Interlocked.Increment(ref _videoFramesDecoded);
                     var length = frame.Duration > MediaTime.Zero ? frame.Duration : DefaultLateness;
-                    if (frame.Pts.IsKnown && frame.Pts + length <= state.Target)
+                    var early = frame.Pts.IsKnown && frame.Pts + length <= state.Target;
+                    if (early && !(_sink.IsRealTime && FirstPicture.ShowOnTheWay(state.Shown, frame.Pts + length, state.Target)))
                     {
-                        // Before the target of a precise seek: decoded only to reach it.
+                        // Before the target of a precise seek: decoded only to reach it, except
+                        // the first, shown while the decoder carries on to the target.
                         continue;
                     }
 
-                    if (_sink.IsRealTime && frame.Pts.IsKnown)
+                    var paced = !early && _sink.IsRealTime && frame.Pts.IsKnown && !FirstPicture.ShowAtOnce(state.Shown, IsPaused, frame.Pts, VideoNow);
+                    if (paced)
                     {
                         if (!WaitUntilDue(frame.Pts, state.Generation))
                         {
@@ -221,6 +240,18 @@ public sealed partial class MediaSession
                     frame.Generation = state.Generation;
                     _presenter!.Present(frame);
                     Interlocked.Increment(ref _videoFramesPresented);
+                    RecordCadence(paced, frame.Pts, length);
+                    if (!state.Shown)
+                    {
+                        state.Shown = true;
+                        _session.Reach("first-frame");
+                    }
+
+                    if (!state.OnTarget && !early)
+                    {
+                        state.OnTarget = true;
+                        _session.Reach("target-frame");
+                    }
                 }
             }
             finally
@@ -232,6 +263,25 @@ public sealed partial class MediaSession
 
                 frames.Clear();
             }
+        }
+
+        /// <summary>
+        /// Notes when a picture that waited for its time reached the screen and how late it was; one
+        /// shown at once (the first, or paused) starts the cadence afresh instead.
+        /// </summary>
+        private void RecordCadence(bool paced, MediaTime pts, MediaTime length)
+        {
+            if (!paced)
+            {
+                _cadence.Restart();
+                return;
+            }
+
+            var time = _session._options.Time;
+            _cadence.Presented(
+                time.GetTimestamp() * 1000.0 / time.TimestampFrequency,
+                (VideoNow - pts).TotalSeconds * 1000,
+                length.TotalSeconds * 1000);
         }
 
         /// <summary>Waits until the clock reaches <paramref name="due"/>; false when a seek or the end of the session cut the wait short.</summary>
@@ -257,6 +307,12 @@ public sealed partial class MediaSession
 
             /// <summary>Pictures that end before this are skipped: the target of the current precise seek.</summary>
             public MediaTime Target { get; set; } = MediaTime.Zero;
+
+            /// <summary>A picture of this generation has been shown (the first one is a timing mark).</summary>
+            public bool Shown { get; set; }
+
+            /// <summary>A picture at or after the seek's target has been shown (a timing mark too).</summary>
+            public bool OnTarget { get; set; }
 
             public List<VideoFrame> Decoded { get; } = [];
         }

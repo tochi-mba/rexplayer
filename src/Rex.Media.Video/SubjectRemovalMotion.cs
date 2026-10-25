@@ -30,6 +30,14 @@ public readonly record struct CameraMotion(float Scale, float ShiftX, float Shif
 /// people and other independently moving things count less than the background (Black and
 /// Anandan, "The Robust Estimation of Multiple Motions", CVIU 63(1), 1996).
 /// </para>
+/// <para>
+/// A camera's motion changes little from one picture to the next, so the motion the last picture
+/// found is tried first: refined in detail from there, it is kept when it fits as well as the last
+/// picture's did, and the pyramid search runs only when it does not, as after a jolt or a cut. The
+/// whole picture's pyramid is then needed only for that search, so it is built only for it, and at
+/// least every few pictures so it never grows stale; the search compares with it however old it is
+/// and allows for the motion since.
+/// </para>
 /// </summary>
 public sealed class SubjectRemovalMotion
 {
@@ -48,6 +56,13 @@ public sealed class SubjectRemovalMotion
     // The detailed stage reads at most this many pixels and fits at most this many samples.
     private const int DetailBudget = 400_000;
     private const int DetailSamples = 4_000;
+    // The most pictures the whole picture's pyramid may be older than the latest picture.
+    private const int OldestPyramid = 6;
+    // A predicted motion is kept when its detailed fit leaves at most this much more difference than
+    // the last picture's did, in grey levels, and never more than this much in all.
+    private const float Settling = 1.2f;
+    private const float SettlingSlack = 1;
+    private const float MostSettled = CutResidual / 2;
 
     private readonly float[][] _previous = [[], [], []];
     private readonly float[][] _current = [[], [], []];
@@ -59,6 +74,12 @@ public sealed class SubjectRemovalMotion
     private int _frameHeight;
     private int _step = 1;
     private bool _hasPrevious;
+    // How many pictures the pyramid in _previous is older than the latest picture, and the motion
+    // from the latest picture back to it.
+    private int _pyramidAge;
+    private CameraMotion _sincePyramid = CameraMotion.Still;
+    // The mean difference the latest picture's detailed fit left, or infinity when unknown.
+    private float _settled = float.PositiveInfinity;
     private float[][] _detail = [[], [], []];
     private float[][] _detailPrevious = [[], [], []];
     private DetailLevel[] _detailArea = new DetailLevel[Levels];
@@ -73,48 +94,104 @@ public sealed class SubjectRemovalMotion
     /// <summary>Forget the previous picture, so the next one starts a new sequence.</summary>
     public void Reset()
     {
-        _hasPrevious = false;
-        _lastMotion = CameraMotion.Still;
+        Forget();
         Cut = false;
         Residual = 0;
+    }
+
+    private void Forget()
+    {
+        _hasPrevious = false;
+        _lastMotion = CameraMotion.Still;
+        _settled = float.PositiveInfinity;
     }
 
     /// <summary>
     /// The camera's motion from the previous picture to <paramref name="frame"/> (BGRA), ignoring the
     /// pixels inside <paramref name="exclude"/> and refined in detail over <paramref name="detail"/>.
     /// The first picture, and any picture with too little visible background to measure, report a
-    /// still camera.
+    /// still camera. <paramref name="whole"/>, when given, is the same picture at a whole number of
+    /// times <paramref name="frame"/>'s size, which is then only read in the detail area: the whole
+    /// picture's pyramid is read from it.
     /// </summary>
     public CameraMotion Estimate(VideoFrame frame, (int Left, int Top, int Right, int Bottom) exclude,
-        (int Left, int Top, int Right, int Bottom) detail)
+        (int Left, int Top, int Right, int Bottom) detail, VideoFrame? whole = null)
     {
         ArgumentNullException.ThrowIfNull(frame);
+        var (source, factor) = whole is null ? (frame, 1) : (whole, whole.Width / frame.Width);
         if (frame.Width != _frameWidth || frame.Height != _frameHeight)
         {
             Allocate(frame.Width, frame.Height);
         }
 
-        Shrink(frame);
         ReadDetail(frame, detail);
         Cut = false;
         Residual = 0;
         var motion = CameraMotion.Still;
-        if (_hasPrevious && Align(exclude) is > 0 and var count)
+        // Only a fit the last picture settled gives something to compare with.
+        var (predicted, error) = _hasPrevious && float.IsFinite(_settled) ? Predict(exclude) : (motion, float.PositiveInfinity);
+        if (error <= Math.Min(MostSettled, _settled * Settling + SettlingSlack))
         {
-            motion = Snap(Cut ? _candidates[0] : Decide(count, exclude));
+            (motion, Residual, _settled) = (Snap(predicted), error, error);
+            _sincePyramid = Compose(motion, _sincePyramid);
+            if (++_pyramidAge >= OldestPyramid)
+            {
+                Shrink(source, factor);
+                Advance();
+            }
+        }
+        else
+        {
+            Shrink(source, factor);
+            _settled = float.PositiveInfinity;
+            if (_hasPrevious && Align(exclude) is > 0 and var count)
+            {
+                (motion, _settled) = Cut ? (Relative(_candidates[0]), float.PositiveInfinity) : Decide(count, exclude);
+            }
+
+            Advance();
         }
 
+        motion = Snap(motion);
         _lastMotion = Cut ? CameraMotion.Still : motion;
         _hasPrevious = true;
+        (_detail, _detailPrevious) = (_detailPrevious, _detail);
+        (_detailArea, _detailPreviousArea) = (_detailPreviousArea, _detailArea);
+        return motion;
+    }
+
+    /// <summary>The pyramid just built becomes the one later pictures are compared with.</summary>
+    private void Advance()
+    {
         for (var level = 0; level < Levels; level++)
         {
             (_previous[level], _current[level]) = (_current[level], _previous[level]);
         }
 
-        (_detail, _detailPrevious) = (_detailPrevious, _detail);
-        (_detailArea, _detailPreviousArea) = (_detailPreviousArea, _detailArea);
-        return motion;
+        (_pyramidAge, _sincePyramid) = (0, CameraMotion.Still);
     }
+
+    /// <summary>
+    /// The last picture's motion refined in detail, at half and then at full detail, and the mean
+    /// difference it leaves (Bergen et al.'s model-based estimate started from a prediction).
+    /// </summary>
+    private (CameraMotion Motion, float Error) Predict((int Left, int Top, int Right, int Bottom) exclude)
+    {
+        var (coarse, _) = RefineDetail(1, _lastMotion, exclude, 1);
+        return RefineDetail(0, coarse, exclude, 3);
+    }
+
+    /// <summary>Motion <paramref name="first"/> into a picture followed by <paramref name="then"/> out of it, as one motion.</summary>
+    internal static CameraMotion Compose(CameraMotion first, CameraMotion then) =>
+        new(then.Scale * first.Scale, then.Scale * first.ShiftX + then.ShiftX, then.Scale * first.ShiftY + then.ShiftY);
+
+    /// <summary>
+    /// A motion found against the pyramid, which may be older than the previous picture, as a
+    /// motion into the previous picture: the motion since the pyramid's picture is taken off.
+    /// </summary>
+    private CameraMotion Relative(CameraMotion found) =>
+        new(found.Scale / _sincePyramid.Scale, (found.ShiftX - _sincePyramid.ShiftX) / _sincePyramid.Scale,
+            (found.ShiftY - _sincePyramid.ShiftY) / _sincePyramid.Scale);
 
     /// <summary>Noise in an unmoving shot must not make a recorded background creep: under half a pixel anywhere is still.</summary>
     private CameraMotion Snap(CameraMotion motion)
@@ -132,8 +209,13 @@ public sealed class SubjectRemovalMotion
     /// there at full detail, which decides between them. Hypotheses that settle on the same motion
     /// are followed once.
     /// </summary>
-    private CameraMotion Decide(int count, (int Left, int Top, int Right, int Bottom) exclude)
+    private (CameraMotion Motion, float Error) Decide(int count, (int Left, int Top, int Right, int Bottom) exclude)
     {
+        for (var candidate = 0; candidate < count; candidate++)
+        {
+            _candidates[candidate] = Relative(_candidates[candidate]);
+        }
+
         _candidates[count++] = CameraMotion.Still;
         _candidates[count++] = _lastMotion;
         Span<float> errors = stackalloc float[count];
@@ -176,7 +258,7 @@ public sealed class SubjectRemovalMotion
             }
         }
 
-        return best;
+        return (best, bestError);
     }
 
     /// <summary>Whether a hypothesis lies within a pixel of an earlier one.</summary>
@@ -208,7 +290,10 @@ public sealed class SubjectRemovalMotion
         var height = Math.Clamp(area.Bottom, top + 1, frame.Height) - top;
         var step = Math.Max(1, (int)Math.Ceiling(Math.Sqrt((double)width * height / DetailBudget)));
         var (w, h) = (Math.Max(1, width / step), Math.Max(1, height / step));
-        SubjectRemovalMatte.Ensure(ref _detail[0], w * h);
+        // The area follows the subject and the camera's speed, so its size wavers: room for twice it,
+        // within the budget, keeps that from needing more memory.
+        var room = Math.Min(2 * w * h, DetailBudget + DetailBudget / 4);
+        SubjectRemovalMatte.Ensure(ref _detail[0], w * h, room);
         var far = step / 2;
         // A sample averages the pixels at 0 and far along each axis, so its centre is far / 2 in.
         _detailArea[0] = new DetailLevel(left + far / 2f, top + far / 2f, w, h, step);
@@ -222,6 +307,13 @@ public sealed class SubjectRemovalMotion
             for (var x = 0; x < w; x++)
             {
                 var a = (left + x * step) * 4;
+                if (far == 0)
+                {
+                    // One pixel a sample: the four reads below would all be the same one.
+                    detail[y * w + x] = Grey(plane, row0 + a);
+                    continue;
+                }
+
                 var b = (left + x * step + far) * 4;
                 detail[y * w + x] = (Grey(plane, row0 + a) + Grey(plane, row0 + b)
                     + Grey(plane, row1 + a) + Grey(plane, row1 + b)) * 0.25f;
@@ -232,7 +324,7 @@ public sealed class SubjectRemovalMotion
         {
             var fine = _detailArea[level - 1];
             var (cw, ch) = (Math.Max(1, fine.Width / 2), Math.Max(1, fine.Height / 2));
-            SubjectRemovalMatte.Ensure(ref _detail[level], cw * ch);
+            SubjectRemovalMatte.Ensure(ref _detail[level], cw * ch, room >> (2 * level));
             // Two samples averaged lie halfway between them.
             _detailArea[level] = new DetailLevel(fine.Left + fine.Step / 2, fine.Top + fine.Step / 2, cw, ch, fine.Step * 2);
             var (source, target) = (_detail[level - 1], _detail[level]);
@@ -361,23 +453,25 @@ public sealed class SubjectRemovalMotion
             (w, h) = (Math.Max(1, w / 2), Math.Max(1, h / 2));
         }
 
-        _hasPrevious = false;
-        _lastMotion = CameraMotion.Still;
+        Forget();
     }
 
     /// <summary>
     /// Reads a grey copy, each cell the mean of an evenly spread grid of up to four by four of its
-    /// pixels, so fine texture is averaged rather than aliased; then halves it twice.
+    /// pixels, so fine texture is averaged rather than aliased; then halves it twice. The picture
+    /// read may be <paramref name="factor"/> times the size the motion is measured at.
     /// </summary>
-    private void Shrink(VideoFrame frame)
+    private void Shrink(VideoFrame frame, int factor)
     {
         var plane = frame.Plane(0);
         var stride = frame.Stride(0);
         var (w, h) = (_widths[0], _heights[0]);
         var top = _current[0];
-        var across = Math.Min(_step, 4);
-        var spacing = _step / across;
-        var first = (_step - spacing * (across - 1)) / 2;
+        // A cell of the pyramid spans this many pixels of the picture it is read from.
+        var step = _step * factor;
+        var across = Math.Min(step, 4);
+        var spacing = step / across;
+        var first = (step - spacing * (across - 1)) / 2;
         var weight = 1f / (across * across);
         for (var y = 0; y < h; y++)
         {
@@ -386,10 +480,10 @@ public sealed class SubjectRemovalMotion
                 var total = 0f;
                 for (var j = 0; j < across; j++)
                 {
-                    var row = (y * _step + first + j * spacing) * stride;
+                    var row = (y * step + first + j * spacing) * stride;
                     for (var i = 0; i < across; i++)
                     {
-                        total += Grey(plane, row + (x * _step + first + i * spacing) * 4);
+                        total += Grey(plane, row + (x * step + first + i * spacing) * 4);
                     }
                 }
 
@@ -463,9 +557,12 @@ public sealed class SubjectRemovalMotion
         Span<float> means = stackalloc float[Candidates + 2];
         Span<(int X, int Y)> ends = stackalloc (int, int)[Candidates + 2];
         var found = 0;
-        Keep(Finest(exclude, 0, 0, 1), means, ends, ref found);
-        var (lastX, lastY) = ((int)MathF.Round(_lastMotion.ShiftX / _step), (int)MathF.Round(_lastMotion.ShiftY / _step));
-        if (lastX != 0 || lastY != 0)
+        // With an older pyramid, keeping still means having moved as much as since it was built.
+        var expected = Compose(_lastMotion, _sincePyramid);
+        var (stillX, stillY) = ((int)MathF.Round(_sincePyramid.ShiftX / _step), (int)MathF.Round(_sincePyramid.ShiftY / _step));
+        Keep(Finest(exclude, stillX, stillY, 1), means, ends, ref found);
+        var (lastX, lastY) = ((int)MathF.Round(expected.ShiftX / _step), (int)MathF.Round(expected.ShiftY / _step));
+        if (lastX != stillX || lastY != stillY)
         {
             Keep(Finest(exclude, lastX, lastY, 1), means, ends, ref found);
         }

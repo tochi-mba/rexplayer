@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Rex.Media.AppCore.Commands;
+using Rex.Media.Settings;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using Windows.System;
@@ -14,6 +15,10 @@ public sealed partial class MainWindow
 {
     // Keys whose press ran a shortcut: their release is the shortcut's too.
     private readonly HashSet<VirtualKey> _shortcutKeys = [];
+    private List<(PlaylistRow Row, Rex.Media.AppCore.Player.PlaylistItem Item)>? _playlistDragOrder;
+    private IReadOnlyList<Rex.Media.AppCore.Player.PlaylistItem>? _queueUndoOrder;
+    private Rex.Media.AppCore.Player.PlaylistRemovalSnapshot? _undoQueueRemoval;
+    private Rex.Media.AppCore.Player.PlaylistItem? _undoQueuePlayerItem;
 
     /// <summary>
     /// Whether <paramref name="key"/> is held. For Ctrl, Alt and Shift either of the pair counts:
@@ -37,7 +42,7 @@ public sealed partial class MainWindow
     private void OnPreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
         _lastInputTick = Environment.TickCount64;
-        if (e.Key == VirtualKey.Escape && !e.Handled && EscapeFromUpdateBar())
+        if (e.Key == VirtualKey.Escape && !e.Handled && EscapeFromUpdateCard())
         {
             e.Handled = true;
             return;
@@ -58,8 +63,59 @@ public sealed partial class MainWindow
             return;
         }
 
+        if (!e.Handled && HandleShellMediaKey((int)e.Key))
+        {
+            e.Handled = true;
+            _shortcutKeys.Add(e.Key);
+            return;
+        }
+
         if (e.Handled || FocusManager.GetFocusedElement(Content.XamlRoot) is TextBox or PasswordBox or AutoSuggestBox)
         {
+            return;
+        }
+
+        // WinUI already moves gamepad focus between buttons/cards with its
+        // directional keys and invokes the focused control with A. Handle
+        // only B here, consistently with Alt+Left/Escape: return from a
+        // nested library route before leaving the whole browsing surface.
+        if (e.Key == VirtualKey.GamepadB)
+        {
+            if (LibraryOpen)
+            {
+                if (_details.Count > 0 || _libraryParents.Count > 0
+                    || _librarySeason is not null || _libraryGroup is not null)
+                {
+                    OnLibraryBack(sender, e);
+                }
+                else
+                {
+                    Run(CommandCatalog.ToggleLibrary);
+                }
+            }
+            else if (IsFullScreen)
+            {
+                Run(CommandCatalog.LeaveFullScreen);
+            }
+            else
+            {
+                return;
+            }
+
+            e.Handled = true;
+            _shortcutKeys.Add(e.Key);
+            return;
+        }
+
+        // The preview handler runs before WinUI's list internals can consume Ctrl+End.
+        // Navigate to the final data item, not merely the last realized container.
+        if (e.Key == VirtualKey.End && IsDown(VirtualKey.Control)
+            && IsWithin(FocusManager.GetFocusedElement(Content.XamlRoot) as DependencyObject, PlaylistView)
+            && _playlistRows.Count > 0)
+        {
+            PlaylistView.ScrollIntoView(_playlistRows[^1]);
+            e.Handled = true;
+            _shortcutKeys.Add(e.Key);
             return;
         }
 
@@ -69,6 +125,26 @@ public sealed partial class MainWindow
         }
 
         var focused = FocusManager.GetFocusedElement(Content.XamlRoot) as DependencyObject;
+        // Space/Enter on the focused transport belong to the native Button. Let
+        // WinUI invoke it once on key release and keep keyboard focus there.
+        // The global shortcut path below deliberately moves focus to Stage,
+        // which is correct for unrelated controls but not for Play/Pause itself.
+        if (ReferenceEquals(focused, PlayPauseButton)
+            && (e.Key == VirtualKey.Space || e.Key == VirtualKey.Enter)
+            && !IsDown(VirtualKey.Control) && !IsDown(VirtualKey.Menu) && !IsDown(VirtualKey.Shift))
+        {
+            return;
+        }
+
+        // Alt+Up/Down reorder selected queue entries. The root preview
+        // handler runs before PlaylistView.KeyDown: do not consume those keys
+        // as the global picture-pan shortcuts while keyboard focus is in the queue.
+        if (IsWithin(focused, PlaylistView) && IsDown(VirtualKey.Menu)
+            && (e.Key is VirtualKey.Up or VirtualKey.Down))
+        {
+            return;
+        }
+
         if (ShortcutRouting.ListOwns(chord) && (IsWithin(focused, LibraryList)
             || IsWithin(focused, LibraryCollage) || IsWithin(focused, PlaylistView)))
         {
@@ -120,11 +196,20 @@ public sealed partial class MainWindow
         }
 
         var enqueue = IsDown(VirtualKey.Control);
-        var items = await e.DataView.GetStorageItemsAsync();
-        var paths = items.Select(item => item.Path).Where(path => !string.IsNullOrEmpty(path)).ToList();
-        if (paths.Count > 0)
+        try
         {
-            _player.Drop(paths, enqueue);
+            var items = await e.DataView.GetStorageItemsAsync();
+            var paths = items.Select(item => item.Path).Where(path => !string.IsNullOrEmpty(path)).ToList();
+            if (paths.Count > 0)
+            {
+                _player.Drop(paths, enqueue);
+            }
+        }
+        catch (Exception ex)
+        {
+            // A drop from somewhere that stops answering (or a file that cannot be opened) is told of, not fatal.
+            App.Log.Error("input", "A drop could not be taken: " + ex);
+            Say("What was dropped could not be opened.");
         }
     }
 
@@ -236,16 +321,102 @@ public sealed partial class MainWindow
 
     private void OnPlaylistDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
-        if (PlaylistView.SelectedIndex >= 0)
+        if (_settings.MediaOpenClickMode == MediaOpenClick.DoubleClick && TappedPlaylistIndex(e.OriginalSource) is var index && index >= 0)
         {
-            _player.PlayAt(PlaylistView.SelectedIndex);
+            _player.PlayAt(index);
         }
+    }
+
+    private void OnPlaylistTapped(object sender, TappedRoutedEventArgs e)
+    {
+        if (_settings.MediaOpenClickMode == MediaOpenClick.SingleClick && !IsDown(VirtualKey.Control) && !IsDown(VirtualKey.Shift)
+            && TappedPlaylistIndex(e.OriginalSource) is var index && index >= 0)
+        {
+            _player.PlayAt(index);
+        }
+    }
+
+    /// <summary>
+    /// A context click acts on the row under the pointer. Keep an existing multi-selection when it
+    /// is clicked, but make an unselected row the sole choice so the menu never asks for a selection
+    /// the user's click mode makes awkward to create.
+    /// </summary>
+    private void OnPlaylistRightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        var index = TappedPlaylistIndex(e.OriginalSource);
+        if (index >= 0 && !PlaylistView.SelectedRanges.Any(range => index >= range.FirstIndex && index < range.FirstIndex + (int)range.Length))
+        {
+            PlaylistView.SelectedIndex = index;
+        }
+    }
+
+    private void OnPlaylistDragItemsStarting(object sender, DragItemsStartingEventArgs e)
+    {
+        var items = _player.Playlist.Items;
+        _playlistDragOrder = _playlistRows.Select((row, index) => (row, items[index])).ToList();
+        e.Data.RequestedOperation = DataPackageOperation.Move;
+    }
+
+    private void OnPlaylistDragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
+    {
+        var before = _playlistDragOrder;
+        _playlistDragOrder = null;
+        if (args.DropResult != DataPackageOperation.Move || before is null || before.Count != _playlistRows.Count)
+        {
+            return;
+        }
+
+        // Rows are distinct objects even when the same file occurs twice. Mapping by identity keeps
+        // duplicate playlist entries in exactly the order the user dropped them.
+        var wanted = _playlistRows.Select(row => before.First(pair => ReferenceEquals(pair.Row, row)).Item).ToList();
+        var previous = before.Select(pair => pair.Item).ToArray();
+        var changed = false;
+        for (var target = 0; target < wanted.Count; target++)
+        {
+            var from = _player.Playlist.IndexOf(wanted[target]);
+            if (from != target)
+            {
+                _player.Playlist.Move(from, target);
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            OfferQueueUndo(previous);
+        }
+    }
+
+    private int TappedPlaylistIndex(object source)
+    {
+        if (source is not DependencyObject current)
+        {
+            return -1;
+        }
+
+        for (; current is not null; current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current))
+        {
+            if (current is FrameworkElement { DataContext: PlaylistRow row })
+            {
+                return PlaylistView.Items.IndexOf(row);
+            }
+        }
+
+        return -1;
     }
 
     private void OnPlaylistKeyDown(object sender, KeyRoutedEventArgs e)
     {
         switch (e.Key)
         {
+            case VirtualKey.Up when IsDown(VirtualKey.Menu) && PlaylistView.SelectedItems.Count > 0:
+                MoveSelectedPlaylistEntries(-1);
+                e.Handled = true;
+                break;
+            case VirtualKey.Down when IsDown(VirtualKey.Menu) && PlaylistView.SelectedItems.Count > 0:
+                MoveSelectedPlaylistEntries(1);
+                e.Handled = true;
+                break;
             case VirtualKey.Enter when PlaylistView.SelectedIndex >= 0:
                 _player.PlayAt(PlaylistView.SelectedIndex);
                 e.Handled = true;
@@ -257,16 +428,102 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>Removes the selected entries, from the bottom up so the indexes stay right.</summary>
+    /// <summary>Moves the chosen playlist rows together and leaves them chosen at their new positions.</summary>
+    private void MoveSelectedPlaylistEntries(int direction)
+    {
+        var chosen = ChosenEntries();
+        if (chosen.Count == 0)
+        {
+            return;
+        }
+
+        var indexes = chosen.Select(_player.Playlist.IndexOf).Order().ToList();
+        if ((direction < 0 && indexes[0] == 0) || (direction > 0 && indexes[^1] == _player.Playlist.Items.Count - 1))
+        {
+            return;
+        }
+
+        var previous = _player.Playlist.Items.ToArray();
+        IEnumerable<int> moving = direction < 0 ? indexes : indexes.OrderDescending();
+        foreach (var index in moving)
+        {
+            _player.Playlist.Move(index, index + direction);
+        }
+
+        OfferQueueUndo(previous);
+        PlaylistView.SelectedItems.Clear();
+        foreach (var item in chosen)
+        {
+            if (_player.Playlist.IndexOf(item) is >= 0 and var index)
+            {
+                PlaylistView.SelectedItems.Add(_playlistRows[index]);
+            }
+        }
+
+        PlaylistView.ScrollIntoView(_playlistRows[_player.Playlist.IndexOf(chosen[0])]);
+        Say(chosen.Count == 1 ? $"Moved to position {_player.Playlist.IndexOf(chosen[0]) + 1}" : $"Moved {chosen.Count} entries");
+    }
+
+    private void OfferQueueUndo(IReadOnlyList<Rex.Media.AppCore.Player.PlaylistItem> before)
+    {
+        _queueUndoOrder = before;
+        PlaylistUndoReorder.IsEnabled = true;
+    }
+
+    private void OnPlaylistUndoReorder(object sender, RoutedEventArgs e)
+    {
+        if (_queueUndoOrder is not { } before)
+        {
+            return;
+        }
+
+        _queueUndoOrder = null;
+        if (_player.Playlist.RestoreOrder(before))
+        {
+            Say("Queue order restored");
+        }
+
+        PlaylistUndoReorder.IsEnabled = false;
+    }
+
+    /// <summary>Remove the exact selected entry instances with one state change, preserving playback.</summary>
     private void RemoveSelected()
     {
-        var indexes = PlaylistView.SelectedRanges
-            .SelectMany(range => Enumerable.Range(range.FirstIndex, (int)range.Length))
-            .OrderDescending()
-            .ToList();
-        foreach (var index in indexes)
+        var chosen = ChosenEntries();
+        if (chosen.Count == 0)
         {
-            _player.Playlist.RemoveAt(index);
+            return;
+        }
+
+        _undoQueueRemoval = _player.Playlist.CaptureRemoval();
+        _undoQueuePlayerItem = _player.Item;
+        _player.Playlist.RemoveEntries(chosen);
+        PlaylistUndoRemoval.IsEnabled = true;
+        Say(chosen.Count == 1 ? "Removed entry from the queue. Undo removal is available"
+            : $"Removed {chosen.Count} entries from the queue. Undo removal is available");
+    }
+
+    private void OnPlaylistUndoRemoval(object sender, RoutedEventArgs e)
+    {
+        if (_undoQueueRemoval is not { } saved)
+        {
+            return;
+        }
+
+        var canRestore = ReferenceEquals(_undoQueuePlayerItem, _player.Item)
+            && _player.Playlist.UndoRemoval(saved);
+        _undoQueueRemoval = null;
+        _undoQueuePlayerItem = null;
+        PlaylistUndoRemoval.IsEnabled = false;
+        Say(canRestore ? "Removed queue entries restored" : "The queue changed; removal cannot be undone");
+    }
+
+    /// <summary>Explicit navigation does not change the queue, playback or other selection.</summary>
+    private void OnPlaylistJumpNow(object sender, RoutedEventArgs e)
+    {
+        if (_player.Playlist.CurrentIndex is >= 0 and var index && index < _playlistRows.Count)
+        {
+            PlaylistView.ScrollIntoView(_playlistRows[index]);
         }
     }
 

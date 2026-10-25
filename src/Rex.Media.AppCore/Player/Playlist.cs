@@ -33,7 +33,31 @@ public sealed class PlaylistItem(string location)
         var title = Path.GetFileNameWithoutExtension(Uri.UnescapeDataString(name));
         return title.Length > 0 ? title : location;
     }
+
+    /// <summary>The folder or host that can distinguish equally named entries, when one exists.</summary>
+    public static string? SourceOf(string location)
+    {
+        if (Uri.TryCreate(location, UriKind.Absolute, out var uri) && !uri.IsFile)
+        {
+            return uri.Host.Length > 0 ? uri.Host : null;
+        }
+
+        var separator = location.LastIndexOfAny(['/', '\\']);
+        if (separator <= 0)
+        {
+            return null;
+        }
+
+        var folder = location[..separator].TrimEnd('/', '\\');
+        var parent = folder.LastIndexOfAny(['/', '\\']);
+        var name = folder[(parent + 1)..];
+        return name.Length > 0 ? name : null;
+    }
 }
+
+/// <summary>One exact queue and shuffled play-order snapshot, before a destructive queue removal.</summary>
+public sealed record PlaylistRemovalSnapshot(IReadOnlyList<PlaylistItem> Items, IReadOnlyList<PlaylistItem> Order,
+    PlaylistItem? Current, int Position, bool Shuffle);
 
 /// <summary>
 /// The list of things to play and the order they play in. The list (<see cref="Items"/>) is what
@@ -60,6 +84,9 @@ public sealed class Playlist(Random? random = null)
     public PlaylistItem? Current { get; private set; }
 
     public int CurrentIndex => Current is null ? -1 : _items.IndexOf(Current);
+
+    /// <summary>Where <paramref name="item"/> is in the queue, or -1 when it is not there.</summary>
+    public int IndexOf(PlaylistItem item) => _items.IndexOf(item);
 
     public RepeatMode Repeat
     {
@@ -123,6 +150,81 @@ public sealed class Playlist(Random? random = null)
         Raise();
     }
 
+    /// <summary>
+    /// Schedule selected items immediately after what is playing, even with shuffle on.
+    /// Unlike <see cref="Insert"/>, which mixes additions into the shuffled remainder, these
+    /// items have an explicit user-requested order and are never shuffled away from next.
+    /// </summary>
+    public void InsertNext(int index, IEnumerable<PlaylistItem> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var added = items.ToList();
+        if (added.Count == 0)
+        {
+            return;
+        }
+
+        _items.InsertRange(Math.Clamp(index, 0, _items.Count), added);
+        _nextCycle = null;
+        if (_shuffle)
+        {
+            _order.InsertRange(Math.Clamp(_position + 1, 0, _order.Count), added);
+        }
+        else
+        {
+            Unshuffle();
+        }
+
+        Raise();
+    }
+
+    /// <summary>
+    /// Moves existing queue entries immediately after the current one in the requested order,
+    /// without adding another copy or changing the playing item. Under shuffle the explicit
+    /// play-next order takes priority over the random remainder; repeated file locations still
+    /// refer to distinct queue entries.
+    /// </summary>
+    public void QueueNext(IEnumerable<PlaylistItem> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var selected = items.Where(item => !ReferenceEquals(item, Current) && _items.Contains(item))
+            .Distinct<PlaylistItem>(ReferenceEqualityComparer.Instance).ToList();
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        var ended = Current is null && _position >= _order.Count;
+        foreach (var item in selected)
+        {
+            _items.Remove(item);
+            var at = _order.IndexOf(item);
+            _order.RemoveAt(at);
+            if (at <= _position)
+            {
+                _position--;
+            }
+        }
+
+        if (ended)
+        {
+            // After the queue ended, an explicit next choice becomes its new beginning.
+            _position = -1;
+        }
+
+        var insertAt = Current is not null ? _items.IndexOf(Current) + 1
+            : ended || _position < 0 ? 0 : _items.IndexOf(_order[_position]) + 1;
+        _items.InsertRange(insertAt, selected);
+        _order.InsertRange(Math.Clamp(_position + 1, 0, _order.Count), selected);
+        _nextCycle = null;
+        if (!_shuffle)
+        {
+            Unshuffle();
+        }
+
+        Raise();
+    }
+
     /// <summary>Empties the queue.</summary>
     public void Clear()
     {
@@ -158,6 +260,92 @@ public sealed class Playlist(Random? random = null)
         Raise();
     }
 
+    /// <summary>
+    /// Remove selected entry identities together. Duplicate locations remain distinct; a single
+    /// change notification avoids exposing partially removed queues to the playing window.
+    /// </summary>
+    public void RemoveEntries(IEnumerable<PlaylistItem> entries)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        var selected = entries.Where(item => _items.Contains(item))
+            .ToHashSet(ReferenceEqualityComparer.Instance);
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        _items.RemoveAll(selected.Contains);
+        for (var index = _order.Count - 1; index >= 0; index--)
+        {
+            if (!selected.Contains(_order[index]))
+            {
+                continue;
+            }
+
+            _order.RemoveAt(index);
+            if (index <= _position)
+            {
+                _position--;
+            }
+        }
+
+        if (Current is { } playing && selected.Contains(playing))
+        {
+            Current = null;
+        }
+
+        _nextCycle = null;
+        Raise();
+    }
+
+    /// <summary>Capture the exact identities and shuffled order before removing entries.</summary>
+    public PlaylistRemovalSnapshot CaptureRemoval() => new(_items.ToArray(), _order.ToArray(), Current, _position, _shuffle);
+
+    /// <summary>
+    /// A removal may be undone only before another queue edit or playback transition. This
+    /// explicitly rejects additions, reorders or an altered shuffle order rather than overwriting
+    /// someone else's changes.
+    /// </summary>
+    public bool CanUndoRemoval(PlaylistRemovalSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        if (snapshot.Shuffle != _shuffle || snapshot.Items.Count < _items.Count)
+        {
+            return false;
+        }
+
+        var stillPresent = _items.ToHashSet(ReferenceEqualityComparer.Instance);
+        if (!snapshot.Items.Where(stillPresent.Contains).SequenceEqual(_items)
+            || !snapshot.Order.Where(stillPresent.Contains).SequenceEqual(_order))
+        {
+            return false;
+        }
+
+        var removedBefore = snapshot.Order.Take(Math.Min(snapshot.Position + 1, snapshot.Order.Count))
+            .Count(item => !stillPresent.Contains(item));
+        var expectedPosition = snapshot.Position - removedBefore;
+        var expectedCurrent = snapshot.Current is { } previous && stillPresent.Contains(previous) ? previous : null;
+        return expectedPosition == _position && ReferenceEquals(expectedCurrent, Current);
+    }
+
+    /// <summary>Restore the exact queue and play order, without starting or seeking the engine.</summary>
+    public bool UndoRemoval(PlaylistRemovalSnapshot snapshot)
+    {
+        if (!CanUndoRemoval(snapshot))
+        {
+            return false;
+        }
+
+        _items.Clear();
+        _items.AddRange(snapshot.Items);
+        _order = [.. snapshot.Order];
+        _position = snapshot.Position;
+        Current = snapshot.Current;
+        _nextCycle = null;
+        Raise();
+        return true;
+    }
+
     /// <summary>Puts <paramref name="item"/> in place of the one at <paramref name="index"/>, in its place in the play order too.</summary>
     public void Replace(int index, PlaylistItem item)
     {
@@ -180,11 +368,80 @@ public sealed class Playlist(Random? random = null)
         var item = _items[from];
         _items.RemoveAt(from);
         _items.Insert(Math.Clamp(to, 0, _items.Count), item);
+        _nextCycle = null;
         if (!_shuffle)
         {
             Unshuffle();
         }
 
+        Raise();
+    }
+
+    /// <summary>Whether these exact entry objects still make up the queue, regardless of order.</summary>
+    public bool CanRestoreOrder(IReadOnlyList<PlaylistItem> order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        if (order.Count != _items.Count)
+        {
+            return false;
+        }
+
+        var remaining = new HashSet<PlaylistItem>(_items, ReferenceEqualityComparer.Instance);
+        return order.All(remaining.Remove);
+    }
+
+    /// <summary>Restore the visible order in one notification without interrupting the current media or shuffle order.</summary>
+    public bool RestoreOrder(IReadOnlyList<PlaylistItem> order)
+    {
+        if (!CanRestoreOrder(order))
+        {
+            return false;
+        }
+
+        _items.Clear();
+        _items.AddRange(order);
+        _nextCycle = null;
+        if (!_shuffle)
+        {
+            Unshuffle();
+        }
+
+        Raise();
+        return true;
+    }
+
+    /// <summary>
+    /// Makes an existing queued entry the next one to play without duplicating it.
+    /// Unlike a regular move, this also changes the remaining shuffle order.
+    /// </summary>
+    public void QueueNext(int index)
+    {
+        var item = _items[index];
+        if (Current is null || item == Current)
+        {
+            return;
+        }
+
+        var target = NextIndex;
+        _items.RemoveAt(index);
+        _items.Insert(Math.Clamp(target - (index < target ? 1 : 0), 0, _items.Count), item);
+        if (_shuffle)
+        {
+            var at = _order.IndexOf(item);
+            _order.RemoveAt(at);
+            if (at <= _position)
+            {
+                _position--;
+            }
+
+            _order.Insert(Math.Clamp(_position + 1, 0, _order.Count), item);
+        }
+        else
+        {
+            Unshuffle();
+        }
+
+        _nextCycle = null;
         Raise();
     }
 
@@ -279,15 +536,24 @@ public sealed class Playlist(Random? random = null)
             return null;
         }
 
-        // With nothing current (its item was removed) the position is already the item before it.
-        var target = Current is null && _position >= 0 && _position < _order.Count ? _position : _position - 1;
-        _position = target >= 0 ? target
-            : Repeat == RepeatMode.All ? _order.Count - 1
-            : 0;
+        _position = PreviousPosition();
         _nextCycle = null;
         Current = _order[_position];
         Raise();
         return Current;
+    }
+
+    /// <summary>What <see cref="Previous"/> would give, without moving; null when the queue is empty.</summary>
+    public PlaylistItem? PeekPrevious() => _order.Count == 0 ? null : _order[PreviousPosition()];
+
+    /// <summary>Where <see cref="Previous"/> moves to; the queue is not empty.</summary>
+    private int PreviousPosition()
+    {
+        // With nothing current (its item was removed) the position is already the item before it.
+        var target = Current is null && _position >= 0 && _position < _order.Count ? _position : _position - 1;
+        return target >= 0 ? target
+            : Repeat == RepeatMode.All ? _order.Count - 1
+            : 0;
     }
 
     /// <summary>The order of the next pass through the queue, chosen once so a peek and the move agree.</summary>
@@ -306,10 +572,22 @@ public sealed class Playlist(Random? random = null)
         return _nextCycle;
     }
 
+    /// <summary>
+    /// Where in the list items put next go: straight after what is playing, or with nothing current
+    /// (its item was removed) after the item the queue carries on from; before the start or after
+    /// the end, at the top, where playing starts again.
+    /// </summary>
+    public int NextIndex => Current is not null ? CurrentIndex + 1
+        : _position >= 0 && _position < _order.Count ? _items.IndexOf(_order[_position]) + 1
+        : 0;
+
+    /// <summary>The play order back to the list's order, still carrying on from the same place.</summary>
     private void Unshuffle()
     {
+        // With nothing current the position marks the item the queue carries on from; it keeps the mark wherever it now is.
+        var mark = Current ?? (_position >= 0 && _position < _order.Count ? _order[_position] : null);
         _order = [.. _items];
-        _position = Current is null ? Math.Min(_position, _order.Count) : _order.IndexOf(Current);
+        _position = mark is null ? Math.Min(_position, _order.Count) : _order.IndexOf(mark);
     }
 
     private List<PlaylistItem> Shuffled(IEnumerable<PlaylistItem> items)

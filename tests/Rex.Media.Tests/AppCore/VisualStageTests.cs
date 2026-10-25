@@ -1,4 +1,5 @@
 using System.Globalization;
+using Rex.Media.Audio;
 using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Visuals;
 using Rex.Media.Primitives;
@@ -24,7 +25,75 @@ public sealed class VisualStageTests
         VisualizerChoice.Strobe,
         VisualizerChoice.Silhouette,
         VisualizerChoice.BeatEdit,
-        VisualizerChoice.Resonance);
+        VisualizerChoice.Resonance,
+        VisualizerChoice.Groove,
+        VisualizerChoice.Flight,
+        VisualizerChoice.Cymatics,
+        VisualizerChoice.Ridgelines,
+        VisualizerChoice.Synthwave,
+        VisualizerChoice.Fireworks,
+        VisualizerChoice.Lightning,
+        VisualizerChoice.Lava,
+        VisualizerChoice.Constellation,
+        VisualizerChoice.Galaxy,
+        VisualizerChoice.Kaleidoscope,
+        VisualizerChoice.Murmuration,
+        VisualizerChoice.Ink,
+        VisualizerChoice.Skyline,
+        VisualizerChoice.Mandala,
+        VisualizerChoice.Clones,
+        VisualizerChoice.TimeWarp,
+        VisualizerChoice.Aura,
+        VisualizerChoice.LedWall,
+        VisualizerChoice.Stardust,
+        VisualizerChoice.HallOfMirrors,
+        VisualizerChoice.LightPainting,
+        VisualizerChoice.Scanner,
+        VisualizerChoice.Shatter,
+        VisualizerChoice.Spotlight,
+        VisualizerChoice.InfinityMirror,
+        VisualizerChoice.Water);
+
+    public static readonly TheoryData<VisualizerChoice> CameraScenes = new(
+        VisualizerChoice.Clones,
+        VisualizerChoice.TimeWarp,
+        VisualizerChoice.Aura,
+        VisualizerChoice.LedWall,
+        VisualizerChoice.Stardust,
+        VisualizerChoice.HallOfMirrors,
+        VisualizerChoice.LightPainting,
+        VisualizerChoice.Scanner,
+        VisualizerChoice.Shatter,
+        VisualizerChoice.Spotlight,
+        VisualizerChoice.InfinityMirror,
+        VisualizerChoice.Water);
+
+    [Theory]
+    [MemberData(nameof(CameraScenes))]
+    public void CameraVisualisationsShowTheWaitingAnimationUntilPicturesAndMasksArrive(VisualizerChoice choice)
+    {
+        var stage = Stage(48, 30);
+        // An absent picture is valid during camera warm-up; the stage must still draw something.
+        stage.Context.Camera = null;
+        stage.Context.Mask = null;
+        var waiting = Play(stage, choice, new SyntheticMusic(120, 1), frames: 8);
+        Assert.True(Brightness(waiting[^1]) > 0, $"{choice} should show its waiting animation.");
+
+        // A picture can become available before an outline; this is another waiting state.
+        stage = Stage(48, 30);
+        stage.Context.Mask = null;
+        var withoutOutline = Play(stage, choice, new SyntheticMusic(120, 1), frames: 8);
+        Assert.True(Brightness(withoutOutline[^1]) > 0, $"{choice} should tolerate an absent outline.");
+    }
+
+    [Fact]
+    public void TheInfinityMirrorRecyclesItsOldestBeatWithoutGrowingUnbounded()
+    {
+        var stage = Stage(24, 16);
+        // The mirror remembers sixteen beats. More than sixteen must exercise frame eviction.
+        var frames = Play(stage, VisualizerChoice.InfinityMirror, new SyntheticMusic(120, 22));
+        Assert.True(Brightness(frames[^1]) > 0);
+    }
 
     private static readonly IReadOnlyDictionary<string, string> Defaults = new Dictionary<string, string>();
 
@@ -40,13 +109,146 @@ public sealed class VisualStageTests
         samples[1] = float.NegativeInfinity;
         for (var i = 0; i < 5; i++)
         {
-            Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, samples, samples, sampleRate, TimeSpan.FromMilliseconds(30)));
+            Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, samples, samples, sampleRate, TimeSpan.FromMilliseconds(30), TestContext.Current.CancellationToken));
         }
 
         Assert.All(stage.Context.Left, value => Assert.Equal(0, value));
         Assert.All(stage.Context.Right, value => Assert.Equal(0, value));
         Assert.True(float.IsFinite(stage.Canvas.AverageLuma()));
         Assert.True(float.IsFinite(stage.Pulse.Snare.Level));
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void CanceledVisualFramesNeverEnterAnalysisAndNextTrackMayStartFresh()
+    {
+        var stage = Stage(64, 36);
+        var sound = new float[VisualStage.SoundSize];
+        using var oldTrack = new CancellationTokenSource();
+        oldTrack.Cancel();
+        Assert.Throws<OperationCanceledException>(() => stage.Draw(
+            VisualizerChoice.Halo, Defaults, sound, sound, 48000,
+            TimeSpan.FromMilliseconds(30), oldTrack.Token));
+
+        // A new song does not inherit the cancellation token from a stopped
+        // or closed visualisation and can immediately render a new scene.
+        Assert.True(stage.Draw(VisualizerChoice.Mirror, Defaults, sound, sound,
+            48000, TimeSpan.FromMilliseconds(30), CancellationToken.None));
+        Assert.True(float.IsFinite(stage.Canvas.AverageLuma()));
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void ShortAndMissingVisualizerSamplesStaySilentUntilTheSourceHasData()
+    {
+        var stage = Stage(48, 30);
+        var shortSound = new float[] { 0.25f, -0.5f, 0.75f };
+        Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, shortSound, [], 48000, TimeSpan.FromMilliseconds(30), TestContext.Current.CancellationToken));
+        Assert.Equal(VisualStage.SoundSize - shortSound.Length, stage.Context.Left.TakeWhile(x => x == 0).Count()
+            + (VisualStage.SoundSize - stage.Context.Left.Length));
+        Assert.Equal(stage.Context.Left, stage.Context.Right);
+        Assert.Equal(0.25f, stage.Context.Left[^3]);
+        Assert.Equal(-0.5f, stage.Context.Left[^2]);
+        Assert.Equal(0.75f, stage.Context.Left[^1]);
+
+        Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, [], [], 48000, TimeSpan.FromMilliseconds(30), TestContext.Current.CancellationToken));
+        Assert.All(stage.Context.Left, sample => Assert.Equal(0, sample));
+        Assert.All(stage.Context.Right, sample => Assert.Equal(0, sample));
+        Assert.True(float.IsFinite(stage.Canvas.AverageLuma()));
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void OversizedAndClippedVisualizerChannelsUseRecentFiniteSamples()
+    {
+        var stage = Stage(48, 30);
+        var longer = Enumerable.Repeat(0.1f, VisualStage.SoundSize + 16).ToArray();
+        longer[^3] = float.NaN;
+        longer[^2] = float.PositiveInfinity;
+        longer[^1] = 4f;
+        Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, longer, [],
+            48000, TimeSpan.FromMilliseconds(30), TestContext.Current.CancellationToken));
+        Assert.Equal(0, stage.Context.Left[^3]);
+        Assert.Equal(0, stage.Context.Left[^2]);
+        Assert.Equal(1, stage.Context.Left[^1]);
+        Assert.All(stage.Context.Left, sample => Assert.InRange(sample, -1, 1));
+        Assert.Equal(-1f, VisualStage.SafeSample(-4));
+        Assert.Equal(0f, VisualStage.SafeSample(float.NegativeInfinity));
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void SurroundMusicDownmixesToAnAccurateStereoVisualizerSignal()
+    {
+        using var sixChannels = AudioFrame.Rent(48000, 6, 12, ChannelLayout.Surround51);
+        for (var i = 0; i < sixChannels.SampleCount; i++)
+        {
+            sixChannels.Channel(0)[i] = 0.3f;
+            sixChannels.Channel(1)[i] = -0.25f;
+            sixChannels.Channel(2)[i] = 0.4f;
+            sixChannels.Channel(4)[i] = 0.15f;
+            sixChannels.Channel(5)[i] = -0.1f;
+        }
+
+        using var stereo = new ChannelMixer(ChannelLayout.Surround51, ChannelLayout.Stereo).Process(sixChannels);
+        var stage = Stage(48, 30);
+        Assert.True(stage.Draw(VisualizerChoice.Mirror, Defaults,
+            stereo.Channel(0), stereo.Channel(1), stereo.SampleRate, TimeSpan.FromMilliseconds(30), TestContext.Current.CancellationToken));
+        Assert.Equal(0, stage.Context.Left[^13]);
+        Assert.InRange(stage.Context.Left[^1], 0.25f, 0.4f);
+        Assert.InRange(stage.Context.Right[^1], -0.2f, 0.1f);
+        Assert.NotEqual(stage.Context.Left[^1], stage.Context.Right[^1]);
+        Assert.True(float.IsFinite(stage.Canvas.AverageLuma()));
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void UnavailableAndOffModesResetWithoutLeavingASceneStuck()
+    {
+        var stage = Stage();
+        float[] silence = new float[VisualStage.SoundSize];
+        Assert.False(stage.Draw(VisualizerChoice.Off, Defaults, silence, silence, 48000, TimeSpan.FromSeconds(1d / 30), TestContext.Current.CancellationToken));
+        Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, silence, silence, 48000, TimeSpan.FromSeconds(1d / 30), TestContext.Current.CancellationToken));
+        Assert.False(stage.Draw(VisualizerChoice.Off, Defaults, silence, silence, 48000, TimeSpan.FromSeconds(1d / 30), TestContext.Current.CancellationToken));
+        Assert.True(stage.Draw(VisualizerChoice.Mirror, Defaults, silence, silence, 48000, TimeSpan.FromSeconds(1d / 30), TestContext.Current.CancellationToken));
+        Assert.True(float.IsFinite(stage.Canvas.AverageLuma()));
+        stage.Reset();
+        Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, silence, silence, 48000, TimeSpan.FromSeconds(1d / 30), TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
+    [Capability("AU-18")]
+    [InlineData(VisualizerChoice.Halo)]
+    [InlineData(VisualizerChoice.Mirror)]
+    [InlineData(VisualizerChoice.Aurora)]
+    [InlineData(VisualizerChoice.BeatEdit)]
+    public void MonoAndStereoSourcesRenderWithinBoundsWithoutARequiredCamera(VisualizerChoice choice)
+    {
+        var left = new float[VisualStage.SoundSize];
+        var right = new float[VisualStage.SoundSize];
+        for (var i = 0; i < left.Length; i++)
+        {
+            left[i] = (float)(0.55 * Math.Sin(i * Math.PI / 19));
+            right[i] = (float)(0.35 * Math.Sin(i * Math.PI / 31));
+        }
+
+        var mono = Stage(96, 54);
+        mono.Context.Camera = null;
+        mono.Context.Mask = null;
+        Assert.True(mono.Draw(choice, Defaults, left, left, 48000, TimeSpan.FromSeconds(1d / 30), TestContext.Current.CancellationToken));
+        Assert.Equal(mono.Context.Left, mono.Context.Right);
+        Assert.True(float.IsFinite(mono.Canvas.AverageLuma()));
+
+        var stereo = Stage(96, 54);
+        stereo.Context.Camera = null;
+        stereo.Context.Mask = null;
+        Assert.True(stereo.Draw(choice, Defaults, left, right, 48000, TimeSpan.FromSeconds(1d / 30), TestContext.Current.CancellationToken));
+        Assert.NotEqual(stereo.Context.Left.ToArray(), stereo.Context.Right.ToArray());
+        Assert.True(float.IsFinite(stereo.Canvas.AverageLuma()));
+
+        stereo.Context.Camera = new VisualPicture([0, 0, 0], 1, 1);
+        Assert.True(stereo.Draw(choice, Defaults, left, right, 48000, TimeSpan.FromSeconds(1d / 30), TestContext.Current.CancellationToken));
+        Assert.True(float.IsFinite(stereo.Canvas.AverageLuma()));
     }
 
     /// <summary>
@@ -74,7 +276,7 @@ public sealed class VisualStageTests
             var (left, right) = music.At(frame);
             stage.Context.Seconds = (double)frame / SyntheticMusic.Fps;
             stage.Context.Progress = stage.Context.Seconds / 60;
-            Assert.True(stage.Draw(choice, options ?? Defaults, left, right, SyntheticMusic.Rate, SyntheticMusic.FrameTime));
+            Assert.True(stage.Draw(choice, options ?? Defaults, left, right, SyntheticMusic.Rate, SyntheticMusic.FrameTime, TestContext.Current.CancellationToken));
             drawn.Add([.. stage.Pixels]);
         }
 
@@ -138,7 +340,7 @@ public sealed class VisualStageTests
             scene.Draw(context);
         }
 
-        Assert.NotNull(canvas);
+        Assert.Equal(3, scene.Waves);
     }
 
     [Theory]
@@ -153,6 +355,18 @@ public sealed class VisualStageTests
         var lit = music.Skip(30).Average(Brightness);
         Assert.InRange(lit, 0.01, 0.75);
         Assert.True(Motion(music) > Motion(silence) * 1.2 + 0.0005, $"{choice} moves {Motion(music):0.0000} with music, {Motion(silence):0.0000} in silence.");
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void LightningKeepsMovingAcrossTheShortIntervalsCapturedByTheWindow()
+    {
+        // The UI regression samples the live stage around every 170 ms. A storm
+        // must not look frozen between brief lightning strikes, even when the
+        // synthetic song has a quieter passage.
+        var frames = Play(Stage(160, 90), VisualizerChoice.Lightning, new SyntheticMusic(120, 4));
+        var samples = new List<byte[]> { frames[60], frames[65], frames[70], frames[75], frames[80], frames[85] };
+        Assert.True(Motion(samples) > 0.001, $"Lightning changed only {Motion(samples):0.0000} between moments.");
     }
 
     [Theory]
@@ -216,6 +430,17 @@ public sealed class VisualStageTests
 
         Play(stage, VisualizerChoice.Resonance, new SyntheticMusic(120, 5, silence: true));
         Assert.Equal(0, scene.Waves);
+    }
+
+    [Fact]
+    public void TheRidgelinesKeepOnlyAsManyRidgesAsAsked()
+    {
+        // Twelve ridges, laid three a second: after six seconds the oldest have gone.
+        var stage = Stage();
+        Play(stage, VisualizerChoice.Ridgelines, new SyntheticMusic(120, 6), VisualizerOptions.With(Defaults, VisualizerChoice.Ridgelines, "lines", 12));
+        var scene = SceneOf(stage);
+        var ridges = (System.Collections.ICollection)scene.GetType().GetField("_ridges", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(scene)!;
+        Assert.Equal(12, ridges.Count);
     }
 
     [Fact]
@@ -322,8 +547,6 @@ public sealed class VisualStageTests
             var drawn = Play(stage, VisualizerChoice.Silhouette, new SyntheticMusic(120, 2), VisualizerOptions.With(VisualizerOptions.With(Defaults, VisualizerChoice.Silhouette, "style", style), VisualizerChoice.Silhouette, "background", 1));
             Assert.True(Brightness(drawn[^1]) > 0.005, $"Style {style} draws the listener.");
         }
-
-        Assert.Equal((2.0, 0.0, -10.0), SilhouetteScene.Cover(80, 40, 40, 30));
     }
 
     [Fact]
@@ -337,19 +560,27 @@ public sealed class VisualStageTests
         Assert.Equal((16, 9), VisualStage.SizeFor(1920, double.PositiveInfinity));
         Assert.Equal((1920, 1080), VisualStage.SizeFor(1920, 1080, double.NaN));
         Assert.Equal((320, 180), VisualStage.SizeFor(320, 180));
+
+        // A weaker computer's cap; never above full HD, never below a usable size.
+        Assert.Equal((854, 480), VisualStage.SizeFor(1920, 1080, maxSide: 854));
+        Assert.Equal((1920, 1080), VisualStage.SizeFor(1920, 1080, maxSide: 4000));
+        Assert.Equal((16, 9), VisualStage.SizeFor(1920, 1080, maxSide: 1));
         Assert.False(VisualScene.Draws(VisualizerChoice.Spectrum));
         Assert.True(VisualScene.Draws(VisualizerChoice.BeatEdit));
 
         var stage = Stage(32, 18);
         var (left, right) = new SyntheticMusic(120, 1).At(10);
-        Assert.False(stage.Draw(VisualizerChoice.Spectrum, Defaults, left, right, 48_000, TimeSpan.Zero));
-        Assert.True(stage.Draw(VisualizerChoice.Silhouette, Defaults, left, right, 48_000, TimeSpan.Zero));
-        Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, left, right, 48_000, TimeSpan.Zero));
+        Assert.False(stage.Draw(VisualizerChoice.Spectrum, Defaults, left, right, 48_000, TimeSpan.Zero, TestContext.Current.CancellationToken));
+        Assert.True(stage.Draw(VisualizerChoice.Silhouette, Defaults, left, right, 48_000, TimeSpan.Zero, TestContext.Current.CancellationToken));
+        Assert.True(stage.Draw(VisualizerChoice.Halo, Defaults, left, right, 48_000, TimeSpan.Zero, TestContext.Current.CancellationToken));
         Assert.Same(stage.Pulse, stage.Context.Pulse);
         stage.Reset();
-        Assert.Throws<ArgumentNullException>(() => stage.Draw(VisualizerChoice.Vinyl, null!, left, right, 48_000, TimeSpan.Zero));
-        Assert.Throws<ArgumentException>(() => stage.Draw(VisualizerChoice.Vinyl, Defaults, [0], right, 48_000, TimeSpan.Zero));
-        Assert.Throws<ArgumentException>(() => stage.Draw(VisualizerChoice.Vinyl, Defaults, left, [0], 48_000, TimeSpan.Zero));
+        Assert.Throws<ArgumentNullException>(() => stage.Draw(VisualizerChoice.Vinyl, null!, left, right, 48_000, TimeSpan.Zero, TestContext.Current.CancellationToken));
+        // Short audio inputs are valid: they are zero-padded before visualization.
+        Assert.True(stage.Draw(VisualizerChoice.Vinyl, Defaults, [0], right, 48_000, TimeSpan.Zero, TestContext.Current.CancellationToken));
+        Assert.Equal(0, stage.Context.Left[^1]);
+        Assert.True(stage.Draw(VisualizerChoice.Vinyl, Defaults, left, [0], 48_000, TimeSpan.Zero, TestContext.Current.CancellationToken));
+        Assert.Equal(0, stage.Context.Right[^1]);
         Assert.Throws<ArgumentNullException>(() => new VisualContext(null!, new MusicPulse()));
         Assert.Throws<ArgumentNullException>(() => new VisualContext(new Raster(2, 2), null!));
         Assert.Null(VisualScene.For(VisualizerChoice.Meters));
@@ -433,9 +664,9 @@ public sealed class VisualStageTests
         // A jump of minutes: the record carries on from the new place without cutting all the way round.
         stage.Context.Seconds = 200;
         var (left, right) = music.At(30);
-        Assert.True(stage.Draw(VisualizerChoice.Vinyl, Defaults, left, right, SyntheticMusic.Rate, SyntheticMusic.FrameTime));
+        Assert.True(stage.Draw(VisualizerChoice.Vinyl, Defaults, left, right, SyntheticMusic.Rate, SyntheticMusic.FrameTime, TestContext.Current.CancellationToken));
         stage.Context.Progress = double.NaN;
-        Assert.True(stage.Draw(VisualizerChoice.Vinyl, Defaults, left, right, SyntheticMusic.Rate, SyntheticMusic.FrameTime));
+        Assert.True(stage.Draw(VisualizerChoice.Vinyl, Defaults, left, right, SyntheticMusic.Rate, SyntheticMusic.FrameTime, TestContext.Current.CancellationToken));
         Assert.NotEmpty(frames);
     }
 
@@ -514,5 +745,131 @@ public sealed class VisualStageTests
         }
 
         return mask;
+    }
+
+    [Theory]
+    [Capability("AU-18")]
+    [InlineData(60)]
+    [InlineData(144)]
+    public void TrailsLastAsLongAndDriftAsFarAtAnyFrameRate(int fps)
+    {
+        // The trails were faded, zoomed and moved once a frame: at sixty frames a second a ripple's
+        // trail was gone twice as fast as at thirty, and the window draws at sixty when it can.
+        static (float Light, double Moved) Trailed(int rate)
+        {
+            // A lit pixel left to fade, and a lit column left to drift right.
+            var (fading, drifting) = (new Raster(41, 41), new Raster(41, 41));
+            var frames = (int)Math.Round(rate / 5.0);
+            var (fade, drift) = (new VisualContext(fading, new MusicPulse()) { Dt = 0.2 / frames }, new VisualContext(drifting, new MusicPulse()) { Dt = 0.2 / frames });
+            fading.R[(20 * 41) + 20] = 1;
+            for (var y = 0; y < 41; y++)
+            {
+                drifting.G[(y * 41) + 10] = 1;
+            }
+
+            for (var frame = 0; frame < frames; frame++)
+            {
+                fade.Trail(0.6, 1, 0, 0, 0);
+                fading.Settle();
+                drift.Trail(1, 1, 0, 0.5, 0);
+                drifting.Settle();
+            }
+
+            // Where the column's light is now, along the middle row.
+            var row = Enumerable.Range(0, 41).Select(x => (double)drifting.G[(20 * 41) + x]).ToList();
+            return (fading.R[(20 * 41) + 20], row.Select((g, x) => g * x).Sum() / row.Sum());
+        }
+
+        var (light, moved) = Trailed(30);
+        var (lightAt, movedAt) = Trailed(fps);
+        Assert.InRange(lightAt, light * 0.95f, light * 1.05f);
+        Assert.InRange(movedAt, moved - 0.1, moved + 0.1);
+        Assert.InRange(moved, 12.9, 13.1);
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void TheRoomBehindTheSilhouetteIsOnlyWhereTheCameraSees()
+    {
+        // A 4:3 camera fitted to a wide stage leaves bars either side. The room was sampled there
+        // from the picture's edge, drawing its edge column out across each bar.
+        var stage = Stage(160, 90);
+        var room = new byte[40 * 30 * 4];
+        for (var y = 0; y < 30; y++)
+        {
+            room[(y * 40 * 4) + 0] = room[(y * 40 * 4) + 1] = room[(y * 40 * 4) + 2] = 255;
+        }
+
+        stage.Context.Camera = new VisualPicture(room, 40, 30);
+        Play(stage, VisualizerChoice.Silhouette, new SyntheticMusic(120, 1), VisualizerOptions.With(Defaults, VisualizerChoice.Silhouette, "background", 1), frames: 3);
+        var bar = ((45 * 160) + 5) * 4;
+        Assert.True(stage.Pixels[bar] + stage.Pixels[bar + 1] + stage.Pixels[bar + 2] < 6, "The bar beside the picture is dark.");
+        var edge = ((45 * 160) + 21) * 4;
+        Assert.True(stage.Pixels[edge + 1] > 0, "The picture's own edge column shows.");
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void TheRecordsGrooveAndWaveFollowTheSensitivity()
+    {
+        // Vinyl drew the sound as heard, before the sensitivity: turning it up or down did nothing.
+        double Drawn(double sensitivity)
+        {
+            var stage = Stage();
+            var options = VisualizerOptions.With(Defaults, VisualizerChoice.Vinyl, VisualizerOptions.Sensitivity, sensitivity);
+            return Brightness(Play(stage, VisualizerChoice.Vinyl, new SyntheticMusic(120, 2), options)[^1]);
+        }
+
+        Assert.True(Drawn(3) > Drawn(0.3) * 1.02, $"{Drawn(0.3):0.0000} against {Drawn(3):0.0000}.");
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void TheEmbersSwirlTurnsOnSmoothlyThroughTheBeats()
+    {
+        // The swirl's turn was the beats counted plus the phase of the clock: a beat landing a little
+        // before the clock's own counted it early, and the swirl jumped half a turn and back.
+        var music = new SyntheticMusic(120, 8, humanize: 0.02);
+        var pulse = new MusicPulse();
+        var context = new VisualContext(new Raster(64, 36), pulse) { Choice = VisualizerChoice.Embers, Dt = 1.0 / SyntheticMusic.Fps, Random = new Random(3) };
+        var scene = new EmbersScene();
+        var (last, largest) = (0.0, 0.0);
+        for (var frame = 1; frame <= music.Frames; frame++)
+        {
+            pulse.Update(music.Mono(frame), SyntheticMusic.Rate, music.Step);
+            context.Prepare();
+            scene.Draw(context);
+            largest = frame > 1 ? Math.Max(largest, Math.Abs(scene.Turn - last)) : 0;
+            last = scene.Turn;
+        }
+
+        Assert.True(pulse.Locked);
+        Assert.True(largest < Math.PI / 4, $"The swirl turned {largest:0.00} radians in a frame.");
+        Assert.InRange(scene.Turn, Math.PI * 12, Math.PI * 17);
+    }
+
+    [Fact]
+    [Capability("AU-18")]
+    public void TheBeatMetersSquareShowsOnANarrowStageAndGoesOutOnReset()
+    {
+        var stage = Stage(48, 27);
+        var options = VisualizerOptions.With(Defaults, VisualizerChoice.Halo, VisualizerOptions.Meter, 1);
+        var music = new SyntheticMusic(120, 4);
+        var square = ((22 * 48) + 46) * 4;
+        var lit = false;
+        for (var frame = 1; frame <= music.Frames && !lit; frame++)
+        {
+            var (left, right) = music.At(frame);
+            stage.Draw(VisualizerChoice.Halo, options, left, right, SyntheticMusic.Rate, music.Step, TestContext.Current.CancellationToken);
+            lit = stage.Pulse.Beat && stage.Pixels[square] > 200;
+        }
+
+        Assert.True(lit, "A beat lights the square even 48 pixels across.");
+
+        // After a reset the square is dim again at once, not still lit by the last song's beat.
+        stage.Reset();
+        var silence = new float[VisualStage.SoundSize];
+        stage.Draw(VisualizerChoice.Halo, options, silence, silence, SyntheticMusic.Rate, TimeSpan.Zero, TestContext.Current.CancellationToken);
+        Assert.InRange(stage.Pixels[square], (byte)1, (byte)60);
     }
 }

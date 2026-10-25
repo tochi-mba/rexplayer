@@ -17,7 +17,7 @@ public sealed class RipplesScene : VisualScene
         var (w, h) = (canvas.Width, canvas.Height);
         var pulse = context.Pulse;
         var size = Math.Min(w, h);
-        canvas.Feedback(0.6f, 1.0, 0, 0, 0);
+        context.Trail(0.6, 1.0, 0, 0, 0);
 
         // The water itself, lit from below, brightening with the bass.
         canvas.Glow(w / 2.0, h / 2.0, Math.Max(w, h) * 0.7, context.Paint(0.2), 0.05f + (0.15f * pulse.Bass) + (0.45f * pulse.Punch));

@@ -35,6 +35,15 @@ public sealed class FakeVideoDecoderFactory : IDecoderFactory
     /// <summary>Packets whose first byte is this fail to decode.</summary>
     public int? BrokenByte { get; init; }
 
+    /// <summary>What a broken packet throws: a format error unless a test asks for a reader's own fault.</summary>
+    public Func<Exception>? Throws { get; init; }
+
+    /// <summary>The drain fails, as a decoder given damaged data may when asked for what it holds.</summary>
+    public bool FailDrain { get; init; }
+
+    /// <summary>The flush (at a seek) fails.</summary>
+    public bool FailFlush { get; init; }
+
     public string Name => "grey";
 
     public DecoderSource Source => DecoderSource.Own;
@@ -50,6 +59,15 @@ public sealed class FakeVideoDecoderFactory : IDecoderFactory
     public IAudioDecoder CreateAudio(TrackInfo track) => throw new NotSupportedException("The fake decodes pictures only.");
 
     public IVideoDecoder CreateVideo(TrackInfo track) => new Decoder(this);
+
+    /// <summary>The graphics device the last decoder was offered, or null.</summary>
+    public object? OfferedGpu { get; private set; }
+
+    public IVideoDecoder CreateVideo(TrackInfo track, object? gpu)
+    {
+        OfferedGpu = gpu;
+        return CreateVideo(track);
+    }
 
     private sealed class Decoder(FakeVideoDecoderFactory factory) : IVideoDecoder
     {
@@ -68,7 +86,7 @@ public sealed class FakeVideoDecoderFactory : IDecoderFactory
 
             if (packet.Data.Span[0] == factory.BrokenByte)
             {
-                throw new MediaFormatException("a broken picture");
+                throw factory.Throws?.Invoke() ?? new MediaFormatException("a broken picture");
             }
 
             var decoded = Interlocked.Increment(ref factory._decoded);
@@ -91,6 +109,11 @@ public sealed class FakeVideoDecoderFactory : IDecoderFactory
         /// <summary>Gives held pictures one at a time when asked to, as a decoder short of surfaces does.</summary>
         public bool Drain(ICollection<VideoFrame> output)
         {
+            if (factory.FailDrain)
+            {
+                throw new MediaFormatException("cannot finish");
+            }
+
             if (factory.DrainOneAtATime && _held.Count > 1)
             {
                 output.Add(_held[0]);
@@ -105,11 +128,20 @@ public sealed class FakeVideoDecoderFactory : IDecoderFactory
 
         public void Flush()
         {
+            Release();
+            if (factory.FailFlush)
+            {
+                throw new MediaFormatException("cannot reset");
+            }
+        }
+
+        public void Dispose() => Release();
+
+        private void Release()
+        {
             _held.ForEach(frame => frame.Dispose());
             _held.Clear();
         }
-
-        public void Dispose() => Flush();
     }
 }
 
@@ -131,6 +163,9 @@ public sealed class RecordingVideoPresenter : IVideoPresenter
     }
 
     public string Name => "recording";
+
+    /// <summary>The device offered to decoders, as a presenter on a graphics card offers its own.</summary>
+    public object? Gpu { get; init; }
 
     public bool Disposed { get; private set; }
 

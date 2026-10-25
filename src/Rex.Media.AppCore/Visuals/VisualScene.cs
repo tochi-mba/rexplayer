@@ -9,7 +9,17 @@ public sealed record VisualPicture(byte[] Bgra, int Width, int Height)
     /// <summary>One channel (0 blue, 1 green, 2 red) at a point between pixels, 0 to 1, the edge pixel beyond the edges.</summary>
     public float Sample(double x, double y, int channel)
     {
-        x = Math.Clamp(x, 0, Width - 1);
+        if (Width <= 0 || Height <= 0 || channel is < 0 or > 2
+            || Bgra is null || Width > Bgra.Length / 4 / Height)
+        {
+            // Unplugged camera streams and failed decodes can deliver empty or
+            // partial frames. Keep a silent black fallback rather than throwing
+            // from the render loop or reading beyond the pixel buffer.
+            return 0;
+        }
+
+        x = double.IsFinite(x) ? Math.Clamp(x, 0, Width - 1) : 0;
+        y = double.IsFinite(y) ? Math.Clamp(y, 0, Height - 1) : 0;
         y = Math.Clamp(y, 0, Height - 1);
         var (x0, y0) = ((int)x, (int)y);
         var (x1, y1) = (Math.Min(x0 + 1, Width - 1), Math.Min(y0 + 1, Height - 1));
@@ -107,6 +117,24 @@ public sealed class VisualContext
         }
     }
 
+    /// <summary>
+    /// The frame rate the scenes' trails were made at: <see cref="Trail"/> takes its fade, zoom, turn
+    /// and shift as one frame at this rate does them.
+    /// </summary>
+    public const double TrailRate = 30;
+
+    /// <summary>
+    /// Starts a frame with trails (<see cref="Raster.Feedback"/>): <paramref name="keep"/>,
+    /// <paramref name="zoom"/>, <paramref name="turn"/> and the shift are what a thirtieth of a second
+    /// does, applied for <see cref="Dt"/>, so trails last as long and drift as fast at sixty frames a
+    /// second, or 144, as at thirty.
+    /// </summary>
+    public void Trail(double keep, double zoom, double turn, double shiftX, double shiftY)
+    {
+        var frames = (double.IsFinite(Dt) ? Math.Clamp(Dt, 0, 0.25) : 0) * TrailRate;
+        Canvas.Feedback((float)Math.Pow(Math.Clamp(keep, 0, 1), frames), Math.Pow(zoom > 0.01 ? zoom : 1, frames), turn * frames, shiftX * frames, shiftY * frames);
+    }
+
     /// <summary>The visualisation's colour <paramref name="share"/> (0 to 1) along its palette, from the table <see cref="Prepare"/> made.</summary>
     public Rgb Paint(double share) => _paints[double.IsFinite(share) ? (int)Math.Round(Math.Clamp(share, 0, 1) * 255) : 0];
 }
@@ -123,6 +151,33 @@ public abstract class VisualScene
         [VisualizerChoice.Aurora] = () => new AuroraScene(),
         [VisualizerChoice.Embers] = () => new EmbersScene(),
         [VisualizerChoice.Resonance] = () => new ResonanceScene(),
+        [VisualizerChoice.Groove] = () => new GrooveScene(),
+        [VisualizerChoice.Flight] = () => new FlightScene(),
+        [VisualizerChoice.Cymatics] = () => new CymaticsScene(),
+        [VisualizerChoice.Ridgelines] = () => new RidgelinesScene(),
+        [VisualizerChoice.Synthwave] = () => new SynthwaveScene(),
+        [VisualizerChoice.Fireworks] = () => new FireworksScene(),
+        [VisualizerChoice.Lightning] = () => new LightningScene(),
+        [VisualizerChoice.Lava] = () => new LavaScene(),
+        [VisualizerChoice.Constellation] = () => new ConstellationScene(),
+        [VisualizerChoice.Galaxy] = () => new GalaxyScene(),
+        [VisualizerChoice.Kaleidoscope] = () => new KaleidoscopeScene(),
+        [VisualizerChoice.Murmuration] = () => new MurmurationScene(),
+        [VisualizerChoice.Ink] = () => new InkScene(),
+        [VisualizerChoice.Skyline] = () => new SkylineScene(),
+        [VisualizerChoice.Mandala] = () => new MandalaScene(),
+        [VisualizerChoice.Clones] = () => new ClonesScene(),
+        [VisualizerChoice.TimeWarp] = () => new TimeWarpScene(),
+        [VisualizerChoice.Aura] = () => new AuraScene(),
+        [VisualizerChoice.LedWall] = () => new LedWallScene(),
+        [VisualizerChoice.Stardust] = () => new StardustScene(),
+        [VisualizerChoice.HallOfMirrors] = () => new HallOfMirrorsScene(),
+        [VisualizerChoice.LightPainting] = () => new LightPaintingScene(),
+        [VisualizerChoice.Scanner] = () => new ScannerScene(),
+        [VisualizerChoice.Shatter] = () => new ShatterScene(),
+        [VisualizerChoice.Spotlight] = () => new SpotlightScene(),
+        [VisualizerChoice.InfinityMirror] = () => new InfinityMirrorScene(),
+        [VisualizerChoice.Water] = () => new WaterScene(),
         [VisualizerChoice.Ripples] = () => new RipplesScene(),
         [VisualizerChoice.Strobe] = () => new StrobeScene(),
         [VisualizerChoice.Silhouette] = () => new SilhouetteScene(),

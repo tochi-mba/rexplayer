@@ -9,19 +9,90 @@ namespace Rex.Media.App.Tests;
 internal static partial class WindowPicture
 {
     private const uint RenderFullContent = 2;
+    private const uint SourceCopy = 0x00CC0020;
+    private const uint IncludeLayeredWindows = 0x40000000;
+
+    /// <summary>The virtual desktop in physical screen pixels, including attached monitors.</summary>
+    public static System.Windows.Rect DesktopBounds
+    {
+        get
+        {
+            const int VirtualLeft = 76, VirtualTop = 77, VirtualWidth = 78, VirtualHeight = 79;
+            var desktop = new System.Windows.Rect(GetSystemMetrics(VirtualLeft), GetSystemMetrics(VirtualTop),
+                GetSystemMetrics(VirtualWidth), GetSystemMetrics(VirtualHeight));
+            Assert.True(desktop.Width > 0 && desktop.Height > 0, "There is no visible Windows desktop.");
+            return desktop;
+        }
+    }
+
+    /// <summary>A desktop capture outside the virtual screen reads undefined black pixels.</summary>
+    public static bool IsFullyOnDesktop(nint window)
+    {
+        var bounds = Bounds(window);
+        var desktop = DesktopBounds;
+        return bounds.Left >= desktop.Left && bounds.Top >= desktop.Top
+            && bounds.Right <= desktop.Right && bounds.Bottom <= desktop.Bottom;
+    }
+
+    /// <summary>The owning process of the current foreground desktop window.</summary>
+    public static uint ForegroundProcessId
+    {
+        get
+        {
+            var foreground = GetForegroundWindow();
+            _ = GetWindowThreadProcessId(foreground, out var processId);
+            return processId;
+        }
+    }
+
+    /// <summary>Actual Windows monitor DPI, never inferred from the requested window size.</summary>
+    public static uint Dpi(nint window) => GetDpiForWindow(window);
+
+    /// <summary>Actual Windows accessibility contrast state, not a simulated dark theme.</summary>
+    public static bool HighContrast
+    {
+        get
+        {
+            var state = new HighContrastState { Size = (uint)Marshal.SizeOf<HighContrastState>() };
+            Assert.True(SystemParametersInfo(0x0042, state.Size, ref state, 0),
+                "Windows did not provide the actual high-contrast setting.");
+            return (state.Flags & 1) != 0;
+        }
+    }
 
     /// <summary>The window's picture, and its size.</summary>
-    public static (int Width, int Height, byte[] Bgra) Take(nint window)
+    public static (int Width, int Height, byte[] Bgra) Take(nint window) => TakeCore(window, includeDesktopPopups: false);
+
+    /// <summary>
+    /// Captures the actual composed desktop region for a menu or ContentDialog. PrintWindow
+    /// captures the host HWND without popup surfaces, which can silently yield an image of
+    /// the underlying idle stage instead of the menu the UIA test just opened.
+    /// Use only in the serial desktop UI tests, with a visible UIA popup witness.
+    /// </summary>
+    public static (int Width, int Height, byte[] Bgra) TakeDesktop(nint window) => TakeCore(window, includeDesktopPopups: true);
+
+    private static (int Width, int Height, byte[] Bgra) TakeCore(nint window, bool includeDesktopPopups)
     {
         Assert.True(GetWindowRect(window, out var rect), "The window has no place on the screen.");
         var (width, height) = (rect.Right - rect.Left, rect.Bottom - rect.Top);
+        Assert.True(width > 0 && height > 0 && (long)width * height <= int.MaxValue / 4,
+            "The window has no safe captureable bitmap area.");
         var screen = GetDC(0);
         var memory = CreateCompatibleDC(screen);
         var bitmap = CreateCompatibleBitmap(screen, width, height);
         var old = SelectObject(memory, bitmap);
         try
         {
-            Assert.True(PrintWindow(window, memory, RenderFullContent), "The window could not be drawn into a picture.");
+            if (includeDesktopPopups)
+            {
+                Assert.True(BitBlt(memory, 0, 0, width, height, screen, rect.Left, rect.Top,
+                    SourceCopy | IncludeLayeredWindows),
+                    "The desktop, including its popups, could not be captured.");
+            }
+            else
+            {
+                Assert.True(PrintWindow(window, memory, RenderFullContent), "The window could not be drawn into a picture.");
+            }
             var pixels = new byte[width * height * 4];
             var header = new BitmapInfoHeader { Size = 40, Width = width, Height = -height, Planes = 1, BitCount = 32 };
             Assert.True(GetDIBits(memory, bitmap, 0, (uint)height, pixels, ref header, 0) == height, "The window's picture could not be read.");
@@ -34,6 +105,13 @@ internal static partial class WindowPicture
             DeleteDC(memory);
             _ = ReleaseDC(0, screen);
         }
+    }
+
+    /// <summary>Where the window is on the screen, in pixels: the origin of its picture.</summary>
+    public static System.Windows.Rect Bounds(nint window)
+    {
+        Assert.True(GetWindowRect(window, out var rect), "The window has no place on the screen.");
+        return new System.Windows.Rect(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top);
     }
 
     /// <summary>How bright a part of a picture is on average, 0 to 1.</summary>
@@ -77,6 +155,14 @@ internal static partial class WindowPicture
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    private struct HighContrastState
+    {
+        public uint Size;
+        public uint Flags;
+        public nint Scheme;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     private struct Rect
     {
         public int Left;
@@ -106,6 +192,22 @@ internal static partial class WindowPicture
     private static partial bool GetWindowRect(nint window, out Rect rect);
 
     [LibraryImport("user32.dll")]
+    private static partial int GetSystemMetrics(int index);
+
+    [LibraryImport("user32.dll")]
+    private static partial uint GetDpiForWindow(nint window);
+
+    [LibraryImport("user32.dll")]
+    private static partial nint GetForegroundWindow();
+
+    [LibraryImport("user32.dll")]
+    private static partial uint GetWindowThreadProcessId(nint window, out uint processId);
+
+    [LibraryImport("user32.dll", EntryPoint = "SystemParametersInfoW")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SystemParametersInfo(uint action, uint parameter, ref HighContrastState state, uint flags);
+
+    [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool PrintWindow(nint window, nint dc, uint flags);
 
@@ -131,6 +233,11 @@ internal static partial class WindowPicture
     [LibraryImport("gdi32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool DeleteDC(nint dc);
+
+    [LibraryImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool BitBlt(nint destination, int x, int y, int width, int height,
+        nint source, int sourceX, int sourceY, uint operation);
 
     [LibraryImport("gdi32.dll")]
     private static partial int GetDIBits(nint dc, nint bitmap, uint start, uint lines, [Out] byte[] bits, ref BitmapInfoHeader info, uint usage);

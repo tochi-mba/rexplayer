@@ -1,4 +1,4 @@
-// Spec: ID3 tag version 2.2.0, 2.3.0 and 2.4.0 informal standards (id3.org): header, extended header, frame layout, unsynchronisation, text encodings, TXXX, COMM, USLT, APIC/PIC; ID3v2 Chapter Frame Addendum 1.0 (CHAP).
+// Spec: ID3 tag version 2.2.0, 2.3.0 and 2.4.0 informal standards (id3.org): header, extended header, frame layout, unsynchronisation, text encodings, TXXX, COMM, USLT, APIC/PIC; ID3v2 Chapter Frame Addendum 1.0 (CHAP); the iTunes podcast frames (PCST, WFED).
 using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Text;
@@ -201,9 +201,11 @@ public static class Id3v2
         {
             case "TXXX" or "TXX":
                 var (description, value) = SplitDescribed(content);
+                // ID3v2.4 separates several values with a NUL, as in text frames (TXXX:ARTISTS lists each artist).
+                value = string.Join(VorbisComments.Separator, value.Split('\0', StringSplitOptions.RemoveEmptyEntries));
                 if (description.Length > 0 && value.Length > 0)
                 {
-                    metadata[description.ToLowerInvariant()] = value;
+                    metadata[VorbisComments.CanonicalName(description)] = value;
                 }
 
                 return;
@@ -234,6 +236,10 @@ public static class Id3v2
                     chapters.Add(chapter);
                 }
 
+                return;
+            case "PCST" or "WFED":
+                // The podcast frame iTunes writes into an episode it downloaded, and its feed's address.
+                metadata[MetadataKeys.MediaType] = MetadataKeys.Podcast;
                 return;
         }
 
@@ -415,6 +421,9 @@ public static class Id3v1
         "Top 40", "Christian Rap", "Pop/Funk", "Jungle", "Native American", "Cabaret", "New Wave", "Psychedelic", "Rave", "Showtunes",
         "Trailer", "Lo-Fi", "Tribal", "Acid Punk", "Acid Jazz", "Polka", "Retro", "Musical", "Rock & Roll", "Hard Rock",
     ];
+
+    /// <summary>The numbered ID3v1 genres, in number order.</summary>
+    public static IReadOnlyList<string> GenreNames => Genres;
 
     /// <summary>Whether the last 128 bytes of a file are an ID3v1 tag.</summary>
     public static bool IsTag(ReadOnlySpan<byte> last128) => last128.Length == Size && last128[0] == 'T' && last128[1] == 'A' && last128[2] == 'G';

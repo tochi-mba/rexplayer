@@ -34,6 +34,30 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Null(settings.PendingUpdate);
         Assert.Empty(settings.Shortcuts);
         Assert.False(settings.SeekPreview);
+        Assert.Equal(MediaOpenClick.DoubleClick, settings.MediaOpenClickMode);
+        Assert.False(settings.OpenLibraryAtPlayingItem);
+        Assert.Empty(settings.LibraryPlaces);
+        Assert.Null(settings.LibraryRoute);
+        Assert.True(settings.WriteDetailsIntoFiles);
+        Assert.True(settings.LeaveFullScreenWhenLibraryOpens);
+        Assert.True(settings.ShowPlayerWhenLibraryMediaStarts);
+    }
+
+    [Theory]
+    [InlineData("Ask")]
+    [InlineData("Always")]
+    [InlineData("Never")]
+    public void LegacyResumePreferencesAreIgnoredWithoutLosingOtherSettings(string oldChoice)
+    {
+        Directory.CreateDirectory(_folder);
+        System.IO.File.WriteAllText(File, $$"""{"resumePlayback":"{{oldChoice}}","resumeAudioLongerThanMinutes":180,"volume":0.4,"theme":"Dark"}""");
+        var settings = SettingsStore.Load(File);
+        Assert.Equal(0.4, settings.Volume);
+        Assert.Equal(ThemeChoice.Dark, settings.Theme);
+        SettingsStore.Save(File, settings);
+        var saved = System.IO.File.ReadAllText(File);
+        Assert.DoesNotContain("resumePlayback", saved, StringComparison.Ordinal);
+        Assert.DoesNotContain("resumeAudioLongerThanMinutes", saved, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -47,10 +71,24 @@ public sealed class SettingsStoreTests : IDisposable
             Shuffle = true,
             Window = new WindowPlacement(10, 20, 800, 600, Maximized: true),
             Theme = ThemeChoice.Dark,
+            MediaOpenClickMode = MediaOpenClick.SingleClick,
             LastUpdateCheck = new DateTimeOffset(2026, 10, 7, 9, 30, 0, TimeSpan.Zero),
             LastSeenVersion = "0.4.0",
             Shortcuts = new Dictionary<string, string> { ["play-pause"] = "Ctrl+P", ["stop"] = "" },
             SeekPreview = true,
+            OpenLibraryAtPlayingItem = true,
+            LibraryPlaces = new Dictionary<string, LibraryPlace>
+            {
+                ["Songs"] = new("file:C:\\Music\\Terminator.wav", "file:C:\\Music\\Sungba.wav"),
+                ["Home"] = new(Offset: 240.5, Shelves: [0, 360]),
+                ["Albums"] = new(),
+                ["Genres"] = new(" ", null, -5),
+            },
+            LibraryRoute = new LibraryRoute("Artists", "Asake", null, "Work of Art"),
+            WriteDetailsIntoFiles = false,
+            AutomaticWhenEnergySaver = false,
+            LeaveFullScreenWhenLibraryOpens = false,
+            ShowPlayerWhenLibraryMediaStarts = false,
             LibraryViews = new Dictionary<string, LibraryViewChoice> { ["Albums"] = new(LibraryLook.Wall, LibrarySort.MostPlayed, true, LibraryGrouping.Letter, 240) },
         };
 
@@ -58,10 +96,22 @@ public sealed class SettingsStoreTests : IDisposable
         var loaded = SettingsStore.Load(File);
 
         // Lists compare by reference in a record, so they are compared by content apart.
-        Assert.Equal(saved with { Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains, GlobalShortcuts = loaded.GlobalShortcuts, VisualOptions = loaded.VisualOptions, LibraryViews = loaded.LibraryViews, VideoStyleValues = loaded.VideoStyleValues }, loaded);
+        Assert.Equal(saved with { Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains, GlobalShortcuts = loaded.GlobalShortcuts, VisualOptions = loaded.VisualOptions, LibraryViews = loaded.LibraryViews, LibraryPlaces = loaded.LibraryPlaces, PinnedAlbumPaths = loaded.PinnedAlbumPaths, VideoStyleValues = loaded.VideoStyleValues }, loaded);
         Assert.Equal(saved.Shortcuts, loaded.Shortcuts);
         Assert.Equal(saved.EqualizerGains, loaded.EqualizerGains);
         Assert.Equal(saved.LibraryViews, loaded.LibraryViews);
+
+        // Places that say nothing (the top, nothing chosen) are not kept; the rest come back whole.
+        Assert.Equal(["Songs", "Home"], loaded.LibraryPlaces.Keys);
+        Assert.Equal(saved.LibraryPlaces["Songs"], loaded.LibraryPlaces["Songs"]);
+        Assert.Equal(240.5, loaded.LibraryPlaces["Home"].Offset);
+        Assert.Equal([0, 360], loaded.LibraryPlaces["Home"].Shelves);
+        Assert.Null((saved with { LibraryRoute = new LibraryRoute(" ") }).Normalize().LibraryRoute);
+        var crowded = new PlayerSettings { LibraryPlaces = Enumerable.Range(0, LibraryPlace.Most + 5).ToDictionary(i => "Songs\n" + i, i => new LibraryPlace("file:" + i)) }.Normalize();
+        Assert.Equal(LibraryPlace.Most, crowded.LibraryPlaces.Count);
+        Assert.False(crowded.LibraryPlaces.ContainsKey("Songs\n0"));
+        Assert.Equal(MediaOpenClick.SingleClick, loaded.MediaOpenClickMode);
+        Assert.Equal(MediaOpenClick.DoubleClick, new PlayerSettings { MediaOpenClickMode = (MediaOpenClick)99 }.Normalize().MediaOpenClickMode);
     }
 
     [Fact]
@@ -85,6 +135,19 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void TheRemovalModeIsSavedAndAnUnknownOneRemoves()
+    {
+        Assert.Equal(RemovalMode.Remove, new PlayerSettings().SubjectRemoval);
+        foreach (var mode in Enum.GetValues<RemovalMode>())
+        {
+            SettingsStore.Save(File, new PlayerSettings { SubjectRemoval = mode });
+            Assert.Equal(mode, SettingsStore.Load(File).SubjectRemoval);
+        }
+
+        Assert.Equal(RemovalMode.Remove, new PlayerSettings { SubjectRemoval = (RemovalMode)7 }.Normalize().SubjectRemoval);
+    }
+
+    [Fact]
     public void SpatialVideoEffectsHaveStableNamesAndSafeSettings()
     {
         Assert.Equal(Enum.GetValues<VideoEffect>().Length, VideoEffects.Names.Count);
@@ -92,6 +155,9 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal("Off", VideoEffects.Name((VideoEffect)999));
         Assert.Equal(0, VideoEffects.Strength(-1));
         Assert.Equal(100, VideoEffects.Strength(1000));
+        Assert.Equal(VideoEffect.PrismFlow, VideoEffects.Next(VideoEffect.Off));
+        Assert.Equal(VideoEffect.Off, VideoEffects.Next(Enum.GetValues<VideoEffect>()[^1]));
+        Assert.Equal(VideoEffect.Off, VideoEffects.Next((VideoEffect)999));
         Assert.Equal(VideoEffect.Off, new PlayerSettings().VideoEffect);
         Assert.Equal(65, new PlayerSettings().VideoEffectStrength);
 
@@ -139,8 +205,8 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.False(VideoEffects.UsesHistory(VideoEffect.ChromaticRift, 65, 90, 0));
         Assert.True(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 65, 35, 0));
         Assert.True(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 65, 35, 2));
-        Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 65, 35, 1));
-        Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 65, 35, 3));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 65, 35, 1));
+        Assert.True(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 65, 35, 3));
         Assert.False(VideoEffects.UsesHistory(VideoEffect.GhostwireMotion, 0, 35, 0));
         Assert.False(VideoEffects.UsesHistory(VideoEffect.ThermalMap, 100, 100, 100));
         Assert.Empty(VideoStyleOptions.ModeNames(VideoEffect.Halftone));
@@ -319,7 +385,7 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal("Interactive", VideoEffects.Category(VideoEffect.ColourSpotlight));
         Assert.Equal("Image-aware", VideoEffects.Category(VideoEffect.EdgeGravity));
         Assert.Equal("Image-aware", VideoEffects.Category(VideoEffect.ReliefEtch));
-        Assert.Equal("Essentials", VideoEffects.Category(VideoEffect.NeonEdges));
+        Assert.Equal("Contours", VideoEffects.Category(VideoEffect.NeonEdges));
         Assert.True(VideoEffects.UsesPointer(VideoEffect.CursorLens));
         Assert.True(VideoEffects.UsesPointer(VideoEffect.ColourSpotlight));
         Assert.False(VideoEffects.UsesPointer(VideoEffect.EdgeGravity));
@@ -369,7 +435,7 @@ public sealed class SettingsStoreTests : IDisposable
 
         var loaded = SettingsStore.Load(File);
 
-        Assert.Equal(new PlayerSettings { FirstRunDone = true, Volume = 0.5, Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains, GlobalShortcuts = loaded.GlobalShortcuts, VisualOptions = loaded.VisualOptions, LibraryViews = loaded.LibraryViews, VideoStyleValues = loaded.VideoStyleValues }, loaded);
+        Assert.Equal(new PlayerSettings { FirstRunDone = true, Volume = 0.5, Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains, GlobalShortcuts = loaded.GlobalShortcuts, VisualOptions = loaded.VisualOptions, LibraryViews = loaded.LibraryViews, LibraryPlaces = loaded.LibraryPlaces, PinnedAlbumPaths = loaded.PinnedAlbumPaths, VideoStyleValues = loaded.VideoStyleValues }, loaded);
         Assert.Equal(new double[10], loaded.EqualizerGains);
         Assert.True(loaded.SingleInstance);
         Assert.Equal(10, loaded.ShortJumpSeconds);
@@ -393,6 +459,22 @@ public sealed class SettingsStoreTests : IDisposable
         Assert.Equal(UpdateCadence.Daily, new PlayerSettings { Schema = 2, UpdateChecks = UpdateCadence.Weekly }.Normalize().UpdateChecks);
         Assert.Equal(UpdateCadence.Off, new PlayerSettings { Schema = 2, UpdateChecks = UpdateCadence.Off }.Normalize().UpdateChecks);
         Assert.Equal(UpdateCadence.Weekly, new PlayerSettings { Schema = 3, UpdateChecks = UpdateCadence.Weekly }.Normalize().UpdateChecks);
+    }
+
+    [Fact]
+    public void APendingUpdateSavedBeforePauseAndCancelReadsAsNeitherPausedNorCancelled()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(File)!);
+        System.IO.File.WriteAllText(File, """
+            { "schema": 3, "pendingUpdate": { "version": "0.17.0", "installerName": "rexplayer-Setup-0.17.0.exe",
+              "installerUrl": "https://example.com/a.exe", "checksumUrl": "https://example.com/a.exe.sha256",
+              "notes": "What's Changed\n\u2022 Six picture effects", "stage": "Downloading" } }
+            """);
+        var pending = SettingsStore.Load(File).PendingUpdate!;
+
+        Assert.Equal((UpdateStage.Downloading, false, false, false), (pending.Stage, pending.Paused, pending.Declined, pending.InstallCancelled));
+        Assert.Equal([new Rex.Media.AppCore.Updates.NoteBlock(Rex.Media.AppCore.Updates.NoteKind.Bullet, "Six picture effects")],
+            Rex.Media.AppCore.Updates.ReleaseNotes.Blocks(pending.Notes));
     }
 
     [Fact]
@@ -421,6 +503,9 @@ public sealed class SettingsStoreTests : IDisposable
             Stage = UpdateStage.Ready,
             Timing = UpdateTiming.Scheduled,
             Approved = true,
+            Paused = true,
+            Declined = true,
+            InstallCancelled = true,
             RemindAt = new DateTimeOffset(2026, 10, 13, 9, 0, 0, TimeSpan.Zero),
             InstallAt = new DateTimeOffset(2026, 10, 13, 3, 0, 0, TimeSpan.Zero),
             DownloadFailures = 2,

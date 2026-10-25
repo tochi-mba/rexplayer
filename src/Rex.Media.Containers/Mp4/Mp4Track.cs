@@ -84,7 +84,7 @@ internal sealed class Mp4Track
     public long Presentation(int index) => Dts[index] + CompositionOffsets[index] - EditOffset;
 
     /// <summary>Reads a trak box. Returns null for a track with no usable sample description.</summary>
-    public static Mp4Track? Parse(ReadOnlySpan<byte> moov, Mp4Box trak, uint movieTimescale)
+    public static Mp4Track? Parse(ReadOnlySpan<byte> moov, Mp4Box trak, uint movieTimescale, long? fileLength = null)
     {
         var track = new Mp4Track();
         if (Mp4Boxes.Path(moov, trak, "tkhd") is { } tkhd)
@@ -122,14 +122,21 @@ internal sealed class Mp4Track
         }
 
         track.ReadSampleDescription(Mp4Boxes.Body(moov, stsd));
-        track.ReadSampleTables(moov, stbl);
+        track.ReadSampleTables(moov, stbl, fileLength);
         return track;
     }
 
+    /// <summary>The track's number, whether it is enabled, and its rotation. A header cut short leaves the defaults (the demuxer numbers the track).</summary>
     private void ReadTrackHeader(ReadOnlySpan<byte> body)
     {
-        var version = body[0];
-        Enabled = (body[3] & 1) != 0;
+        var version = body.Length >= 4 ? Mp4Boxes.U32(body, 0) >> 24 : 0;
+        if (body.Length < (version == 1 ? 24 : 16))
+        {
+            return;
+        }
+
+        var flags = Mp4Boxes.U32(body, 0);
+        Enabled = (flags & 1) != 0;
         Id = (int)Mp4Boxes.U32(body, version == 1 ? 20 : 12);
         var matrix = version == 1 ? 52 : 40;
         if (body.Length >= matrix + 36)
@@ -148,7 +155,7 @@ internal sealed class Mp4Track
 
     private void ReadMediaHeader(ReadOnlySpan<byte> body)
     {
-        var version = body[0];
+        var version = Mp4Boxes.U32(body, 0) >> 24;
         var at = version == 1 ? 20 : 12;
         Timescale = Math.Max(1, Mp4Boxes.U32(body, at));
         MediaDuration = version == 1 ? (long)Math.Min(Mp4Boxes.U64(body, at + 4), long.MaxValue) : Mp4Boxes.U32(body, at + 4);
@@ -160,7 +167,7 @@ internal sealed class Mp4Track
     /// <summary>The first edit that shows media sets where the presentation starts and, if shorter, how long it lasts.</summary>
     private void ReadEditList(ReadOnlySpan<byte> body, uint movieTimescale)
     {
-        var version = body[0];
+        var version = Mp4Boxes.U32(body, 0) >> 24;
         var count = Mp4Boxes.U32(body, 4);
         var entry = version == 1 ? 20 : 12;
         for (var i = 0; i < count && 8 + ((i + 1) * entry) <= body.Length; i++)
@@ -346,6 +353,11 @@ internal sealed class Mp4Track
 
         // After the ES_ID and flags come, in this order, the stream it depends on, a URL and the
         // OCR stream, each present only when its flag is set.
+        if (at + 3 > esEnd || at + 3 > body.Length)
+        {
+            throw Mp4Boxes.Truncated();
+        }
+
         var flags = body[at + 2];
         at += 3 + ((flags & 0x80) != 0 ? 2 : 0);
         if ((flags & 0x40) != 0 && at < esEnd)
@@ -503,9 +515,9 @@ internal sealed class Mp4Track
         }
     }
 
-    private void ReadSampleTables(ReadOnlySpan<byte> moov, Mp4Box stbl)
+    private void ReadSampleTables(ReadOnlySpan<byte> moov, Mp4Box stbl, long? fileLength)
     {
-        var sizes = ReadSizes(moov, stbl);
+        var sizes = ReadSizes(moov, stbl, fileLength);
         if (sizes is null)
         {
             return;
@@ -525,9 +537,18 @@ internal sealed class Mp4Track
         var chunks = ReadChunkOffsets(moov, stbl);
         var perChunk = ReadSampleToChunk(moov, stbl);
         var sample = 0;
+
+        // The sample-to-chunk runs are walked once alongside the chunks: looking each chunk's run up
+        // from the start cost chunks times runs, seconds for an hour of audio in thousands of runs.
+        var chunkRun = -1;
         for (var chunk = 0; chunk < chunks.Count && sample < count; chunk++)
         {
-            var samples = SamplesInChunk(perChunk, chunk + 1);
+            while (chunkRun + 1 < perChunk.Count && perChunk[chunkRun + 1].FirstChunk <= chunk + 1)
+            {
+                chunkRun++;
+            }
+
+            long samples = chunkRun < 0 ? 0 : perChunk[chunkRun].Samples;
             var offset = chunks[chunk];
             for (var i = 0; i < samples && sample < count; i++, sample++)
             {
@@ -564,7 +585,7 @@ internal sealed class Mp4Track
         if (Mp4Boxes.Path(moov, stbl, "ctts") is { } ctts)
         {
             var body = Mp4Boxes.Body(moov, ctts);
-            var signed = body[0] == 1;
+            var signed = (Mp4Boxes.U32(body, 0) >> 24) == 1;
             var entries = Mp4Boxes.U32(body, 4);
             for (var e = 0; e < entries && 8 + (e * 8) + 8 <= body.Length && CompositionOffsets.Count < SampleCount; e++)
             {
@@ -599,7 +620,7 @@ internal sealed class Mp4Track
         }
     }
 
-    private static int[]? ReadSizes(ReadOnlySpan<byte> moov, Mp4Box stbl)
+    private static int[]? ReadSizes(ReadOnlySpan<byte> moov, Mp4Box stbl, long? fileLength)
     {
         if (Mp4Boxes.Path(moov, stbl, "stsz") is { } stsz)
         {
@@ -608,6 +629,14 @@ internal sealed class Mp4Track
             var count = CheckedCount(Mp4Boxes.U32(body, 8));
             if (fixedSize != 0)
             {
+                // A corrupt header can claim fifty million fixed-size packets despite only a few
+                // bytes existing, and a file cut short holds fewer than its table says: no more are
+                // made than the file could hold.
+                if (fileLength is { } length)
+                {
+                    count = (int)Math.Min(count, length / fixedSize);
+                }
+
                 return [.. Enumerable.Repeat((int)Math.Min(fixedSize, int.MaxValue), count)];
             }
 
@@ -628,7 +657,7 @@ internal sealed class Mp4Track
         if (Mp4Boxes.Path(moov, stbl, "stz2") is { } stz2)
         {
             var body = Mp4Boxes.Body(moov, stz2);
-            var field = body[7];
+            var field = (byte)Mp4Boxes.U32(body, 4);
             var count = CheckedCount(Mp4Boxes.U32(body, 8));
             if (field is not (4 or 8 or 16) || 12 + ((long)count * field / 8) > body.Length)
             {
@@ -690,21 +719,5 @@ internal sealed class Mp4Track
         }
 
         return runs;
-    }
-
-    private static long SamplesInChunk(List<(uint FirstChunk, uint Samples)> runs, int chunk)
-    {
-        long samples = 0;
-        foreach (var (first, count) in runs)
-        {
-            if (first > chunk)
-            {
-                break;
-            }
-
-            samples = count;
-        }
-
-        return samples;
     }
 }

@@ -160,6 +160,30 @@ public sealed class WavDemuxerTests
     }
 
     [Fact]
+    [Capability("FMT-C01")]
+    public void InfoTagsAfterTheAudioDataAreReadWithoutChangingTheSamples()
+    {
+        var samples = Enumerable.Range(0, 160).Select(index => (byte)index).ToArray();
+        // Watched folders use files with this chunk order: fmt, data, then LIST/INFO.
+        var file = WavBuilder.Pcm(8000, 1, 16, samples)
+            .Info(("INAM", "Lonely At The Top"), ("IART", "Asake"), ("IPRD", "Lungu Boy"), ("IGNR", "Afrobeats"))
+            .Build();
+
+        using var demuxer = Open(file);
+        Assert.Equal("Lonely At The Top", demuxer.Info.Metadata[MetadataKeys.Title]);
+        Assert.Equal("Asake", demuxer.Info.Metadata[MetadataKeys.Artist]);
+        Assert.Equal("Lungu Boy", demuxer.Info.Metadata[MetadataKeys.Album]);
+        Assert.Equal("Afrobeats", demuxer.Info.Metadata[MetadataKeys.Genre]);
+
+        var packets = ReadAll(demuxer);
+        Assert.Equal(samples, packets.SelectMany(packet => packet.Data.Span.ToArray()));
+        foreach (var packet in packets)
+        {
+            packet.Dispose();
+        }
+    }
+
+    [Fact]
     public void ListChunksThatAreNotInfoOrAreTooBigAreIgnored()
     {
         var file = new WavBuilder()
@@ -244,5 +268,31 @@ public sealed class WavDemuxerTests
         Assert.Equal(CodecId.AdpcmIma, track.Codec);
         Assert.Equal(505, track.Audio!.SamplesPerBlock);
         Assert.Equal(MediaTime.FromSamples(1010, 8000), demuxer.Info.Duration);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void AWaveFileDeclaresItsRiffSizeUnlessItsWriterIsStillStreaming()
+    {
+        var whole = Pcm.RampWav(8000, 800);
+        using (var wav = Open(whole))
+        {
+            Assert.Equal(whole.Length, wav.Info.DeclaredLength);
+        }
+
+        var cut = whole[..^100];
+        using (var partial = Open(cut))
+        {
+            Assert.True(partial.Info.DeclaredLength > cut.Length, "a cut-short WAVE should declare more bytes than it holds");
+        }
+
+        // A writer still streaming leaves 0 or all ones; that says nothing either way.
+        foreach (var placeholder in new uint[] { 0, uint.MaxValue })
+        {
+            var streaming = (byte[])whole.Clone();
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(streaming.AsSpan(4), placeholder);
+            using var wav = Open(streaming);
+            Assert.Null(wav.Info.DeclaredLength);
+        }
     }
 }

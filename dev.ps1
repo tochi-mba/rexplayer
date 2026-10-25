@@ -7,6 +7,7 @@
 #   ./dev.ps1 gate                  fail unless every file in tests/coverage-required.txt is fully covered
 #   ./dev.ps1 adapters              the Windows adapter tests (Media Foundation, WASAPI, Direct3D)
 #   ./dev.ps1 perf                  the performance suite against tests/perf-baselines.json
+#   ./dev.ps1 measure [-LowEnd]     the whole player measured, as published (needs FFmpeg); -LowEnd imitates a weak PC
 #   ./dev.ps1 ui                    the real window, driven through UI Automation (opens windows)
 #   ./dev.ps1 check                 build, format check, test, gate and adapters: the pre-push check
 #   ./dev.ps1 format                fix formatting
@@ -21,7 +22,8 @@ param(
     [Parameter(Position = 1)]
     [string]$Argument,
     [string]$Configuration = "Release",
-    [string]$Version
+    [string]$Version,
+    [switch]$LowEnd
 )
 
 Set-StrictMode -Version Latest
@@ -82,7 +84,10 @@ function Invoke-Gate {
 }
 
 function Invoke-Smoke {
-    $exe = Get-ChildItem -Recurse -Filter rexplay.exe -Path (Join-Path $root "dist"), (Join-Path $root "src/Rex.Media.Cli/bin/$Configuration") -ErrorAction SilentlyContinue |
+    # The same contract on every platform: Windows' rexplay.exe, or the Mac's rexplay (ADR-0020).
+    $name, $project = if ($IsMacOS) { "rexplay", "src/Rex.Media.Cli.Mac" } else { "rexplay.exe", "src/Rex.Media.Cli" }
+    $exe = Get-ChildItem -Recurse -Filter $name -Path (Join-Path $root "dist"), (Join-Path $root "$project/bin/$Configuration") -ErrorAction SilentlyContinue |
+        Where-Object { -not $_.PSIsContainer -and $_.Extension -in @("", ".exe") } |
         Sort-Object LastWriteTime -Descending | Select-Object -First 1
     if (-not $exe) { throw "rexplay.exe has not been built." }
     Write-Host "Smoke testing $($exe.FullName)"
@@ -145,6 +150,20 @@ function Invoke-Perf {
     Invoke-Checked dotnet @("test", "--project", "tests/Rex.Media.Windows.Tests/Rex.Media.Windows.Tests.csproj", "-c", $Configuration, "--no-build", "--filter-trait", "Category=Perf")
 }
 
+# The whole player as people get it (published, ahead-of-time compiled) measured by
+# scripts/measure-startup.ps1 with every scenario, then the performance suite under the same
+# conditions; -LowEnd runs both on an imitation of a weak computer. The report is written to
+# artifacts/measure/. It runs in a process of its own, which the imitation's limits stay inside.
+function Invoke-Measure {
+    $app = Join-Path $root "artifacts/measure/app"
+    Invoke-Checked dotnet @("publish", "src/Rex.Media.App/Rex.Media.App.csproj", "-c", $Configuration, "-o", $app, "-nologo")
+    $name = if ($LowEnd) { "low-end" } else { "normal" }
+    $arguments = @("-NoProfile", "-File", (Join-Path $root "scripts/measure-startup.ps1"), "-All", "-Perf", "-Exe", (Join-Path $app "rexplayer.exe"),
+        "-Report", (Join-Path $root "artifacts/measure/$name.md"), "-Out", (Join-Path $root "artifacts/measure/$name.json"))
+    if ($LowEnd) { $arguments += "-LowEnd" }
+    Invoke-Checked pwsh $arguments
+}
+
 # The window tests open real windows one after another, so they are a task of their own.
 function Invoke-Ui {
     Invoke-Checked dotnet @("test", "--project", "tests/Rex.Media.App.Tests/Rex.Media.App.Tests.csproj", "-c", $Configuration, "--no-build")
@@ -156,12 +175,13 @@ function Invoke-Package {
 }
 
 switch ($Task) {
-    "help" { Get-Content $MyInvocation.MyCommand.Path | Select-Object -Skip 2 -First 14 | ForEach-Object { $_ -replace '^# ?', '' } }
+    "help" { Get-Content $MyInvocation.MyCommand.Path | Select-Object -Skip 2 -First 15 | ForEach-Object { $_ -replace '^# ?', '' } }
     "build" { Invoke-Build }
     "test" { Invoke-Test }
     "gate" { Invoke-Gate }
     "adapters" { Invoke-Adapters }
     "perf" { Invoke-Perf }
+    "measure" { Invoke-Measure }
     "ui" { Invoke-Ui }
     "format" { Invoke-Checked dotnet @("format", "rexplayer.slnx", "--no-restore") }
     "check" {

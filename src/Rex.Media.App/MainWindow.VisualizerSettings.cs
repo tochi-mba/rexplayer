@@ -17,7 +17,8 @@ public sealed partial class MainWindow
     {
         var before = _settings;
         var options = new Dictionary<string, string>(_settings.VisualOptions, StringComparer.Ordinal);
-        var shown = _settings.Visualizer == VisualizerChoice.Off ? VisualizerChoice.Spectrum : _settings.Visualizer;
+        var activeBefore = ActiveVisualizer;
+        var shown = activeBefore == VisualizerChoice.Off ? VisualizerChoice.Spectrum : activeBefore;
         var choices = Enum.GetValues<VisualizerChoice>().Where(choice => choice != VisualizerChoice.Off).ToList();
 
         var which = new ComboBox { Header = "Visualisation", ItemsSource = choices.Select(Visualizers.Name).ToList(), SelectedIndex = choices.IndexOf(shown), MinWidth = 260 };
@@ -27,15 +28,18 @@ public sealed partial class MainWindow
         var note = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 440, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] };
         var reset = new Button { Content = "Back to how this one came" };
         AutomationProperties.SetAutomationId(reset, "VisualizerReset");
+        AutomationProperties.SetName(reset, "Restore defaults for this visualisation");
+        AutomationProperties.SetHelpText(reset, "Only this visualisation's settings are reset. Other visualisations keep their saved values.");
 
         // Shown behind the dialog as it changes.
         void Preview()
         {
-            _settings = _settings with { Visualizer = shown, VisualOptions = new Dictionary<string, string>(options, StringComparer.Ordinal) };
+            SetActiveVisualizer(shown);
+            _settings = _settings with { VisualOptions = new Dictionary<string, string>(options, StringComparer.Ordinal) };
             if (UsesCamera(shown) && !_settings.CameraAllowed)
             {
                 // The camera waits until it has been agreed to, after Save.
-                _settings = _settings with { Visualizer = before.Visualizer };
+                SetActiveVisualizer(activeBefore);
             }
 
             ApplyVisualizer();
@@ -78,16 +82,22 @@ public sealed partial class MainWindow
                 case VisualOptionKind.Toggle:
                     var toggle = new ToggleSwitch { Header = option.Label, IsOn = VisualizerOptions.Toggle(options, shown, option.Key) };
                     AutomationProperties.SetAutomationId(toggle, id);
+                    AutomationProperties.SetName(toggle, option.Label);
+                    AutomationProperties.SetHelpText(toggle, "Toggle " + option.Label + " for " + Visualizers.Name(shown));
                     toggle.Toggled += (_, _) => Set(option.Key, toggle.IsOn ? 1 : 0);
                     return toggle;
                 case VisualOptionKind.Choice:
                     var choice = Choice(option.Label, [.. option.Choices!], VisualizerOptions.Choice(options, shown, option.Key));
                     AutomationProperties.SetAutomationId(choice, id);
+                    AutomationProperties.SetName(choice, option.Label);
+                    AutomationProperties.SetHelpText(choice, "Choose " + option.Label + " for " + Visualizers.Name(shown));
                     choice.SelectionChanged += (_, _) => Set(option.Key, choice.SelectedIndex);
                     return choice;
                 case VisualOptionKind.Color:
                     var color = ColorChoice(option.Label, VisualizerOptions.Rgb(options, shown, option.Key));
                     AutomationProperties.SetAutomationId(color.Box, id);
+                    AutomationProperties.SetName(color.Box, option.Label);
+                    AutomationProperties.SetHelpText(color.Box, "Choose " + option.Label + " for " + Visualizers.Name(shown));
                     color.Box.SelectionChanged += (_, _) => Set(option.Key, color.Value());
                     return color.Box;
                 default:
@@ -103,6 +113,7 @@ public sealed partial class MainWindow
                     };
                     AutomationProperties.SetAutomationId(slider, id);
                     AutomationProperties.SetName(slider, option.Label);
+                    AutomationProperties.SetHelpText(slider, $"{option.Label}, from {option.Minimum} to {option.Maximum}, for {Visualizers.Name(shown)}");
                     slider.ValueChanged += (_, e) => Set(option.Key, whole ? Math.Round(e.NewValue) : e.NewValue);
                     return slider;
             }
@@ -130,9 +141,11 @@ public sealed partial class MainWindow
         Show();
         var content = new StackPanel { Spacing = 12, MinWidth = 440 };
         content.Children.Add(which);
+        // Keep the reversible reset action beside the selector even on
+        // compact displays, rather than below a potentially clipped scroll.
+        content.Children.Add(reset);
         content.Children.Add(note);
         content.Children.Add(new ScrollViewer { Content = panel, MaxHeight = 420, Padding = new Thickness(0, 0, 16, 0) });
-        content.Children.Add(reset);
         var keep = await Ask("Visualisation settings", content, "Save");
         if (!keep)
         {

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- The Mac's audio adapter: plain .NET over Rex.Media.Interop.Mac, run only on a Mac
+         (ADR-0021). Named explicitly so the coverage gate leaves it to the macOS adapter tests. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Rex.Media.Audio.CoreAudio</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rex.Media.Primitives\Rex.Media.Primitives.csproj" />
+    <ProjectReference Include="..\Rex.Media.Audio\Rex.Media.Audio.csproj" />
+    <ProjectReference Include="..\Rex.Media.Interop.Mac\Rex.Media.Interop.Mac.csproj" />
+  </ItemGroup>
+
+</Project>

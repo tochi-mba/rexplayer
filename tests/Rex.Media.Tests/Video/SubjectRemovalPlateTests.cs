@@ -24,6 +24,15 @@ public sealed class SubjectRemovalPlateTests
         return frame;
     }
 
+    /// <summary>Records the same picture as many times as a cell needs agreeing sightings to count as observed.</summary>
+    private static void See(SubjectRemovalPlate plate, VideoFrame frame, (int, int, int, int) area, (int, int, int, int) guard, ReadOnlySpan<short> distance, int clearance)
+    {
+        for (var i = 0; i < SubjectRemovalPlate.Confirmations; i++)
+        {
+            plate.Learn(frame, area, guard, distance, clearance);
+        }
+    }
+
     private static (int B, int G, int R) Split(uint colour) => ((int)(colour & 0xFF), (int)((colour >> 8) & 0xFF), (int)((colour >> 16) & 0xFF));
 
     [Fact]
@@ -34,7 +43,7 @@ public sealed class SubjectRemovalPlateTests
         Assert.Throws<ArgumentOutOfRangeException>(() => plate.Prepare(4, 0));
         plate.Prepare(64, 48);
         using var frame = Gradient();
-        plate.Learn(frame, (0, 0, 64, 48), Nothing, default, 0);
+        See(plate, frame, (0, 0, 64, 48), Nothing, default, 0);
         Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(10, 10, out _));
         plate.Prepare(64, 48);
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(10, 10, out _));
@@ -51,7 +60,7 @@ public sealed class SubjectRemovalPlateTests
         plate.Prepare(64, 48);
         using var frame = Gradient();
         // Without distances the guard is left alone entirely.
-        plate.Learn(frame, (-5, -5, 70, 60), (20, 10, 30, 20), default, 0);
+        See(plate, frame, (-5, -5, 70, 60), (20, 10, 30, 20), default, 0);
         Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(40, 30, out var seen));
         Assert.Equal((120, 120, 90), Split(seen));
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(25, 15, out _));
@@ -67,7 +76,7 @@ public sealed class SubjectRemovalPlateTests
             }
         }
 
-        plate.Learn(frame, (0, 0, 64, 48), (20, 10, 30, 20), distance, 50);
+        See(plate, frame, (0, 0, 64, 48), (20, 10, 30, 20), distance, 50);
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(22, 15, out _));
         Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(27, 15, out var cleared));
         Assert.Equal((81, 60, 90), Split(cleared));
@@ -79,7 +88,7 @@ public sealed class SubjectRemovalPlateTests
         var plate = new SubjectRemovalPlate();
         plate.Prepare(64, 48);
         using var first = Gradient();
-        plate.Learn(first, (0, 0, 64, 48), Nothing, default, 0);
+        See(plate, first, (0, 0, 64, 48), Nothing, default, 0);
         // The camera moved: what is at (x, y) now was at (x + 2.5, y + 1.25) before.
         plate.Advance(new CameraMotion(1, 2.5f, 1.25f));
         Assert.Equal((1f, 2.5f, 1.25f), plate.Mapping);
@@ -91,7 +100,7 @@ public sealed class SubjectRemovalPlateTests
 
         // Recording the new picture puts each pixel at its own scene point, blended between cells.
         using var second = Gradient(red: 200);
-        plate.Learn(second, (0, 0, 64, 48), Nothing, default, 0);
+        See(plate, second, (0, 0, 64, 48), Nothing, default, 0);
         Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(10, 10, out var fresh));
         var (fb, fg, fr) = Split(fresh);
         Assert.InRange(fb, 29, 31);
@@ -105,7 +114,7 @@ public sealed class SubjectRemovalPlateTests
         var plate = new SubjectRemovalPlate();
         plate.Prepare(64, 48);
         using var frame = Gradient();
-        plate.Learn(frame, (0, 0, 64, 48), Nothing, default, 0);
+        See(plate, frame, (0, 0, 64, 48), Nothing, default, 0);
         plate.Advance(new CameraMotion(1.05f, -1, -1));
         Assert.Equal(1.05f, plate.Mapping.Scale, 3);
         Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(20, 20, out var zoomed));
@@ -113,12 +122,12 @@ public sealed class SubjectRemovalPlateTests
         Assert.InRange(b, 59, 61);
 
         // Recording through a zoom reads each cell's scene point from the picture.
-        plate.Learn(frame, (-4, -4, 70, 52), Nothing, default, 0);
+        See(plate, frame, (-4, -4, 70, 52), Nothing, default, 0);
         Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(20, 20, out var again));
         Assert.InRange(Split(again).B, 59, 61);
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(-30, 20, out _));
 
-        plate.Advance(new CameraMotion(1.3f, 0, 0));
+        plate.Advance(new CameraMotion(1.6f, 0, 0));
         Assert.Equal((1f, 0f, 0f), plate.Mapping);
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(20, 20, out _));
     }
@@ -129,7 +138,7 @@ public sealed class SubjectRemovalPlateTests
         var plate = new SubjectRemovalPlate();
         plate.Prepare(64, 48);
         using var frame = Gradient();
-        plate.Learn(frame, (0, 0, 64, 48), Nothing, default, 0);
+        See(plate, frame, (0, 0, 64, 48), Nothing, default, 0);
         plate.Keep((10, 10, 30, 30));
         Assert.Equal((1f, 0f, 0f), plate.Mapping);
 
@@ -162,7 +171,7 @@ public sealed class SubjectRemovalPlateTests
         var plate = new SubjectRemovalPlate();
         plate.Prepare(8, 8);
         using var frame = Gradient(8, 8);
-        plate.Learn(frame, (0, 0, 8, 4), Nothing, default, 0);
+        See(plate, frame, (0, 0, 8, 4), Nothing, default, 0);
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(9, 0, out _));
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(0, 9, out _));
         Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(-1, 0, out _));
@@ -188,8 +197,126 @@ public sealed class SubjectRemovalPlateTests
         plate.Advance(new CameraMotion(1, -0.5f, 0.5f));
         Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(2, 1, out var down));
         Assert.Equal(6, Split(down).G);
-        Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(2, 3, out _));
         Assert.Equal(SubjectRemovalPlate.Estimated, plate.Sample(2, 5, out _));
+
+        // Half a cell from the last row seen, half from one never seen: the edge of what is known is
+        // estimated from the known row alone; with nothing known around it, it is unknown.
+        Assert.Equal(SubjectRemovalPlate.Estimated, plate.Sample(2, 3, out var edge));
+        plate.Advance(new CameraMotion(1, 0, -0.5f));
+        plate.Sample(2, 3, out var lastRow);
+        plate.Advance(new CameraMotion(1, 0, 0.5f));
+        Assert.Equal(lastRow, edge);
+        Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(5, 6, out var nothing));
+        Assert.Equal(0u, nothing);
+    }
+
+    [Fact]
+    public void OnlyBackgroundSeenAlikeSeveralTimesInARowCountsAsObserved()
+    {
+        var plate = new SubjectRemovalPlate();
+        plate.Prepare(64, 48);
+        using var wall = Gradient();
+        using var passing = Gradient(red: 250);
+        // Seen once, then twice: not yet trusted.
+        plate.Learn(wall, (0, 0, 64, 48), Nothing, default, 0);
+        Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(10, 10, out _));
+        plate.Learn(wall, (0, 0, 64, 48), Nothing, default, 0);
+        Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(10, 10, out _));
+        // Something passing breaks the run, and alternating views never agree long enough.
+        for (var i = 0; i < 6; i++)
+        {
+            plate.Learn(i % 2 == 0 ? passing : wall, (0, 0, 64, 48), Nothing, default, 0);
+        }
+
+        Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(10, 10, out _));
+        See(plate, wall, (0, 0, 64, 48), Nothing, default, 0);
+        Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(10, 10, out var seen));
+        Assert.Equal(90, Split(seen).R);
+
+        // A lasting change, such as a light switched on, replaces the record once it has held.
+        plate.Learn(passing, (0, 0, 64, 48), Nothing, default, 0);
+        Assert.Equal(90, plate.Sample(10, 10, out var held) == SubjectRemovalPlate.Observed ? Split(held).R : -1);
+        See(plate, passing, (0, 0, 64, 48), Nothing, default, 0);
+        plate.Sample(10, 10, out var changed);
+        Assert.Equal(250, Split(changed).R);
+    }
+
+    [Fact]
+    public void ALargeAreaIsRecordedInAlternateRows()
+    {
+        foreach (var zoom in new[] { 1f, 1.05f })
+        {
+            var plate = new SubjectRemovalPlate();
+            plate.Prepare(64, 48);
+            plate.Advance(new CameraMotion(zoom, 0, 0));
+            using var frame = Gradient();
+            for (var i = 0; i < SubjectRemovalPlate.Confirmations; i++)
+            {
+                plate.Learn(frame, (0, 0, 64, 48), Nothing, default, 0, rowStep: 2, rowPhase: 0);
+            }
+
+            // Even plate rows were seen three times; odd ones not at all yet.
+            var (u, v) = plate.Locate(20, 20);
+            var even = (int)MathF.Round(v) % 2 == 0;
+            Assert.Equal(SubjectRemovalPlate.Unknown, plate.Sample(20, even ? 21 : 20, out _));
+            for (var i = 0; i < SubjectRemovalPlate.Confirmations; i++)
+            {
+                plate.Learn(frame, (0, 0, 64, 48), Nothing, default, 0, rowStep: 2, rowPhase: 1);
+            }
+
+            Assert.Equal(SubjectRemovalPlate.Observed, plate.Sample(30, 30, out _));
+            Assert.True(u >= 0);
+        }
+    }
+
+    [Fact]
+    public void ARowMatchesIndividualSamplesAtKnownEdgesAndOutsideThePlate()
+    {
+        foreach (var (shiftX, shiftY) in new[] { (0f, 0f), (0.5f, 0.25f), (-1.5f, -2.25f), (0f, 60f), (0f, -60f) })
+        {
+            var plate = new SubjectRemovalPlate();
+            plate.Prepare(64, 48);
+            using var frame = Gradient();
+            See(plate, frame, (0, 0, 64, 24), Nothing, default, 0);
+            plate.Estimate(12, 30, 0x112233);
+            plate.Advance(new CameraMotion(1, shiftX, shiftY));
+
+            foreach (var y in new[] { -60, -1, 0, 1, 21, 22, 23, 24, 29, 30, 31, 47, 48, 60 })
+            {
+                var colours = new uint[80];
+                var states = new byte[80];
+                plate.SampleRow(-8, y, colours, states);
+                for (var i = 0; i < colours.Length; i++)
+                {
+                    var expected = plate.Sample(i - 8, y, out var colour);
+                    Assert.Equal(expected, states[i]);
+                    Assert.Equal(colour, colours[i]);
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void ZoomedPlateRowsMatchIndividualSamplesForEveryPixel()
+    {
+        var plate = new SubjectRemovalPlate();
+        plate.Prepare(64, 48);
+        using var frame = Gradient();
+        See(plate, frame, (0, 0, 64, 24), Nothing, default, 0);
+        plate.Estimate(12, 30, 0x112233);
+        plate.Advance(new CameraMotion(1.02f, 0.5f, -0.25f));
+
+        foreach (var y in new[] { -3, 0, 1, 20, 23, 29, 47, 48, 55 })
+        {
+            var colours = new uint[80];
+            var states = new byte[80];
+            plate.SampleRow(-8, y, colours, states);
+            for (var i = 0; i < colours.Length; i++)
+            {
+                Assert.Equal(plate.Sample(i - 8, y, out var pixel), states[i]);
+                Assert.Equal(pixel, colours[i]);
+            }
+        }
     }
 
     [Theory]

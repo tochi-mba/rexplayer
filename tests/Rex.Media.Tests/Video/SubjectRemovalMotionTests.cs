@@ -15,7 +15,7 @@ public sealed class SubjectRemovalMotionTests
     public void ThePanBetweenTwoPicturesIsMeasuredToAFractionOfAPixel()
     {
         // A picture large enough that the detailed stage reads a reduced copy, then a small area read whole.
-        foreach (var (width, height, detail) in new[] { (640, 360, (0, 0, 640, 360)), (320, 180, (60, 40, 260, 140)) })
+        foreach (var (width, height, detail) in new[] { (960, 540, (0, 0, 960, 540)), (320, 180, (60, 40, 260, 140)) })
         {
             var scene = Wall(width, height, i => (2.6f * i, -1.3f * i));
             var motion = new SubjectRemovalMotion();
@@ -29,6 +29,49 @@ public sealed class SubjectRemovalMotionTests
             Assert.False(motion.Cut);
             Assert.InRange(motion.Residual, 0, SubjectRemovalMotion.CutResidual);
         }
+    }
+
+    [Fact]
+    public void APanIsMeasuredOnAReducedCopyWithThePyramidReadFromTheWholePicture()
+    {
+        var scene = Wall(640, 360, i => (5.2f * i, -2.6f * i));
+        var motion = new SubjectRemovalMotion();
+        using var first = scene.Render(0);
+        using var second = scene.Render(1);
+        using var small = VideoFrame.Rent(PixelFormat.Bgra32, 320, 180);
+        SubjectRemovalScaling.Reduce(first, small, 2);
+        motion.Estimate(small, NoSubject, (60, 40, 260, 140), first);
+        SubjectRemovalScaling.Reduce(second, small, 2);
+        var moved = motion.Estimate(small, (100, 60, 140, 120), (60, 40, 260, 140), second);
+        Assert.InRange(moved.ShiftX, 2.45f, 2.75f);
+        Assert.InRange(moved.ShiftY, -1.45f, -1.15f);
+    }
+
+    [Fact]
+    public void ASteadyPanIsFollowedFromTheLastPicturesMotionAndAJoltIsSearchedFor()
+    {
+        // A steady pan: after the first measure each picture starts from the last one's motion. Then
+        // the camera jolts: the prediction no longer fits and the pyramid, a few pictures old by
+        // then, finds it.
+        var scene = Wall(320, 180, i => i < 9 ? (2.6f * i, 0) : (2.6f * 8 + 9 + 2.6f * (i - 8), 4));
+        var motion = new SubjectRemovalMotion();
+        for (var i = 0; i < 12; i++)
+        {
+            using var picture = scene.Render(i);
+            var moved = motion.Estimate(picture, (100, 60, 140, 120), (40, 30, 280, 150));
+            if (i == 9)
+            {
+                Assert.InRange(moved.ShiftX, 11.4f, 11.8f);
+                Assert.InRange(moved.ShiftY, 3.8f, 4.2f);
+            }
+            else if (i > 0)
+            {
+                Assert.InRange(moved.ShiftX, 2.45f, 2.75f);
+                Assert.InRange(moved.ShiftY, -0.15f, 0.15f);
+            }
+        }
+
+        Assert.Equal(new CameraMotion(1, 2, 3), SubjectRemovalMotion.Compose(new CameraMotion(1, 1, 1), new CameraMotion(1, 1, 2)));
     }
 
     [Fact]

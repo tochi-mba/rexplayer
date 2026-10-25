@@ -23,6 +23,8 @@ namespace Rex.Media.Windows.Tests;
 /// <item>REXPLAYER_EFFECT_ONLY: effect names separated by commas, to draw only those.</item>
 /// <item>REXPLAYER_EFFECT_EXTREMES: 1 to draw each effect at the ends of each of its controls.</item>
 /// <item>REXPLAYER_EFFECT_TILE: the size of each picture on a sheet, "480x270" unless set.</item>
+/// <item>REXPLAYER_EFFECT_SCALE: draw each picture this many times larger and average it down, so
+/// a tile shows a full-screen picture shrunk (4 for 1920x1080 behind 480x270 tiles).</item>
 /// </list>
 /// </summary>
 [SupportedOSPlatform("windows8.0")]
@@ -132,7 +134,10 @@ public sealed class EffectContactSheets
 
     private static void Draw(string folder, Source source, List<VideoFrame> frames, List<Item> items, int tileWidth, int tileHeight, string kind)
     {
-        var (renderWidth, renderHeight) = source.Crop is null ? (tileWidth, tileHeight) : (frames[0].Width, frames[0].Height);
+        // Drawn larger and averaged down (REXPLAYER_EFFECT_SCALE), a tile shows what a full-screen
+        // picture looks like shrunk, rather than the effect drawn into a small window.
+        var scale = source.Crop is null && int.TryParse(Environment.GetEnvironmentVariable("REXPLAYER_EFFECT_SCALE"), out var s) ? Math.Max(1, s) : 1;
+        var (renderWidth, renderHeight) = source.Crop is null ? (tileWidth * scale, tileHeight * scale) : (frames[0].Width, frames[0].Height);
         using var presenter = D3D11Presenter.Offscreen(renderWidth, renderHeight, software: false);
         var perSheet = Columns * 3;
         for (var start = 0; start < items.Count; start += perSheet)
@@ -152,7 +157,21 @@ public sealed class EffectContactSheets
                     : (0, 0);
                 for (var y = 0; y < tileHeight; y++)
                 {
-                    drawn.Row(0, cropTop + y).Slice(cropLeft * 4, tileWidth * 4).CopyTo(sheet.Row(0, top + LabelHeight + y)[(left * 4)..]);
+                    var target = sheet.Row(0, top + LabelHeight + y)[(left * 4)..];
+                    for (var x = 0; x < tileWidth * 4; x++)
+                    {
+                        var sum = 0;
+                        for (var dy = 0; dy < scale; dy++)
+                        {
+                            var row = drawn.Row(0, cropTop + (y * scale) + dy);
+                            for (var dx = 0; dx < scale; dx++)
+                            {
+                                sum += row[((cropLeft + ((x / 4) * scale) + dx) * 4) + (x % 4)];
+                            }
+                        }
+
+                        target[x] = (byte)(sum / (scale * scale));
+                    }
                 }
 
                 Label(sheet, left + 4, top + 4, item.Label);

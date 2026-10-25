@@ -25,14 +25,54 @@ public sealed partial class MainWindow
     private IReadOnlyList<SubtitleCue> _shownCues = [];
     private IReadOnlyList<SubtitleCue> _shownSecondary = [];
     private SubtitleLook? _look;
+    private readonly Windows.UI.ViewManagement.AccessibilitySettings _subtitleAccessibility = new();
+    private bool _subtitleContrastSubscribed;
 
     private void WireSubtitles()
     {
         _player.SubtitlesChanged += (_, _) => ShowSubtitles(redraw: true);
+        _player.SubtitlesChanged += (_, _) => ShowPresentation();
+        _player.SubtitlesChanged += (_, _) => OnWindowThread(RefreshTranscriptMenus);
         _player.PositionChanged += (_, _) => ShowSubtitles(redraw: false);
         Stage.SizeChanged += (_, _) => LayOutSubtitles();
         Controls.SizeChanged += (_, _) => LayOutSubtitles();
         Controls.RegisterPropertyChangedCallback(UIElement.VisibilityProperty, (_, _) => LayOutSubtitles());
+        try
+        {
+            _subtitleAccessibility.HighContrastChanged += OnSubtitleContrastChanged;
+            _subtitleContrastSubscribed = true;
+        }
+        catch (System.Runtime.InteropServices.COMException ex) when (ex.HResult == unchecked((int)0x80070490))
+        {
+            // Some Windows hosts (including CI desktops) do not register this
+            // optional system event. The current contrast is still read as the
+            // subtitle layout is updated; no event means only live updates stop.
+            App.Log.Warning(LogSource, "Windows high-contrast notifications are unavailable: " + ex.Message);
+        }
+    }
+
+    private void OnSubtitleContrastChanged(Windows.UI.ViewManagement.AccessibilitySettings sender, object args)
+    {
+        OnWindowThread(() =>
+        {
+            if (_closed || _closing)
+            {
+                return;
+            }
+
+            LayOutSubtitles();
+            ShowSubtitles(redraw: true);
+            UpdateKineticCaptionsForContrast();
+        });
+    }
+
+    private void UnwireSubtitleContrast()
+    {
+        if (_subtitleContrastSubscribed)
+        {
+            _subtitleAccessibility.HighContrastChanged -= OnSubtitleContrastChanged;
+            _subtitleContrastSubscribed = false;
+        }
     }
 
     /// <summary>Shows the cues due now, drawing them again only when they changed.</summary>
@@ -65,7 +105,8 @@ public sealed partial class MainWindow
         }
 
         var area = SubtitleLook.SubtitleArea(picture, height, _settings.SubtitlesInBars);
-        var look = SubtitleLook.For(_settings, picture.Height);
+        var look = SubtitleLook.For(_settings, picture.Height,
+            _subtitleAccessibility.HighContrast);
         var underControls = IsFullScreen && Controls.Visibility == Visibility.Visible ? Controls.ActualHeight : 0;
         var below = Math.Max(height - area.Y - area.Height + look.Margin, underControls + 8);
         SubtitleLayer.Margin = new Thickness(area.X, area.Y + look.Margin, Math.Max(0, width - area.X - area.Width), Math.Max(0, below));
@@ -76,6 +117,14 @@ public sealed partial class MainWindow
             _look = look;
             DrawSubtitles();
         }
+    }
+
+    // Force the kinetic caption layer to reread its style after an OS
+    // accessibility palette change, even when playback is paused.
+    private void UpdateKineticCaptionsForContrast()
+    {
+        _captionGate.Reset();
+        KeepCaptionsDrawing();
     }
 
     private void DrawSubtitles()
@@ -191,7 +240,7 @@ public sealed partial class MainWindow
         switch (command)
         {
             case CommandCatalog.AddSubtitles:
-                _ = PickSubtitlesAsync();
+                Forget(PickSubtitlesAsync());
                 return true;
             case CommandCatalog.SubtitlesBigger:
                 SetSubtitleSize(SubtitleLook.StepSize(_settings.SubtitleSize, 1));

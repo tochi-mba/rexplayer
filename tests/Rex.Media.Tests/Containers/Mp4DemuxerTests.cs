@@ -104,6 +104,8 @@ public sealed class Mp4DemuxerTests
         var info = demuxer.Info;
 
         Assert.Equal("MP4", info.FormatName);
+        // The boxes reach the end of the file: a whole file declares exactly its own length.
+        Assert.Equal(11125, info.DeclaredLength);
         Assert.Equal(MediaTime.FromSeconds(0.4), info.Duration);
         Assert.Equal("Basquiat", info.Metadata[MetadataKeys.Title]);
         Assert.Equal("Asake", info.Metadata[MetadataKeys.Artist]);

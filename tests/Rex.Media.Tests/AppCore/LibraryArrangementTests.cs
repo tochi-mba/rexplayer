@@ -8,6 +8,25 @@ namespace Rex.Media.Tests.AppCore;
 /// <summary>Library views ordered and grouped as the user asks (LIB-05).</summary>
 public sealed class LibraryArrangementTests
 {
+    [Theory]
+    [InlineData(2400, 1600, 1.5)]
+    [InlineData(1600, 2400, 2.0 / 3.0)]
+    [InlineData(12000, 400, 4.0)]
+    [InlineData(400, 12000, 0.35)]
+    [Capability("LIB-05")]
+    public void PictureCollageUsesRealDimensionsWhileBoundingExtremeRows(int width, int height, double expected)
+    {
+        Assert.Equal(expected, CollageLayout.PictureAspectRatio(width, height, 4), 8);
+    }
+
+    [Fact]
+    public void MissingPictureDimensionsUseDeterministicCardProportions()
+    {
+        Assert.Equal(CollageLayout.AspectRatio(LibraryKind.Picture, false, 2), CollageLayout.PictureAspectRatio(null, null, 2));
+        Assert.Equal(CollageLayout.AspectRatio(LibraryKind.Picture, false, 2), CollageLayout.PictureAspectRatio(0, 80, 2));
+        Assert.Equal(CollageLayout.AspectRatio(LibraryKind.Picture, false, 2), CollageLayout.PictureAspectRatio(80, -1, 2));
+    }
+
     private static readonly DateTime Now = new(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc);
 
     private static LibraryEntry Song(string title, string? artist = null, string? album = null, int? year = null, int plays = 0, double daysAgo = 400, double? playedDaysAgo = null, double? minutes = null, string folder = "Music", string? genre = null) => new()
@@ -129,6 +148,37 @@ public sealed class LibraryArrangementTests
     }
 
     [Fact]
+    [Capability("LIB-05")]
+    public void AnAccentedFirstLetterSitsUnderItsPlainLetter()
+    {
+        // "Édith" used to get an "É" heading of its own, apart from the other E's.
+        var sections = LibraryArrangement.Group([Song("Ezra"), Song("Édith"), Song("éclair"), Song("Ñandú"), Song("1999")], LibraryGrouping.Letter, Now);
+        Assert.Equal(["E", "N", "#"], sections.Select(section => section.Header));
+        Assert.Equal(["Ezra", "Édith", "éclair"], sections[0].Entries.Select(entry => entry.Title));
+        Assert.Equal("O", LibraryArrangement.LetterOf("  özil"));
+        Assert.Equal("#", LibraryArrangement.LetterOf(null));
+        Assert.Equal("#", LibraryArrangement.LetterOf(""));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void AstralLettersAndUnicodeMarksUseStableAlphabeticHeadings()
+    {
+        // Deseret letters live beyond the BMP and use a UTF-16 surrogate pair.
+        // Grouping by the first char previously placed them under "#".
+        Assert.Equal("𐐀", LibraryArrangement.LetterOf("𐐨lpha"));
+        Assert.Equal("E", LibraryArrangement.LetterOf("E\u0301lan"));
+        Assert.Equal("#", LibraryArrangement.LetterOf("🎵 music"));
+        Assert.Equal("#", LibraryArrangement.LetterOf("\uD800 malformed"));
+
+        var sections = LibraryArrangement.Group(
+            [Song("𐐨lpha"), Song("𐐀lpha"), Song("🎵 music")],
+            LibraryGrouping.Letter, Now);
+        Assert.Equal(["𐐀", "#"], sections.Select(x => x.Header));
+        Assert.Equal(2, sections[0].Entries.Count);
+    }
+
+    [Fact]
     public void GroupsOfSongsAreOrderedByWhatIsInThem()
     {
         var albums = LibraryViews.Albums(Asake);
@@ -145,6 +195,31 @@ public sealed class LibraryArrangementTests
         Assert.Equal(["Work Of Art", "Mr Money With The Vibe", LibraryViews.UnknownAlbum], Names(LibrarySort.MostPlayed));
         Assert.Equal(["Work Of Art", "Mr Money With The Vibe", LibraryViews.UnknownAlbum], Names(LibrarySort.Length));
         Assert.Throws<ArgumentNullException>(() => LibraryArrangement.Sort((IReadOnlyList<LibraryGroup>)null!, LibrarySort.Title, false));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void SameTitlesKeepIndependentArtistAlbumAndPathIdentityWithUnknownFallback()
+    {
+        var first = Song("Same", artist: "Alice", album: "Release", genre: "Jazz");
+        var second = Song("Same", artist: "Bob", album: "Release", genre: null) with { Path = Path.Combine("D:" + Path.DirectorySeparatorChar, "Other", "Same.mp3") };
+        var missing = Song("Mystery", artist: null, album: null, genre: null);
+        var originals = new[] { first, second, missing };
+
+        var albums = LibraryViews.Albums(originals);
+        Assert.Equal(3, albums.Count);
+        Assert.Equal(["Alice", "Bob"], albums.Where(group => group.Name == "Release").Select(group => group.Detail));
+        Assert.Equal(missing.Path, Assert.Single(albums.Single(group => group.Name == LibraryViews.UnknownAlbum).Entries).Path);
+
+        var artists = LibraryViews.Artists(originals);
+        Assert.Contains(artists, group => group.Name == "Alice" && group.Entries.Single().Path == first.Path);
+        Assert.Contains(artists, group => group.Name == "Bob" && group.Entries.Single().Path == second.Path);
+        Assert.Equal(missing.Path, Assert.Single(artists.Single(group => group.Name == LibraryViews.UnknownArtist).Entries).Path);
+
+        var groups = LibraryArrangement.Group(originals, LibraryGrouping.Genre, Now);
+        Assert.Equal(["Jazz", LibraryViews.UnknownGenre], groups.Select(section => section.Header));
+        Assert.Equal([second.Path, missing.Path], groups[1].Entries.Select(entry => entry.Path));
+        Assert.Equal([first, second, missing], LibraryArrangement.Sort(originals, LibrarySort.Natural, false));
     }
 
     [Fact]
@@ -193,6 +268,7 @@ public sealed class LibraryArrangementTests
         Assert.Equal(["Big", "Later", "Empty"], LibraryArrangement.Sort(albums, LibrarySort.Modified, false).Select(group => group.Name));
         Assert.Equal(["Big", "Later", "Empty"], LibraryArrangement.Sort(albums, LibrarySort.Size, false).Select(group => group.Name));
         Assert.Equal(["Empty", "Big", "Later"], LibraryArrangement.Sort(albums, LibrarySort.Path, false).Select(group => group.Name));
+        Assert.Equal("Empty", LibraryArrangement.Sort(albums, LibrarySort.Added, false)[^1].Name);
     }
 
     [Fact]
@@ -210,29 +286,15 @@ public sealed class LibraryArrangementTests
         Assert.Equal(WatchState.Unwatched, LibraryArrangement.StateOf(video, LeftAt));
 
         var all = new LibraryViewChoice();
-        Assert.Same(entries, LibraryArrangement.Filter(entries, all, "  ", LeftAt));
-        Assert.Equal(["Episode", "Beach", "2:30"], Titles(LibraryArrangement.Filter(entries, all with { Filter = LibraryFilter.Unwatched }, null, LeftAt)));
-        Assert.Equal(["Film"], Titles(LibraryArrangement.Filter(entries, all with { Filter = LibraryFilter.InProgress }, null, LeftAt)));
-        Assert.Equal(["Sungba"], Titles(LibraryArrangement.Filter(entries, all with { Filter = LibraryFilter.Finished }, null, LeftAt)));
-        Assert.Equal(["Episode", "Film"], Titles(LibraryArrangement.Filter(entries, all with { Kinds = LibraryKindFilter.Video }, null, LeftAt)));
-        Assert.Equal(["Sungba", "2:30"], Titles(LibraryArrangement.Filter(entries, all with { Kinds = LibraryKindFilter.Music }, null, LeftAt)));
-        Assert.Equal(["Beach"], Titles(LibraryArrangement.Filter(entries, all with { Kinds = LibraryKindFilter.Picture }, null, LeftAt)));
-        Assert.Equal(["Episode"], Titles(LibraryArrangement.Filter(entries, all with { Folder = Path.GetDirectoryName(video.Path) }, null, LeftAt)));
-        Assert.Equal(["Episode"], Titles(LibraryArrangement.Filter(entries, all with { Kinds = LibraryKindFilter.Video, Filter = LibraryFilter.Unwatched }, null, LeftAt)));
-
-        // Typed words match the title, the tags or the path, however cased or accented; every word must be found.
-        Assert.Equal(["Sungba"], Titles(LibraryArrangement.Filter(entries, all, "asáke sung", LeftAt)));
-        Assert.Equal(["Episode"], Titles(LibraryArrangement.Filter(entries, all, "shows", LeftAt)));
-        Assert.Empty(LibraryArrangement.Filter(entries, all, "shows film", LeftAt));
-
-        var groups = LibraryViews.Albums(Asake);
-        Assert.Same(groups, LibraryArrangement.Filter(groups, ""));
-        Assert.Equal(["Work Of Art"], LibraryArrangement.Filter(groups, "work").Select(group => group.Name));
-        Assert.Equal(["Mr Money With The Vibe", "Work Of Art"], LibraryArrangement.Filter(groups, "asake").Select(group => group.Name));
-        Assert.Equal(["Mr Money With The Vibe"], LibraryArrangement.Filter(groups, "joha").Select(group => group.Name));
-        Assert.True(LibraryArrangement.NameMatches("My playlist", "PLAY"));
-        Assert.True(LibraryArrangement.NameMatches("My playlist", null));
-        Assert.False(LibraryArrangement.NameMatches("My playlist", "road"));
+        Assert.Same(entries, LibraryArrangement.Filter(entries, all, LeftAt));
+        Assert.Equal(["Episode", "Beach", "2:30"], Titles(LibraryArrangement.Filter(entries, all with { Filter = LibraryFilter.Unwatched }, LeftAt)));
+        Assert.Equal(["Film"], Titles(LibraryArrangement.Filter(entries, all with { Filter = LibraryFilter.InProgress }, LeftAt)));
+        Assert.Equal(["Sungba"], Titles(LibraryArrangement.Filter(entries, all with { Filter = LibraryFilter.Finished }, LeftAt)));
+        Assert.Equal(["Episode", "Film"], Titles(LibraryArrangement.Filter(entries, all with { Kinds = LibraryKindFilter.Video }, LeftAt)));
+        Assert.Equal(["Sungba", "2:30"], Titles(LibraryArrangement.Filter(entries, all with { Kinds = LibraryKindFilter.Music }, LeftAt)));
+        Assert.Equal(["Beach"], Titles(LibraryArrangement.Filter(entries, all with { Kinds = LibraryKindFilter.Picture }, LeftAt)));
+        Assert.Equal(["Episode"], Titles(LibraryArrangement.Filter(entries, all with { Folder = Path.GetDirectoryName(video.Path) }, LeftAt)));
+        Assert.Equal(["Episode"], Titles(LibraryArrangement.Filter(entries, all with { Kinds = LibraryKindFilter.Video, Filter = LibraryFilter.Unwatched }, LeftAt)));
 
         Assert.Equal("Filter", LibraryArrangement.FilterLabel(all));
         Assert.Equal("Unwatched \u00B7 Videos \u00B7 Shows", LibraryArrangement.FilterLabel(all with { Filter = LibraryFilter.Unwatched, Kinds = LibraryKindFilter.Video, Folder = Path.GetDirectoryName(video.Path) }));
@@ -243,12 +305,32 @@ public sealed class LibraryArrangementTests
 
         Assert.Throws<ArgumentNullException>(() => LibraryArrangement.StateOf(null!, LeftAt));
         Assert.Throws<ArgumentNullException>(() => LibraryArrangement.StateOf(video, null!));
-        Assert.Throws<ArgumentNullException>(() => LibraryArrangement.Filter(null!, all, "", LeftAt));
-        Assert.Throws<ArgumentNullException>(() => LibraryArrangement.Filter(entries, null!, "", LeftAt));
-        Assert.Throws<ArgumentNullException>(() => LibraryArrangement.Filter(entries, all, "", null!));
-        Assert.Throws<ArgumentNullException>(() => LibraryArrangement.Filter((IReadOnlyList<LibraryGroup>)null!, ""));
-        Assert.Throws<ArgumentNullException>(() => LibraryArrangement.NameMatches(null!, ""));
+        Assert.Throws<ArgumentNullException>(() => LibraryArrangement.Filter(null!, all, LeftAt));
+        Assert.Throws<ArgumentNullException>(() => LibraryArrangement.Filter(entries, null!, LeftAt));
+        Assert.Throws<ArgumentNullException>(() => LibraryArrangement.Filter(entries, all, null!));
         Assert.Throws<ArgumentNullException>(() => LibraryArrangement.FilterLabel(null!));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void TheDownloadFilterKeepsWholeOrStillDownloadingFilesAndJoinsTheOthers()
+    {
+        var arriving = Song("Film", folder: "Films") with { Kind = LibraryKind.Video, Downloading = true, FinalSize = 1000 };
+        var entries = new[] { Asake[0], arriving, Asake[3] with { Downloading = true } };
+        TimeSpan? LeftAt(string path) => null;
+        var all = new LibraryViewChoice();
+
+        Assert.Equal(["Film", "2:30"], Titles(LibraryArrangement.Filter(entries, all with { Download = LibraryDownloadFilter.Downloading }, LeftAt)));
+        Assert.Equal(["Sungba"], Titles(LibraryArrangement.Filter(entries, all with { Download = LibraryDownloadFilter.Complete }, LeftAt)));
+        Assert.Equal(["Film"], Titles(LibraryArrangement.Filter(entries, all with { Download = LibraryDownloadFilter.Downloading, Kinds = LibraryKindFilter.Video }, LeftAt)));
+        Assert.Empty(LibraryArrangement.Filter(entries, all with { Download = LibraryDownloadFilter.Downloading, Filter = LibraryFilter.Finished }, LeftAt));
+
+        Assert.Equal("Still downloading", LibraryArrangement.FilterLabel(all with { Download = LibraryDownloadFilter.Downloading }));
+        Assert.Equal("Music \u00B7 Fully downloaded", LibraryArrangement.FilterLabel(all with { Kinds = LibraryKindFilter.Music, Download = LibraryDownloadFilter.Complete }));
+        Assert.Equal("All files", LibraryArrangement.DownloadName(LibraryDownloadFilter.Any));
+        Assert.True((all with { Download = LibraryDownloadFilter.Complete }).IsFiltered);
+        Assert.Equal(all, (all with { Download = LibraryDownloadFilter.Complete }).Unfiltered());
+        Assert.Equal(LibraryDownloadFilter.Any, (all with { Download = (LibraryDownloadFilter)9 }).Normalize().Download);
     }
 
     [Fact]

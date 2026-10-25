@@ -113,6 +113,20 @@ public sealed class ShortcutEditingTests
     }
 
     [Fact]
+    [Capability("UI-11")]
+    public void TheMouseChoicesNameTheJumpsTheyMake()
+    {
+        var settings = new PlayerSettings { VeryShortJumpSeconds = 7, ShortJumpSeconds = 60 };
+
+        Assert.Equal(["Changes the volume", "Jumps 7 seconds", "Does nothing"], ShortcutEditing.WheelChoiceTitles(settings));
+        Assert.Equal(["Go to the previous and next item", "Jump back and forward 1 minute", "Do nothing"], ShortcutEditing.SideButtonChoiceTitles(settings));
+        Assert.Equal(Enum.GetValues<WheelChoice>().Length, ShortcutEditing.WheelChoiceTitles(settings).Length);
+        Assert.Equal(Enum.GetValues<SideButtonChoice>().Length, ShortcutEditing.SideButtonChoiceTitles(settings).Length);
+        Assert.Throws<ArgumentNullException>(() => ShortcutEditing.WheelChoiceTitles(null!));
+        Assert.Throws<ArgumentNullException>(() => ShortcutEditing.SideButtonChoiceTitles(null!));
+    }
+
+    [Fact]
     public void BadMouseSettingsAreMendedAndGlobalShortcutsTidied()
     {
         var mended = new PlayerSettings

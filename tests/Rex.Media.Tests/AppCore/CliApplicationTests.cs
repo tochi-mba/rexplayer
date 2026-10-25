@@ -119,18 +119,13 @@ public sealed class CliApplicationTests : IDisposable
         Assert.Equal(JsonValueKind.Null, payload.GetProperty("chapterHints").ValueKind);
         Assert.NotEmpty(payload.GetProperty("signature").GetString()!);
 
-        // The same host caches the analysis for subsequent CLI requests, so nothing needs
-        // decoding a second time when the user inspects the same season again.
+        // One host keeps each analysis, so inspecting the season again decodes nothing.
+        var cache = new SectionAnalysisCache();
         using (var cachedOutput = new StringWriter())
         {
-            var cachedHost = new CliHost
-            {
-                Out = cachedOutput,
-                Error = TextWriter.Null,
-                Version = "9.9.9",
-                SectionCache = new SectionAnalysisCache(),
-            };
+            var cachedHost = new CliHost { Out = cachedOutput, Error = TextWriter.Null, Version = "9.9.9", SectionCache = cache };
             Assert.Equal(0, CliApplication.Run(["sections", episode, "--json"], cachedHost));
+            Assert.NotNull(cache.Get(episode, SectionAnalysis.SignatureOf(episode)));
             cachedOutput.GetStringBuilder().Clear();
             Assert.Equal(0, CliApplication.Run(["sections", episode, "--json"], cachedHost));
             Assert.True(Single(cachedOutput.ToString()).GetProperty("ok").GetBoolean());
@@ -464,7 +459,7 @@ public sealed class CliApplicationTests : IDisposable
     [Fact]
     public void TheRegistriesHoldTheShippedFormats()
     {
-        Assert.Equal(["wav", "aiff", "flac", "mpeg-audio", "mp4", "matroska", "ogg", "picture"], MediaRegistries.Demuxers().Factories.Select(f => f.Name));
+        Assert.Equal(["avi", "wav", "aiff", "au", "flac", "mpeg-audio", "mp4", "matroska", "ogg", "picture"], MediaRegistries.Demuxers().Factories.Select(f => f.Name));
         Assert.Equal(["rexplayer PCM", "rexplayer FLAC", "rexplayer MP3", "rexplayer Vorbis", "rexplayer GIF"], MediaRegistries.Decoders().Factories.Select(f => f.Name));
         Assert.Throws<ArgumentNullException>(() => MediaRegistries.Decoders(null!));
     }

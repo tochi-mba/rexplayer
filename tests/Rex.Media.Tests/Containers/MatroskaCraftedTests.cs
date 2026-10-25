@@ -102,6 +102,7 @@ public sealed class MatroskaCraftedTests
                 Element(Id.BlockGroup, UInt(Id.BlockDuration, 1)),
                 Element(Id.SimpleBlock, Block(Audio, 8, 0, 1, [9], [10]))));
         using var demuxer = Open(file);
+        Assert.Equal(file.Length, demuxer.Info.DeclaredLength);
 
         var packets = ReadAll(demuxer);
 
@@ -156,14 +157,14 @@ public sealed class MatroskaCraftedTests
     }
 
     [Fact]
-    public void ReadingStopsAtAnUnsizedElementThatIsNotACluster()
+    public void AnUnsizedNonClusterElementResynchronizesAtTheNextCluster()
     {
         var file = Mkv(Tracks(PcmTrack()), Cluster(0, Simple(Audio, 0, true, 1)), Unsized(Id.Tags), Cluster(5, Simple(Audio, 0, true, 2)));
         using var demuxer = Open(file);
 
         var packets = ReadAll(demuxer);
 
-        Assert.Equal([1], packets.Select(p => p.Data.Span[0]));
+        Assert.Equal([1, 2], packets.Select(p => p.Data.Span[0]));
         MatroskaDemuxerTests.Release(packets);
     }
 
@@ -201,7 +202,7 @@ public sealed class MatroskaCraftedTests
         { Concat(Id(Id.Ebml), [0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]), "impossible size" },
         { Concat(Element(Id.Ebml), Element(Id.Cluster)), "no segment" },
         { Mkv(Element(Id.Info)), "no tracks" },
-        { File("matroska", [Concat(Id(Id.Info), Size((64L << 20) + 1))], unsizedSegment: true), "larger than" },
+        { File("matroska", [Concat(Id(Id.Info), Size((64L << 20) + 1))], unsizedSegment: true), "no tracks" },
         { [0x00], "malformed" },
         { [0x08, 0, 0, 0, 0], "malformed" },
     };
@@ -233,9 +234,17 @@ public sealed class MatroskaCraftedTests
     {
         using var demuxer = Open(File("matroska", [Tracks(PcmTrack()), cluster], unsizedSegment: true));
 
-        var error = Assert.Throws<MediaFormatException>(() => demuxer.ReadPacket(CancellationToken.None));
-
-        Assert.Contains(reason, error.Message, StringComparison.Ordinal);
+        if (reason is "unusable size" or "past the end")
+        {
+            // A damaged element size no longer ends a playable container; resynchronize
+            // at a later cluster or report a clean end when the file has no more clusters.
+            Assert.Null(demuxer.ReadPacket(CancellationToken.None));
+        }
+        else
+        {
+            var error = Assert.Throws<MediaFormatException>(() => demuxer.ReadPacket(CancellationToken.None));
+            Assert.Contains(reason, error.Message, StringComparison.Ordinal);
+        }
     }
 
     /// <summary>Audio every 10 ms and video every 40 ms (a keyframe every 80), one cluster per 40 ms.</summary>
@@ -396,12 +405,14 @@ public sealed class MatroskaCraftedTests
         var length = Head(0, 0, 0).Length;
         var head = Head(length + tracks.Length + info.Length + cluster.Length, length + tracks.Length + info.Length + cluster.Length + tags.Length, length);
         Assert.Equal(length, head.Length);
-        var file = File("webm", [head, tracks, info, cluster, tags, chapters]);
+        var file = File("webm", [head, tracks, info, cluster, tags, chapters], unsizedSegment: true);
 
         using var demuxer = Open(file);
         using var live = new MatroskaDemuxer(new LiveSource(file), CancellationToken.None);
 
         Assert.Equal("WebM", demuxer.Info.FormatName);
+        // The chapter has unknown size, but the enclosing segment declares the full file length.
+        Assert.Null(demuxer.Info.DeclaredLength);
         Assert.Equal("Asake", demuxer.Info.Metadata["artist"]);
         Assert.Equal("Sungba", demuxer.Info.Metadata["title"]);
         Assert.Equal(MediaTime.FromSeconds(0.5), demuxer.Info.Duration);

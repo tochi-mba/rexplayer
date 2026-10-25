@@ -9,6 +9,7 @@ using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Visuals;
 using Rex.Media.Audio;
 using Rex.Media.Engine;
+using Rex.Media.AppCore.Library;
 using Rex.Media.Settings;
 using Windows.Foundation;
 
@@ -66,16 +67,66 @@ public sealed partial class MainWindow
     private DateTime _cameraFailedAt;
     private VisualizerChoice? _builtFor;
     private Task? _stageWork;
+    private CancellationTokenSource _visualFrameCancellation = new();
     private bool _stageFailed;
     private bool _stageReset;
     private TimeSpan _lastDrawn;
+    private XamlRoot? _visualizerScaleRoot;
     private bool _visualizing;
+    private bool _visualDrawing;
+    private readonly VisualPacing _visualPacing = new();
+
+    /// <summary>
+    /// The default that applies to the item playing now. A missing library record, stream,
+    /// podcast, recording or ordinary song deliberately falls back to the general audio choice.
+    /// </summary>
+    private VisualizerChoice ActiveVisualizer => PlayingAudiobook ? _settings.AudiobookVisualizer : _settings.Visualizer;
+
+    private bool PlayingAudiobook => _library is not null && _player.Item?.Location is { } location
+        && Listening().Audiobooks.Any(book => book.Entries.Any(part => LibraryViews.SameLocation(part.Path, location)));
+
+    private void SetActiveVisualizer(VisualizerChoice choice) => _settings = PlayingAudiobook
+        ? _settings with { AudiobookVisualizer = choice }
+        : _settings with { Visualizer = choice };
 
     private void WireVisualizer()
     {
         Visualizer.SizeChanged += (_, _) => BuildVisualizer();
+        // WinUI Grid has no CompositionScaleChanged event. XamlRoot.Changed also
+        // reports rasterization scale changes when moving between DPI monitors.
+        Visualizer.Loaded += (_, _) =>
+        {
+            if (Visualizer.XamlRoot is not { } root || ReferenceEquals(root, _visualizerScaleRoot))
+            {
+                return;
+            }
+
+            if (_visualizerScaleRoot is { } previous)
+            {
+                previous.Changed -= OnVisualizerRootChanged;
+            }
+
+            _visualizerScaleRoot = root;
+            root.Changed += OnVisualizerRootChanged;
+        };
+        Visualizer.Unloaded += (_, _) =>
+        {
+            if (_visualizerScaleRoot is { } root)
+            {
+                root.Changed -= OnVisualizerRootChanged;
+                _visualizerScaleRoot = null;
+            }
+        };
         Visualizer.IsHitTestVisible = true;
         Visualizer.ContextFlyout = VisualizerMenu();
+    }
+
+    private void OnVisualizerRootChanged(XamlRoot sender, XamlRootChangedEventArgs args)
+    {
+        if (!_closed)
+        {
+            BuildVisualizer();
+        }
     }
 
     /// <summary>The visualisation's right-click menu: every visualisation, the lyrics, and the settings of this one.</summary>
@@ -87,8 +138,8 @@ public sealed partial class MainWindow
             menu.Items.Clear();
             foreach (var choice in Enum.GetValues<VisualizerChoice>().Where(choice => choice != VisualizerChoice.Off))
             {
-                var item = new ToggleMenuFlyoutItem { Text = Visualizers.Name(choice), IsChecked = choice == _settings.Visualizer };
-                item.Click += (_, _) => _ = ChooseVisualizerAsync(choice);
+                var item = new ToggleMenuFlyoutItem { Text = Visualizers.Name(choice), IsChecked = choice == ActiveVisualizer };
+                item.Click += (_, _) => Forget(ChooseVisualizerAsync(choice));
                 menu.Items.Add(item);
             }
 
@@ -100,8 +151,8 @@ public sealed partial class MainWindow
                 menu.Items.Add(lyrics);
             }
 
-            menu.Items.Add(MenuItem("Settings of this visualisation...", "VisualizerMenuSettings", () => _ = ShowVisualizerSettingsAsync()));
-            menu.Items.Add(MenuItem("No visualisation", null, () => _ = ChooseVisualizerAsync(VisualizerChoice.Off)));
+            menu.Items.Add(MenuItem("Settings of this visualisation...", "VisualizerMenuSettings", () => Forget(ShowVisualizerSettingsAsync())));
+            menu.Items.Add(MenuItem("No visualisation", null, () => Forget(ChooseVisualizerAsync(VisualizerChoice.Off))));
         };
         return menu;
     }
@@ -113,12 +164,13 @@ public sealed partial class MainWindow
     private void ApplyVisualizer()
     {
         var music = _player.Item is not null && _player.Info is not null && !HasVideo && _player.State is not (SessionState.Idle or SessionState.Faulted);
-        var show = music && _settings.Visualizer != VisualizerChoice.Off;
+        var choice = ActiveVisualizer;
+        var show = music && choice != VisualizerChoice.Off;
         Visualizer.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         var below = show || (music && _player.Lyrics is not null && _settings.ShowLyrics);
         Idle.VerticalAlignment = below ? VerticalAlignment.Top : VerticalAlignment.Center;
         Idle.Margin = below ? new Thickness(24, 24, 24, 0) : new Thickness(24);
-        if (show && _builtFor != _settings.Visualizer)
+        if (show && _builtFor != choice)
         {
             BuildVisualizer();
         }
@@ -126,14 +178,26 @@ public sealed partial class MainWindow
         if (show != _visualizing)
         {
             _visualizing = show;
-            if (show)
-            {
-                CompositionTarget.Rendering += OnRendering;
-            }
-            else
+            if (!show)
             {
                 StopVisualizing();
             }
+        }
+
+        WakeVisualizer();
+    }
+
+    /// <summary>
+    /// Draws the visualisation again from the next frame, for at least <see cref="VisualPacing.Settle"/>:
+    /// the music started, or the picture was rebuilt or changed while it was still.
+    /// </summary>
+    private void WakeVisualizer()
+    {
+        _visualPacing.Wake();
+        if (_visualizing && !_visualDrawing && _hidden.Draws)
+        {
+            _visualDrawing = true;
+            CompositionTarget.Rendering += OnRendering;
         }
     }
 
@@ -144,14 +208,47 @@ public sealed partial class MainWindow
     private void StopVisualizing()
     {
         CompositionTarget.Rendering -= OnRendering;
-        _visualizing = false;
+        (_visualizing, _visualDrawing) = (false, false);
         _bands.Reset();
         _spectrogramBands.Reset();
         _meterLeft.Reset();
         _meterRight.Reset();
+        // An old frame is never allowed to finish painting a later song,
+        // camera mode or closed window. Cancellation is cooperative and leaves
+        // each worker's stage untouched until it returns.
+        _visualFrameCancellation.Cancel();
+        _visualFrameCancellation.Dispose();
+        _visualFrameCancellation = new CancellationTokenSource();
         // The worker owns the stage until its frame finishes. Reset between frames, never during one.
         _stageReset = true;
         StopCamera();
+        ReleaseVisualizerMemoryWhenIdle();
+    }
+
+    /// <summary>
+    /// Releases full-frame visual buffers once an in-flight draw has stopped using them. A later
+    /// song rebuilds the chosen visualisation; video and idle screens do not retain its canvas.
+    /// </summary>
+    private void ReleaseVisualizerMemoryWhenIdle()
+    {
+        if (_stageWork is { IsCompleted: false } work)
+        {
+            _ = work.ContinueWith(_ => OnWindowThread(ReleaseVisualizerMemoryWhenIdle),
+                CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            return;
+        }
+
+        if (_visualizing)
+        {
+            return;
+        }
+
+        _stageWork = null;
+        _visualStage = null;
+        _visualBitmap = null;
+        _visualCover = null;
+        _builtFor = null;
+        SpectrogramImage.Source = null;
     }
 
     private bool RunVisualizerCommand(string command)
@@ -159,10 +256,10 @@ public sealed partial class MainWindow
         switch (command)
         {
             case CommandCatalog.CycleVisualizer:
-                _ = ChooseVisualizerAsync(Visualizers.Next(_settings.Visualizer), cycling: true);
+                Forget(ChooseVisualizerAsync(Visualizers.Next(ActiveVisualizer), cycling: true));
                 return true;
             case CommandCatalog.VisualizerSettings:
-                _ = ShowVisualizerSettingsAsync();
+                Forget(ShowVisualizerSettingsAsync());
                 return true;
             case CommandCatalog.ToggleLyrics:
                 _settings = _settings with { ShowLyrics = !_settings.ShowLyrics };
@@ -177,7 +274,10 @@ public sealed partial class MainWindow
     }
 
     /// <summary>Whether <paramref name="choice"/> uses the camera.</summary>
-    private bool UsesCamera(VisualizerChoice choice) => choice == VisualizerChoice.Silhouette
+    private bool UsesCamera(VisualizerChoice choice) => choice is VisualizerChoice.Silhouette
+        or VisualizerChoice.Clones or VisualizerChoice.TimeWarp or VisualizerChoice.Aura or VisualizerChoice.LedWall or VisualizerChoice.Stardust
+        or VisualizerChoice.HallOfMirrors or VisualizerChoice.LightPainting or VisualizerChoice.Scanner or VisualizerChoice.Shatter
+        or VisualizerChoice.Spotlight or VisualizerChoice.InfinityMirror or VisualizerChoice.Water
         || (choice == VisualizerChoice.BeatEdit && VisualizerOptions.Choice(_settings.VisualOptions, choice, "source") == 0);
 
     /// <summary>Asks once whether the camera may be used; true when it may.</summary>
@@ -224,7 +324,7 @@ public sealed partial class MainWindow
             while (UsesCamera(choice));
         }
 
-        _settings = _settings with { Visualizer = choice };
+        SetActiveVisualizer(choice);
         _player.Settings = _settings;
         ApplyVisualizer();
         BuildVisualizer();
@@ -232,17 +332,17 @@ public sealed partial class MainWindow
         RememberLater();
     }
 
-    private double Option(string key) => VisualizerOptions.Number(_settings.VisualOptions, _settings.Visualizer, key);
+    private double Option(string key) => VisualizerOptions.Number(_settings.VisualOptions, ActiveVisualizer, key);
 
-    private bool OptionOn(string key) => VisualizerOptions.Toggle(_settings.VisualOptions, _settings.Visualizer, key);
+    private bool OptionOn(string key) => VisualizerOptions.Toggle(_settings.VisualOptions, ActiveVisualizer, key);
 
-    private int OptionChoice(string key) => VisualizerOptions.Choice(_settings.VisualOptions, _settings.Visualizer, key);
+    private int OptionChoice(string key) => VisualizerOptions.Choice(_settings.VisualOptions, ActiveVisualizer, key);
 
     /// <summary>The visualisation's colour for <paramref name="share"/> (how far along the pitch, or the shapes), as its settings say.</summary>
-    private Windows.UI.Color Paint(double share)
+    private Windows.UI.Color Paint(double share, Argb? accent = null)
     {
         var palette = (VisualPalette)OptionChoice(VisualizerOptions.Colors);
-        var color = Visualizers.PaletteColor(palette, share, _player.Position.TotalSeconds, AccentArgb(), VisualizerOptions.Rgb(_settings.VisualOptions, _settings.Visualizer, VisualizerOptions.Color));
+        var color = Visualizers.PaletteColor(palette, share, _player.Position.TotalSeconds, accent ?? AccentArgb(), VisualizerOptions.Rgb(_settings.VisualOptions, ActiveVisualizer, VisualizerOptions.Color));
         return Windows.UI.Color.FromArgb(255, color.R, color.G, color.B);
     }
 
@@ -271,13 +371,15 @@ public sealed partial class MainWindow
     /// </summary>
     private void BuildVisualizer()
     {
-        _builtFor = _settings.Visualizer;
+        var choice = ActiveVisualizer;
+        _builtFor = choice;
+        WakeVisualizer();
         VisualCanvas.Children.Clear();
         _barShapes.Clear();
         _peakShapes.Clear();
         (_wave, _visualNote) = (null, null);
         var (width, height) = (Visualizer.ActualWidth, Visualizer.ActualHeight);
-        if (VisualScene.Draws(_settings.Visualizer))
+        if (VisualScene.Draws(choice))
         {
             BuildStage(height);
             return;
@@ -288,7 +390,7 @@ public sealed partial class MainWindow
         SpectrogramImage.Source = null;
         Visualizer.Margin = new Thickness(48, 120, 48, 48);
         StopCamera();
-        switch (_settings.Visualizer)
+        switch (choice)
         {
             case VisualizerChoice.Spectrum:
                 var count = (int)Option("bars");
@@ -346,7 +448,7 @@ public sealed partial class MainWindow
     private double StageScale() => Visualizer.XamlRoot?.RasterizationScale ?? 1;
 
     /// <summary>The canvas size the stage wants now: its size on screen, at the quality the stage can keep up.</summary>
-    private (int Width, int Height) StageSize(VisualStage? stage) => VisualStage.SizeFor(Visualizer.ActualWidth, Visualizer.ActualHeight, stage?.Quality ?? 1, StageScale());
+    private (int Width, int Height) StageSize(VisualStage? stage) => VisualStage.SizeFor(Visualizer.ActualWidth, Visualizer.ActualHeight, stage?.Quality ?? 1, StageScale(), _budget.VisualMaxSide);
 
     /// <summary>The software stage, filling the picture area edge to edge, and a note for the camera's news.</summary>
     private void BuildStage(double height)
@@ -374,7 +476,7 @@ public sealed partial class MainWindow
         }
 
         SpectrogramImage.Stretch = Stretch.Fill;
-        if (!UsesCamera(_settings.Visualizer))
+        if (!UsesCamera(ActiveVisualizer))
         {
             StopCamera();
             return;
@@ -384,7 +486,7 @@ public sealed partial class MainWindow
         Canvas.SetLeft(_visualNote, 24);
         Canvas.SetTop(_visualNote, Math.Max(24, height - 72));
         VisualCanvas.Children.Add(_visualNote);
-        if (_settings.Visualizer == VisualizerChoice.Silhouette)
+        if (ActiveVisualizer == VisualizerChoice.Silhouette)
         {
             var recalibrate = new Button { Content = "Recalibrate silhouette", Padding = new Thickness(12, 6, 12, 6) };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(recalibrate, "SilhouetteRecalibrate");
@@ -424,7 +526,7 @@ public sealed partial class MainWindow
             var camera = new CameraFeed();
             ConfigureCamera(camera);
             _camera = camera;
-            _ = StartCameraAsync(camera);
+            Forget(StartCameraAsync(camera));
         }
     }
 
@@ -450,7 +552,7 @@ public sealed partial class MainWindow
     /// </summary>
     private void ConfigureCamera(CameraFeed camera)
     {
-        var silhouette = _settings.Visualizer == VisualizerChoice.Silhouette;
+        var silhouette = ActiveVisualizer == VisualizerChoice.Silhouette;
         camera.Mirror = silhouette && OptionOn("mirror");
         camera.Threshold = silhouette ? Option("threshold") : 0.12;
     }
@@ -468,17 +570,31 @@ public sealed partial class MainWindow
 
     private void OnRendering(object? sender, object e)
     {
-        if (_closed || (_visualStage is not null && _stageWork is { IsCompleted: false }))
+        if (_closed)
+        {
+            return;
+        }
+
+        // Paused or ended, the picture settles and then stops being drawn until the music plays
+        // again; minimised, it is not drawn until the window is back (WakeVisualizer).
+        var now = e is RenderingEventArgs rendering ? rendering.RenderingTime : TimeSpan.Zero;
+        if (!_hidden.Draws || !_visualPacing.Draws(now, _player.IsPlaying, _builtFor is { } drawing && UsesCamera(drawing)))
+        {
+            CompositionTarget.Rendering -= OnRendering;
+            _visualDrawing = false;
+            return;
+        }
+
+        if (_visualStage is not null && _stageWork is { IsCompleted: false })
         {
             return;
         }
 
         // Sixty pictures a second while the stage draws quickly, so a beat shows within a frame of
         // being heard; thirty otherwise, and for the shapes, which spares the processor.
-        var now = e is RenderingEventArgs rendering ? rendering.RenderingTime : TimeSpan.Zero;
         var elapsed = now - _lastDrawn;
         var fast = _visualStage is { DrawMilliseconds: < 12 } && _builtFor is { } built && VisualScene.Draws(built);
-        var interval = TimeSpan.FromMilliseconds(fast ? 15 : 30);
+        var interval = TimeSpan.FromMilliseconds(Math.Max(fast ? 15 : 30, _budget.VisualFrameMilliseconds));
         if (elapsed < interval && elapsed >= TimeSpan.Zero)
         {
             return;
@@ -505,7 +621,8 @@ public sealed partial class MainWindow
         var skip = _soundLeft.Length - _soundMono.Length;
         for (var i = 0; i < _soundMono.Length; i++)
         {
-            _soundMono[i] = (Math.Clamp(_soundLeft[skip + i] * gain, -1, 1) + Math.Clamp(_soundRight[skip + i] * gain, -1, 1)) / 2;
+            _soundMono[i] = (VisualStage.SafeSample(_soundLeft[skip + i] * gain)
+                + VisualStage.SafeSample(_soundRight[skip + i] * gain)) / 2;
         }
 
         var (width, height) = (Visualizer.ActualWidth, Visualizer.ActualHeight);
@@ -517,33 +634,42 @@ public sealed partial class MainWindow
             case VisualizerChoice.Oscilloscope when _wave is not null:
                 // The newest twentieth of a second, drawn across the width.
                 var span = Math.Min(_soundMono.Length, Math.Max(64, rate / 20));
-                var points = new PointCollection();
+                // The line's own points are rewritten in place, so a frame allocates no new collection.
+                var points = _wave.Points ??= [];
                 var steps = Math.Max(2, (int)Math.Min(width / 2, span));
+                while (points.Count > steps)
+                {
+                    points.RemoveAt(points.Count - 1);
+                }
+
                 for (var step = 0; step < steps; step++)
                 {
                     var sample = _soundMono[_soundMono.Length - span + (step * (span - 1) / (steps - 1))];
-                    points.Add(new Point(step * width / (steps - 1), (height / 2) - (sample * height * 0.45)));
+                    var point = new Point(step * width / (steps - 1), (height / 2) - (sample * height * 0.45));
+                    if (step < points.Count)
+                    {
+                        points[step] = point;
+                    }
+                    else
+                    {
+                        points.Add(point);
+                    }
                 }
 
-                _wave.Points = points;
                 break;
             case VisualizerChoice.Meters:
                 // A meter shows what has just been heard: the newest twentieth of a second.
                 var recent = Math.Min(_soundMono.Length, Math.Max(64, rate / 20));
                 for (var i = _soundLeft.Length - recent; i < _soundLeft.Length; i++)
                 {
-                    _soundLeft[i] = Math.Clamp(_soundLeft[i] * gain, -1, 1);
-                    _soundRight[i] = Math.Clamp(_soundRight[i] * gain, -1, 1);
+                    _soundLeft[i] = VisualStage.SafeSample(_soundLeft[i] * gain);
+                    _soundRight[i] = VisualStage.SafeSample(_soundRight[i] * gain);
                 }
 
                 _meterLeft.Update(_soundLeft.AsSpan(^recent..), elapsed);
                 _meterRight.Update(_soundRight.AsSpan(^recent..), elapsed);
-                foreach (var (meter, at) in new[] { (_meterLeft, 0), (_meterRight, 3) })
-                {
-                    _meterShapes[at].Width = LevelMeter.Position(meter.PeakDb) * width;
-                    _meterShapes[at + 1].Width = LevelMeter.Position(meter.RmsDb) * width;
-                    Canvas.SetLeft(_meterShapes[at + 2], Math.Max(0, (LevelMeter.Position(meter.HoldDb) * width) - 3));
-                }
+                ShowMeter(_meterLeft, 0, width);
+                ShowMeter(_meterRight, 3, width);
 
                 break;
             case VisualizerChoice.Spectrogram when _visualBitmap is not null:
@@ -551,6 +677,14 @@ public sealed partial class MainWindow
                 DrawSpectrogramColumn(_visualBitmap);
                 break;
         }
+    }
+
+    /// <summary>Sizes one channel's peak, average and hold shapes, starting at <paramref name="at"/>, to its meter.</summary>
+    private void ShowMeter(LevelMeter meter, int at, double width)
+    {
+        _meterShapes[at].Width = LevelMeter.Position(meter.PeakDb) * width;
+        _meterShapes[at + 1].Width = LevelMeter.Position(meter.RmsDb) * width;
+        Canvas.SetLeft(_meterShapes[at + 2], Math.Max(0, (LevelMeter.Position(meter.HoldDb) * width) - 3));
     }
 
     /// <summary>
@@ -625,12 +759,15 @@ public sealed partial class MainWindow
         _soundLeft.CopyTo(_stageLeft, 0);
         _soundRight.CopyTo(_stageRight, 0);
         var options = _settings.VisualOptions;
+        var token = _visualFrameCancellation.Token;
         _stageWork = Task.Run(() =>
         {
+            token.ThrowIfCancellationRequested();
             var started = System.Diagnostics.Stopwatch.GetTimestamp();
-            stage.Draw(choice, options, _stageLeft, _stageRight, rate, elapsed);
+            stage.Draw(choice, options, _stageLeft, _stageRight, rate, elapsed, token);
+            token.ThrowIfCancellationRequested();
             stage.Took(System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds);
-        });
+        }, token);
     }
 
     private void DrawSpectrum(double height, TimeSpan elapsed, int rate)
@@ -655,6 +792,9 @@ public sealed partial class MainWindow
     {
         const int Stride = SpectrogramColumns * 4;
         var palette = (VisualPalette)OptionChoice(VisualizerOptions.Colors);
+
+        // Looked up once a column: the theme's resources were searched for every one of its rows.
+        var accent = AccentArgb();
         for (var row = 0; row < SpectrogramRows; row++)
         {
             var start = row * Stride;
@@ -668,7 +808,7 @@ public sealed partial class MainWindow
             }
             else
             {
-                var paint = Paint((double)(SpectrogramRows - 1 - row) / SpectrogramRows);
+                var paint = Paint((double)(SpectrogramRows - 1 - row) / SpectrogramRows, accent);
                 color = new Argb(255, (byte)(paint.R * level), (byte)(paint.G * level), (byte)(paint.B * level));
             }
 

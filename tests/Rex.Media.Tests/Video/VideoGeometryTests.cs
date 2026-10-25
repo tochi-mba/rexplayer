@@ -76,4 +76,18 @@ public sealed class VideoGeometryTests
         Assert.Equal("Default", VideoGeometry.Next(VideoGeometry.AspectRatios, new ShapePreset("Gone", new Rational(7, 3))).Name);
         Assert.Throws<ArgumentNullException>(() => VideoGeometry.Next(null!, VideoGeometry.Crops[0]));
     }
+
+    [Fact]
+    public void APlacedPictureTurnsIntoTheSameClipSpaceQuadOnEveryGpu()
+    {
+        // A 16:9 picture letterboxed in a 1280 x 840 window: bars of 60 pixels above and below.
+        var quad = VideoLayout.ToClipSpace((0, 60, 1280, 720), 1280, 840);
+
+        Assert.Equal(-1f, quad.Left);
+        Assert.Equal(1f - (120f / 840), quad.Top, 6);
+        Assert.Equal(2f, quad.Width);
+        Assert.Equal(1440f / 840, quad.Height, 6);
+        Assert.Equal((-1f, 1f, 2f, 2f), VideoLayout.ToClipSpace((0, 0, 10, 10), 0, 10));
+        Assert.Equal((-1f, 1f, 2f, 2f), VideoLayout.ToClipSpace((0, 0, 10, 10), 10, 0));
+    }
 }

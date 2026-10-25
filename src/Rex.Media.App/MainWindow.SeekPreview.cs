@@ -20,7 +20,7 @@ public sealed partial class MainWindow
 
     private void OnSeekAreaPointerMoved(object sender, PointerRoutedEventArgs e)
     {
-        if (_closed || !_settings.SeekPreview || !_player.CanSeek || _player.Duration <= TimeSpan.Zero)
+        if (_closed || !_player.CanSeek || _player.Duration <= TimeSpan.Zero)
         {
             HideSeekPreview();
             return;
@@ -32,6 +32,7 @@ public sealed partial class MainWindow
         var left = Math.Clamp(x - (SeekPreview.Width / 2), 0, Math.Max(0, SeekArea.ActualWidth - SeekPreview.Width));
         SeekPreview.Margin = new Thickness(left, 0, 0, 30);
         SeekPreviewTime.Text = TimeText.Format(at, _player.Duration);
+        ShowSeekPreviewSubtitles(at);
         SeekPreview.Visibility = Visibility.Visible;
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(SeekPreview, $"Timeline preview at {SeekPreviewTime.Text}");
 
@@ -40,7 +41,11 @@ public sealed partial class MainWindow
         _seekPreviewWork = new CancellationTokenSource();
         var token = _seekPreviewWork.Token;
         var location = _player.Item?.Location;
-        if (!HasVideo || location is null || !File.Exists(location))
+        // Time and any real caption at this location are cheap and remain
+        // useful even when users turn off costly frame decoding or low-power
+        // mode disables it. Never hide hover feedback for that reason.
+        if (!_settings.SeekPreview || !_budget.SeekPreview
+            || !HasVideo || location is null || !File.Exists(location))
         {
             SeekPreviewPicture.Visibility = Visibility.Collapsed;
             return;
@@ -51,15 +56,26 @@ public sealed partial class MainWindow
         var key = location + "@" + bucket.ToString(System.Globalization.CultureInfo.InvariantCulture);
         if (key == _seekPreviewKey && _seekPreviewPng is { } cached)
         {
-            _ = SetSeekPreviewImageAsync(cached, token);
+            Forget(SetSeekPreviewImageAsync(cached, token));
             return;
         }
 
         SeekPreviewPicture.Visibility = Visibility.Collapsed;
-        _ = LoadSeekPreviewAsync(location, TimeSpan.FromSeconds(bucket), key, token);
+        Forget(LoadSeekPreviewAsync(location, TimeSpan.FromSeconds(bucket), key, token));
     }
 
-    private void OnSeekAreaPointerExited(object sender, PointerRoutedEventArgs e) => HideSeekPreview();
+    private void OnSeekAreaPointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        // A Slider can re-route pointer ownership between its rail and thumb
+        // without the cursor ever leaving the timeline. Don't dismiss the
+        // preview merely because one child emitted a synthetic exit.
+        var position = e.GetCurrentPoint(SeekArea).Position;
+        if (position.X < 0 || position.Y < 0
+            || position.X >= SeekArea.ActualWidth || position.Y >= SeekArea.ActualHeight)
+        {
+            HideSeekPreview();
+        }
+    }
 
     private void HideSeekPreview()
     {
@@ -67,12 +83,21 @@ public sealed partial class MainWindow
         SeekPreview.Visibility = Visibility.Collapsed;
     }
 
+    private void ResetSeekPreview()
+    {
+        HideSeekPreview();
+        _seekPreviewKey = null;
+        _seekPreviewPng = null;
+        SeekPreviewImage.Source = null;
+        SeekPreviewPicture.Visibility = Visibility.Collapsed;
+    }
+
     private async Task LoadSeekPreviewAsync(string location, TimeSpan at, string key, CancellationToken token)
     {
         try
         {
             await Task.Delay(180, token);
-            var png = await Task.Run(() => PreviewPng(location, at, token), token);
+            var png = await Task.Run(() => PreviewPng(location, at, token, withoutBars: true), token);
             token.ThrowIfCancellationRequested();
             _seekPreviewKey = key;
             _seekPreviewPng = png;
@@ -88,7 +113,11 @@ public sealed partial class MainWindow
         }
     }
 
-    private byte[] PreviewPng(string location, TimeSpan at, CancellationToken token)
+    /// <summary>
+    /// The picture at <paramref name="at"/> as a PNG; with <paramref name="withoutBars"/> the black or grey
+    /// bars recorded into it are cut away, so a frame filled by it shows picture, not bars.
+    /// </summary>
+    private byte[] PreviewPng(string location, TimeSpan at, CancellationToken token, bool withoutBars = false)
     {
         using var source = new FileByteSource(location);
         using var demuxer = MediaRegistries.Demuxers(TimeSpan.FromSeconds(_settings.PictureSeconds)).Open(source, token);
@@ -96,7 +125,15 @@ public sealed partial class MainWindow
         using (picture)
         using (var output = new MemoryStream())
         {
-            PngWriter.Write(output, picture);
+            if (withoutBars)
+            {
+                PictureBorders.WritePng(output, picture);
+            }
+            else
+            {
+                PngWriter.Write(output, picture);
+            }
+
             return output.ToArray();
         }
     }

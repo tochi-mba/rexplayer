@@ -33,9 +33,6 @@ public sealed partial class PlayerController
     /// <summary>How much later the subtitles show than they were made for (negative: sooner).</summary>
     public TimeSpan SubtitleDelay { get; private set; }
 
-    /// <summary>The cues to show now.</summary>
-    public IReadOnlyList<SubtitleCue> SubtitlesNow => Subtitles?.At(Position, SubtitleDelay) ?? [];
-
     /// <summary>The cues to show at <paramref name="position"/>, for a window that keeps time between position reports.</summary>
     public IReadOnlyList<SubtitleCue> SubtitlesAt(TimeSpan position) => Subtitles?.At(position, SubtitleDelay) ?? [];
 
@@ -60,6 +57,55 @@ public sealed partial class PlayerController
 
         _subtitleTracks.Insert(0, track);
         ShowSubtitles(track);
+        return true;
+    }
+
+    /// <summary>A track made in memory (a transcript) joins the list, first; shown when <paramref name="show"/>.</summary>
+    public void AddSubtitles(SubtitleTrack track, bool show)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        _subtitleTracks.RemoveAll(existing => existing.Name == track.Name);
+        if (SecondarySubtitles?.Name == track.Name)
+        {
+            SecondarySubtitles = null;
+        }
+
+        _subtitleTracks.Insert(0, track);
+        if (show || Subtitles?.Name == track.Name)
+        {
+            ShowSubtitles(track);
+        }
+        else
+        {
+            SubtitlesChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>Removes an in-memory subtitle track, including it from either visible slot.</summary>
+    public bool RemoveSubtitles(SubtitleTrack track)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        if (!_subtitleTracks.Remove(track))
+        {
+            return false;
+        }
+
+        if (Subtitles == track)
+        {
+            Subtitles = null;
+        }
+
+        if (SecondarySubtitles == track)
+        {
+            SecondarySubtitles = null;
+        }
+
+        if (_lastSubtitles == track)
+        {
+            _lastSubtitles = null;
+        }
+
+        SubtitlesChanged?.Invoke(this, EventArgs.Empty);
         return true;
     }
 
@@ -156,16 +202,16 @@ public sealed partial class PlayerController
         _subtitlesChosen = false;
         if (Uri.TryCreate(item.Location, UriKind.Absolute, out var uri) && !uri.IsFile)
         {
+            // Remote items have no local sidecars. Tell windows to remove the old
+            // subtitle cues immediately, just as we do for a local media switch.
+            SubtitlesChanged?.Invoke(this, EventArgs.Empty);
             return;
         }
 
-        foreach (var sidecar in _sidecars(item.Location))
-        {
-            if (LoadSubtitles(sidecar.Path, Path.GetFileName(sidecar.Path), sidecar.Language) is { } track)
-            {
-                _subtitleTracks.Add(track);
-            }
-        }
+        // Decode a folder's sidecars concurrently while preserving their deterministic order.
+        _subtitleTracks.AddRange(_sidecars(item.Location).AsParallel().AsOrdered()
+            .Select(sidecar => LoadSubtitles(sidecar.Path, Path.GetFileName(sidecar.Path), sidecar.Language))
+            .OfType<SubtitleTrack>());
 
         Subtitles = PreferredSubtitles(original: null) ?? _subtitleTracks.FirstOrDefault();
         SubtitlesChanged?.Invoke(this, EventArgs.Empty);

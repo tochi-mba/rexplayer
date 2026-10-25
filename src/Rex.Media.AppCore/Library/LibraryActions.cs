@@ -1,6 +1,10 @@
 using System.Globalization;
+using Rex.Media.Library;
 
 namespace Rex.Media.AppCore.Library;
+
+/// <summary>One Explorer folder with its distinct files selected inside it.</summary>
+public sealed record RevealFolder(string Folder, IReadOnlyList<string> Files);
 
 /// <summary>What a confirmation dialog asks: its title and the words under it.</summary>
 public sealed record Prompt(string Title, string Body);
@@ -36,7 +40,7 @@ public static class LibraryActions
     {
         ArgumentNullException.ThrowIfNull(names);
         var title = names.Count == 1 ? $"Delete {names[0]}?" : $"Delete {Count(names.Count, "file")}?";
-        return new Prompt(title, Named(names) + (names.Count == 1 ? "It goes" : "They go") + " to the Recycle Bin, where it can be brought back, and the library forgets " + (names.Count == 1 ? "it." : "them."));
+        return new Prompt(title, Named(names) + (names.Count == 1 ? "It goes" : "They go") + " to the Recycle Bin, where " + (names.Count == 1 ? "it" : "they") + " can be brought back, and the library forgets " + (names.Count == 1 ? "it." : "them."));
     }
 
     /// <summary>The confirmation before the library stops showing files that stay on the disk.</summary>
@@ -44,7 +48,19 @@ public static class LibraryActions
     {
         ArgumentNullException.ThrowIfNull(names);
         var title = names.Count == 1 ? $"Remove {names[0]} from the library?" : $"Remove {Count(names.Count, "item")} from the library?";
-        return new Prompt(title, Named(names) + (names.Count == 1 ? "The file stays" : "The files stay") + " where " + (names.Count == 1 ? "it is" : "they are") + "; the library stops showing " + (names.Count == 1 ? "it" : "them") + " until the folder is added again.");
+        return new Prompt(title, Named(names) + (names.Count == 1 ? "The file stays" : "The files stay") + " where " + (names.Count == 1 ? "it is" : "they are") + "; the library stops showing " + (names.Count == 1 ? "it" : "them") + ". You can use Undo immediately while the " + (names.Count == 1 ? "file is" : "files are") + " still available; otherwise re-add the watched folder.");
+    }
+
+    /// <summary>Stopping a folder watch never deletes its files; make that explicit before acting.</summary>
+    public static Prompt StopWatchingPrompt(IReadOnlyList<string> folders)
+    {
+        ArgumentNullException.ThrowIfNull(folders);
+        var title = folders.Count == 1 ? "Stop watching this folder?" : "Stop watching " + Count(folders.Count, "folder") + "?";
+        var body = Named(folders) + (folders.Count == 1 ? folders[0] + "\n\n" : "")
+            + "No files will be deleted. " + (folders.Count == 1 ? "This folder" : "These folders")
+            + " will leave the library and stop being scanned. You can add "
+            + (folders.Count == 1 ? "the folder" : "them") + " again later.";
+        return new Prompt(title, body);
     }
 
     /// <summary>The confirmation before named playlists go.</summary>
@@ -53,6 +69,52 @@ public static class LibraryActions
         ArgumentNullException.ThrowIfNull(names);
         var title = names.Count == 1 ? $"Delete {names[0]}?" : $"Delete {Count(names.Count, "playlist")}?";
         return new Prompt(title, Named(names) + (names.Count == 1 ? "The playlist goes" : "The playlists go") + "; the files in " + (names.Count == 1 ? "it stay" : "them stay") + " where they are.");
+    }
+
+    /// <summary>Whether Explorer can reveal this safe local file path; never treat web URLs as disk files.</summary>
+    public static bool CanRevealFile(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || path.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
+        {
+            return false;
+        }
+
+        // Reject malformed paths explicitly. Path.IsPathFullyQualified and Uri.TryCreate
+        // are nonthrowing for the remaining strings; an unreachable catch hides bad
+        // filename inputs from deterministic tests and the required coverage gate.
+        return Path.IsPathFullyQualified(path)
+            && (!Uri.TryCreate(path, UriKind.Absolute, out var uri) || uri.IsFile);
+    }
+
+    /// <summary>Group existing selected file paths by folder, retaining order and duplicate-free selection.</summary>
+    public static IReadOnlyList<RevealFolder> RevealGroups(IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        return [.. paths.Where(CanRevealFile)
+            .Select(path => (Path: path, Folder: Path.GetDirectoryName(path)))
+            .Where(item => !string.IsNullOrWhiteSpace(item.Folder))
+            .GroupBy(item => item.Folder!, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new RevealFolder(group.Key,
+                [.. group.Select(item => item.Path).Distinct(StringComparer.OrdinalIgnoreCase)]))];
+    }
+
+    /// <summary>
+    /// Whether the Delete key on a library line offers to delete files, as its menu does: a song, a
+    /// video, a picture or a group of them. A watched folder's line only stops being watched and a
+    /// playlist's line is deleted as a playlist, both from their menus, so Delete leaves them be.
+    /// </summary>
+    public static bool DeletesFiles(object? line) => line is LibraryEntry or LibraryGroup;
+
+    /// <summary>
+    /// The lines a right-click menu acts on: the chosen lines when the line pointed at is one of
+    /// them (or nothing is pointed at, as from the keyboard's menu key on a chosen line), else the
+    /// line pointed at alone, which then becomes the choice, as in a file window.
+    /// </summary>
+    public static IReadOnlyList<T> ContextLines<T>(IReadOnlyList<T> chosen, T? pointed)
+        where T : class
+    {
+        ArgumentNullException.ThrowIfNull(chosen);
+        return pointed is null || chosen.Contains(pointed) ? chosen : [pointed];
     }
 
     /// <summary>The first few names, one a line, then "and N more"; nothing for one name (the title has it).</summary>

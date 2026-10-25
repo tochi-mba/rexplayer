@@ -14,9 +14,43 @@ public sealed class CommandTests
     [InlineData("F24", KeyModifiers.None, "F24")]
     [InlineData("Ctrl+slash", KeyModifiers.Ctrl, "Slash")]
     [InlineData("mediaplaypause", KeyModifiers.None, "MediaPlayPause")]
+    [InlineData("Cmd+O", KeyModifiers.Ctrl, "O")]
+    [InlineData("command+shift+o", KeyModifiers.Ctrl | KeyModifiers.Shift, "O")]
+    [InlineData("Option+Left", KeyModifiers.Alt, "Left")]
+    [InlineData("opt+cmd+1", KeyModifiers.Ctrl | KeyModifiers.Alt, "1")]
     public void ChordsParseWhateverTheCaseAndOrder(string text, KeyModifiers modifiers, string key)
     {
         Assert.Equal(new KeyChord(modifiers, key), KeyChord.Parse(text));
+    }
+
+    [Fact]
+    public void TheMacsWordsNameTheSameKeysSoOneSettingsFileFitsEveryPlatform()
+    {
+        // A chord typed the Mac way is stored the canonical way, and reads back on either platform.
+        Assert.Equal("Ctrl+Alt+Shift+O", KeyChord.Parse("Shift+Option+Cmd+O").ToString());
+        Assert.Null(KeyChord.TryParse("Cmd+Ctrl+O"));
+    }
+
+    [Theory]
+    [InlineData("Ctrl+O", "Ctrl+O", "Cmd+O")]
+    [InlineData("Ctrl+Alt+Shift+Right", "Ctrl+Alt+Shift+Right", "Option+Shift+Cmd+Right")]
+    [InlineData("Alt+1", "Alt+1", "Option+1")]
+    [InlineData("Shift+N", "Shift+N", "Shift+N")]
+    [InlineData("Space", "Space", "Space")]
+    public void AChordIsShownInEachPlatformsOwnWords(string text, string windows, string mac)
+    {
+        var chord = KeyChord.Parse(text);
+        Assert.Equal(windows, chord.Display(ShortcutStyle.Windows));
+        Assert.Equal(mac, chord.Display(ShortcutStyle.Mac));
+    }
+
+    [Fact]
+    public void MenuLabelsFollowThePlatformsStyle()
+    {
+        var keymap = new Keymap();
+        Assert.Equal("Ctrl+T", keymap.Label(CommandCatalog.GoToTime));
+        Assert.Equal("Cmd+T", keymap.Label(CommandCatalog.GoToTime, ShortcutStyle.Mac));
+        Assert.Equal("", keymap.Label(CommandCatalog.ToggleAlwaysOnTop, ShortcutStyle.Mac));
     }
 
     [Theory]
@@ -57,6 +91,55 @@ public sealed class CommandTests
         Assert.Empty(new Keymap().Conflicts);
         Assert.Equal("Play or pause", CommandCatalog.Find(CommandCatalog.PlayPause)!.Title);
         Assert.Null(CommandCatalog.Find("no-such-command"));
+    }
+
+    [Fact]
+    public void UnsupportedOnlineLyricsRetrievalAndEditingHaveNoPublicCommands()
+    {
+        // The current app reads embedded and local sidecar lyrics, and only offers
+        // a show/hide toggle. An unimplemented network or editing workflow must not
+        // appear in menus, key bindings or the automation command catalogue.
+        var lyricsCommands = CommandCatalog.All
+            .Where(command => command.Id.Contains("lyric", StringComparison.OrdinalIgnoreCase))
+            .Select(command => command.Id)
+            .ToArray();
+        Assert.Equal([CommandCatalog.ToggleLyrics], lyricsCommands);
+        Assert.Null(CommandCatalog.Find("fetch-online-lyrics"));
+        Assert.Null(CommandCatalog.Find("edit-lyrics"));
+    }
+
+    [Fact]
+    public void UnimplementedMediaDownloadControlsAreNotExposedByTheCommandCatalogue()
+    {
+        // Downloading existing library files is recognized and tracked, but it does
+        // not mean rexplayer has implemented a remote media download action.
+        Assert.DoesNotContain(CommandCatalog.All, command =>
+            command.Id.StartsWith("download-", StringComparison.OrdinalIgnoreCase)
+            || command.Id.StartsWith("fetch-media-", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void JumpsAreNamedByTheLengthsChosenInPreferences()
+    {
+        var defaults = new Rex.Media.Settings.PlayerSettings();
+        string Title(string id, Rex.Media.Settings.PlayerSettings settings) => CommandCatalog.TitleOf(CommandCatalog.Find(id)!, settings);
+
+        // The catalogue's own titles are what the defaults name, so the site's shortcut page agrees.
+        foreach (var id in new[] { CommandCatalog.JumpForwardVeryShort, CommandCatalog.JumpBackVeryShort, CommandCatalog.JumpForwardShort, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardMedium, CommandCatalog.JumpBackMedium, CommandCatalog.JumpForwardLong, CommandCatalog.JumpBackLong })
+        {
+            Assert.Equal(CommandCatalog.Find(id)!.Title, Title(id, defaults));
+        }
+
+        var chosen = defaults with { VeryShortJumpSeconds = 1, ShortJumpSeconds = 30, MediumJumpSeconds = 90, LongJumpSeconds = 3600 };
+        Assert.Equal("Jump forward 1 second", Title(CommandCatalog.JumpForwardVeryShort, chosen));
+        Assert.Equal("Jump back 30 seconds", Title(CommandCatalog.JumpBackShort, chosen));
+        Assert.Equal("Jump forward 90 seconds", Title(CommandCatalog.JumpForwardMedium, chosen));
+        Assert.Equal("Jump back 1 hour", Title(CommandCatalog.JumpBackLong, chosen));
+        Assert.Equal("Jump forward 2 minutes", Title(CommandCatalog.JumpForwardLong, chosen with { LongJumpSeconds = 120 }));
+        Assert.Equal("Play or pause", Title(CommandCatalog.PlayPause, chosen));
+        Assert.Equal("0 seconds", CommandCatalog.Length(0));
+        Assert.Throws<ArgumentNullException>(() => CommandCatalog.TitleOf(null!, defaults));
+        Assert.Throws<ArgumentNullException>(() => CommandCatalog.TitleOf(CommandCatalog.All[0], null!));
     }
 
     [Fact]

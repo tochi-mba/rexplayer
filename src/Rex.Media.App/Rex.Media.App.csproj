@@ -17,6 +17,8 @@
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <Platforms>x64</Platforms>
+    <!-- Compile commonly used application methods ahead of time for a faster first launch. -->
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
   <ItemGroup>
@@ -35,6 +37,8 @@
     <ProjectReference Include="..\Rex.Media.Audio\Rex.Media.Audio.csproj" />
     <ProjectReference Include="..\Rex.Media.Audio.Wasapi\Rex.Media.Audio.Wasapi.csproj" />
     <ProjectReference Include="..\Rex.Media.Codecs.MediaFoundation\Rex.Media.Codecs.MediaFoundation.csproj" />
+    <ProjectReference Include="..\Rex.Media.Faces\Rex.Media.Faces.csproj" />
+    <ProjectReference Include="..\Rex.Media.Speech\Rex.Media.Speech.csproj" />
     <ProjectReference Include="..\Rex.Media.Engine\Rex.Media.Engine.csproj" />
     <ProjectReference Include="..\Rex.Media.Settings\Rex.Media.Settings.csproj" />
     <ProjectReference Include="..\Rex.Media.Video\Rex.Media.Video.csproj" />
@@ -42,6 +46,7 @@
     <ProjectReference Include="..\Rex.Media.Interop\Rex.Media.Interop.csproj" />
     <ProjectReference Include="..\Rex.Media.AppCore\Rex.Media.AppCore.csproj" />
     <ProjectReference Include="..\Rex.Media.Vision\Rex.Media.Vision.csproj" />
+    <ProjectReference Include="..\Rex.Media.Vision.WindowsML\Rex.Media.Vision.WindowsML.csproj" />
   </ItemGroup>
   <!-- Publishing an unpackaged WinUI app leaves out the app's resource index and compiled XAML,
        without which the window cannot start (0xC000027B). Copy them from the build output. -->

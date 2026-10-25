@@ -20,6 +20,9 @@ internal sealed class VorbisBits
     /// <summary>Whether a read went past the end of the packet.</summary>
     public bool EndOfPacket { get; private set; }
 
+    /// <summary>The bits not yet read (0 once past the end).</summary>
+    public long RemainingBits => Math.Max(0, ((long)_length * 8) - _bit);
+
     public void Reset(byte[] data, int length)
     {
         _data = data;

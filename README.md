@@ -1,18 +1,19 @@
 # rexplayer
 
-**A REX Technologies product.** A Windows media player built from scratch: its own engine, a
-window to watch and listen in, and a command line made for scripts.
+**A REX Technologies product.** A media player for Windows and macOS, built from scratch: its own engine, a
+native window to watch and listen in, and a command line made for scripts.
 
 [Download](https://github.com/tochi-mba/rexplayer/releases/latest) ·
 [Website](https://tochi-mba.github.io/rexplayer/) ·
 [Capability matrix](docs/capability-matrix.md) ·
+[On a Mac](docs/mac.md) ·
 [What's new](CHANGELOG.md)
 
-> **Status: 0.8.** rexplayer opens in a window of its own: MP4, MOV, MKV and WebM video decoded on
+> **Source version: 0.30.8.** rexplayer opens in a window of its own: MP4, MOV, MKV and WebM video decoded on
 > the graphics card; MP3, FLAC, Ogg, Opus, WAV, RF64 and AIFF without a gap from one file to the
 > next; and pictures (JPEG, PNG, animated GIF, WebP, BMP, TIFF), a folder of them as a slideshow.
 > A media library keeps up with the folders you choose, with named playlists, covers and lyrics,
-> subtitles, an equaliser, playback speed without a change of pitch, twelve visualisations (a vinyl
+> subtitles, an equaliser, playback speed without a change of pitch, dozens of visualisations (a vinyl
 > record cut by the music among them, each with its own settings), shortcuts you choose, bookmarks,
 > resume, a sleep timer, full screen and snapshots. rexplayer decodes MP3, FLAC, Vorbis, GIF and PCM
 > itself and hands H.264, HEVC, AAC, Opus and the other picture formats to Windows' own decoders. More formats, streaming and the rest of the
@@ -46,6 +47,7 @@ window to watch and listen in, and a command line made for scripts.
 | Browse your music and videos | View, Library (Ctrl+Shift+L): add your folders, then search, or go by album, artist or genre |
 | Keep a playlist | Media, Playlists, New playlist; Playback, Add to a playlist adds what is playing |
 | Subtitles | Keep `film.srt` beside `film.mkv`, or drop the file on the window; V switches, G and H shift them |
+| Kinetic captions | Ctrl+Shift+V: words land as they are spoken, sized by how they were said, kept off faces; Ctrl+Shift+K changes the look; Subtitles, Transcribe the speech, hears a film with no subtitles |
 | Carry on later | Open it again: rexplayer offers to go back to where you stopped. Ctrl+B adds a bookmark |
 | Save the playlist | Ctrl+Y (M3U8, XSPF or PLS); Ctrl+X opens one |
 | Fall asleep to it | Playback, Sleep in 15, 30 or 60 minutes, or at the end of this item |

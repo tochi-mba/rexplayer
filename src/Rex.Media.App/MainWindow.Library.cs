@@ -7,9 +7,9 @@ using Microsoft.UI.Xaml.Input;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
+using Rex.Media.Settings;
 using Windows.ApplicationModel.DataTransfer;
 using Microsoft.VisualBasic.FileIO;
-using Windows.Storage.Pickers;
 using Launcher = Windows.System.Launcher;
 using VirtualKey = Windows.System.VirtualKey;
 
@@ -27,18 +27,26 @@ public sealed partial class MainWindow
     private static readonly TimeSpan LibraryRescanEvery = TimeSpan.FromMinutes(30);
 
     private readonly List<FileSystemWatcher> _watchers = [];
+    private IReadOnlyList<LibraryEntry>? _libraryRemovalUndo;
+    private bool _focusLibraryAfterUndoRefresh;
     private readonly HashSet<string> _changedFolders = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource _libraryPictures = new();
     private CancellationTokenSource _hoverPictures = new();
     private MediaLibrary? _library;
     private LibraryScanner? _scanner;
+    private LibrarySectionAnalysis? _backgroundSections;
     private DispatcherQueueTimer? _libraryRefresh;
     private DispatcherQueueTimer? _libraryChanges;
     private DispatcherQueueTimer? _libraryRescan;
+    private readonly Windows.UI.ViewManagement.AccessibilitySettings _libraryContrastSettings = new();
     private LibrarySource _librarySource = LibrarySource.Home;
     private LibraryGroup? _libraryGroup;
+
+    /// <summary>The group opened inside <see cref="_libraryGroup"/>: a show's season, or an artist's album.</summary>
     private LibraryGroup? _librarySeason;
     private string _shownLibrary = "";
+    private (bool Searching, LibrarySource? Source, LibraryViewChoice? Choice)? _emptyView;
+    private LibraryEmptyState? _shownEmpty;
 
     private enum LibrarySource
     {
@@ -47,23 +55,42 @@ public sealed partial class MainWindow
         Albums,
         Artists,
         Genres,
+        Audiobooks,
+        Authors,
+        Podcasts,
+        Recordings,
         Movies,
         TvShows,
+        OtherVideos,
         Videos,
         Pictures,
         ContinueWatching,
+        Completed,
         RecentlyPlayed,
         RecentlyAdded,
         Playlists,
         Folders,
+        Music,
     }
 
     private bool LibraryOpen => LibraryPane.Visibility == Visibility.Visible;
 
-    /// <summary>The library's own store beside the other; when it cannot be read, one in memory.</summary>
-    private static RexStore OpenLibraryStore()
+    private void RebuildLibraryForSystemPalette()
     {
-        var path = Path.Combine(App.DataRoot, "library.log");
+        if (_closed || !LibraryOpen)
+        {
+            return;
+        }
+
+        _shownLibrary = "";
+        _shownHero = "";
+        ShowLibrary();
+    }
+
+    /// <summary>The library's own store beside the other; when it cannot be read, one in memory.</summary>
+    internal static RexStore OpenLibraryStore()
+    {
+        var path = App.Roots.LibraryStore;
         try
         {
             return RexStore.Open(path);
@@ -77,45 +104,95 @@ public sealed partial class MainWindow
 
     private void WireLibrary()
     {
-        _library = new MediaLibrary(OpenLibraryStore());
+        _library = App.Warmup?.TakeLibrary() ?? new MediaLibrary(OpenLibraryStore());
         _player.Library = _library;
-        _scanner = new LibraryScanner(_library, LibraryScanner.ListFolder, LibraryScanner.ProbeFile, App.Log);
+        _scanner = new LibraryScanner(_library, LibraryScanner.ListFolder, LibraryScanner.ProbeFile, App.Log, inspect: InspectFile);
         _scanner.StatusChanged += (_, _) => OnWindowThread(ShowLibraryStatus);
+        _backgroundSections = new LibrarySectionAnalysis(_player.Memory, _player.SectionCache,
+            _player.SectionAnalyzer!, App.Log);
+        UpdateBackgroundSectionPause();
+        _player.Changed += (_, _) => UpdateBackgroundSectionPause();
+        _player.Changed += (_, _) => OnPlayingChangedForDetailWrites();
 
         // A burst of changes (a scan's batches) shows once.
-        _libraryRefresh = DispatcherQueue.CreateTimer();
+        _libraryRefresh = CreateTimer();
         _libraryRefresh.Interval = TimeSpan.FromMilliseconds(400);
         _libraryRefresh.IsRepeating = false;
-        _libraryRefresh.Tick += (_, _) => RefreshLibraryAfterChanges();
+        OnTick(_libraryRefresh, RefreshLibraryAfterChanges);
         _library.Changed += (_, _) => OnWindowThread(() => Restart(_libraryRefresh));
+        WireDownloadRechecks();
 
         // Files copied in arrive in many events; the folder is looked at once they settle.
-        _libraryChanges = DispatcherQueue.CreateTimer();
+        _libraryChanges = CreateTimer();
         _libraryChanges.Interval = TimeSpan.FromSeconds(3);
         _libraryChanges.IsRepeating = false;
-        _libraryChanges.Tick += (_, _) => LookAtChangedFolders();
+        OnTick(_libraryChanges, LookAtChangedFolders);
 
-        _libraryRescan = DispatcherQueue.CreateTimer();
+        _libraryRescan = CreateTimer();
         _libraryRescan.Interval = LibraryRescanEvery;
-        _libraryRescan.Tick += (_, _) => _scanner.Request();
+        OnTick(_libraryRescan, () => _scanner.Request());
         _libraryRescan.Start();
 
+        // Re-create theme-specific library visuals when Windows theme/contrast
+        // changes. A previously rendered movie billboard must not retain white
+        // over-photo text after the user switches to a high-contrast theme.
+        Root.ActualThemeChanged += (_, _) => RebuildLibraryForSystemPalette();
+        try
+        {
+            _libraryContrastSettings.HighContrastChanged += (_, _) =>
+                DispatcherQueue.TryEnqueue(RebuildLibraryForSystemPalette);
+        }
+        catch (System.Runtime.InteropServices.COMException ex) when (ex.HResult == unchecked((int)0x80070490))
+        {
+            // This notification is optional on stripped-down Windows desktops.
+            // Library views still use the current palette when rebuilt.
+            App.Log.Warning(LogSource, "Library contrast notifications are unavailable: " + ex.Message);
+        }
+
         LibrarySources.ItemsSource = LibrarySourceItems.Select(source => source.Item).ToList();
+        ApplyLibraryNavigationWidth();
         WireLibraryView();
+        WireListening();
+        WireSections();
         LibrarySources.SelectedIndex = 0;
         var entries = new MenuFlyout();
-        entries.Opening += (_, _) => FillLibraryMenu(entries);
+        entries.Opening += (_, _) => FillLibraryMenu(entries, ChoosePointedLine());
         LibraryList.ContextFlyout = entries;
         LibraryCollage.ContextFlyout = entries;
+        LibraryList.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnLibraryPointerPressed), handledEventsToo: true);
+        LibraryCollage.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnLibraryPointerPressed), handledEventsToo: true);
         LibraryList.ContainerContentChanging += OnLibraryRowShown;
 
         WatchLibraryFolders();
-        _scanner.Request();
+        // Looked through once the launch has settled: a large library's scan reads every folder
+        // and competes with the first picture and sound for the disk and the processor.
+        var firstScan = CreateTimer();
+        firstScan.Interval = Rex.Media.AppCore.LaunchPlan.FirstLibraryScan;
+        firstScan.IsRepeating = false;
+        OnTick(firstScan, () =>
+        {
+            _scanner?.Request();
+            QueueLibrarySections();
+        });
+        firstScan.Start();
         App.Log.Info(LogSource, $"The library watches {_library.Folders.Count} folder(s) and knows {_library.Entries.Count} file(s).");
     }
 
     private void CloseLibrary()
     {
+        // Focus loss and recycling happen during WinUI teardown. Neither should
+        // animate an already closing row or launch new asynchronous picture work.
+        LibraryList.ContainerContentChanging -= OnLibraryRowShown;
+        UnwireRowFocus();
+
+        var sections = _backgroundSections;
+        _backgroundSections = null;
+        if (sections is not null)
+        {
+            // A decoder may be cancelling on another thread. Never hold the window open for it.
+            Forget(Task.Run(sections.Dispose));
+        }
+
         CancelLibraryPictures();
         _libraryRescan?.Stop();
         _libraryChanges?.Stop();
@@ -130,7 +207,7 @@ public sealed partial class MainWindow
         {
             _scanner = null;
             // Closing a scan can join a slow filesystem worker; never hold up the window or updater.
-            _ = Task.Run(scanner.Dispose);
+            Forget(Task.Run(scanner.Dispose));
         }
     }
 
@@ -142,20 +219,52 @@ public sealed partial class MainWindow
 
     private void SetLibraryOpen(bool open)
     {
+        var opening = open && !LibraryOpen;
+        if (opening && IsFullScreen && _settings.LeaveFullScreenWhenLibraryOpens)
+        {
+            SetFullScreen(false);
+        }
+
+        if (!open && LibraryOpen)
+        {
+            KeepPlace();
+        }
+
         // Only a transition into the library can pause playback. A paused item stays paused,
         // and closing the library never restarts it or changes the seek position.
-        if (open && !LibraryOpen && LibraryOpening.Decide(_settings.PauseWhenLibraryOpens,
+        if (opening && LibraryOpening.Decide(_settings.PauseWhenLibraryOpens,
                 _settings.KeepAudioPlayingInLibrary, HasVideo, _player.IsPlaying) == LibraryOpenAction.Pause)
         {
             _player.Pause();
         }
 
+        // The first opening of a session starts where the last one ended, before the pane shows.
+        if (opening && !_libraryRouteApplied)
+        {
+            _libraryRouteApplied = true;
+            if (_settings.LibraryRoute is { } route)
+            {
+                ApplyLibraryRoute(route);
+            }
+        }
+
         LibraryPane.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
         LibraryButton.IsChecked = open;
+        UpdateBackgroundSectionPause();
+        if (_transcriptionStarted)
+        {
+            // Apply the browsing throttle immediately instead of leaving Whisper competing with
+            // scrolling until its next one-second policy tick.
+            TranscriptionTick();
+        }
         if (open)
         {
-            _shownLibrary = "";
-            ShowLibrary();
+            if (!opening || !_settings.OpenLibraryAtPlayingItem || !RevealCurrentLibraryItem())
+            {
+                ShowLibraryAtPlace();
+            }
+
+            ResumeLibraryPictures();
             ShowLibraryStatus();
             if (LibraryCollage.Visibility == Visibility.Visible)
             {
@@ -172,6 +281,59 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>Opens the narrowest library route containing the current local item.</summary>
+    private bool RevealCurrentLibraryItem()
+    {
+        var located = LibraryViews.LocateCurrent(_library!.Entries, _player.Playlist.Current?.Location);
+        if (located is null)
+        {
+            return false;
+        }
+
+        var source = located.Entry.Kind switch
+        {
+            LibraryKind.Music => SourceOfAudio(located.Entry),
+            LibraryKind.Picture => LibrarySource.Pictures,
+            LibraryKind.Video when located.Show is not null => LibrarySource.TvShows,
+            LibraryKind.Video => SectionOf(located.Entry),
+            _ => LibrarySource.Home,
+        };
+        var index = Array.FindIndex(LibrarySourceItems, pair => pair.Source == source);
+        _places.RememberSearch(source.ToString(), "");
+        if (LibrarySources.SelectedIndex != index)
+        {
+            LibrarySources.SelectedIndex = index;
+        }
+        else
+        {
+            _librarySource = source;
+        }
+
+        if (LibrarySearch.Text.Length > 0)
+        {
+            LibrarySearch.Text = "";
+        }
+
+        if (source == LibrarySource.Audiobooks)
+        {
+            // Return-to-reading opens the containing book, not the generic
+            // Audiobooks shelf, whose cards cannot reveal an individual chapter.
+            _libraryGroup = Listening().Audiobooks.FirstOrDefault(book => book.Entries.Any(part =>
+                LibraryViews.SameLocation(part.Path, located.Entry.Path)));
+            _librarySeason = null;
+        }
+        else
+        {
+            _libraryGroup = located.Show;
+            _librarySeason = located.Season;
+        }
+
+        _shownLibrary = "";
+        ShowLibrary();
+        RevealLibraryRow(located.Entry.Path);
+        return true;
+    }
+
     /// <summary>
     /// A scan reports after every small durable batch. Keep those writes off the window thread and
     /// rebuild the visible view once the scan has settled instead of sorting thousands of rows over
@@ -185,7 +347,25 @@ public sealed partial class MainWindow
             return;
         }
 
+        QueueLibrarySections();
         ShowLibrary();
+        if (_focusLibraryAfterUndoRefresh)
+        {
+            // Restoring a file rebuilds ListView rows after the 400ms refresh timer.
+            // Focusing before that rebuild is not enough: WinUI drops the focused
+            // container as soon as ItemsSource is replaced.
+            _focusLibraryAfterUndoRefresh = false;
+            FocusLibraryAfterFileAction();
+        }
+
+        ShowMovieVersions();
+    }
+
+    /// <summary>Hand a snapshot of library episodes to the low-priority section worker.</summary>
+    private void QueueLibrarySections()
+    {
+        _backgroundSections?.SetQueue(_library!.Entries.Where(entry => entry.Kind == LibraryKind.Video)
+            .Select(entry => entry.Path));
     }
 
     /// <summary>Watches every folder of the library for files coming, going and changing.</summary>
@@ -206,10 +386,10 @@ public sealed partial class MainWindow
                     IncludeSubdirectories = true,
                     NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
                 };
-                FileSystemEventHandler changed = (_, _) => FolderChanged(folder);
-                watcher.Created += changed;
-                watcher.Deleted += changed;
-                watcher.Changed += changed;
+                FileSystemEventHandler structural = (_, _) => FolderChanged(folder);
+                watcher.Created += structural;
+                watcher.Deleted += structural;
+                watcher.Changed += (_, change) => FileContentsChanged(folder, change.FullPath);
                 watcher.Renamed += (_, _) => FolderChanged(folder);
 
                 // Too many changes at once to list (a whole album copied in): look at all of it.
@@ -224,15 +404,49 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// A downloader can raise thousands of LastWrite and Size notifications for one file. Once a
+    /// scan knows that file is downloading, the lightweight download recheck owns its progress and
+    /// completion; rescanning its entire folder for every write would repeatedly enumerate and
+    /// probe unrelated media. Creates, deletes and renames still take the structural path above.
+    /// </summary>
+    private void FileContentsChanged(string folder, string path)
+    {
+        var partial = Downloads.WholeNameOf(path);
+        var marker = path.EndsWith(Downloads.Aria2Marker, StringComparison.OrdinalIgnoreCase)
+            ? path[..^Downloads.Aria2Marker.Length]
+            : null;
+        var media = partial ?? marker ?? path;
+        var known = _library?.Entry(path) ?? _library?.Entry(media);
+        if (known is { Downloading: true } or { Suspect: true })
+        {
+            QueueDownloadRecheck();
+            return;
+        }
+
+        FolderChanged(folder);
+    }
+
     /// <summary>On a watcher's thread: notes the folder and looks at it once the changes settle.</summary>
     private void FolderChanged(string folder)
     {
         lock (_changedFolders)
         {
-            _changedFolders.Add(folder);
+            if (!_changedFolders.Add(folder))
+            {
+                return;
+            }
         }
 
-        OnWindowThread(() => Restart(_libraryChanges!));
+        // Settle from the first change, not the last: a download writes without pause, and
+        // restarting the wait on every write would put the look off for as long as it lasts.
+        OnWindowThread(() =>
+        {
+            if (!_libraryChanges!.IsRunning)
+            {
+                _libraryChanges.Start();
+            }
+        });
     }
 
     private void LookAtChangedFolders()
@@ -250,139 +464,143 @@ public sealed partial class MainWindow
         }
     }
 
-    private void ShowLibraryStatus() => LibraryStatus.Text = _scanner?.Status ?? "";
-
-    private void OnLibrarySourceChanged(object sender, SelectionChangedEventArgs e)
+    private void ShowLibraryStatus()
     {
-        if (LibrarySources.SelectedIndex >= 0)
+        LibraryStatus.Text = _scanner?.Status ?? "";
+
+        // A scan that finds nothing new changes no entries, so the view is never rebuilt: an empty
+        // one would go on saying it is looking, or never say so.
+        if (_emptyView is not null && LibraryOpen)
         {
-            _librarySource = LibrarySourceItems[LibrarySources.SelectedIndex].Source;
-            _libraryGroup = null;
-            _librarySeason = null;
-            LibrarySearch.Text = "";
-            ShowLibrary();
+            ShowLibraryEmptyState();
         }
     }
 
-    private void OnLibrarySearchChanged(object sender, TextChangedEventArgs e) => ShowLibrary();
-
-    private void OnLibraryBack(object sender, RoutedEventArgs e)
+    private LibraryRow GroupRow(LibraryGroup group)
     {
-        if (_librarySeason is not null)
+        // A group carries media entries but its meaning comes from the route. In particular, an
+        // author must not inherit the generic audio treatment and present as a music artist.
+        if (_librarySource == LibrarySource.Authors)
         {
-            _librarySeason = null;
-        }
-        else
-        {
-            _libraryGroup = null;
+            var books = ListeningViews.Books(group.Entries);
+            return new LibraryRow(group.Name, "Author", LibraryActions.Count(books.Count, "book"),
+                group, hasPicture: false, picturePlaceholder: "✎");
         }
 
-        ShowLibrary();
+        var videos = group.Entries.All(entry => entry.Kind == LibraryKind.Video);
+        return new LibraryRow(group.Name,
+            MetadataBlurb(group) is { Length: > 0 } blurb ? (group.Detail is null ? blurb : group.Detail + " · " + blurb) : group.Detail,
+            LibraryActions.Count(group.Entries.Count, videos ? "episode" : "song"),
+            group, hasPicture: true, picturePlaceholder: videos ? "▶" : "♪");
     }
-
-    private void ShowLibraryEmpty(bool empty, bool searching, LibrarySource? source)
-    {
-        LibraryEmpty.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
-        LibraryFolderButtons.Children.Clear();
-        if (!empty)
-        {
-            return;
-        }
-
-        var noFolders = _library!.Folders.Count == 0;
-        LibraryEmptyText.Text = searching ? "Nothing in the library matches that."
-            : noFolders && source is not LibrarySource.Playlists ? "The library shows the music, videos and pictures in the folders you choose, and keeps up as files come and go."
-            : source switch
-            {
-                LibrarySource.ContinueWatching => "Videos you stop part-way through wait here.",
-                LibrarySource.RecentlyPlayed => "What you play from the library shows here.",
-                LibrarySource.Playlists => "Playlists you keep (Media, Playlists) show here.",
-                _ => _scanner!.Status.Length > 0 ? "Looking through your folders..." : "There is nothing of this kind in the library's folders.",
-            };
-        if (searching || !(noFolders || source == LibrarySource.Folders))
-        {
-            return;
-        }
-
-        var add = new Button { Content = "Add a folder..." };
-        AutomationProperties.SetAutomationId(add, "LibraryEmptyAddFolder");
-        add.Click += OnLibraryAddFolder;
-        LibraryFolderButtons.Children.Add(add);
-
-        // The usual places, offered, never added unasked.
-        foreach (var (name, folder) in new[] { ("Music", Environment.SpecialFolder.MyMusic), ("Videos", Environment.SpecialFolder.MyVideos), ("Pictures", Environment.SpecialFolder.MyPictures) })
-        {
-            var path = Environment.GetFolderPath(folder);
-            if (path.Length > 0 && Directory.Exists(path) && !_library.Folders.Any(known => MediaLibrary.Holds(known, path)))
-            {
-                var suggestion = new Button { Content = "Add your " + name + " folder" };
-                AutomationProperties.SetAutomationId(suggestion, "LibraryAdd" + name);
-                ToolTipService.SetToolTip(suggestion, path);
-                suggestion.Click += (_, _) => AddLibraryFolder(path);
-                LibraryFolderButtons.Children.Add(suggestion);
-            }
-        }
-    }
-
-    private static IReadOnlyList<LibraryGroup> Groups(LibrarySource source, IReadOnlyList<LibraryEntry> entries) => source switch
-    {
-        LibrarySource.Albums => LibraryViews.Albums(entries),
-        LibrarySource.Artists => LibraryViews.Artists(entries),
-        LibrarySource.Genres => LibraryViews.Genres(entries),
-        LibrarySource.TvShows => LibraryViews.TvShows(entries),
-        _ => [],
-    };
-
-    private static LibraryRow GroupRow(LibraryGroup group) => new(group.Name, group.Detail,
-        Count(group.Entries.Count, group.Entries.All(entry => entry.Kind == LibraryKind.Video) ? "episode" : "song"),
-        group, hasPicture: true, picturePlaceholder: group.Entries.All(entry => entry.Kind == LibraryKind.Video) ? "▶" : "♪");
-
-    private List<LibraryRow> EntryRows(IEnumerable<LibraryEntry> entries) => [.. entries.Select(EntryRow)];
 
     private LibraryRow EntryRow(LibraryEntry entry)
     {
-        var episode = entry.Kind == LibraryKind.Video ? LibraryViews.EpisodeOf(entry) : null;
+        // A tentative special (a movie's extras, perhaps) is labelled only on its show's page.
+        var episode = entry.Kind == LibraryKind.Video && LibraryViews.EpisodeOf(entry) is { Tentative: false } found ? found : null;
         var name = _librarySource == LibrarySource.Movies && entry.Kind == LibraryKind.Video
             ? LibraryViews.MovieTitleOf(entry)
-            : episode is not null && entry.Title == MediaLibrary.TitleOf(entry.Path) ? episode.DisplayName : entry.Title;
+            : episode is { Episode: not null } && entry.Title == MediaLibrary.TitleOf(entry.Path)
+                ? FetchedEpisodeName(episode) ?? episode.DisplayName : entry.Title;
         var detail = entry.Kind == LibraryKind.Video
-            ? (_player.LeftAt(entry.Path) is { } at ? "Stopped at " + TimeText.Format(at, entry.Duration ?? TimeSpan.Zero) + " · " : "")
+            ? (_librarySource is LibrarySource.OtherVideos or LibrarySource.Videos
+                && !string.Equals(Path.GetFileName(entry.Path), entry.Title, StringComparison.OrdinalIgnoreCase)
+                    ? Path.GetFileName(entry.Path) + " · " : "")
+                + (_player.LeftAt(entry.Path) is { } at ? "Stopped at " + TimeText.Format(at, entry.Duration ?? TimeSpan.Zero) + " · " : "")
                 + (_librarySource == LibrarySource.Movies && LibraryViews.MovieYearOf(entry) is { } year ? year.ToString(CultureInfo.CurrentCulture) + " · " : "")
-                + (episode is null ? "" : $"Season {episode.Season} · Episode {episode.Episode} · ")
+                + (_librarySource == LibrarySource.Movies && MovieBlurb(entry) is { Length: > 0 } fromCatalogue ? fromCatalogue + " · " : "")
+                + (_librarySource == LibrarySource.Movies && MovieRules.NotMatched(entry, MovieLookupOf(entry)) ? "Not matched · " : "")
+                + (episode is null ? "" : episode.Spoken + " · ")
+                + (entry.VideoWidth is > 0 && entry.VideoHeight is > 0
+                    ? $"{entry.VideoWidth} × {entry.VideoHeight} · " : "")
                 + Path.GetFileName(Path.GetDirectoryName(entry.Path))
             : entry.Kind == LibraryKind.Picture
-                ? string.Join(" · ", new[] { Path.GetFileName(Path.GetDirectoryName(entry.Path)), entry.Modified == default ? null : entry.Modified.ToLocalTime().ToString("d", CultureInfo.CurrentCulture) }.Where(part => part is not null))
-                : string.Join(" · ", new[] { entry.Artist, entry.Album }.Where(part => part is not null));
+                ? string.Join(" · ", new[]
+                {
+                    Path.GetFileName(entry.Path),
+                    Path.GetFileName(Path.GetDirectoryName(entry.Path)),
+                    entry.PictureWidth is > 0 && entry.PictureHeight is > 0
+                        ? $"{entry.PictureWidth} × {entry.PictureHeight}" : null,
+                    entry.Modified == default ? null : entry.Modified.ToLocalTime().ToString("d", CultureInfo.CurrentCulture),
+                }.Where(part => part is not null))
+                : string.Join(" · ", new[] { ArtistNames.Display(entry.Artist), entry.Album }.Where(part => part is not null));
+        if (entry.Problem is { } problem)
+        {
+            // A file whose details could not be read (damaged, most often) says why instead.
+            detail = "Could not be read: " + problem;
+        }
+
         var extra = entry.Kind != LibraryKind.Picture && entry.Duration is { } duration ? TimeText.Format(duration, duration) : "";
         var badge = entry.Kind switch
         {
             LibraryKind.Music when entry.Track is { } track => entry.Disc is > 1 ? $"{entry.Disc}.{track}" : track.ToString(CultureInfo.CurrentCulture),
-            LibraryKind.Video when episode is not null => $"S{episode.Season:00} E{episode.Episode:00}",
+            LibraryKind.Video when episode is not null => episode.Badge,
             _ => "",
         };
         var placeholder = entry.Kind switch { LibraryKind.Music => "♪", LibraryKind.Video => "▶", _ => "▧" };
         var progress = entry.Kind == LibraryKind.Video && _player.LeftAt(entry.Path) is { } left && entry.Duration is { TotalSeconds: > 0 } length ? Math.Clamp(left / length, 0, 1) : 0;
-        return new LibraryRow(name, detail, extra, entry, hasPicture: true, picturePlaceholder: placeholder, badge: badge, progress: progress);
+        var row = new LibraryRow(name, detail, extra, entry, hasPicture: true, picturePlaceholder: placeholder, badge: badge, progress: progress,
+            isPlaying: LibraryViews.SameLocation(entry.Path, _player.Playlist.Current?.Location));
+        var (glyph, text) = TranscriptBadgeOf(entry);
+        row.SetTranscript(glyph, text);
+        ShowDownload(row, entry);
+        return row;
     }
 
-    private static string Count(int count, string what) => count == 1 ? "1 " + what : count.ToString(CultureInfo.CurrentCulture) + " " + what + "s";
 
     /// <summary>A visible media line asks for its picture once; recycled, off-screen rows ask for nothing.</summary>
     private void OnLibraryRowShown(ListViewBase sender, ContainerContentChangingEventArgs args)
     {
-        if (!args.InRecycleQueue)
+        if (_closing)
         {
-            RequestLibraryPicture(args.Item as LibraryRow);
+            return;
+        }
+
+        if (args.ItemContainer is { } realized)
+        {
+            // The row's title remains a concise screen-reader name; a secondary
+            // filename and parent-folder hint distinguishes otherwise identical
+            // titles and is replaced when a virtualized container is recycled.
+            AutomationProperties.SetHelpText(realized, args.InRecycleQueue ? ""
+                : args.Item is LibraryRow row ? row.AccessibilityContext : "");
+        }
+
+        if (args.InRecycleQueue)
+        {
+            LetPictureGo(args.Item as LibraryRow);
+        }
+        else
+        {
+            RequestLibraryPicture(args.Item as LibraryRow, ShowsPosters(sender));
+            RequestEpisodeNotes(args.Item as LibraryRow);
+        }
+
+        // UI Automation reads the ListViewItem peer, not its template's Grid.
+        // Recycled containers must update (and clear) their help text for each row.
+        if (args.ItemContainer is { } container)
+        {
+            AutomationProperties.SetHelpText(container, args.InRecycleQueue
+                ? "" : (args.Item as LibraryRow)?.AccessibilityDetails ?? "");
+        }
+
+        // Only the persistent main list wires focus: its containers recycle, so the set is bounded.
+        if (sender == LibraryList)
+        {
+            WireRowFocus(args.ItemContainer as Microsoft.UI.Xaml.Controls.Primitives.SelectorItem);
         }
     }
 
-    /// <summary>Only request artwork when the virtualizing panel actually realizes a tile.</summary>
-    private void RequestLibraryPicture(LibraryRow? row)
+    /// <summary>
+    /// Only request artwork when the virtualizing panel actually realizes a tile; a movie on a poster
+    /// card (<paramref name="posterCard"/>) asks for a poster's shape.
+    /// </summary>
+    private void RequestLibraryPicture(LibraryRow? row, bool posterCard = false)
     {
         if (row is { HasPicture: true, PictureAsked: false } && PictureEntry(row.Item) is { } entry)
         {
             row.PictureAsked = true;
-            _ = ShowPictureAsync(entry.Path, entry.Kind, entry.Duration, picture => row.Picture = picture, _libraryPictures.Token);
+            row.Shape = PictureArtOf(row, posterCard || row.Shape == PictureArt.MoviePoster);
+            Forget(LoadRowPictureAsync(row, entry, urgent: false, _libraryPictures.Token));
         }
     }
 
@@ -405,8 +623,7 @@ public sealed partial class MainWindow
             }
 
             item.PictureAsked = true;
-            _ = ShowPictureAsync(entry.Path, entry.Kind, entry.Duration,
-                picture => item.Picture = picture, token, urgent: true);
+            Forget(LoadRowPictureAsync(item, entry, urgent: true, token));
         }
 
         Request(row);
@@ -431,6 +648,7 @@ public sealed partial class MainWindow
     {
         LibraryEntry entry => entry,
         LibraryGroup { Entries.Count: > 0 } group => group.Entries[0],
+        BookChapter chapter => chapter.Part,
         _ => null,
     };
 
@@ -458,21 +676,30 @@ public sealed partial class MainWindow
         return chosen.Count > 0 ? [.. rows.Where(chosen.Contains)] : rows;
     }
 
-    /// <summary>The media the lines stand for, in order: an album's songs, or a folder's media by kind.</summary>
+    /// <summary>
+    /// The media the lines stand for, in order: an album's songs, or a folder's media by kind. A
+    /// file several lines share (an artist page's top song inside one of its albums) plays once,
+    /// at its first place.
+    /// </summary>
     private List<LibraryEntry> EntriesOf(IEnumerable<LibraryRow> rows) =>
         [.. rows.SelectMany(row => row.Item switch
         {
             LibraryEntry entry => [entry],
             LibraryGroup group => group.Entries,
+            BookChapter chapter => [chapter.Part],
             string folder => [.. LibraryViews.Songs(_library!.Entries.Where(entry => MediaLibrary.Holds(folder, entry.Path))), .. LibraryViews.Videos(_library.Entries.Where(entry => MediaLibrary.Holds(folder, entry.Path))), .. LibraryViews.Pictures(_library.Entries.Where(entry => MediaLibrary.Holds(folder, entry.Path)))],
             _ => [],
-        })];
+        }).DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)];
 
-    private void OnLibraryPlay(object sender, RoutedEventArgs e) => PlayChosen();
+    private void OnLibraryPlay(object sender, RoutedEventArgs e)
+    {
+        if (!PlayDetailsMovie())
+        {
+            PlayChosen();
+        }
+    }
 
     private void OnLibraryEnqueue(object sender, RoutedEventArgs e) => EnqueueChosen();
-
-    private void OnLibraryDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => Activate(LibraryList.SelectedItem as LibraryRow);
 
     private void OnLibraryKeyDown(object sender, KeyRoutedEventArgs e)
     {
@@ -487,204 +714,52 @@ public sealed partial class MainWindow
                 e.Handled = true;
                 break;
             case VirtualKey.F2 when LibraryList.SelectedItem is LibraryRow { Item: NamedPlaylist playlist }:
-                _ = RenamePlaylistAsync(playlist.Id);
+                Forget(RenamePlaylistAsync(playlist.Id));
                 e.Handled = true;
                 break;
-            case VirtualKey.Delete when EntriesOf(SelectedLibraryRows()).Count > 0:
-                _ = ChooseLibraryDeletionAsync();
+            case VirtualKey.Delete when SelectedLibraryRows() is { Count: > 0 } lines && lines.All(line => LibraryActions.DeletesFiles(line.Item)) && EntriesOf(lines).Count > 0:
+                Forget(ChooseLibraryDeletionAsync());
                 e.Handled = true;
                 break;
         }
     }
 
-    /// <summary>A line opened: a group shows its songs, a playlist plays, a song or video plays with the rest of the view after it.</summary>
-    private void Activate(LibraryRow? row)
+    /// <summary>Reveals each selected file in Explorer, while tolerating removed or inaccessible files.</summary>
+    private Task OpenLibraryFoldersAsync(IReadOnlyList<LibraryEntry> entries) =>
+        RevealFilesInExplorerAsync(entries.Select(entry => entry.Path));
+
+    /// <summary>Use the same file-selecting Explorer flow from library and queue menus.</summary>
+    private async Task RevealFilesInExplorerAsync(IEnumerable<string> paths)
     {
-        switch (row?.Item)
+        foreach (var group in LibraryActions.RevealGroups(paths))
         {
-            case LibraryGroup group:
-                if (_librarySource == LibrarySource.TvShows && _libraryGroup is not null && _librarySeason is null)
-                {
-                    _librarySeason = group;
-                }
-                else
-                {
-                    _libraryGroup = group;
-                    _librarySeason = null;
-                }
-
-                LibrarySearch.Text = "";
-                ShowLibrary();
-                break;
-            case NamedPlaylist playlist:
-                _player.PlayPlaylist(playlist.Id);
-                break;
-            case LibraryEntry entry:
-                var view = entry.Kind == LibraryKind.Video
-                    ? LibraryViews.AutoplayVideos(_library!.Entries, entry)
-                    : EntriesOf(_libraryRows);
-                Play(view, view.ToList().FindIndex(item => string.Equals(item.Path, entry.Path, StringComparison.OrdinalIgnoreCase)));
-                if (view.Count > 1 && LibraryViews.EpisodeOf(entry) is { } episode)
-                {
-                    Say($"Playing {episode.Series}, season {episode.Season}, from episode {episode.Episode}");
-                }
-
-                break;
-        }
-    }
-
-    private void PlayChosen()
-    {
-        var chosen = SelectedLibraryRows();
-        if (chosen is [{ Item: LibraryEntry }])
-        {
-            Activate(chosen[0]);
-            return;
-        }
-
-        if (ChosenRows() is [{ Item: NamedPlaylist playlist }, ..])
-        {
-            _player.PlayPlaylist(playlist.Id);
-            return;
-        }
-
-        Play(EntriesOf(ChosenRows()), 0);
-    }
-
-    private void EnqueueChosen()
-    {
-        var rows = ChosenRows();
-        foreach (var playlist in rows.Select(row => row.Item).OfType<NamedPlaylist>())
-        {
-            _player.PlayPlaylist(playlist.Id, enqueue: true);
-        }
-
-        var entries = EntriesOf(rows);
-        if (entries.Count > 0)
-        {
-            _player.EnqueueFromLibrary(entries);
-            Say($"Added {Count(entries.Count, "item")} to the playlist");
-        }
-    }
-
-    /// <summary>Plays from the library; visual media closes the library so its picture shows.</summary>
-    private void Play(IReadOnlyList<LibraryEntry> entries, int start, bool resume = false)
-    {
-        if (entries.Count == 0)
-        {
-            Say("There is nothing here to play yet.");
-            return;
-        }
-
-        var chosen = entries[Math.Clamp(start, 0, entries.Count - 1)];
-        var resumeAt = resume || _librarySource == LibrarySource.ContinueWatching ? _player.LeftAt(chosen.Path) : null;
-        if (chosen.Kind is LibraryKind.Video or LibraryKind.Picture)
-        {
-            // Let the pane disappear and the window paint before opening a potentially large image
-            // or video. Its probing and decoding stay on the engine threads, never this UI turn.
-            SetLibraryOpen(false);
-            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+            var options = new Windows.System.FolderLauncherOptions();
+            foreach (var path in group.Files)
             {
-                if (!_closing)
+                try
                 {
-                    _player.PlayFromLibrary(entries, start, resumeAt);
+                    options.ItemsToSelect.Add(await Windows.Storage.StorageFile.GetFileFromPathAsync(path));
                 }
-            });
-        }
-        else
-        {
-            _player.PlayFromLibrary(entries, start, resumeAt);
-        }
-    }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                    or ArgumentException or NotSupportedException or System.Runtime.InteropServices.COMException)
+                {
+                    // Files can go missing between a scan and the menu; still open the parent folder.
+                    App.Log.Debug(LogSource, $"Could not select {path} in Explorer: {ex.Message}");
+                }
+            }
 
-    /// <summary>The list's right-click menu, for the lines chosen when it opens.</summary>
-    private void FillLibraryMenu(MenuFlyout menu)
-    {
-        menu.Items.Clear();
-        var chosen = SelectedLibraryRows();
-        if (chosen.Count == 0)
-        {
-            menu.Items.Add(new MenuFlyoutItem { Text = "Choose something first", IsEnabled = false });
-            return;
-        }
-
-        if (chosen[0].Item is string)
-        {
-            menu.Items.Add(MenuItem("Play everything in it", "LibraryMenuPlay", PlayChosen));
-            menu.Items.Add(MenuItem("Stop watching", "LibraryMenuRemoveFolder", RemoveChosenFolders));
-            return;
-        }
-
-        if (chosen[0].Item is NamedPlaylist playlist)
-        {
-            menu.Items.Add(MenuItem("Play", "LibraryMenuPlay", () => _player.PlayPlaylist(playlist.Id)));
-            menu.Items.Add(MenuItem("Add to the end of this playlist", null, () => _player.PlayPlaylist(playlist.Id, enqueue: true)));
-            menu.Items.Add(new MenuFlyoutSeparator());
-            menu.Items.Add(MenuItem("Rename...", null, () => _ = RenamePlaylistAsync(playlist.Id)));
-            menu.Items.Add(MenuItem("Duplicate", null, () => _player.DuplicatePlaylist(playlist.Id)));
-            menu.Items.Add(MenuItem("Delete...", null, () => _ = DeletePlaylistAsync(playlist.Id)));
-            return;
-        }
-
-        if (chosen is [{ Item: LibraryEntry { Kind: LibraryKind.Video } video }]
-            && LibraryViews.AutoplayVideos(_library!.Entries, video) is { Count: > 1 } season
-            && LibraryViews.EpisodeOf(video) is { } episode)
-        {
-            menu.Items.Add(MenuItem($"Play season {episode.Season} from here ({Count(season.Count, "episode")})", "LibraryMenuPlay", PlayChosen));
-            menu.Items.Add(MenuItem("Play only this episode", null, () => Play([video], 0)));
-        }
-        else
-        {
-            menu.Items.Add(MenuItem("Play", "LibraryMenuPlay", PlayChosen));
-        }
-
-        var selectedEntries = EntriesOf(chosen).DistinctBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase).ToList();
-        menu.Items.Add(MenuItem(LibraryActions.MenuText("Play", selectedEntries.Count, tail: "next"), "LibraryMenuPlayNext",
-            () => _player.PlayNextFromLibrary(selectedEntries)));
-        menu.Items.Add(MenuItem(LibraryActions.MenuText("Add", selectedEntries.Count, tail: "to queue"), "LibraryMenuEnqueue", EnqueueChosen));
-        var items = selectedEntries.Select(PlayerController.ItemOf).ToList();
-        var addTo = new MenuFlyoutSubItem { Text = "Add to a playlist" };
-        AutomationProperties.SetAutomationId(addTo, "LibraryMenuAddTo");
-        foreach (var named in _player.NamedPlaylists)
-        {
-            var id = named.Id;
-            addTo.Items.Add(MenuItem(named.Name, null, () => _player.AddToPlaylist(id, items)));
-        }
-
-        if (addTo.Items.Count > 0)
-        {
-            addTo.Items.Add(new MenuFlyoutSeparator());
-        }
-
-        addTo.Items.Add(MenuItem("New playlist...", "LibraryMenuAddToNew", () => _ = NewPlaylistAsync(items)));
-        menu.Items.Add(addTo);
-        if (selectedEntries.Count > 0)
-        {
-            menu.Items.Add(new MenuFlyoutSeparator());
-            menu.Items.Add(MenuItem(LibraryActions.MenuText("Mark", selectedEntries.Count, tail: "as watched"), "LibraryMenuMarkWatched",
-                () => _player.MarkWatched(selectedEntries.Select(entry => entry.Path).ToList())));
-            menu.Items.Add(MenuItem(LibraryActions.MenuText("Mark", selectedEntries.Count, tail: "as unwatched"), "LibraryMenuMarkUnwatched",
-                () => _player.MarkUnwatched(selectedEntries.Select(entry => entry.Path).ToList())));
-            menu.Items.Add(MenuItem(LibraryActions.MenuText("Reset", selectedEntries.Count, tail: "progress"), "LibraryMenuResetProgress",
-                () => _player.ResetProgress(selectedEntries.Select(entry => entry.Path).ToList())));
-            menu.Items.Add(MenuItem(LibraryActions.MenuText("Copy", selectedEntries.Count, tail: "paths"), "LibraryMenuCopyPath",
-                () => CopyLibraryPaths(selectedEntries)));
-            menu.Items.Add(MenuItem(selectedEntries.Count == 1 ? "Open containing folder" : "Open containing folders", "LibraryMenuOpenFolder",
-                () => _ = OpenLibraryFoldersAsync(selectedEntries)));
-            menu.Items.Add(new MenuFlyoutSeparator());
-            menu.Items.Add(MenuItem(LibraryActions.MenuText("Remove", selectedEntries.Count, tail: "from library..."), "LibraryMenuRemove",
-                () => _ = RemoveLibraryEntriesAsync(selectedEntries)));
-            menu.Items.Add(MenuItem(LibraryActions.MenuText("Delete", selectedEntries.Count, tail: "to Recycle Bin..."), "LibraryMenuDelete",
-                () => _ = DeleteLibraryEntriesAsync(selectedEntries)));
-        }
-    }
-
-    private static async Task OpenLibraryFoldersAsync(IReadOnlyList<LibraryEntry> entries)
-    {
-        foreach (var folder in entries.Select(entry => Path.GetDirectoryName(entry.Path))
-            .Where(folder => !string.IsNullOrEmpty(folder)).Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            await Launcher.LaunchFolderPathAsync(folder!);
+            try
+            {
+                if (!await Launcher.LaunchFolderPathAsync(group.Folder, options))
+                {
+                    Say("File Explorer could not open " + group.Folder);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                or ArgumentException or NotSupportedException or System.Runtime.InteropServices.COMException)
+            {
+                Say("File Explorer could not open " + group.Folder + ": " + ex.Message);
+            }
         }
     }
 
@@ -730,6 +805,47 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>Return keyboard focus after modal confirmation and background filesystem operations.</summary>
+    private void FocusLibraryAfterFileAction()
+    {
+        OnWindowThread(DispatcherQueuePriority.Low, () =>
+        {
+            if (_closed || !LibraryOpen)
+            {
+                return;
+            }
+
+            void RestoreFocus()
+            {
+                if (_closed || !LibraryOpen)
+                {
+                    return;
+                }
+
+                if (LibraryCollage.Visibility == Visibility.Visible)
+                {
+                    LibraryCollage.Focus(FocusState.Programmatic);
+                }
+                else
+                {
+                    // ListView itself is not consistently a keyboard focus
+                    // target once its rows are regenerated. Prefer a realized
+                    // row, which is also what keyboard users interact with.
+                    if (LibraryList.ContainerFromIndex(0) is not Control row
+                        || !row.Focus(FocusState.Keyboard))
+                    {
+                        LibraryList.Focus(FocusState.Programmatic);
+                    }
+                }
+            }
+
+            RestoreFocus();
+            // A library refresh can replace rows after this callback begins.
+            // Reassert focus once those queued view changes have completed.
+            OnWindowThread(DispatcherQueuePriority.Low, RestoreFocus);
+        });
+    }
+
     private async Task RemoveLibraryEntriesAsync(IReadOnlyList<LibraryEntry> entries)
     {
         var paths = entries.Select(entry => entry.Path).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -741,8 +857,42 @@ public sealed partial class MainWindow
         var prompt = LibraryActions.RemovePrompt(paths.Select(path => Path.GetFileName(path) ?? path).ToList());
         if (await Ask(prompt.Title, new TextBlock { Text = prompt.Body, TextWrapping = TextWrapping.Wrap }, "Remove", "Cancel"))
         {
+            var before = paths.Select(path => _library?.Entry(path)).OfType<LibraryEntry>().ToArray();
             _player.RemoveFromLibrary(paths);
+            _libraryRemovalUndo = before.Length > 0 ? before : null;
+            LibraryUndoRemove.Visibility = _libraryRemovalUndo is null ? Visibility.Collapsed : Visibility.Visible;
         }
+
+        FocusLibraryAfterFileAction();
+    }
+
+    /// <summary>Undo a library-only removal; never re-add paths no longer available on disk.</summary>
+    private void OnLibraryUndoRemove(object sender, RoutedEventArgs e) => Forget(UndoLibraryRemoveAsync());
+
+    private async Task UndoLibraryRemoveAsync()
+    {
+        if (_libraryRemovalUndo is not { } before)
+        {
+            return;
+        }
+
+        _libraryRemovalUndo = null;
+        // Move focus off the Undo button before collapsing it. WinUI can
+        // otherwise leave keyboard focus on the removed visual indefinitely.
+        LibraryList.Focus(FocusState.Keyboard);
+        LibraryUndoRemove.Visibility = Visibility.Collapsed;
+        var available = await Task.Run(() => before.Where(entry => File.Exists(entry.Path)).ToArray());
+        if (!_closed && available.Length > 0)
+        {
+            _focusLibraryAfterUndoRefresh = true;
+            _player.RestoreToLibrary(available);
+        }
+        else if (!_closed)
+        {
+            Say("No removed files are available to restore");
+        }
+
+        FocusLibraryAfterFileAction();
     }
 
     /// <summary>Moves files through the OS Recycle Bin only, then forgets successful moves.</summary>
@@ -757,6 +907,7 @@ public sealed partial class MainWindow
         var prompt = LibraryActions.DeletePrompt(paths.Select(path => Path.GetFileName(path) ?? path).ToList());
         if (!await Ask(prompt.Title, new TextBlock { Text = prompt.Body, TextWrapping = TextWrapping.Wrap }, "Move to Recycle Bin", "Cancel"))
         {
+            FocusLibraryAfterFileAction();
             return;
         }
 
@@ -782,6 +933,8 @@ public sealed partial class MainWindow
 
         if (moved.Count > 0)
         {
+            _libraryRemovalUndo = null;
+            LibraryUndoRemove.Visibility = Visibility.Collapsed;
             _player.ForgetDeleted(moved);
         }
 
@@ -789,40 +942,24 @@ public sealed partial class MainWindow
         {
             Say($"{failed.Count} file(s) could not be moved to the Recycle Bin: " + string.Join("; ", failed.Take(3)));
         }
+
+        FocusLibraryAfterFileAction();
     }
 
-    private async void OnLibraryAddFolder(object sender, RoutedEventArgs e)
-    {
-        var picker = Prepared(new FolderPicker { SuggestedStartLocation = PickerLocationId.MusicLibrary });
-        picker.FileTypeFilter.Add("*");
-        if (await picker.PickSingleFolderAsync() is { } folder)
-        {
-            AddLibraryFolder(folder.Path);
-        }
-    }
+    private void OnLibraryRemoveFolder(object sender, RoutedEventArgs e) => Forget(RemoveChosenFoldersAsync());
 
-    private void AddLibraryFolder(string path)
-    {
-        if (!_library!.AddFolder(path))
-        {
-            Say($"The library already watches {path}.");
-            return;
-        }
-
-        App.Log.Info(LogSource, "The library now watches " + path);
-        Say("The library now watches " + path);
-        WatchLibraryFolders();
-        _scanner!.Request();
-    }
-
-    private void OnLibraryRemoveFolder(object sender, RoutedEventArgs e) => RemoveChosenFolders();
-
-    private void RemoveChosenFolders()
+    private async Task RemoveChosenFoldersAsync()
     {
         var folders = LibraryList.SelectedItems.OfType<LibraryRow>().Select(row => row.Item).OfType<string>().ToList();
         if (folders.Count == 0)
         {
             Say("Choose the folders to stop watching first.");
+            return;
+        }
+
+        var prompt = LibraryActions.StopWatchingPrompt(folders);
+        if (!await Ask(prompt.Title, new TextBlock { Text = prompt.Body, TextWrapping = TextWrapping.Wrap }, "Stop watching", "Cancel"))
+        {
             return;
         }
 
@@ -836,65 +973,4 @@ public sealed partial class MainWindow
     }
 
     private void OnLibraryRescan(object sender, RoutedEventArgs e) => _scanner!.Request();
-
-    private void OnLibraryBackUp(object sender, RoutedEventArgs e) => _ = BackUpLibraryAsync();
-
-    private void OnLibraryRestore(object sender, RoutedEventArgs e) => _ = RestoreLibraryAsync();
-
-    /// <summary>Keeps the library and the named playlists in a folder the user chooses (LIB-10).</summary>
-    private async Task BackUpLibraryAsync()
-    {
-        var picker = Prepared(new FolderPicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary });
-        picker.FileTypeFilter.Add("*");
-        if (await picker.PickSingleFolderAsync() is not { } folder)
-        {
-            return;
-        }
-
-        try
-        {
-            var playlists = _player.NamedPlaylists.ToArray();
-            await Task.Run(() =>
-            {
-                foreach (var (path, bytes) in LibraryBackup.Export(_library!, playlists))
-                {
-                    var target = Path.Combine(folder.Path, path);
-                    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                    Rex.Media.IO.AtomicFile.Write(target, bytes);
-                }
-            });
-
-            App.Log.Info(LogSource, "Backed the library up to " + folder.Path);
-            Say("The library is backed up in " + folder.Path);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            App.Log.Warning(LogSource, "The library could not be backed up: " + ex.Message);
-            Say("The library could not be backed up there: " + ex.Message);
-        }
-    }
-
-    /// <summary>Adds a backup's folders, play counts and playlists to what the library has (LIB-10).</summary>
-    private async Task RestoreLibraryAsync()
-    {
-        var picker = Prepared(new FileOpenPicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary });
-        picker.FileTypeFilter.Add(".json");
-        if (await picker.PickSingleFileAsync() is not { } file)
-        {
-            return;
-        }
-
-        try
-        {
-            var summary = LibraryBackup.Restore(LibraryBackup.Read(await File.ReadAllBytesAsync(file.Path)), _library!, _player);
-            WatchLibraryFolders();
-            _scanner!.Request();
-            App.Log.Info(LogSource, $"Brought back {file.Path}: {summary}.");
-            Say($"Brought back {Count(summary.Folders, "folder")}, {Count(summary.Entries, "file")} and {Count(summary.Playlists, "playlist")}");
-        }
-        catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException)
-        {
-            Say(ex.Message);
-        }
-    }
 }

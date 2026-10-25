@@ -90,16 +90,41 @@ public sealed class AppEndToEndTests : IDisposable
 
     [Fact]
     [Capability("UI-14")]
-    public void TheFirstStartWelcomesAndAsksAboutLookingForUpdates()
+    public void TheFirstStartDoesNotOptIntoBackgroundNetworkChecksByDefault()
     {
         using var app = AppProcess.Start(firstRun: true);
+        var transform = (System.Windows.Automation.TransformPattern)app.Window.GetCurrentPattern(
+            System.Windows.Automation.TransformPattern.Pattern);
+        transform.Resize(1000, 700);
+        Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 1000) < 2
+            && Math.Abs(app.Window.Current.BoundingRectangle.Height - 700) < 2,
+            "the fixed first-run privacy viewport");
 
-        app.Toggle("WelcomeUpdates");
+        var updates = (System.Windows.Automation.TogglePattern)app.Find("WelcomeUpdates")
+            .GetCurrentPattern(System.Windows.Automation.TogglePattern.Pattern);
+        Assert.Equal(System.Windows.Automation.ToggleState.Off, updates.Current.ToggleState);
+        Assert.Contains("Optional metadata lookups and update checks contact online services only when enabled",
+            app.Text("WelcomePrivacy"), StringComparison.Ordinal);
+        Screenshots.Match(app, "welcome-first-run-offline");
         app.Press("CloseButton");
         Wait.For(() => File.Exists(app.SettingsPath) && app.SavedSettings.FirstRunDone, "the welcome to be remembered");
 
         var saved = app.SavedSettings;
         Assert.Equal((UpdateCadence.Off, AppProcess.Version), (saved.UpdateChecks, saved.LastSeenVersion));
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("UI-14")]
+    public void TheFirstStartCanExplicitlyEnableBackgroundUpdateChecks()
+    {
+        using var app = AppProcess.Start(firstRun: true);
+
+        app.Toggle("WelcomeUpdates");
+        app.Press("CloseButton");
+        Wait.For(() => File.Exists(app.SettingsPath) && app.SavedSettings.FirstRunDone,
+            "the chosen update preference to be remembered");
+        Assert.Equal(UpdateCadence.Daily, app.SavedSettings.UpdateChecks);
         Assert.Equal(0, app.Close());
     }
 
@@ -125,7 +150,7 @@ public sealed class AppEndToEndTests : IDisposable
 
         Wait.For(() => app.Text("IdleHint").Length > 0 && app.Text("IdleTitle") == "broken", "the reason to show");
         // The error banner updates on the UI thread, but logging flushes asynchronously.
-        Wait.For(() => app.LogText.Contains("broken could not be played", StringComparison.Ordinal), "the media failure to be logged");
+        Wait.For(() => app.LogText.Contains("This file could not be played", StringComparison.Ordinal), "the media failure to be logged");
         Assert.Equal(0, app.Close());
     }
 }

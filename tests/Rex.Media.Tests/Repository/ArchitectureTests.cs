@@ -13,13 +13,15 @@ public sealed class ArchitectureTests
     private const string Portable = "net10.0";
     private const string Windows = "net10.0-windows";
     private const string WindowsApp = "net10.0-windows10.0.22621.0";
+    private const string MacApp = "net10.0-macos";
 
     private static readonly string[] Everything =
     [
         "Primitives", "Diagnostics", "IO", "Containers", "Codecs", "Codecs.Software", "Codecs.MediaFoundation",
         "Audio", "Audio.Wasapi", "Video", "Video.D3D11", "Subtitles", "Subtitles.DirectWrite", "Engine",
         "Net", "Library", "Settings", "StreamOut", "Cast", "Discs", "Discs.Device", "Extensibility",
-        "AppCore", "Updater", "Interop", "Vision", "Vision.WindowsML",
+        "AppCore", "Updater", "Interop", "Vision", "Vision.WindowsML", "Faces", "Speech",
+        "Interop.Mac", "Audio.CoreAudio", "Codecs.Apple", "Video.Metal",
     ];
 
     private static readonly Dictionary<string, (string Framework, string[] Allowed)> Graph = new(StringComparer.Ordinal)
@@ -52,9 +54,24 @@ public sealed class ArchitectureTests
         ["Extensibility"] = (Portable, ["Primitives", "Diagnostics"]),
         ["AppCore"] = (Portable, ["Primitives", "Diagnostics", "IO", "Containers", "Codecs", "Codecs.Software", "Audio", "Video", "Subtitles", "Engine", "Net", "Library", "Settings", "StreamOut", "Cast", "Discs", "Extensibility"]),
         ["Updater"] = (Windows, ["Primitives", "Diagnostics", "IO", "Settings"]),
+        // Windows' own face detector, for keeping captions off faces (OSD-11); a Windows 10 API, so
+        // the command line that uses it names the platform version as the app does.
+        ["Faces"] = (WindowsApp, []),
+        // ADR-0020: speech models through Whisper.net. The transcript's shape, cache and catalogue
+        // are AppCore's; this adapter only decodes the sound and runs the model.
+        ["Speech"] = (Windows, ["Primitives", "Diagnostics", "AppCore"]),
         ["Interop"] = (Windows, []),
-        ["Cli"] = (Windows, Everything),
+        // ADR-0021: the Mac's C frameworks through LibraryImport from plain .NET, so these build on any
+        // machine; they run only on a Mac, where the macOS adapter tests prove them.
+        ["Interop.Mac"] = (Portable, []),
+        ["Audio.CoreAudio"] = (Portable, ["Primitives", "Audio", "Interop.Mac"]),
+        ["Codecs.Apple"] = (Portable, ["Primitives", "Codecs", "Interop.Mac"]),
+        ["Cli.Mac"] = (Portable, Everything),
+        ["Cli"] = (WindowsApp, Everything),
         ["App"] = (WindowsApp, Everything),
+        // ADR-0021: the macOS window, the one project that needs the platform SDK.
+        ["App.Mac"] = (MacApp, Everything),
+        ["Video.Metal"] = (MacApp, ["Primitives", "Video"]),
     };
 
     [Fact]

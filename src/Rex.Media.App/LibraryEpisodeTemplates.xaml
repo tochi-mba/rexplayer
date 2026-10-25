@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A show page's episode lines: the episode's number, a wide frame with its picture and how much
+     of it was watched, its title, where it was left, its synopsis, and its length. Loaded the first time a show
+     page is opened, never at launch; the lines stay in the library's virtualised list. -->
+<ResourceDictionary
+    x:Class="Rex.Media.App.LibraryEpisodeTemplates"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Rex.Media.App">
+  <DataTemplate x:Key="LibraryEpisodeTemplate" x:DataType="local:LibraryRow">
+    <Grid ColumnSpacing="16" Padding="4,8" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="44" />
+        <ColumnDefinition Width="176" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <TextBlock Text="{x:Bind Badge}" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"
+                 Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+      <Border Grid.Column="1" Width="176" Height="99" CornerRadius="8" Background="{ThemeResource LayerFillColorDefaultBrush}">
+        <Grid>
+          <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="30" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" />
+          <ProgressBar Value="{x:Bind Progress}" Maximum="1" Visibility="{x:Bind ProgressVisibility}" VerticalAlignment="Bottom" />
+          <Border Visibility="{x:Bind PlayingVisibility, Mode=OneWay}" Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="9" Padding="8,3" Margin="6"
+                  HorizontalAlignment="Left" VerticalAlignment="Top">
+            <TextBlock Text="NOW PLAYING" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+          </Border>
+            <ProgressRing Visibility="{x:Bind DownloadVisibility, Mode=OneWay}" Value="{x:Bind DownloadPercent, Mode=OneWay}" IsIndeterminate="False" Maximum="100" Width="22" Height="22" Margin="6"
+                          HorizontalAlignment="Right" VerticalAlignment="Top" Foreground="White" Background="#C0181818" IsHitTestVisible="False"
+                          ToolTipService.ToolTip="{x:Bind DownloadText, Mode=OneWay}" AutomationProperties.AutomationId="LibraryDownloadBadge" AutomationProperties.Name="{x:Bind DownloadText, Mode=OneWay}" />
+            <FontIcon Glyph="&#xE896;" Visibility="{x:Bind DownloadVisibility, Mode=OneWay}" FontSize="9" Foreground="White" Width="22" Height="22" Margin="6" HorizontalAlignment="Right" VerticalAlignment="Top" />
+        </Grid>
+      </Border>
+      <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+        <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+        <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Visibility="{x:Bind DetailVisibility, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" FontSize="12" />
+        <!-- The episode's synopsis: two lines, the whole of it when clicked. -->
+        <TextBlock Text="{x:Bind Summary}" Visibility="{x:Bind SummaryVisibility}" MaxLines="{x:Bind SummaryLines, Mode=OneWay}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                   FontSize="12" Margin="0,4,0,0" Tapped="OnSummaryTapped" ToolTipService.ToolTip="Click to read all of it, again to fold it"
+                   AutomationProperties.AutomationId="LibraryEpisodeSummary" />
+      </StackPanel>
+      <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+        <FontIcon Glyph="{x:Bind TranscriptGlyph, Mode=OneWay}" Visibility="{x:Bind TranscriptVisibility, Mode=OneWay}" FontSize="13"
+                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" ToolTipService.ToolTip="{x:Bind TranscriptText, Mode=OneWay}"
+                  AutomationProperties.AutomationId="LibraryTranscriptBadge" AutomationProperties.Name="{x:Bind TranscriptText, Mode=OneWay}" />
+        <TextBlock Text="{x:Bind Extra}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="Cascadia Mono, Consolas" />
+      </StackPanel>
+    </Grid>
+  </DataTemplate>
+</ResourceDictionary>

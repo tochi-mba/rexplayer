@@ -33,6 +33,32 @@ public sealed class Mp4CraftedTests
         return packets;
     }
 
+    [Fact]
+    public void AnUnknownLengthMp4CanSkipAShortReadAndKeepEarlierPackets()
+    {
+        var file = File([Audio(AudioEntry("Opus", 1, 16, 8000), Samples(5, 5, 5))]);
+        // The movie header is complete, but the final sample is cut short and the
+        // source cannot report its length up front.
+        using var demuxer = new Mp4Demuxer(new UnknownLengthSource(file[..^3]), CancellationToken.None);
+        var packets = ReadAll(demuxer);
+        Assert.Equal([1, 2], packets.Select(packet => packet.Data.Span[0]));
+        packets.ForEach(packet => packet.Dispose());
+    }
+
+    private sealed class UnknownLengthSource(byte[] bytes) : IByteSource
+    {
+        private readonly MemoryByteSource _inner = new(bytes, "damaged.mp4");
+
+        public string Name => _inner.Name;
+        public long? Length => null;
+        public bool CanSeek => true;
+
+        public int Read(long position, Span<byte> destination, CancellationToken cancellationToken) =>
+            _inner.Read(position, destination, cancellationToken);
+
+        public void Dispose() => _inner.Dispose();
+    }
+
     [Theory]
     [InlineData(4)]
     [InlineData(8)]
@@ -226,6 +252,16 @@ public sealed class Mp4CraftedTests
         { Full("esds", 0, 0, Descriptor(0x03, [0, 1, 0, 0x09, 0])), CodecId.Aac, 48_000, 6 },
     };
 
+    [Fact]
+    public void ShortElementaryStreamDescriptorReportsFormatDamage()
+    {
+        // The ES descriptor announces itself but does not contain the two-byte id and flags.
+        // The track cannot be described, so it is left out rather than failing the file.
+        var shortDescriptor = Full("esds", 0, 0, Descriptor(0x03, [0, 1]));
+        using var demuxer = Open(File([Audio(AudioEntry("mp4a", 2, 16, 48_000, shortDescriptor))]));
+        Assert.Empty(demuxer.Info.Tracks);
+    }
+
     [Theory]
     [MemberData(nameof(ElementaryStreams))]
     public void TheElementaryStreamDescriptorNamesTheCodecAndConfiguresAac(byte[] esds, CodecId codec, int rate, int channels)
@@ -333,6 +369,22 @@ public sealed class Mp4CraftedTests
     {
         Assert.Null(Mp4Metadata.Gapless(new Dictionary<string, string> { ["itunsmpb"] = value }));
         Assert.Null(Mp4Metadata.Gapless(new Dictionary<string, string>()));
+    }
+
+    [Fact]
+    [Capability("META-01")]
+    public void AnItemWithSeveralDataAtomsKeepsEveryValue()
+    {
+        var mark = Encoding.Latin1.GetString([0xA9]);
+        var ilst = Box("ilst",
+            Box(mark + "ART", Box("data", U32(1), U32(0), Ascii("A$AP Rocky")), Box("data", U32(1), U32(0), Ascii("Brent Faiyaz")), Box("data", U32(1), U32(0)), Box("free")),
+            Box("----", Box("mean", U32(0), Ascii("com.apple.iTunes")), Box("name", U32(0), Ascii("ARTISTS")), Box("data", U32(1), U32(0), Ascii("A$AP Rocky")), Box("data", U32(1), U32(0), Ascii("Brent Faiyaz"))));
+        var metadata = new Dictionary<string, string>();
+
+        Mp4Metadata.ReadItems(ilst.AsSpan(8), metadata);
+
+        Assert.Equal("A$AP Rocky; Brent Faiyaz", metadata[MetadataKeys.Artist]);
+        Assert.Equal("A$AP Rocky; Brent Faiyaz", metadata[MetadataKeys.Artists]);
     }
 
     [Fact]
@@ -461,7 +513,9 @@ public sealed class Mp4CraftedTests
         var trun = Encoding.Latin1.GetString(file).LastIndexOf("trun", StringComparison.Ordinal);
         U32(60_000_000).CopyTo(file, trun + 8);
 
-        Assert.Throws<MediaFormatException>(() => Open(file));
+        // The fragment is left out: its track opens with nothing in it, and nothing huge is made.
+        using var demuxer = Open(file);
+        Assert.Empty(ReadAll(demuxer));
     }
 
     [Fact]
@@ -499,6 +553,44 @@ public sealed class Mp4CraftedTests
     }
 
     [Fact]
+    public void EmptyMovieHeaderReportsDamagedMediaInsteadOfAnIndexFailure()
+    {
+        // An empty movie header is passed over: the tracks' own lengths would stand in for it.
+        var corrupt = Concat(Box("ftyp", Ascii("isom"), U32(0)), Box("moov", Box("mvhd")));
+        using var demuxer = Open(corrupt);
+        Assert.Empty(demuxer.Info.Tracks);
+        Assert.False(demuxer.Info.Duration.IsKnown);
+    }
+
+    [Fact]
+    public void ClaimedMovieBodyUsesOnlyBytesThatExist()
+    {
+        // A broken box size may claim hundreds of megabytes after an eight-byte header.
+        // Reading the available prefix must not allocate the declared size.
+        var corrupt = Concat(U32(250_000_000), Ascii("moov"), [1, 2, 3]);
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        using var demuxer = Open(corrupt);
+        Assert.Empty(demuxer.Info.Tracks);
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.InRange(allocated, 0, 2_000_000);
+    }
+
+    [Fact]
+    public void FixedSizePacketCountCannotExceedFileLength()
+    {
+        var media = File([new Mp4TrackSpec { SampleEntry = AudioEntry("sowt", 1, 16, 8000), Samples = Samples(2), FixedSize = true }]);
+        var stsz = Encoding.Latin1.GetString(media).IndexOf("stsz", StringComparison.Ordinal);
+        Assert.True(stsz >= 0);
+        U32(1_000_000).CopyTo(media, stsz + 12);
+
+        // No more samples are made than the file could hold: what is there plays.
+        using var demuxer = Open(media);
+        var packets = ReadAll(demuxer);
+        Assert.Equal(2, packets.Sum(packet => packet.Data.Length));
+        packets.ForEach(packet => packet.Dispose());
+    }
+
+    [Fact]
     public void BrokenFilesAreRejectedOrEndCleanly()
     {
         var track = Audio(AudioEntry("sowt", 1, 16, 8000), Samples(2, 2));
@@ -521,14 +613,37 @@ public sealed class Mp4CraftedTests
 
         Assert.Throws<MediaFormatException>(() => Open(noMoov));
         Assert.Throws<MediaFormatException>(() => Open(hugeMoov));
-        Assert.Throws<MediaFormatException>(() => Open(tooManyEntries));
-        Assert.Throws<MediaFormatException>(() => Open(tooManySamples));
-        Assert.Throws<MediaFormatException>(() => Open(compact));
-        Assert.Throws<MediaFormatException>(() => Open(hugeSample).ReadPacket(CancellationToken.None));
-        Assert.Throws<MediaFormatException>(() => Open(good[..^3]).ReadPacket(CancellationToken.None));
+
+        // A track whose tables cannot be right is left out (or keeps only what the file holds): the file opens, with nothing to play.
+        foreach (var broken in new[] { tooManyEntries, tooManySamples, compact, hugeSample })
+        {
+            using var demuxer = Open(broken);
+            Assert.Empty(ReadAll(demuxer));
+        }
+
+        using (var shortened = Open(good[..^3]))
+        {
+            var found = ReadAll(shortened);
+            Assert.True(found.Count < track.Samples.Count);
+            found.ForEach(packet => packet.Dispose());
+        }
         Assert.Single(Open(truncatedHeader).Info.Tracks);
         Assert.Single(Open(tinyBox).Info.Tracks);
         Assert.Throws<ArgumentNullException>(() => new Mp4Demuxer(null!, CancellationToken.None));
+    }
+
+    [Fact]
+    public void AnOversizedSampleIsSkippedAndTheFollowingSampleStillPlays()
+    {
+        var bytes = File([new Mp4TrackSpec { SampleEntry = AudioEntry("Opus", 1, 16, 8000), Samples = Samples(3, 3), SamplesPerChunk = 1 }]);
+        var stsz = Encoding.Latin1.GetString(bytes).IndexOf("stsz", StringComparison.Ordinal);
+        U32(100_000_000).CopyTo(bytes, stsz + 16);
+        using var demuxer = Open(bytes);
+        using var packet = demuxer.ReadPacket(CancellationToken.None);
+        Assert.NotNull(packet);
+        Assert.Equal(3, packet.Data.Length);
+        Assert.Equal((byte)2, packet.Data.Span[0]);
+        Assert.Null(demuxer.ReadPacket(CancellationToken.None));
     }
 
     [Fact]

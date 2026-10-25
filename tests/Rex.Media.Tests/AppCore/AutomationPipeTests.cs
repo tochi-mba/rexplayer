@@ -11,7 +11,15 @@ public sealed class AutomationPipeTests
 
     private static readonly System.Text.Json.JsonSerializerOptions Web = new(System.Text.Json.JsonSerializerDefaults.Web);
 
-    private static string NewPipe() => "rexplayer-test-" + Guid.NewGuid().ToString("N");
+    /// <summary>
+    /// A pipe of the test's own, short enough for a Mac: there a pipe is a socket file in the
+    /// temporary folder (itself some 50 characters deep), and a socket's whole path may hold at
+    /// most 104. Twelve hex digits keep collisions out of reach.
+    /// </summary>
+    private static string NewPipe() => "rexplayer-test-" + Guid.NewGuid().ToString("N")[..12];
+
+    /// <summary>The longest name a pipe may have and still fit a socket path on macOS, under its usual temporary folder.</summary>
+    private const int LongestPortablePipeName = 40;
 
     [Fact]
     [Capability("TOOL-03")]
@@ -36,6 +44,49 @@ public sealed class AutomationPipeTests
         Assert.Equal(["C:\\Music\\Sungba.mp3"], seen[0].Paths);
         Assert.True(seen[0].Enqueue);
         Assert.Equal(("run", "play-pause"), (seen[1].Command, seen[1].Id));
+    }
+
+    [Fact]
+    public async Task AScriptCanAskWhereToSeekAndReadTheFiguresBack()
+    {
+        var pipe = NewPipe();
+        using var stop = new CancellationTokenSource();
+        AutomationRequest? seen = null;
+        var serving = AutomationPipe.ServeAsync(pipe, request =>
+        {
+            seen = request;
+            return Task.FromResult(new AutomationReply { Ok = true, Metrics = new Dictionary<string, double> { ["cpu-ms"] = 12.5, ["frames-dropped"] = 0 } });
+        }, stop.Token);
+
+        var reply = await AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "seek", To = 61.5 }, Connect, TestContext.Current.CancellationToken);
+        await stop.CancelAsync();
+        await serving;
+
+        Assert.Equal(("seek", 61.5), (seen!.Command, seen.To));
+        Assert.Equal(12.5, reply!.Metrics!["cpu-ms"]);
+        Assert.Equal(0, reply.Metrics["frames-dropped"]);
+    }
+
+    [Fact]
+    public async Task ASecondLaunchCanWaitWhileTheFirstWindowIsBeingBuilt()
+    {
+        var pipe = NewPipe();
+        using var stop = new CancellationTokenSource();
+        var windowReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var serving = AutomationPipe.ServeAsync(pipe, async _ =>
+        {
+            await windowReady.Task;
+            return new AutomationReply { Ok = true, State = "Ready" };
+        }, stop.Token);
+
+        var secondLaunch = AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "open" },
+            Connect, TestContext.Current.CancellationToken);
+        windowReady.SetResult(true);
+        var reply = await secondLaunch;
+        await stop.CancelAsync();
+        await serving;
+
+        Assert.Equal("Ready", reply!.State);
     }
 
     [Fact]
@@ -66,6 +117,24 @@ public sealed class AutomationPipeTests
     }
 
     [Fact]
+    public async Task ALaunchCanTellWhetherAPlayerServesThePipeWithoutConnecting()
+    {
+        var pipe = NewPipe();
+        Assert.False(AutomationPipe.IsServed(pipe));
+        using var stop = new CancellationTokenSource();
+        var answered = 0;
+        var serving = AutomationPipe.ServeAsync(pipe, _ => Task.FromResult(new AutomationReply { Ok = answered++ >= 0 }), stop.Token);
+
+        Assert.True(AutomationPipe.IsServed(pipe));
+        Assert.True((await AutomationPipe.SendAsync(pipe, new AutomationRequest { Command = "status" }, Connect, TestContext.Current.CancellationToken))!.Ok);
+        Assert.Equal(1, answered);
+        Assert.Throws<ArgumentException>(() => AutomationPipe.IsServed(""));
+
+        await stop.CancelAsync();
+        await serving;
+    }
+
+    [Fact]
     public async Task OnlyOnePlayerCanOwnThePipe()
     {
         var pipe = NewPipe();
@@ -83,7 +152,7 @@ public sealed class AutomationPipeTests
     [InlineData("", "The request was empty.")]
     [InlineData("{ not json\n", "The request was not valid JSON: ")]
     [InlineData("null\n", "The request was not a request.")]
-    [InlineData("{\"protocolVersion\":2,\"command\":\"status\"}\n", "This player speaks protocol 1, not 2.")]
+    [InlineData("{\"protocolVersion\":3,\"command\":\"status\"}\n", "This player speaks protocol 2, not 3.")]
     public async Task UnreadableRequestsAreAnsweredWithTheReason(string sent, string reason)
     {
         var reply = await Answer(Encoding.UTF8.GetBytes(sent));
@@ -189,6 +258,14 @@ public sealed class AutomationPipeTests
         Assert.Matches("^rexplayer-[0-9a-f]{16}$", Environment.GetEnvironmentVariable("REXPLAYER_PIPE_NAME") is { Length: > 0 } ? "rexplayer-0000000000000000" : name);
         Assert.Equal(name, AutomationPipe.NameForCurrentUser);
         Assert.False(AutomationReply.Failed("why").Ok);
+    }
+
+    [Fact]
+    public void EveryPipeNameFitsASocketPathOnAMac()
+    {
+        // The player's own name and every test's, so a macOS build can always open its pipe.
+        Assert.InRange("rexplayer-0000000000000000".Length, 1, LongestPortablePipeName);
+        Assert.InRange(NewPipe().Length, 1, LongestPortablePipeName);
     }
 
     [Fact]

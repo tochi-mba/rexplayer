@@ -10,6 +10,36 @@ public sealed class SubtitleLookTests
 {
     [Fact]
     [Capability("OSD-01")]
+    [Capability("OSD-04")]
+    public void HighContrastMakesPrimaryAndSecondaryCaptionStylesLegibleOverAllUserPalettes()
+    {
+        var settings = new PlayerSettings
+        {
+            SubtitleColor = 0x222222,
+            SubtitleOpacity = 10,
+            SubtitleOutline = OutlineChoice.None,
+            SubtitleShadowOpacity = 80,
+            SubtitleBoxColor = 0xFFFFFF,
+            SubtitleBoxOpacity = 0,
+            SubtitleStyles = SubtitleStyleChoice.Respect,
+        };
+        var ordinary = SubtitleLook.For(settings, 800);
+        var legible = SubtitleLook.For(settings, 800, highContrast: true);
+        Assert.NotEqual(ordinary.Text, legible.Text);
+        Assert.Equal(new Argb(255, 255, 255, 255), legible.Text);
+        Assert.Equal(new Argb(255, 0, 0, 0), legible.Box);
+        Assert.Equal(new Argb(255, 0, 0, 0), legible.OutlineColor);
+        Assert.True(legible.Outline >= 2);
+        Assert.True(legible.Bold);
+        Assert.Equal(0, legible.ShadowOffset);
+        Assert.False(legible.RespectStyles);
+        var colorRun = new SubtitleRun("color", Color: 0x0000FF);
+        Assert.Equal(legible.Text, legible.ColorOf(colorRun));
+        Assert.Equal(ordinary, SubtitleLook.For(settings, 800, highContrast: false));
+    }
+
+    [Fact]
+    [Capability("OSD-01")]
     public void TheDefaultsAreWhiteOutlinedTextSizedToThePicture()
     {
         var look = SubtitleLook.For(new PlayerSettings(), 1000);

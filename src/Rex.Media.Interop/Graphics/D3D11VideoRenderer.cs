@@ -31,7 +31,7 @@ public enum VideoPlaneFormat
 /// decided by the presenter in Rex.Media.Video.D3D11.
 /// </summary>
 [SupportedOSPlatform("windows8.0")]
-public sealed unsafe class D3D11VideoRenderer : IDisposable
+public sealed unsafe partial class D3D11VideoRenderer : IDisposable
 {
     /// <summary>
     /// A full-window triangle from the vertex index, and two pixel shaders: YUV planes through the
@@ -60,6 +60,11 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     private readonly ID3D11SamplerState _sampler;
     private readonly ID3D11SamplerState _pointSampler;
     private readonly ID3D11Buffer _colour;
+    private readonly ID3D11Buffer[] _constants;
+    private readonly ID3D11RenderTargetView[] _targets = new ID3D11RenderTargetView[1];
+    private readonly ID3D11ShaderResourceView[] _views = new ID3D11ShaderResourceView[4];
+    private readonly ID3D11SamplerState[] _samplers = new ID3D11SamplerState[2];
+    private static readonly float[] Black = [0, 0, 0, 1];
     private ID3D11Texture2D? _luma;
     private ID3D11Texture2D? _chroma;
     private ID3D11ShaderResourceView? _lumaView;
@@ -111,6 +116,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         ID3D11Buffer_unmanaged* colour;
         _device.CreateBuffer(&buffer, null, &colour);
         _colour = Wrap<ID3D11Buffer>(colour);
+        _constants = [_colour];
     }
 
     /// <summary>True when drawing in software (WARP): asked for, or no graphics card would start.</summary>
@@ -422,7 +428,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
     public void ClearFrame()
     {
         var view = _targetView ?? throw new InvalidOperationException("There is no target to clear.");
-        _context.ClearRenderTargetView(view, [0, 0, 0, 1]);
+        _context.ClearRenderTargetView(view, Black);
     }
 
     /// <summary>
@@ -451,7 +457,7 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         var view = _targetView ?? throw new InvalidOperationException("There is nothing to draw into: attach a window or use an offscreen target first.");
         if (clear)
         {
-            _context.ClearRenderTargetView(view, [0, 0, 0, 1]);
+            _context.ClearRenderTargetView(view, Black);
         }
 
         if (_lumaView is null)
@@ -487,18 +493,20 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
 
         var viewport = new D3D11_VIEWPORT { TopLeftX = x, TopLeftY = y, Width = width, Height = height, MaxDepth = 1 };
         _context.RSSetViewports(1, &viewport);
-        _context.OMSetRenderTargets(1, [view], null);
+        // The binding arrays are the renderer's own, filled for each draw: a picture a frame must
+        // not leave five new arrays a frame for the collector.
+        _targets[0] = view;
+        _context.OMSetRenderTargets(1, _targets, null);
         _context.IASetInputLayout(null);
         _context.IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY.D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         _context.VSSetShader(_vertexShader, null, 0);
         var variant = strength > 0 && effect is > 0 and <= HighestEffect ? effect : 0;
         _context.PSSetShader(PixelShaderFor(_planes.Format == VideoPlaneFormat.Bgra, variant), null, 0);
-        _context.PSSetShaderResources(0, 4,
-            [_lumaView, _chromaView ?? _lumaView,
-                _previousLumaView ?? _lumaView,
-                _previousChromaView ?? _previousLumaView ?? _lumaView]);
-        _context.PSSetSamplers(0, 2, [_sampler, smoothChroma ? _sampler : _pointSampler]);
-        _context.PSSetConstantBuffers(0, 1, [_colour]);
+        (_views[0], _views[1], _views[2], _views[3]) = (_lumaView, _chromaView ?? _lumaView, _previousLumaView ?? _lumaView, _previousChromaView ?? _previousLumaView ?? _lumaView);
+        _context.PSSetShaderResources(0, 4, _views);
+        (_samplers[0], _samplers[1]) = (_sampler, smoothChroma ? _sampler : _pointSampler);
+        _context.PSSetSamplers(0, 2, _samplers);
+        _context.PSSetConstantBuffers(0, 1, _constants);
         _context.Draw(3, 0);
     }
 
@@ -656,10 +664,28 @@ public sealed unsafe class D3D11VideoRenderer : IDisposable
         return wrapped;
     }
 
+    /// <summary>
+    /// Where compiled shaders come from: given the source, the entry point, the profile and a way to
+    /// compile them, the bytecode. The host sets it once to keep compiled shaders between runs
+    /// (compiling the whole shader source takes seconds); by default each process compiles its own.
+    /// </summary>
+    public static Func<string, string, string, Func<byte[]>, byte[]>? CompiledShaders { get; set; }
+
+    /// <summary>Compiles (or fetches) the shaders every renderer starts with, side by side, before the first renderer needs them.</summary>
+    public static void PrepareShaders() => Parallel.Invoke(
+        () => Code("vs", "vs_4_0", 0),
+        () => Code("yuv", "ps_4_0", 0),
+        () => Code("bgra", "ps_4_0", 0));
+
     /// <summary>Compiles one entry point of <see cref="Shaders"/>, for one effect, with the compiler Windows ships.</summary>
     private static byte[] Compile(string entry, string profile, int effect)
     {
         var source = $"#define EFFECT_ONLY {effect.ToString(System.Globalization.CultureInfo.InvariantCulture)}\n" + Shaders;
+        return CompiledShaders is { } compiled ? compiled(source, entry, profile, () => CompileNow(source, entry, profile)) : CompileNow(source, entry, profile);
+    }
+
+    private static byte[] CompileNow(string source, string entry, string profile)
+    {
         var result = PInvoke.D3DCompile(Encoding.ASCII.GetBytes(source), "rexplayer.hlsl", null, null, entry, profile, 0, 0, out var code, out var errors);
         try
         {

@@ -52,6 +52,12 @@ public sealed partial class MediaSession
 
         /// <summary>How far silence has been queued for media without sound; the demux thread's alone.</summary>
         private MediaTime _silenceUntil = MediaTime.Zero;
+
+        /// <summary>Whether silence has been queued since the last seek or item; the demux thread's alone.</summary>
+        private bool _silenceStarted;
+
+        /// <summary>How the demux thread finds its way past damage in the item it reads; the demux thread's alone.</summary>
+        private DemuxRecovery _recovery = new();
         private MediaItem _audioItem;
         private MediaItem _videoItem;
         private MediaInfo _info;
@@ -68,6 +74,8 @@ public sealed partial class MediaSession
         private long _lastPositionPost;
         private int _itemsStarted = 1;
         private long _earlierTicks;
+        private MediaTime _demuxReached = MediaTime.Zero;
+        private int _waitingForFile;
 
         public Playback(MediaSession session, MediaItem first, IAudioSink sink, AudioFormat sinkFormat, IVideoPresenter? presenter)
         {
@@ -83,13 +91,17 @@ public sealed partial class MediaSession
             _clock = new AudioClock(sink, first);
             _clock.Rebase(MediaTime.Zero, sinkFormat.SampleRate, _speed);
             _audioQueue = new BoundedQueue<Packet>(session._options.AudioQueueCapacity);
-            _demuxThread = new Thread(RunDemux) { IsBackground = true, Name = "rexplayer demux" };
-            _audioThread = new Thread(RunAudio) { IsBackground = true, Name = "rexplayer audio" };
+            // Playing comes before anything else the computer does at ordinary priority (the
+            // library's scan, transcription, a visualisation, other programs): on a computer with
+            // two busy cores, threads of equal priority took turns and pictures arrived late. The
+            // sound is what a person hears break first, so it goes highest.
+            _demuxThread = new Thread(RunDemux) { IsBackground = true, Name = "rexplayer demux", Priority = ThreadPriority.AboveNormal };
+            _audioThread = new Thread(RunAudio) { IsBackground = true, Name = "rexplayer audio", Priority = ThreadPriority.Highest };
             if (presenter is not null)
             {
                 _presenter = presenter;
                 _videoQueue = new BoundedQueue<Packet>(session._options.VideoQueueCapacity);
-                _videoThread = new Thread(RunVideo) { IsBackground = true, Name = "rexplayer video" };
+                _videoThread = new Thread(RunVideo) { IsBackground = true, Name = "rexplayer video", Priority = ThreadPriority.AboveNormal };
             }
         }
 
@@ -185,7 +197,6 @@ public sealed partial class MediaSession
             lock (_seekGate)
             {
                 var request = new SeekRequest(Interlocked.Increment(ref _generation), target, mode);
-                _pendingSeek = request;
                 _latestSeek = request;
                 previous = _generationCancel;
                 _generationCancel = new CancellationTokenSource();
@@ -195,6 +206,13 @@ public sealed partial class MediaSession
             _clock.Rebase(target, _sinkFormat.SampleRate, Volatile.Read(ref _speed));
             _audioQueue.Flush(Generation);
             _videoQueue?.Flush(Generation);
+            // Publish only after the old queues and clock are reset. Otherwise the
+            // demux thread can deliver the new target before Flush discards it.
+            lock (_seekGate)
+            {
+                _pendingSeek = _latestSeek;
+            }
+
             _demuxWake.Set();
         }
 
@@ -213,6 +231,7 @@ public sealed partial class MediaSession
             VideoFramesDropped = Interlocked.Read(ref _videoFramesDropped),
             VideoDecoder = Volatile.Read(ref _videoItem).VideoDecoder?.Name,
             VideoDecoderSource = Volatile.Read(ref _videoItem).VideoDecoder?.Source,
+            Cadence = _cadence.Snapshot(),
         };
 
         public void Dispose()
@@ -307,6 +326,9 @@ public sealed partial class MediaSession
                     _demuxItem.Demuxer.Seek(seek.Target, token);
                     generation = seek.Generation;
                     _silenceUntil = seek.Target;
+                    _silenceStarted = false;
+                    _recovery.Restart();
+                    _demuxReached = seek.Target;
                     ended = false;
                 }
 
@@ -326,6 +348,11 @@ public sealed partial class MediaSession
                 var packet = ReadPacketOrEnd(token);
                 if (packet is null)
                 {
+                    if (WaitForGrowingFile(generation, token))
+                    {
+                        continue;
+                    }
+
                     if (SilentAudio.Is(_demuxItem.AudioTrack))
                     {
                         // The silence runs to the end of the pictures, so the last one is shown for its full time.
@@ -346,17 +373,37 @@ public sealed partial class MediaSession
 
                 Interlocked.Increment(ref _packetsRead);
                 Interlocked.Add(ref _bytesRead, packet.Data.Length);
+                if (packet.Timestamp.IsKnown)
+                {
+                    var end = packet.Timestamp + (packet.Duration > MediaTime.Zero ? packet.Duration : MediaTime.Zero);
+                    _demuxReached = MediaTime.Max(_demuxReached, end);
+                }
                 packet.Generation = generation;
+                var isVideo = _videoQueue is not null && packet.TrackId == _demuxItem.VideoTrack?.Id;
+                if (!_recovery.Keep(packet.Timestamp, isVideo, packet.IsKeyframe))
+                {
+                    // Read again after a skip past damage: before the place reading resumed at.
+                    packet.Dispose();
+                    continue;
+                }
+
                 if (packet.TrackId == _demuxItem.AudioTrack.Id)
                 {
                     _audioQueue.Add(new QueueItem<Packet>(packet, EndOfStream: false, generation, _demuxItem), token);
                 }
-                else if (_videoQueue is not null && packet.TrackId == _demuxItem.VideoTrack?.Id)
+                else if (isVideo)
                 {
-                    var end = packet.Timestamp.IsKnown ? packet.Timestamp + (packet.Duration > MediaTime.Zero ? packet.Duration : SilentAudio.Chunk) : MediaTime.Unknown;
-                    _videoQueue.Add(new QueueItem<Packet>(packet, EndOfStream: false, generation, _demuxItem), AudioStarving, VideoHardCapacity, token);
+                    var start = packet.Timestamp;
+                    var end = start.IsKnown ? start + (packet.Duration > MediaTime.Zero ? packet.Duration : SilentAudio.Chunk) : MediaTime.Unknown;
+                    _videoQueue!.Add(new QueueItem<Packet>(packet, EndOfStream: false, generation, _demuxItem), AudioStarving, VideoHardCapacity, token);
                     if (SilentAudio.Is(_demuxItem.AudioTrack) && end.IsKnown)
                     {
+                        if (_silenceStarted && start - _silenceUntil > AudioGaps.LongestSilence)
+                        {
+                            // Pictures lost to damage: the silence jumps over the hole, and the clock with it.
+                            _silenceUntil = start;
+                        }
+
                         FeedSilence(end, generation, token);
                     }
                 }
@@ -364,18 +411,45 @@ public sealed partial class MediaSession
                 {
                     using (packet)
                     {
-                        if (_demuxItem.Subtitles.TryGetValue(packet.TrackId, out var reader) && reader.Read(packet) is { } cue)
-                        {
-                            _session.OnSubtitle(_demuxItem.Info, packet.TrackId, cue);
-                        }
+                        ReadSubtitle(packet);
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Turns a subtitle packet into a cue. A damaged one is passed over: the sound and the
+        /// pictures play on, and so do the subtitles after it.
+        /// </summary>
+        private void ReadSubtitle(Packet packet)
+        {
+            if (!_demuxItem.Subtitles.TryGetValue(packet.TrackId, out var reader))
+            {
+                return;
+            }
+
+            Rex.Media.Subtitles.SubtitleCue? cue = null;
+            if (DamageGuard.Try(() => cue = reader.Read(packet), ex => _session._log.Warning(LogSource, $"A subtitle packet of track {packet.TrackId} could not be read: {ExceptionDiagnostics.Summary(ex)}")) && cue is not null)
+            {
+                _session.OnSubtitle(_demuxItem.Info, packet.TrackId, cue);
+            }
+        }
+
+        private static bool Recoverable(Exception ex) => DamageGuard.Recoverable(ex);
+
+        /// <summary>Tells the session, once per item, that the item is damaged and is played as far as it can be read.</summary>
+        private void ReportDamage(MediaItem item)
+        {
+            if (Interlocked.Exchange(ref item.DamageTold, 1) == 0)
+            {
+                _session.OnDamaged(this, MediaTime.Zero);
             }
         }
 
         /// <summary>Queues silent packets up to <paramref name="until"/> for media without sound (<see cref="SilentAudio"/>).</summary>
         private void FeedSilence(MediaTime until, long generation, CancellationToken token)
         {
+            _silenceStarted = true;
             while (_silenceUntil < until)
             {
                 var end = _silenceUntil + SilentAudio.Chunk < until ? _silenceUntil + SilentAudio.Chunk : until;
@@ -401,28 +475,59 @@ public sealed partial class MediaSession
 
                     _demuxItem = item;
                     _silenceUntil = MediaTime.Zero;
+                    _silenceStarted = false;
+                    _recovery = new DemuxRecovery();
                     return true;
                 }
-                catch (Exception ex) when (ex is MediaFormatException or NotSupportedException or IOException or UnauthorizedAccessException or InvalidOperationException)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    _session.OnItemSkipped(source.Name, ex.Message);
+                    // Whatever stops the next item opening (damage, a reader's own fault on hostile
+                    // bytes, a missing file) passes over it; the run plays on.
+                    _session.OnItemSkipped(source.Name, ex is MediaFormatException or NotSupportedException or IOException or UnauthorizedAccessException ? ex.Message : ExceptionDiagnostics.Summary(ex));
                 }
             }
 
             return false;
         }
 
-        /// <summary>A truncated or damaged tail ends the stream rather than the session.</summary>
+        /// <summary>
+        /// The next packet, finding a way past damage (<see cref="DemuxRecovery"/>): read again, then
+        /// seek further and further past it. Damage that cannot be got past ends the stream, not the session.
+        /// </summary>
         private Packet? ReadPacketOrEnd(CancellationToken token)
+        {
+            while (true)
+            {
+                try
+                {
+                    return _demuxItem.Demuxer.ReadPacket(token);
+                }
+                catch (Exception ex) when (Recoverable(ex) || (ex is OperationCanceledException && !token.IsCancellationRequested))
+                {
+                    ReportDamage(_demuxItem);
+                    var info = _demuxItem.Info;
+                    var step = _recovery.Failed(info.Duration, info.IsSeekable);
+                    _session._log.Warning(LogSource, $"The file is damaged after {_recovery.Reached}: {ExceptionDiagnostics.Summary(ex)} ({step}).");
+                    if (step == RecoveryStep.GiveUp || (step == RecoveryStep.SeekPast && !TrySeekPast(token)))
+                    {
+                        return null;
+                    }
+                }
+            }
+        }
+
+        /// <summary>Moves the demuxer past damage; false when it cannot even seek.</summary>
+        private bool TrySeekPast(CancellationToken token)
         {
             try
             {
-                return _demuxItem.Demuxer.ReadPacket(token);
+                _demuxItem.Demuxer.Seek(_recovery.Target, token);
+                return true;
             }
-            catch (MediaFormatException ex)
+            catch (Exception ex) when (Recoverable(ex))
             {
-                _session._log.Warning(LogSource, "The file is damaged after this point; playback stops here. " + ex.Message);
-                return null;
+                _session._log.Warning(LogSource, $"Could not move past the damage: {ExceptionDiagnostics.Summary(ex)}");
+                return false;
             }
         }
 
@@ -468,7 +573,7 @@ public sealed partial class MediaSession
             state.Generation = generation;
             _currentSeek = SeekFor(generation);
             DisposeAll(state.Decoded);
-            _audioItem.Decoder.Flush();
+            Guarded(_audioItem, "flushed", () => _audioItem.Decoder.Flush());
             _pipeline.Reset(_currentSeek.Target);
             _sink.Flush();
             _session.Scope.Clear();
@@ -476,6 +581,7 @@ public sealed partial class MediaSession
             _clock.Rebase(_currentSeek.Target, _sinkFormat.SampleRate, _pipeline.Speed);
             state.AwaitingFirstFrame = true;
             state.Continuing = false;
+            state.Heard = false;
             state.NextPts = MediaTime.Unknown;
             state.PaddingSamples = 0;
         }
@@ -489,11 +595,12 @@ public sealed partial class MediaSession
         {
             if (joined)
             {
-                _audioItem.Decoder.Drain(state.Decoded);
+                DrainAudio(state);
                 WriteFrames(state);
                 _currentSeek = new SeekRequest(state.Generation, MediaTime.Zero, SeekMode.Precise);
                 state.AwaitingFirstFrame = true;
                 state.Continuing = true;
+                state.Heard = false;
 
                 // A run that had ended (the next item queued after it) is playing again.
                 lock (_endGate)
@@ -530,7 +637,7 @@ public sealed partial class MediaSession
 
         private void FinishStream(AudioState state)
         {
-            _audioItem.Decoder.Drain(state.Decoded);
+            DrainAudio(state);
             WriteFrames(state);
             if (_pipeline.Drain() is { } tail)
             {
@@ -557,6 +664,26 @@ public sealed partial class MediaSession
             StreamEnded(video: false, state.Generation);
         }
 
+        /// <summary>Takes what the audio decoder still holds; a decoder that fails to give it up loses only that.</summary>
+        private void DrainAudio(AudioState state)
+        {
+            if (!Guarded(_audioItem, "drained", () => _audioItem.Decoder.Drain(state.Decoded)))
+            {
+                DisposeAll(state.Decoded);
+            }
+        }
+
+        /// <summary>
+        /// Runs a decoder's flush or drain. One failing on damaged data is counted and passed over,
+        /// so the stream plays on (or ends) instead of the session failing; false when it failed.
+        /// </summary>
+        private bool Guarded(MediaItem item, string what, Action action) => DamageGuard.Try(action, ex =>
+        {
+            Interlocked.Increment(ref _corruptPackets);
+            ReportDamage(item);
+            _session._log.Warning(LogSource, $"A decoder could not be {what}: {ExceptionDiagnostics.Summary(ex)}");
+        });
+
         /// <summary>Decodes and plays one packet. False when the track has failed for good.</summary>
         private bool DecodePacket(AudioState state, Packet packet)
         {
@@ -570,11 +697,17 @@ public sealed partial class MediaSession
                 _audioItem.Decoder.Decode(packet, state.Decoded);
                 state.ConsecutiveFailures = 0;
             }
-            catch (MediaFormatException ex)
+            catch (Exception ex) when (Recoverable(ex))
             {
                 Interlocked.Increment(ref _corruptPackets);
                 DisposeAll(state.Decoded);
+                ReportDamage(_audioItem);
                 state.ConsecutiveFailures++;
+                if (ex is not MediaFormatException)
+                {
+                    _session._log.Warning(LogSource, "The audio decoder failed on a packet: " + ExceptionDiagnostics.Summary(ex));
+                }
+
                 if (state.ConsecutiveFailures >= _session._options.MaxConsecutiveCorruptPackets)
                 {
                     _session.OnTrackFailed(_audioItem.AudioTrack.Id, "The audio stream is too damaged to decode: " + ex.Message);
@@ -605,6 +738,7 @@ public sealed partial class MediaSession
                     using var frame = frames[next++];
                     Interlocked.Increment(ref _framesDecoded);
                     DropPadding(state, frame);
+                    MindTheGap(state, frame);
                     Smooth(state, frame);
                     if (Trim(frame) && _pipeline.Process(frame) is { } processed)
                     {
@@ -651,6 +785,43 @@ public sealed partial class MediaSession
             return frame.SampleCount > 0;
         }
 
+        /// <summary>
+        /// A frame that starts later than the last one ended (<see cref="AudioGaps"/>): a short hole is
+        /// filled with silence, a long one jumped over and told of; a time past the end is not believed.
+        /// </summary>
+        private void MindTheGap(AudioState state, AudioFrame frame)
+        {
+            var expected = state.NextPts;
+            switch (AudioGaps.Classify(expected, frame.Pts, _audioItem.Info.Duration))
+            {
+                case GapAction.Conceal:
+                    var samples = (int)Math.Min(int.MaxValue, (frame.Pts - expected).ToSamples(frame.SampleRate));
+                    using (var silence = AudioFrame.Rent(frame.SampleRate, frame.Channels, samples, frame.Layout))
+                    {
+                        for (var c = 0; c < silence.Channels; c++)
+                        {
+                            silence.Channel(c).Clear();
+                        }
+
+                        silence.Pts = expected;
+                        if (Trim(silence) && _pipeline.Process(silence) is { } processed)
+                        {
+                            WriteProcessed(state, processed);
+                        }
+                    }
+
+                    break;
+                case GapAction.Jump:
+                    _clock.Jump(frame.Pts);
+                    _session._log.Warning(LogSource, $"Skipped from {expected} to {frame.Pts}: the media between could not be read.");
+                    _session.OnDamaged(this, frame.Pts - expected);
+                    break;
+                case GapAction.Distrust:
+                    frame.Pts = expected;
+                    break;
+            }
+        }
+
         private void WriteProcessed(AudioState state, AudioFrame processed)
         {
             using (processed)
@@ -677,6 +848,12 @@ public sealed partial class MediaSession
                 {
                     _playGate.Wait(generationToken);
                     _sink.Write(processed, generationToken);
+                    if (!state.Heard)
+                    {
+                        state.Heard = true;
+                        _session.Reach("first-audio");
+                    }
+
                     _clock.Wrote(processed.SampleCount);
                     _session.Scope.Write(processed);
                 }
@@ -759,6 +936,9 @@ public sealed partial class MediaSession
 
             /// <summary>The next frame joins the last item's tail without a seek between them.</summary>
             public bool Continuing { get; set; }
+
+            /// <summary>Sound of this generation (or item) has reached the device (the first is a timing mark).</summary>
+            public bool Heard { get; set; }
 
             public int ConsecutiveFailures { get; set; }
 

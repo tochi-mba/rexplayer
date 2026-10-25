@@ -39,6 +39,156 @@ public sealed class MediaLibraryTests
         }.Where(pair => pair.Value is not null).ToDictionary(pair => pair.Key, pair => pair.Value!),
     };
 
+    [Theory]
+    [InlineData(1600, 900, 0, 1600, 900)]
+    [InlineData(1600, 900, 90, 900, 1600)]
+    [InlineData(1600, 900, 270, 900, 1600)]
+    [InlineData(0, 900, 0, 0, 0)]
+    [Capability("LIB-05")]
+    public void PictureDimensionsPersistAndRespectOrientation(int width, int height, int rotation, int shownWidth, int shownHeight)
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var picture = In("photo.png");
+        Assert.True(library.AddFolder(Music));
+        library.Scan(Music, [File(picture)], path => Path.GetExtension(path) == ".png" ? LibraryKind.Picture : null);
+        library.SetDetails(picture, new MediaInfo
+        {
+            FormatName = "PNG",
+            Tracks = [new TrackInfo
+            {
+                Id = 0,
+                Codec = CodecId.Picture,
+                Video = new VideoTrackInfo { Width = width, Height = height, Rotation = rotation },
+            }],
+        });
+        var entry = library.Entry(picture)!;
+        Assert.Equal(shownWidth == 0 ? null : shownWidth, entry.PictureWidth);
+        Assert.Equal(shownHeight == 0 ? null : shownHeight, entry.PictureHeight);
+        var reopened = new MediaLibrary(store).Entry(picture)!;
+        Assert.Equal((entry.PictureWidth, entry.PictureHeight), (reopened.PictureWidth, reopened.PictureHeight));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void UndoLibraryOnlyRemovalRestoresSavedMetadataAndDoesNotOverrideOtherChanges()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var first = In("first.mp3");
+        var second = In("second.mp3");
+        Assert.True(library.AddFolder(Music));
+        library.Scan(Music, [File(first), File(second)], KindOf);
+        library.SetDetails(first, Song("Edited local title"));
+        var saved = library.Entries.ToArray();
+        Assert.Equal(2, library.Hide([first, second]));
+        Assert.Equal(0, library.RestoreHiddenEntries([]));
+        Assert.Equal(2, library.RestoreHiddenEntries(saved));
+        Assert.Empty(library.Hidden);
+        Assert.Equal("Edited local title", library.Entry(first)?.Title);
+        Assert.Equal(0, library.RestoreHiddenEntries(saved)); // Undo is not applied twice.
+        Assert.Equal(2, new MediaLibrary(store).Entries.Count);
+        Assert.Throws<ArgumentNullException>(() => library.RestoreHiddenEntries(null!));
+    }
+
+    [Fact]
+    public void UndoLibraryRemovalCannotReintroduceUnwatchedFolders()
+    {
+        var library = new MediaLibrary(RexStore.InMemory());
+        var file = In("unwatched.mp3");
+        library.AddFolder(Music);
+        library.Scan(Music, [File(file)], KindOf);
+        var before = library.Entry(file)!;
+        Assert.Equal(1, library.Hide([file]));
+        Assert.True(library.RemoveFolder(Music));
+        Assert.Equal(0, library.RestoreHiddenEntries([before]));
+        Assert.Null(library.Entry(file));
+    }
+
+    [Theory]
+    [InlineData(1920, 1080, 0, 1920, 1080)]
+    [InlineData(1080, 1920, 90, 1920, 1080)]
+    [InlineData(0, 1080, 0, 0, 0)]
+    [Capability("LIB-05")]
+    public void VideoDimensionsAreReliablePersistedAndRespectRotation(int width, int height, int rotation, int outWidth, int outHeight)
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var video = In("other.mp4");
+        library.AddFolder(Music);
+        library.Scan(Music, [File(video)], KindOf);
+        library.SetDetails(video, new MediaInfo
+        {
+            FormatName = "MP4",
+            Tracks = [new TrackInfo { Id = 1, Codec = CodecId.H264,
+                Video = new VideoTrackInfo { Width = width, Height = height, Rotation = rotation } }],
+        });
+        var entry = library.Entry(video)!;
+        Assert.Equal(outWidth == 0 ? null : outWidth, entry.VideoWidth);
+        Assert.Equal(outHeight == 0 ? null : outHeight, entry.VideoHeight);
+        Assert.Equal((entry.VideoWidth, entry.VideoHeight),
+            (new MediaLibrary(store).Entry(video)!.VideoWidth, new MediaLibrary(store).Entry(video)!.VideoHeight));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void VideoMetadataUpgradeReprobesOnlyVideosFromPriorRelease()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var music = In("song.mp3");
+        var video = In("movie.mp4");
+        library.AddFolder(Music);
+        library.Scan(Music, [File(music), File(video)], KindOf);
+        library.SetDetails(music, Song("Track"));
+        library.SetDetails(video, Song("Movie", video: true));
+        foreach (var (key, json) in store.WithPrefix("entry/").ToArray())
+        {
+            store.Set(key, json.Replace("\"TagReading\":5", "\"TagReading\":4", StringComparison.Ordinal));
+        }
+
+        var upgraded = new MediaLibrary(store);
+        Assert.Equal([video], upgraded.Unprobed.Select(item => item.Path));
+        upgraded.SetDetails(video, Song("Movie", video: true));
+        Assert.Empty(upgraded.Unprobed);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void PictureMetadataUpgradeDoesNotRereadAlreadyTaggedMusic()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var music = In("tagged.mp3");
+        var photo = In("photo.png");
+        library.AddFolder(Music);
+        library.Scan(Music, [File(music), File(photo)],
+            path => Path.GetExtension(path) == ".png" ? LibraryKind.Picture : LibraryKind.Music);
+        library.SetDetails(music, Song("Tagged"));
+        library.SetDetails(photo, new MediaInfo
+        {
+            FormatName = "PNG",
+            Tracks = [new TrackInfo { Id = 0, Codec = CodecId.Picture,
+                Video = new VideoTrackInfo { Width = 640, Height = 480 } }],
+        });
+
+        // Both kinds were read by the previous release, before oriented dimensions.
+        foreach (var (key, json) in store.WithPrefix("entry/").ToList())
+        {
+            store.Set(key, json.Replace("\"TagReading\":5", "\"TagReading\":3", StringComparison.Ordinal));
+        }
+
+        var upgraded = new MediaLibrary(store);
+        Assert.Equal([photo], upgraded.Unprobed.Select(entry => entry.Path));
+        upgraded.SetDetails(photo, new MediaInfo
+        {
+            FormatName = "PNG",
+            Tracks = [new TrackInfo { Id = 0, Codec = CodecId.Picture,
+                Video = new VideoTrackInfo { Width = 640, Height = 480 } }],
+        });
+        Assert.Empty(upgraded.Unprobed);
+    }
+
     [Fact]
     [Capability("LIB-05")]
     public void AScanAddsNewFilesReadsChangedOnesAgainAndForgetsGoneOnes()
@@ -83,6 +233,140 @@ public sealed class MediaLibraryTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void TemporarilyMissingMediaRestoresItsDurablePlayHistoryWithoutGhostRows()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var song = In("Sungba.mp3");
+        library.AddFolder(Music);
+        library.Scan(Music, [File(song)], KindOf);
+        library.SetDetails(song, Song("Sungba"));
+        library.Played(song);
+        var saved = library.Entry(song)!;
+        Assert.Equal(1, saved.Plays);
+
+        Assert.Equal(new ScanResult(0, 0, 1), library.Scan(Music, [], KindOf));
+        Assert.Empty(library.Entries);
+        Assert.Null(library.Entry(song));
+        Assert.Single(store.WithPrefix("absent/"));
+
+        // The missing history survives process restart but never becomes a
+        // fake playable library entry until the real media returns.
+        var restarted = new MediaLibrary(store);
+        Assert.Empty(restarted.Entries);
+        restarted.Scan(Music, [File(song)], KindOf);
+        var returned = restarted.Entry(song)!;
+        Assert.Equal((saved.Plays, saved.LastPlayed, saved.Added),
+            (returned.Plays, returned.LastPlayed, returned.Added));
+        Assert.False(returned.Probed);
+        Assert.Empty(store.WithPrefix("absent/"));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void MovingOneUnambiguousFilePreservesHistoryButAmbiguousCopiesDoNot()
+    {
+        var library = new MediaLibrary(RexStore.InMemory());
+        library.AddFolder(Music);
+        var old = File(In("Original", "Song.mp3"), 12345);
+        var moved = File(In("Moved", "Song.mp3"), 12345);
+        library.Scan(Music, [old], KindOf);
+        library.Played(old.Path);
+        library.Scan(Music, [moved], KindOf);
+
+        Assert.Null(library.Entry(old.Path));
+        Assert.Equal(1, library.Entry(moved.Path)!.Plays);
+
+        var ambiguous = new MediaLibrary(RexStore.InMemory());
+        ambiguous.AddFolder(Music);
+        var a = File(In("First", "Song.mp3"), 44);
+        var b = File(In("Second", "Song.mp3"), 44);
+        ambiguous.Scan(Music, [a, b], KindOf);
+        ambiguous.Played(a.Path);
+        ambiguous.Played(b.Path);
+        ambiguous.Scan(Music, [], KindOf);
+        var newCopy = File(In("Third", "Song.mp3"), 44);
+        ambiguous.Scan(Music, [newCopy], KindOf);
+        Assert.Equal(0, ambiguous.Entry(newCopy.Path)!.Plays);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void ForgettingPlayHistoryAndRemovingWatchFoldersAlsoErasesArchivedHistory()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var old = File(In("Unplugged.mp3"));
+        library.AddFolder(Music);
+        library.Scan(Music, [old], KindOf);
+        library.Played(old.Path);
+        library.Scan(Music, [], KindOf);
+        Assert.Single(store.WithPrefix("absent/"));
+
+        library.ClearPlays();
+        Assert.Empty(store.WithPrefix("absent/"));
+        library.Scan(Music, [old], KindOf);
+        Assert.Equal(0, library.Entry(old.Path)!.Plays);
+
+        library.Played(old.Path);
+        library.Scan(Music, [], KindOf);
+        Assert.Single(store.WithPrefix("absent/"));
+        Assert.True(library.RemoveFolder(Music));
+        Assert.Empty(store.WithPrefix("absent/"));
+        Assert.True(library.AddFolder(Music));
+        library.Scan(Music, [old], KindOf);
+        Assert.Equal(0, library.Entry(old.Path)!.Plays);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void RemovingAnOverlappingLegacyWatchFolderKeepsHistoryOwnedByTheOtherFolder()
+    {
+        var store = RexStore.InMemory();
+        var live = In("Live");
+        store.Set("folders", System.Text.Json.JsonSerializer.Serialize(new[] { Music, live }));
+        var library = new MediaLibrary(store);
+        var recording = File(In("Live", "recording.mp3"));
+        library.Scan(Music, [recording], KindOf);
+        library.Played(recording.Path);
+        library.Scan(Music, [], KindOf);
+        Assert.Single(store.WithPrefix("absent/"));
+
+        Assert.True(library.RemoveFolder(Music));
+        Assert.Single(store.WithPrefix("absent/"));
+        Assert.True(library.RemoveFolder(live));
+        Assert.Empty(store.WithPrefix("absent/"));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void ExplicitForgetAndHideRemoveArchivedHistoryEvenWhenMediaIsAlreadyAbsent()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var media = File(In("private.mp3"));
+        library.AddFolder(Music);
+        library.Scan(Music, [media], KindOf);
+        library.Played(media.Path);
+        library.Scan(Music, [], KindOf);
+        Assert.Single(store.WithPrefix("absent/"));
+
+        Assert.Equal(0, library.Forget([media.Path]));
+        Assert.Empty(store.WithPrefix("absent/"));
+        library.Scan(Music, [media], KindOf);
+        Assert.Equal(0, library.Entry(media.Path)!.Plays);
+
+        library.Played(media.Path);
+        library.Scan(Music, [], KindOf);
+        Assert.Single(store.WithPrefix("absent/"));
+        Assert.Equal(0, library.Hide([media.Path]));
+        Assert.Empty(store.WithPrefix("absent/"));
+        Assert.False(library.Scan(Music, [media], KindOf).Any);
+        Assert.Null(library.Entry(media.Path));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void FilesCanBeHiddenUntilTheFolderIsRemovedAndReadded()
     {
         var store = RexStore.InMemory();
@@ -92,6 +376,7 @@ public sealed class MediaLibraryTests
         library.AddFolder(Music);
         Assert.Empty(library.Hidden);
         library.Scan(Music, [File(a), File(b)], KindOf);
+        var backedUp = library.Entry(a)!;
         Assert.Equal(0, library.Hide([]));
         Assert.Equal(1, library.Hide([a, a, "", " "]));
         Assert.Equal([a], library.Hidden);
@@ -101,6 +386,10 @@ public sealed class MediaLibraryTests
         var again = new MediaLibrary(store);
         Assert.Equal([a], again.Hidden);
         Assert.False(again.Scan(Music, [File(a), File(b)], KindOf).Any);
+        Assert.Null(again.Entry(a));
+
+        // A backup taken before it was removed does not bring it back either; restoring used to.
+        Assert.Equal(0, again.Restore([backedUp]));
         Assert.Null(again.Entry(a));
         Assert.Equal(1, again.Hide([b]));
         Assert.Equal(0, again.Hide([b]));
@@ -183,6 +472,37 @@ public sealed class MediaLibraryTests
 
     [Fact]
     [Capability("LIB-05")]
+    public void TheTagsListOfArtistsIsKeptAndMusicReadByAnOlderReadingIsReadAgainLast()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        library.AddFolder(Music);
+        library.Scan(Music, [File(In("a.mp3")), File(In("b.mp3")), File(In("c.mp4")), File(In("d.mp3"))], KindOf);
+        var listed = Song("Slip", "A$AP Rocky/Brent Faiyaz");
+        listed = listed with { Metadata = new Dictionary<string, string>(listed.Metadata) { [MetadataKeys.Artists] = "A$AP Rocky; Brent Faiyaz" } };
+        library.SetDetails([(In("a.mp3"), listed), (In("b.mp3"), Song("Sungba")), (In("c.mp4"), Song("Video", video: true))]);
+
+        var a = library.Entry(In("a.mp3"))!;
+        Assert.Equal(("A$AP Rocky/Brent Faiyaz", "A$AP Rocky; Brent Faiyaz", MediaLibrary.TagReading), (a.Artist, a.Artists, a.TagReading));
+        Assert.Null(library.Entry(In("b.mp3"))!.Artists);
+        Assert.Equal([In("d.mp3")], library.Unprobed.Select(entry => entry.Path));
+
+        // Read before the readers kept every artist: the songs are read again after the never-read
+        // file, followed by videos, and a song that cannot be read again is not tried a second time.
+        foreach (var (key, json) in store.WithPrefix("entry/").ToList())
+        {
+            store.Set(key, json.Replace("\"TagReading\":" + MediaLibrary.TagReading.ToString(System.Globalization.CultureInfo.InvariantCulture), "\"TagReading\":0", StringComparison.Ordinal));
+        }
+
+        var older = new MediaLibrary(store);
+
+        Assert.Equal([In("d.mp3"), In("a.mp3"), In("b.mp3"), In("c.mp4")], older.Unprobed.Select(entry => entry.Path));
+        older.SetReadDetails([(In("a.mp3"), listed, null), (In("b.mp3"), null, "Gone bad")]);
+        Assert.Equal([In("d.mp3"), In("c.mp4")], older.Unprobed.Select(entry => entry.Path));
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
     public void FoldersHoldingOthersTakeTheirPlaceAndRemovingOneForgetsItsFiles()
     {
         var library = new MediaLibrary(RexStore.InMemory());
@@ -251,6 +571,34 @@ public sealed class MediaLibraryTests
         library.ClearPlays();
         library.SetDetails([]);
         Assert.Equal(0, changes);
+    }
+
+    [Fact]
+    [Capability("PRIV-03")]
+    public void ClearingHistoryOfMissingFilesRetainsExplicitEditsButNoPlayCounts()
+    {
+        var store = RexStore.InMemory();
+        var library = new MediaLibrary(store);
+        var edited = In("edited.mp3");
+        var plain = In("plain.mp3");
+        Assert.True(library.AddFolder(Music));
+        library.Scan(Music, [File(edited), File(plain)], KindOf);
+        library.MarkPlayed([edited, plain]);
+        library.SetOverride([edited], new Rex.Media.Library.DetailOverride { Title = "My title" });
+        library.Scan(Music, [], KindOf);
+        Assert.Equal(2, store.WithPrefix("absent/").Count);
+
+        library.ClearPlays();
+        Assert.Single(store.WithPrefix("absent/"));
+        var reopened = new MediaLibrary(store);
+        reopened.Scan(Music, [File(edited)], KindOf);
+        Assert.Equal(0, reopened.Entry(edited)!.Plays);
+        Assert.Equal("My title", reopened.Entry(edited)!.Title);
+
+        // A removed watched folder also clears remembered missing-file history.
+        reopened.Scan(Music, [], KindOf);
+        Assert.True(reopened.RemoveFolder(Music));
+        Assert.Empty(store.WithPrefix("absent/"));
     }
 
     [Fact]

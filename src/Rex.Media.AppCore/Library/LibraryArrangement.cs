@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
 using Rex.Media.Settings;
@@ -24,8 +25,9 @@ public enum WatchState
 /// <summary>
 /// Orders, filters and groups a library view as the user asks (LIB-05): by title, artist, album,
 /// year, when it was added, changed or last played, how often, how long, how big, or where it is;
-/// keeping only what is unwatched, part-way or finished, of one kind, in one folder, or matching
-/// typed words; under its first letter, artist, album, genre, year, decade, folder, when it was
+/// keeping only what is unwatched, part-way or finished, of one kind, in one folder, or whole or
+/// still downloading; under its
+/// first letter, artist, album, genre, year, decade, folder, when it was
 /// added, or its length. Sorting keeps ties in the view's own order; headings come in the order
 /// that reads naturally (A to Z, newest first, shortest first), and what falls under no heading
 /// ("Unknown year") comes last.
@@ -33,7 +35,6 @@ public enum WatchState
 public static class LibraryArrangement
 {
     private static readonly StringComparer ByName = StringComparer.Create(CultureInfo.CurrentCulture, CompareOptions.IgnoreCase);
-    private static readonly CompareInfo Compare = CultureInfo.CurrentCulture.CompareInfo;
 
     /// <summary>How far <paramref name="entry"/> has been watched: <paramref name="leftAt"/> knows where it was left.</summary>
     public static WatchState StateOf(LibraryEntry entry, Func<string, TimeSpan?> leftAt)
@@ -45,44 +46,14 @@ public static class LibraryArrangement
 
     /// <summary>
     /// The entries of <paramref name="entries"/> that <paramref name="choice"/>'s quick filters keep
-    /// (watched state, kind and folder) and that every word of <paramref name="text"/> is found in
-    /// (title, artist, album, genre or path, whatever the case or accents), in their order.
+    /// (watched state, kind, folder and download state), in their order.
     /// </summary>
-    public static IReadOnlyList<LibraryEntry> Filter(IReadOnlyList<LibraryEntry> entries, LibraryViewChoice choice, string? text, Func<string, TimeSpan?> leftAt)
+    public static IReadOnlyList<LibraryEntry> Filter(IReadOnlyList<LibraryEntry> entries, LibraryViewChoice choice, Func<string, TimeSpan?> leftAt)
     {
         ArgumentNullException.ThrowIfNull(entries);
         ArgumentNullException.ThrowIfNull(choice);
         ArgumentNullException.ThrowIfNull(leftAt);
-        var words = Words(text);
-        if (!choice.IsFiltered && words.Length == 0)
-        {
-            return entries;
-        }
-
-        return [.. entries.Where(entry => Keeps(entry, choice, leftAt) && words.All(word => Matches(entry, word)))];
-    }
-
-    /// <summary>
-    /// The groups of <paramref name="groups"/> whose name or detail every word of <paramref name="text"/>
-    /// is found in, or that hold an entry it is found in; each group keeps all its entries.
-    /// </summary>
-    public static IReadOnlyList<LibraryGroup> Filter(IReadOnlyList<LibraryGroup> groups, string? text)
-    {
-        ArgumentNullException.ThrowIfNull(groups);
-        var words = Words(text);
-        if (words.Length == 0)
-        {
-            return groups;
-        }
-
-        return [.. groups.Where(group => words.All(word => Contains(group.Name, word) || Contains(group.Detail, word)) || group.Entries.Any(entry => words.All(word => Matches(entry, word))))];
-    }
-
-    /// <summary>Whether every word of <paramref name="text"/> is found in <paramref name="name"/>; true for no words.</summary>
-    public static bool NameMatches(string name, string? text)
-    {
-        ArgumentNullException.ThrowIfNull(name);
-        return Words(text).All(word => Contains(name, word));
+        return choice.IsFiltered ? [.. entries.Where(entry => Keeps(entry, choice, leftAt))] : entries;
     }
 
     /// <summary>The quick filters in use, as the window's button says them: "Filter", or "Unwatched · Videos · Music".</summary>
@@ -105,13 +76,29 @@ public static class LibraryArrangement
             parts.Add(Path.GetFileName(folder) is { Length: > 0 } name ? name : folder);
         }
 
+        if (choice.Download != LibraryDownloadFilter.Any)
+        {
+            parts.Add(DownloadName(choice.Download));
+        }
+
         return parts.Count == 0 ? "Filter" : string.Join(" \u00B7 ", parts);
     }
 
-    private static string[] Words(string? text) => (text ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    /// <summary>The download filter's name in the menu and the filter button: "Fully downloaded" or "Still downloading".</summary>
+    public static string DownloadName(LibraryDownloadFilter download) => download switch
+    {
+        LibraryDownloadFilter.Complete => "Fully downloaded",
+        LibraryDownloadFilter.Downloading => "Still downloading",
+        _ => "All files",
+    };
 
     private static bool Keeps(LibraryEntry entry, LibraryViewChoice choice, Func<string, TimeSpan?> leftAt)
     {
+        if (choice.Download != LibraryDownloadFilter.Any && entry.Downloading != (choice.Download == LibraryDownloadFilter.Downloading))
+        {
+            return false;
+        }
+
         if (choice.Kinds != LibraryKindFilter.Any && entry.Kind != choice.Kinds switch { LibraryKindFilter.Music => LibraryKind.Music, LibraryKindFilter.Video => LibraryKind.Video, _ => LibraryKind.Picture })
         {
             return false;
@@ -128,15 +115,6 @@ public static class LibraryArrangement
             LibraryFilter.InProgress => WatchState.InProgress,
             _ => WatchState.Finished,
         };
-    }
-
-    private static bool Matches(LibraryEntry entry, string word) =>
-        Contains(entry.Title, word) || Contains(entry.Artist, word) || Contains(entry.AlbumArtist, word) || Contains(entry.Album, word) || Contains(entry.Genre, word) || Contains(entry.Path, word);
-
-    private static bool Contains(string? field, string word)
-    {
-        const CompareOptions Loose = CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace | CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth;
-        return field is not null && Compare.IndexOf(field, word, Loose) >= 0;
     }
 
     /// <summary><paramref name="entries"/> in the order <paramref name="sort"/> gives, reversed when <paramref name="descending"/>.</summary>
@@ -203,14 +181,15 @@ public static class LibraryArrangement
         switch (grouping)
         {
             case LibraryGrouping.Letter:
-                var first = entry.Title.TrimStart().FirstOrDefault();
-                return char.IsLetter(first) ? (char.ToUpper(first, CultureInfo.CurrentCulture).ToString(), 0, false) : ("#", 0, true);
+                var letter = LetterOf(entry.Title);
+                return (letter, 0, letter == "#");
             case LibraryGrouping.Artist:
                 return entry.FiledArtist is { } artist ? (artist, 0, false) : (LibraryViews.UnknownArtist, 0, true);
             case LibraryGrouping.Album:
                 return entry.Album is { } album ? (album, 0, false) : (LibraryViews.UnknownAlbum, 0, true);
             case LibraryGrouping.Genre:
-                return entry.Genre is { } genre ? (genre, 0, false) : (LibraryViews.UnknownGenre, 0, true);
+                // A list shows each song once, so a song with several genres sits under its first.
+                return GenreNames.Primary(entry.Genre) is { } genre ? (genre, 0, false) : (LibraryViews.UnknownGenre, 0, true);
             case LibraryGrouping.Year:
                 return entry.Year is { } year ? (year.ToString(CultureInfo.InvariantCulture), -year, false) : ("Unknown year", 0, true);
             case LibraryGrouping.Decade:
@@ -223,6 +202,26 @@ public static class LibraryArrangement
             default:
                 return Length(entry.Duration);
         }
+    }
+
+    /// <summary>
+    /// The letter a name is gathered under: its first letter in capitals, with any accent taken off
+    /// ("Édith" under E, with "Ezra"), or "#" when it starts with no letter.
+    /// </summary>
+    public static string LetterOf(string? name)
+    {
+        var text = (name ?? "").TrimStart();
+        // Char only sees one UTF-16 code unit; a supplementary Unicode letter must
+        // not end up in the "#" bucket simply because it uses a surrogate pair.
+        if (text.Length == 0 || !Rune.TryGetRuneAt(text, 0, out var first) || !Rune.IsLetter(first))
+        {
+            return "#";
+        }
+
+        // A letter's canonical decomposition starts with its base letter.
+        // The following combining accents do not affect the grouping key.
+        var baseLetter = Rune.GetRuneAt(first.ToString().Normalize(NormalizationForm.FormD), 0);
+        return baseLetter.ToString().ToUpper(CultureInfo.CurrentCulture);
     }
 
     /// <summary>When it was added, as a person would say it: today, this week, this month, this year, or the year.</summary>
@@ -263,7 +262,7 @@ public static class LibraryArrangement
             LibrarySort.Title or LibrarySort.Album => order.OrderBy(pair => pair.Group.Name, NaturalOrder.Instance),
             LibrarySort.Artist => order.OrderBy(pair => pair.Group.Detail is null).ThenBy(pair => pair.Group.Detail ?? pair.Group.Name, ByName),
             LibrarySort.Year => order.OrderBy(pair => pair.Group.Entries.Max(entry => entry.Year) is null).ThenBy(pair => pair.Group.Entries.Max(entry => entry.Year) ?? 0),
-            LibrarySort.Added => order.OrderByDescending(pair => pair.Group.Entries.Max(entry => entry.Added)),
+            LibrarySort.Added => order.OrderByDescending(pair => pair.Group.Entries.Select(entry => entry.Added).DefaultIfEmpty().Max()),
             LibrarySort.Played => order.OrderByDescending(pair => pair.Group.Entries.Max(entry => entry.LastPlayed) ?? default),
             LibrarySort.MostPlayed => order.OrderByDescending(pair => pair.Group.Entries.Sum(entry => entry.Plays)),
             LibrarySort.Length => order.OrderBy(pair => pair.Group.Entries.Sum(entry => entry.Duration?.Ticks ?? 0)),

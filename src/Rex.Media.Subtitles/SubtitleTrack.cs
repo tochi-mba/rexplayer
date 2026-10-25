@@ -12,6 +12,14 @@ public sealed class SubtitleTrack(string name)
     private readonly HashSet<(TimeSpan, string)> _seen = [];
     private readonly object _gate = new();
 
+    // The latest end among the first i + 1 cues: never falls, so a binary search finds the first cue
+    // that can still be on screen. Rebuilt on the first lookup after a change.
+    private readonly List<TimeSpan> _latestEnd = [];
+    private bool _latestEndStale;
+
+    // The last answer, handed out again while the same cues are on screen so playback allocates nothing.
+    private SubtitleCue[] _shown = [];
+
     /// <summary>How the track is offered in menus: its language and title, or the file's name.</summary>
     public string Name { get; } = name;
 
@@ -42,6 +50,7 @@ public sealed class SubtitleTrack(string name)
 
             var at = _cues.FindLastIndex(existing => existing.Start <= cue.Start) + 1;
             _cues.Insert(at, cue);
+            _latestEndStale = true;
         }
     }
 
@@ -55,6 +64,59 @@ public sealed class SubtitleTrack(string name)
     }
 
     /// <summary>
+    /// Puts <paramref name="cues"/> in place of every cue starting from <paramref name="from"/> up to
+    /// <paramref name="to"/>, finding them by binary search: a transcript heard piece by piece
+    /// changes its track this way, never rebuilding the rest.
+    /// </summary>
+    public void Replace(TimeSpan from, TimeSpan to, IEnumerable<SubtitleCue> cues)
+    {
+        ArgumentNullException.ThrowIfNull(cues);
+        lock (_gate)
+        {
+            var first = FirstStartingAtOrAfter(from);
+            var last = Math.Max(first, FirstStartingAtOrAfter(to));
+            for (var i = first; i < last; i++)
+            {
+                _seen.Remove((_cues[i].Start, _cues[i].Text));
+            }
+
+            // In the same hold, so a reader never sees the stretch empty.
+            _cues.RemoveRange(first, last - first);
+            _latestEndStale = true;
+            AddRange(cues);
+        }
+    }
+
+    /// <summary>The index of the first cue starting at or after <paramref name="time"/>. Called holding the gate.</summary>
+    private int FirstStartingAtOrAfter(TimeSpan time)
+    {
+        int low = 0, high = _cues.Count;
+        while (low < high)
+        {
+            var middle = (low + high) / 2;
+            if (_cues[middle].Start < time)
+            {
+                low = middle + 1;
+            }
+            else
+            {
+                high = middle;
+            }
+        }
+
+        return low;
+    }
+
+    /// <summary>Every cue, in start order, as they are now.</summary>
+    public IReadOnlyList<SubtitleCue> All()
+    {
+        lock (_gate)
+        {
+            return [.. _cues];
+        }
+    }
+
+    /// <summary>
     /// The cues on screen at <paramref name="position"/> in the media, when the subtitles are shown
     /// <paramref name="delay"/> later than they were made for (negative: sooner).
     /// </summary>
@@ -63,7 +125,114 @@ public sealed class SubtitleTrack(string name)
         var time = position - delay;
         lock (_gate)
         {
-            return [.. _cues.TakeWhile(cue => cue.Start <= time).Where(cue => cue.IsShownAt(time))];
+            if (_latestEndStale)
+            {
+                RebuildLatestEnd();
+            }
+
+            var from = FirstStillShownAfter(time);
+            var to = FirstStartingAfter(time);
+            var count = 0;
+            for (var i = from; i < to; i++)
+            {
+                if (_cues[i].IsShownAt(time))
+                {
+                    count++;
+                }
+            }
+
+            if (count == 0)
+            {
+                return [];
+            }
+
+            if (!SameAsShown(from, to, time, count))
+            {
+                var shown = new SubtitleCue[count];
+                for (int i = from, n = 0; i < to; i++)
+                {
+                    if (_cues[i].IsShownAt(time))
+                    {
+                        shown[n++] = _cues[i];
+                    }
+                }
+
+                _shown = shown;
+            }
+
+            return _shown;
         }
+    }
+
+    /// <summary>Whether the cues shown at <paramref name="time"/> are the last answer's. Called holding the gate.</summary>
+    private bool SameAsShown(int from, int to, TimeSpan time, int count)
+    {
+        if (_shown.Length != count)
+        {
+            return false;
+        }
+
+        for (int i = from, n = 0; i < to; i++)
+        {
+            if (_cues[i].IsShownAt(time) && !ReferenceEquals(_shown[n++], _cues[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private void RebuildLatestEnd()
+    {
+        _latestEnd.Clear();
+        var latest = TimeSpan.MinValue;
+        foreach (var cue in _cues)
+        {
+            latest = cue.End > latest ? cue.End : latest;
+            _latestEnd.Add(latest);
+        }
+
+        _latestEndStale = false;
+    }
+
+    /// <summary>The index of the first cue whose own or an earlier cue's end is after <paramref name="time"/>. Called holding the gate.</summary>
+    private int FirstStillShownAfter(TimeSpan time)
+    {
+        int low = 0, high = _latestEnd.Count;
+        while (low < high)
+        {
+            var middle = (low + high) / 2;
+            if (_latestEnd[middle] <= time)
+            {
+                low = middle + 1;
+            }
+            else
+            {
+                high = middle;
+            }
+        }
+
+        return low;
+    }
+
+    /// <summary>The index of the first cue starting after <paramref name="time"/>. Called holding the gate.</summary>
+    private int FirstStartingAfter(TimeSpan time)
+    {
+        int low = 0, high = _cues.Count;
+        while (low < high)
+        {
+            var middle = (low + high) / 2;
+            if (_cues[middle].Start <= time)
+            {
+                low = middle + 1;
+            }
+            else
+            {
+                high = middle;
+            }
+        }
+
+        return low;
     }
 }

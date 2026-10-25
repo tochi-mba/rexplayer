@@ -31,8 +31,11 @@ public sealed partial class SubjectEditSession
     /// <see cref="Process"/> sees, playing or paused: that picture's best lockable box becomes the
     /// <see cref="Region"/>, or, when nothing there can be locked, the selection is dropped and
     /// <see cref="Status"/> says why. False, with a status, when the click is outside the picture.
+    /// With <paramref name="paused"/>, the picture stays on screen, so a segmentation model, when
+    /// one is in use (<see cref="UseModels"/>), may outline the object first; see
+    /// <see cref="SettleClickWithModel"/>.
     /// </summary>
-    public bool SelectAround(float x, float y)
+    public bool SelectAround(float x, float y, bool paused = false)
     {
         if (!(x >= 0 && x <= 1 && y >= 0 && y <= 1))
         {
@@ -42,6 +45,7 @@ public sealed partial class SubjectEditSession
 
         Reset();
         _click = (x, y);
+        _clickPaused = paused;
         // A placeholder until the click is settled; nothing is tracked or drawn from it.
         Region = (Math.Clamp(x - 0.005f, 0, 0.99f), Math.Clamp(y - 0.005f, 0, 0.99f), 0.01f, 0.01f);
         Locked = true;
@@ -56,6 +60,13 @@ public sealed partial class SubjectEditSession
     private bool SettleClick(VideoFrame frame)
     {
         var (x, y) = _click!.Value;
+        if (SettleClickWithModel(frame, x, y) is { } outlined)
+        {
+            // While the model works the click stays pending and the picture shows as it is.
+            _click = outlined ? null : _click;
+            return outlined;
+        }
+
         _click = null;
         var started = Stopwatch.GetTimestamp();
         MeasureLight(frame);

@@ -19,9 +19,10 @@ namespace Rex.Media.AppCore.Visuals;
 /// Beats are onsets: a drum's band rising sharply above its own run, or the spectrum as a whole
 /// rising well above the median of the last second and a half plus a multiple of its spread (a
 /// moving-median threshold, as in J. P. Bello et al., "A tutorial on onset detection in music
-/// signals", IEEE Transactions on Speech and Audio Processing 13(5), 2005). The spectrum's rise is its log-compressed spectral flux, each bin against the strongest of itself and its
-/// neighbours a frame ago so a sliding note is no onset (S. Böck and G. Widmer, "Maximum filter
-/// vibrato suppression for onset detection", DAFx 2013). Once the <see cref="BeatClock"/> is
+/// signals", IEEE Transactions on Speech and Audio Processing 13(5), 2005). The spectrum's rise is
+/// its log-compressed spectral flux, each bin against the strongest of itself and its neighbours
+/// <see cref="RiseSpan"/> earlier, so a sliding note is no onset (S. Böck and G. Widmer,
+/// "Maximum filter vibrato suppression for onset detection", DAFx 2013). Once the <see cref="BeatClock"/> is
 /// locked, onsets between its beats are not beats (a kick there still counts toward moving its
 /// grid half a beat), and a beat it expects that the music does not show is stood in for.
 /// </para>
@@ -34,7 +35,7 @@ public sealed class MusicPulse
     /// <summary>Samples taken each frame: the long transform's length, about 85 ms at 48 kHz.</summary>
     public const int AnalysisSize = 4096;
 
-    /// <summary>Samples in the short transform and the <see cref="Wave"/>.</summary>
+    /// <summary>Samples in the short transform.</summary>
     public const int ShortSize = SpectrumAnalyzer.Size;
 
     /// <summary>Seconds of the newest sound the levels are measured over.</summary>
@@ -54,7 +55,6 @@ public sealed class MusicPulse
     /// <summary>Bands wholly below this come from the long transform.</summary>
     private const double LongBelowHz = 320;
 
-    private const int FluxHistory = 45;
     private const double MinimumGap = 1.0 / 6;
 
     /// <summary>How long the drums must be away for their return to be the drop.</summary>
@@ -72,7 +72,6 @@ public sealed class MusicPulse
     /// </summary>
     private const float BetweenKicks = 0.38f;
 
-    private readonly float[] _wave = new float[ShortSize];
     private readonly float[] _shortMagnitudes = new float[ShortSize / 2];
     private readonly float[] _longMagnitudes = new float[AnalysisSize / 2];
     private readonly float[] _shortReal = new float[ShortSize];
@@ -92,8 +91,7 @@ public sealed class MusicPulse
     private readonly AdaptiveRange _midRange = new();
     private readonly AdaptiveRange _trebleRange = new();
     private readonly AdaptiveRange _loudnessRange = new(12, 2, 4);
-    private readonly Queue<double> _fluxes = new();
-    private readonly double[] _sorted = new double[FluxHistory];
+    private readonly MovingMedian _fluxes = new(Onset.History);
     private readonly Onset _kick = new(0.18, 0.15, 2.5);
     private readonly Onset _snare = new(0.15, 0.2, 2.5);
     private readonly Onset _hat = new(0.09, 0.08, 2.5);
@@ -113,9 +111,6 @@ public sealed class MusicPulse
 
     /// <summary>Each band's level, 0 to 1, lowest first: against its own recent range, and shaped by how loud the band is beside the rest.</summary>
     public IReadOnlyList<float> Bands => _bands;
-
-    /// <summary>The newest <see cref="ShortSize"/> samples, mono, oldest first.</summary>
-    public IReadOnlyList<float> Wave => _wave;
 
     /// <summary>
     /// How strongly everything moves: 1 as measured, more lifts each level toward 1, less holds it
@@ -207,13 +202,12 @@ public sealed class MusicPulse
 
         var dt = Math.Clamp(elapsed.TotalSeconds, 0, 0.5);
         var newest = mono[^ShortSize..];
-        newest.CopyTo(_wave);
         Fft.Magnitudes(newest, _shortMagnitudes, _shortReal, _shortImaginary);
         Fft.Magnitudes(mono, _longMagnitudes, _longReal, _longImaginary);
         Levels(mono, sampleRate, dt);
         Spectrum(sampleRate, dt);
 
-        var flux = Flux(sampleRate);
+        var flux = Flux(mono, sampleRate);
         var listening = _primed && RawLoudness > Quiet;
         var kickGap = _kick.Since;
         _kick.Hear(Rise(_bassBefore, _bassRaw), _bassPower, dt, listening);
@@ -230,19 +224,25 @@ public sealed class MusicPulse
         BeatStrength = Math.Max(0, BeatStrength - (float)(dt * 4));
         _sinceBeat += dt;
         _sinceDrop += dt;
-        // Where in the frame the kick struck, so the clock keeps finer time than the frames do.
-        var age = _kick.Hit ? Math.Min(dt, _bassBand.RiseAge()) : dt / 2;
-        _clock.Advance(dt, (float)flux);
+        // When the onset was, so the clock keeps finer time than the frames do: a kick where its band
+        // rose most steeply; a rise of the whole spectrum, measured over RiseSpan (or the frame, when
+        // longer), half that ago on average. Taken as half a frame, a fast screen's surges were placed
+        // up to a sixtieth of a second late and drew the grid after them.
+        var span = Math.Max(dt, RiseSpan);
+        var age = _kick.Hit ? Math.Min(span, _bassBand.RiseAge()) : span / 2;
+        // The tempo is found mostly from the kicks, which carry the beat; the whole spectrum's rise,
+        // busy with shakers and log drums between the beats, counts for a little.
+        _clock.Advance(dt, (_kick.Hit ? _kick.Strength : 0) + (float)(0.1 * Math.Min(1, flux / Math.Max(_peakFlux, 1e-6))));
         if (!_primed)
         {
             // The first frame rises from nothing: it is no beat.
             _primed = true;
-            Remember(0);
+            Remember(0, dt);
             return;
         }
 
         // An onset of the whole spectrum, or a kick; once the clock is sure, only near its beats.
-        var (median, spread) = Onset.Robust(_fluxes, _sorted);
+        var (median, spread) = _fluxes.Measure();
         // The surge must also stand out against the strongest of late, so the hats between the beats are not beats.
         _peakFlux = Math.Max(flux, _peakFlux * Math.Exp(-dt / 3));
         var surge = flux > median + Math.Max(Math.Max(3 * spread, 0.004), 0.4 * (_peakFlux - median)) && flux >= _lastFlux;
@@ -253,7 +253,10 @@ public sealed class MusicPulse
         {
             var strength = _kick.Hit ? _kick.Strength : (float)Math.Clamp((flux - median) / Math.Max(spread * 8, 1e-4), 0.25, 1);
             _detected++;
-            _clock.Onset(_kick.Hit, age);
+            _clock.Onset(_kick.Hit, age, _kick.Hit ? _kick.Strength : 0);
+
+            // A kick that moved the grid half a beat onto itself is that grid's beat.
+            onBeat = onBeat || (_kick.Hit && _clock.Near(age));
 
             // A kick between the locked clock's beats (a syncopation, an off-beat drum) counts
             // toward moving the grid half a beat, but it is no beat.
@@ -287,7 +290,7 @@ public sealed class MusicPulse
         Build = Drop || _kick.Hit ? 0 : (float)Math.Clamp(Build + (building ? dt / 6 : -dt), 0, 1);
 
         _musicFor = RawLoudness > Quiet ? _musicFor + dt : 0;
-        Remember(flux);
+        Remember(flux, dt);
         if (_detected > 3 && _clock.SinceOnset < 2)
         {
             _clock.Estimate();
@@ -312,7 +315,6 @@ public sealed class MusicPulse
         }
 
         Array.Clear(_previous);
-        Array.Clear(_wave);
         Array.Clear(_bands);
         Array.Clear(_rawBands);
         _fluxes.Clear();
@@ -374,7 +376,7 @@ public sealed class MusicPulse
     private void Levels(ReadOnlySpan<float> mono, int sampleRate, double dt)
     {
         var window = Math.Max(64, (int)(sampleRate * Window));
-        var lag = (int)(sampleRate * RiseSpan);
+        var lag = (int)(sampleRate * Math.Max(RiseSpan, dt));
         _bassPower = _bassBand.Power(mono, sampleRate, window, (int)(sampleRate * 0.06), lag);
         _midPower = _midBand.Power(mono, sampleRate, window, lag: lag);
         _treblePower = _trebleBand.Power(mono, sampleRate, window, lag: lag);
@@ -421,15 +423,20 @@ public sealed class MusicPulse
         Math.Max(0, Math.Max(now, AdaptiveRange.Gate) - Math.Max(before, AdaptiveRange.Gate));
 
     /// <summary>
-    /// The onset strength: how much the spectrum below 5 kHz rose since the last frame, each bin on a
-    /// log scale against the strongest of itself and its neighbours a frame ago, the bass weighing more.
+    /// The onset strength: how much the spectrum below 5 kHz rose over <see cref="RiseSpan"/>, each bin
+    /// on a log scale against the strongest of itself and its neighbours in the window that long
+    /// before, from the same samples, so it means the same at any frame rate; the bass weighs more.
     /// </summary>
-    private double Flux(int sampleRate)
+    private double Flux(ReadOnlySpan<float> mono, int sampleRate)
     {
+        // Compare two windows separated by a fixed time, rather than consecutive draw frames.
+        var lag = Math.Clamp((int)(sampleRate * RiseSpan), 1, mono.Length - ShortSize);
+        Fft.Magnitudes(mono.Slice(mono.Length - ShortSize - lag, ShortSize), _previous, _shortReal, _shortImaginary);
         var top = Math.Clamp(5000 * ShortSize / sampleRate, 2, _shortMagnitudes.Length - 1);
         for (var bin = 0; bin < _now.Length; bin++)
         {
             _now[bin] = MathF.Log(1 + (_shortMagnitudes[bin] * 100));
+            _previous[bin] = MathF.Log(1 + (_previous[bin] * 100));
         }
 
         double flux = 0;
@@ -439,17 +446,12 @@ public sealed class MusicPulse
             flux += Math.Max(0, _now[bin] - before) * (bin < top / 8 ? 3 : 1);
         }
 
-        Array.Copy(_now, _previous, _now.Length);
         return flux / top;
     }
 
-    private void Remember(double flux)
+    private void Remember(double flux, double dt)
     {
         _lastFlux = flux;
-        _fluxes.Enqueue(flux);
-        while (_fluxes.Count > FluxHistory)
-        {
-            _fluxes.Dequeue();
-        }
+        _fluxes.Add(flux, dt);
     }
 }

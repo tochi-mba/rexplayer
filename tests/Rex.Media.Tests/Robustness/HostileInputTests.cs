@@ -50,7 +50,9 @@ public sealed class HostileInputTests
             var run = Task.Run(() => Exercise(mutated, new Random(seed)), TestContext.Current.CancellationToken);
             try
             {
-                await run.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+                // Generous, because the suite runs its tests side by side on shared machines: a real
+                // hang never finishes, and slowness is measured per megabyte by DamagedFileTests.
+                await run.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
             }
             catch (MediaFormatException)
             {
@@ -58,7 +60,7 @@ public sealed class HostileInputTests
             }
             catch (TimeoutException)
             {
-                Assert.Fail($"{fixture} mutated with seed {seed} did not finish within 10 seconds.");
+                Assert.Fail($"{fixture} mutated with seed {seed} did not finish within 30 seconds.");
             }
             catch (Exception ex) when (ex is not Xunit.Sdk.XunitException)
             {
@@ -155,7 +157,12 @@ public sealed class HostileInputTests
             {
                 using (packet)
                 {
-                    decoder?.Decode(packet, frames);
+                    // A multiplexed file's video and subtitle packets do not belong to
+                    // the audio decoder. Feed only packets of the selected audio track.
+                    if (packet.TrackId == track.Id)
+                    {
+                        decoder?.Decode(packet, frames);
+                    }
                 }
 
                 foreach (var frame in frames)

@@ -183,6 +183,19 @@ public sealed partial class D3D11PresenterTests
     [InlineData(VideoEffect.InkSpill)]
     [InlineData(VideoEffect.HeatHaze)]
     [InlineData(VideoEffect.Confetti)]
+    [InlineData(VideoEffect.SnowSettle)]
+    [InlineData(VideoEffect.Thunderstorm)]
+    [InlineData(VideoEffect.StageLights)]
+    [InlineData(VideoEffect.Hologram)]
+    [InlineData(VideoEffect.PaperLayers)]
+    [InlineData(VideoEffect.Droste)]
+    [InlineData(VideoEffect.ReflectionPool)]
+    [InlineData(VideoEffect.Disintegrate)]
+    [InlineData(VideoEffect.Aurora)]
+    [InlineData(VideoEffect.PageCurl)]
+    [InlineData(VideoEffect.Bubbles)]
+    [InlineData(VideoEffect.TinyPlanet)]
+    [InlineData(VideoEffect.StencilGraffiti)]
     [InlineData(VideoEffect.GhostwireMotion)]
     [InlineData(VideoEffect.Halftone)]
     [InlineData(VideoEffect.ChromaticRift)]
@@ -406,9 +419,10 @@ public sealed partial class D3D11PresenterTests
         Assert.Equal(0, MaxDifference(restored, original));
     }
 
+    // Neon contours keeps to silhouettes and big shapes by design, so it is not among these.
     [Theory]
-    [InlineData(VideoEffect.NeonEdges)]
     [InlineData(VideoEffect.InkTrace)]
+    [InlineData(VideoEffect.TopographicContours)]
     [InlineData(VideoEffect.ChromaticContours)]
     [InlineData(VideoEffect.Ghostwire)]
     [InlineData(VideoEffect.GhostwireMask)]

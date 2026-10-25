@@ -42,7 +42,7 @@ public sealed class WavDemuxer : IDemuxer
         var riff = _stream.ReadFourCC();
         var bigEndian = riff == "RIFX";
         var is64 = riff is "RF64" or "BW64";
-        _stream.Skip(4);
+        var riffSize = bigEndian ? _stream.ReadUInt32BigEndian() : _stream.ReadUInt32LittleEndian();
         if (_stream.ReadFourCC() != "WAVE")
         {
             throw new MediaFormatException("The RIFF file is not a WAVE file.");
@@ -54,7 +54,10 @@ public sealed class WavDemuxer : IDemuxer
         long? ds64DataLength = null;
         var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        while (!_stream.EndOfStream && (dataStart is null || format is null))
+        // Seekable files can keep LIST/INFO tags after the audio data. A live stream must
+        // start playback as soon as its format and data are known, without reading ahead.
+        var readTrailingChunks = source.CanSeek && source.Length is not null;
+        while (!_stream.EndOfStream && (dataStart is null || format is null || readTrailingChunks))
         {
             var id = _stream.ReadFourCC();
             long size = bigEndian ? _stream.ReadUInt32BigEndian() : _stream.ReadUInt32LittleEndian();
@@ -84,7 +87,7 @@ public sealed class WavDemuxer : IDemuxer
                     break;
             }
 
-            if (dataStart is not null && format is not null)
+            if (dataStart is not null && format is not null && !readTrailingChunks)
             {
                 break;
             }
@@ -118,6 +121,8 @@ public sealed class WavDemuxer : IDemuxer
             Duration = _packets.Duration,
             IsSeekable = source.CanSeek,
             Metadata = metadata,
+            // A finished RIFF states its size; 0 and all ones are what a writer leaves while it streams.
+            DeclaredLength = is64 || riffSize is 0 or uint.MaxValue ? null : 8L + riffSize,
         };
     }
 

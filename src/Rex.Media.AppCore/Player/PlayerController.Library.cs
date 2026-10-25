@@ -9,6 +9,18 @@ public sealed partial class PlayerController
     /// <summary>The media library (LIB-05), when the window keeps one: what plays is counted in it.</summary>
     public MediaLibrary? Library { get; set; }
 
+    /// <summary>Shows details just edited for <paramref name="paths"/> on what plays, without reopening or interrupting it.</summary>
+    public void ShowEditedDetails(IEnumerable<string> paths, DetailOverride change)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        ArgumentNullException.ThrowIfNull(change);
+        if (Item is { } item && Info is { } info && paths.Contains(item.Location, StringComparer.OrdinalIgnoreCase))
+        {
+            Info = info with { Metadata = DetailsForm.Apply(info.Metadata, change) };
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
     /// <summary>
     /// Plays <paramref name="entries"/> (a library view, in its order) from the one at
     /// <paramref name="start"/>, in place of the playlist, so the rest of the view follows it.
@@ -27,6 +39,30 @@ public sealed partial class PlayerController
         Playlist.Clear();
         Playlist.Add(entries.Select(ItemOf));
         Start(Playlist.JumpTo(Math.Clamp(start, 0, entries.Count - 1)), resumeAt is { } at && at > TimeSpan.Zero ? at : TimeSpan.Zero);
+    }
+
+    /// <summary>
+    /// Changes to another local encoding of the currently playing film at the same position,
+    /// leaving the rest of the playlist and paused/playing state intact. Version discovery and
+    /// verification are the caller's responsibility; this never switches to a different title.
+    /// </summary>
+    public bool SwitchLibraryVersion(LibraryEntry version)
+    {
+        ArgumentNullException.ThrowIfNull(version);
+        var index = Playlist.CurrentIndex;
+        if (Item is not { } current || index < 0 || version.Kind != LibraryKind.Video
+            || !_exists(version.Path) || string.Equals(current.Location, version.Path, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var position = version.Duration is { } duration && duration > TimeSpan.Zero && Position > duration
+            ? duration : Position;
+        var paused = State is SessionState.Paused or SessionState.Ready;
+        var replacement = ItemOf(version);
+        Playlist.Replace(index, replacement);
+        Start(replacement, position, paused: paused, exactPosition: true);
+        return true;
     }
 
     /// <summary>Puts <paramref name="entries"/> at the end of the playlist, playing them if nothing plays.</summary>
@@ -53,8 +89,8 @@ public sealed partial class PlayerController
             return;
         }
 
-        var at = Playlist.CurrentIndex + 1;
-        Playlist.Insert(at, added);
+        var at = Playlist.NextIndex;
+        Playlist.InsertNext(at, added);
         _log.Info(LogSource, $"{added.Count} item(s) play next, from {added[0].Location}.");
         if (_session is null || State is SessionState.Idle or SessionState.Ended or SessionState.Faulted)
         {
@@ -94,9 +130,6 @@ public sealed partial class PlayerController
 
     /// <summary>Where the library's <paramref name="path"/> was left, for "Continue watching".</summary>
     public TimeSpan? LeftAt(string path) => Memory.ResumePoint(path);
-
-    /// <summary>How far the library's <paramref name="entry"/> has been watched or played.</summary>
-    public WatchState WatchStateOf(LibraryEntry entry) => LibraryArrangement.StateOf(entry, LeftAt);
 
     /// <summary>Marks <paramref name="paths"/> as watched through: nowhere to go back to, and played at least once.</summary>
     public void MarkWatched(IReadOnlyList<string> paths)
@@ -145,6 +178,17 @@ public sealed partial class PlayerController
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Undo removing files from the library, without touching the disk or active playback.</summary>
+    public int RestoreToLibrary(IReadOnlyList<LibraryEntry> entries)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        var restored = Library?.RestoreHiddenEntries(entries) ?? 0;
+        Say(restored == 0 ? "Nothing could be restored to the library"
+            : restored == 1 ? "Restored 1 item to the library" : $"Restored {restored} items to the library");
+        Changed?.Invoke(this, EventArgs.Empty);
+        return restored;
+    }
+
     /// <summary>
     /// After <paramref name="paths"/> were deleted from the disk: the library forgets them, where
     /// they were left is forgotten, and they leave the playlist (what plays stops if it was one).
@@ -153,16 +197,18 @@ public sealed partial class PlayerController
     {
         ArgumentNullException.ThrowIfNull(paths);
         var gone = new HashSet<string>(paths, StringComparer.OrdinalIgnoreCase);
+        // Stop can save the current resume point, so do it before forgetting deleted files.
+        if (Item is { } playing && gone.Contains(playing.Location))
+        {
+            Stop();
+        }
+
         foreach (var path in gone)
         {
             Memory.Forget(path);
         }
 
         Library?.Forget(gone);
-        if (Item is { } playing && gone.Contains(playing.Location))
-        {
-            Stop();
-        }
 
         for (var index = Playlist.Items.Count - 1; index >= 0; index--)
         {

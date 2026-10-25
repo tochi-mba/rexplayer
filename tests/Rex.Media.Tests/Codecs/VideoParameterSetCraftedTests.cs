@@ -179,6 +179,21 @@ public sealed class VideoParameterSetCraftedTests
     }
 
     [Fact]
+    public void HevcParameterSetsComeOutAloneAndInTheOrderADecoderNeedsThem()
+    {
+        byte[] pps = [0x22, 0, 1, 0, 2, 0x44, 0x01];
+        byte[] sei = [0x27, 0, 1, 0, 2, 0x4E, 0x01];
+        byte[] vps = [0x20, 0, 1, 0, 2, 0x40, 0x01];
+        byte[] sps = [0x21, 0, 1, 0, 2, 0x42, 0x01];
+        byte[] empty = [0x22, 0, 1, 0, 0];
+
+        var sets = HevcConfig.Parse(HevcRecord(0x0F, pps, sei, empty, vps, sps)).ParameterSets();
+
+        Assert.Equal([0x40, 0x42, 0x44], sets.Select(unit => unit[0]));
+        Assert.Empty(new HevcConfig().ParameterSets());
+    }
+
+    [Fact]
     public void HevcRecordsThatAreMalformedAreRefused()
     {
         byte[] seiOnly = [0x27, 0, 1, 0, 2, 0x4E, 0x01];
@@ -225,6 +240,19 @@ public sealed class VideoParameterSetCraftedTests
 
         Assert.Equal([0, 0, 0, 1, 0x65, 1, 2, 0, 0, 0, 1, 0x06, 3], plain);
         Assert.Equal([0, 0, 0, 1, 0x67, 9, 0, 0, 0, 1, 0x68, 8, .. plain], withSets);
+
+        // Into a buffer of the caller's, larger than needed: the same bytes, and how many.
+        var buffer = new byte[64];
+        Assert.Equal(13, NalUnits.AnnexBSize(sample, lengthSize, 0));
+        Assert.Equal(13, NalUnits.ToAnnexB(sample, lengthSize, default, buffer));
+        Assert.Equal(plain, buffer[..13]);
+    }
+
+    [Fact]
+    public void ConvertingToAnnexBNeedsAKnownLengthSize()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => NalUnits.AnnexBSize([0, 1, 2], 3, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => NalUnits.ToAnnexB([], 3));
     }
 
     [Fact]

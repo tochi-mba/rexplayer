@@ -1,6 +1,5 @@
 using System.Globalization;
 using Rex.Media.AppCore.Commands;
-using Rex.Media.Settings;
 
 namespace Rex.Media.AppCore.Player;
 
@@ -8,15 +7,10 @@ public sealed partial class PlayerController
 {
     // Where the restored queue's current item was, used by the first play.
     private TimeSpan? _restoredAt;
+    private PlaylistItem? _restoredItem;
 
     /// <summary>What the player remembers between runs.</summary>
     public PlayerMemory Memory { get; }
-
-    /// <summary>
-    /// Where the current item was left last time, while the window offers to go back there (PB-11,
-    /// "ask"); null when there is nothing to offer.
-    /// </summary>
-    public TimeSpan? ResumeOffer { get; private set; }
 
     /// <summary>The bookmarks of what is playing (PB-10), in order of position.</summary>
     public IReadOnlyList<Bookmark> Bookmarks => Item is { } item ? Memory.Bookmarks(MemoryKey(item)) : [];
@@ -24,26 +18,30 @@ public sealed partial class PlayerController
     /// <summary>The media played most recently, newest first (LIB-07).</summary>
     public IReadOnlyList<string> Recent => Memory.Recent;
 
-    /// <summary>Goes back to where the item was left, as offered; false when nothing is offered.</summary>
+    /// <summary>Goes back to the stored position; keeps the existing resume command available to scripts.</summary>
     public bool AcceptResume()
     {
-        if (ResumeOffer is not { } at)
+        if (!CanSeek || Item is not { } item || Memory.ResumePoint(MemoryKey(item)) is not { } at)
         {
             return false;
         }
 
-        ResumeOffer = null;
         Seek(at);
         Say("Resumed at " + TimeText.Format(at, Duration));
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
     }
 
-    /// <summary>Plays on from the start, and stops offering to go back.</summary>
-    public void DeclineResume()
+    /// <summary>Starts this item from the beginning and forgets its previous resume point.</summary>
+    public void StartOver()
     {
-        ResumeOffer = null;
-        Changed?.Invoke(this, EventArgs.Empty);
+        if (!CanSeek || Item is not { } item)
+        {
+            return;
+        }
+
+        Memory.Left(MemoryKey(item), TimeSpan.Zero, Duration);
+        Seek(TimeSpan.Zero);
     }
 
     /// <summary>
@@ -152,9 +150,11 @@ public sealed partial class PlayerController
 
         Playlist.Clear();
         Playlist.Add(queue.Items.Select(Restored));
+        _restoredAt = null;
+        _restoredItem = null;
         if (queue.Current >= 0 && queue.Current < Playlist.Items.Count)
         {
-            Playlist.JumpTo(queue.Current);
+            _restoredItem = Playlist.JumpTo(queue.Current);
             _restoredAt = queue.At;
         }
 
@@ -231,7 +231,7 @@ public sealed partial class PlayerController
             Playlist.Add(items.Select(Restored));
             if (queue.Current >= 0 && queue.Current < Playlist.Items.Count)
             {
-                Playlist.JumpTo(queue.Current);
+                _restoredItem = Playlist.JumpTo(queue.Current);
                 _restoredAt = queue.At >= TimeSpan.Zero ? queue.At : TimeSpan.Zero;
             }
 
@@ -285,32 +285,27 @@ public sealed partial class PlayerController
 
     /// <summary>
     /// The start of an item: what was playing before is remembered, and where this one was left
-    /// is offered, or gone back to, as the settings say.
+    /// is resumed automatically unless the caller supplied an explicit position.
     /// </summary>
-    private TimeSpan BeforeStart(PlaylistItem item, TimeSpan startAt, int? audioTrack)
+    private TimeSpan BeforeStart(PlaylistItem item, TimeSpan startAt, int? audioTrack, bool exactPosition = false)
     {
         RememberPosition();
-        ResumeOffer = null;
-        if (_restoredAt is { } restored && Playlist.Current == item && startAt == TimeSpan.Zero)
+        if (_restoredAt is { } restored && _restoredItem == item && startAt == TimeSpan.Zero)
         {
             _restoredAt = null;
+            _restoredItem = null;
             return restored;
         }
 
         _restoredAt = null;
-        if (startAt > TimeSpan.Zero || audioTrack is not null || Settings.ResumePlayback == ResumeChoice.Never || Memory.ResumePoint(MemoryKey(item)) is not { } at)
+        _restoredItem = null;
+        if (exactPosition || startAt > TimeSpan.Zero || audioTrack is not null || Memory.ResumePoint(MemoryKey(item)) is not { } at)
         {
             return startAt;
         }
 
-        if (Settings.ResumePlayback == ResumeChoice.Always)
-        {
-            Say("Resuming at " + TimeText.Format(at, TimeSpan.Zero));
-            return at;
-        }
-
-        ResumeOffer = at;
-        return startAt;
+        Say("Resuming at " + TimeText.Format(at, TimeSpan.Zero));
+        return at;
     }
 
     /// <summary>A file, or a part of one (a cue sheet's track), as the memory knows it.</summary>

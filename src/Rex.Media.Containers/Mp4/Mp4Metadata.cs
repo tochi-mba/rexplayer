@@ -1,4 +1,4 @@
-// Spec: Apple QuickTime File Format "Metadata" (the ilst item list, data atoms and their type indicators, freeform "----" items with mean and name); the Nero "chpl" chapter list as written by its tools; ID3v1 genre numbering for "gnre".
+// Spec: Apple QuickTime File Format "Metadata" (the ilst item list, data atoms and their type indicators, freeform "----" items with mean and name); the Nero "chpl" chapter list as written by its tools; ID3v1 genre numbering for "gnre"; the iTunes "stik" media kind, "pcst" podcast flag and "purl"/"egid" feed and episode addresses.
 using System.Buffers.Binary;
 using System.Globalization;
 using System.Text;
@@ -65,24 +65,29 @@ internal static class Mp4Metadata
                 case "covr":
                     cover ??= value.ToArray();
                     break;
+                case "stik" when value.Length >= 1 && value[^1] is 2 or 21:
+                    // The media kind iTunes stores: 2 is an audiobook, 21 a podcast episode.
+                    metadata[MetadataKeys.MediaType] = value[^1] == 2 ? MetadataKeys.Audiobook : MetadataKeys.Podcast;
+                    break;
+                case "purl" or "egid" when value.Length > 0:
+                case "pcst" when value.Length >= 1 && value[^1] != 0:
+                    metadata[MetadataKeys.MediaType] = MetadataKeys.Podcast;
+                    break;
                 case "----":
                     if (Mp4Boxes.Find(body, "name") is { } nameBox && nameBox.Length > 4)
                     {
                         var key = Encoding.UTF8.GetString(body[(nameBox.Start + 4)..nameBox.End]).ToLowerInvariant();
-                        metadata[key] = Encoding.UTF8.GetString(value).Trim();
+                        metadata[VorbisComments.CanonicalName(key)] = Texts(body);
                     }
 
                     break;
                 default:
                     // Item types start with the copyright sign (0xA9), which box types in general may not
                     // carry, so the four bytes are read as Latin-1 here rather than through FourCC.
-                    if (TextItems.TryGetValue(Encoding.Latin1.GetString(ilst.Slice(item.Start - 4, 4)), out var textKey))
+                    if (TextItems.TryGetValue(Encoding.Latin1.GetString(ilst.Slice(item.Start - 4, 4)), out var textKey)
+                        && Texts(body) is { Length: > 0 } text)
                     {
-                        var text = Encoding.UTF8.GetString(value).Trim('\0', ' ');
-                        if (text.Length > 0)
-                        {
-                            metadata[textKey] = text;
-                        }
+                        metadata[textKey] = text;
                     }
 
                     break;
@@ -90,6 +95,24 @@ internal static class Mp4Metadata
         }
 
         return cover;
+    }
+
+    /// <summary>
+    /// An item's text: every data atom it holds (a tagger lists several artists as several atoms),
+    /// joined with "; " the way repeated Vorbis fields are.
+    /// </summary>
+    private static string Texts(ReadOnlySpan<byte> item)
+    {
+        var texts = new List<string>();
+        foreach (var data in Mp4Boxes.Children(item))
+        {
+            if (data.Type == "data" && data.Length > 8 && Encoding.UTF8.GetString(item[(data.Start + 8)..data.End]).Trim('\0', ' ') is { Length: > 0 } text)
+            {
+                texts.Add(text);
+            }
+        }
+
+        return string.Join(VorbisComments.Separator, texts);
     }
 
     /// <summary>

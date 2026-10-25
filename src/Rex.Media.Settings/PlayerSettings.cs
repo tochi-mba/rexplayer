@@ -135,6 +135,18 @@ public enum LibraryKindFilter
     Picture,
 }
 
+/// <summary>Which items a library view keeps, by whether their files have finished downloading.</summary>
+public enum LibraryDownloadFilter
+{
+    Any,
+
+    /// <summary>Files that are whole.</summary>
+    Complete,
+
+    /// <summary>Files still being downloaded into their folder.</summary>
+    Downloading,
+}
+
 /// <summary>What a library view gathers its items under, each under a heading.</summary>
 public enum LibraryGrouping
 {
@@ -164,11 +176,16 @@ public enum LibraryLook
 
     /// <summary>Dense, justified rows of differently shaped artwork, without empty grid columns.</summary>
     Collage,
+
+    /// <summary>A streaming-style browse: a featured billboard over horizontal rows by category.</summary>
+    Browse,
 }
 
 /// <summary>
 /// How one library view is shown, as the user last set it: its layout, order, grouping and card
-/// size, and which of its items it keeps (by watched state, by kind, and by folder).
+/// size, and which of its items it keeps (by watched state, by kind, by folder, and by whether
+/// the file has finished downloading).
+/// <see cref="LookChosen"/> says the layout itself was picked, not merely saved alongside another change.
 /// </summary>
 public sealed record LibraryViewChoice(
     LibraryLook Look = LibraryLook.Grid,
@@ -178,17 +195,19 @@ public sealed record LibraryViewChoice(
     int CardSize = 180,
     LibraryFilter Filter = LibraryFilter.All,
     LibraryKindFilter Kinds = LibraryKindFilter.Any,
-    string? Folder = null)
+    string? Folder = null,
+    LibraryDownloadFilter Download = LibraryDownloadFilter.Any,
+    bool LookChosen = false)
 {
     /// <summary>The smallest and largest cards, in pixels across.</summary>
     public const int SmallestCard = 120;
     public const int LargestCard = 360;
 
     /// <summary>Whether any of the quick filters narrows the view.</summary>
-    public bool IsFiltered => Filter != LibraryFilter.All || Kinds != LibraryKindFilter.Any || Folder is not null;
+    public bool IsFiltered => Filter != LibraryFilter.All || Kinds != LibraryKindFilter.Any || Folder is not null || Download != LibraryDownloadFilter.Any;
 
     /// <summary>The same view with every quick filter off.</summary>
-    public LibraryViewChoice Unfiltered() => this with { Filter = LibraryFilter.All, Kinds = LibraryKindFilter.Any, Folder = null };
+    public LibraryViewChoice Unfiltered() => this with { Filter = LibraryFilter.All, Kinds = LibraryKindFilter.Any, Folder = null, Download = LibraryDownloadFilter.Any };
 
     public LibraryViewChoice Normalize() => this with
     {
@@ -199,8 +218,34 @@ public sealed record LibraryViewChoice(
         Filter = Enum.IsDefined(Filter) ? Filter : LibraryFilter.All,
         Kinds = Enum.IsDefined(Kinds) ? Kinds : LibraryKindFilter.Any,
         Folder = string.IsNullOrWhiteSpace(Folder) ? null : Folder.Trim(),
+        Download = Enum.IsDefined(Download) ? Download : LibraryDownloadFilter.Any,
     };
 }
+
+/// <summary>
+/// Where the user was in one library view: the line at the top of the list and the line chosen
+/// (each named by its identity), and for the surfaces without lines, how far Home's page and each
+/// of its shelves, or the collage, were scrolled, in pixels.
+/// </summary>
+public sealed record LibraryPlace(string? Anchor = null, string? Selected = null, double Offset = 0, IReadOnlyList<double>? Shelves = null)
+{
+    /// <summary>The most places kept; older ones are forgotten first.</summary>
+    public const int Most = 200;
+
+    /// <summary>Whether the place says nothing: the top of the view with nothing chosen.</summary>
+    public bool IsEmpty => Anchor is null && Selected is null && Offset <= 0 && (Shelves is null || Shelves.All(shelf => shelf <= 0));
+
+    public LibraryPlace Normalize() => new(
+        string.IsNullOrWhiteSpace(Anchor) ? null : Anchor,
+        string.IsNullOrWhiteSpace(Selected) ? null : Selected,
+        Pixels(Offset),
+        Shelves is null || Shelves.Count == 0 ? null : [.. Shelves.Select(Pixels)]);
+
+    private static double Pixels(double value) => double.IsFinite(value) && value > 0 ? value : 0;
+}
+
+/// <summary>The route the library was last at: its view and, when one was opened in it, a group (an album, an artist, a show) and the group's page (a season, an artist's album).</summary>
+public sealed record LibraryRoute(string View, string? Group = null, string? GroupDetail = null, string? Page = null);
 
 /// <summary>The broad composition used for cover art drawn from an audio file.</summary>
 public enum ArtworkStyle
@@ -249,15 +294,87 @@ public enum VisualizerChoice
 
     /// <summary>Continuous, spectrally driven light filaments and drum pressure waves.</summary>
     Resonance,
-}
 
-/// <summary>What happens when something is opened that was left part-way through (PB-11).</summary>
-public enum ResumeChoice
-{
-    /// <summary>Offer to go back there, in a bar over the picture.</summary>
-    Ask,
-    Always,
-    Never,
+    /// <summary>The last seconds of the music scrolling by: its spectrum, the beat grid and every drum hit.</summary>
+    Groove,
+
+    /// <summary>A flight down a tunnel of light rings that pass on the beat.</summary>
+    Flight,
+
+    /// <summary>Sand gathering into the figures a vibrating plate sings, the mode set by the pitch.</summary>
+    Cymatics,
+
+    /// <summary>The spectrum laid down as ridges, each new one at the front, the old climbing away.</summary>
+    Ridgelines,
+
+    /// <summary>A drive over a neon grid toward a striped sun, the spectrum raising the mountains.</summary>
+    Synthwave,
+
+    /// <summary>Shells launched by the kick and burst by the snare.</summary>
+    Fireworks,
+
+    /// <summary>A storm whose bolts strike on the kick and crack on the snare.</summary>
+    Lightning,
+
+    /// <summary>Blobs that swell with their part of the spectrum and melt together on the kick.</summary>
+    Lava,
+
+    /// <summary>Each beat lights the star of its pitch, drawing the tune as a constellation.</summary>
+    Constellation,
+
+    /// <summary>A spiral galaxy turning on the beat, its arms lit by the spectrum.</summary>
+    Galaxy,
+
+    /// <summary>Shards of the spectrum in turning mirrors that click round on the beat.</summary>
+    Kaleidoscope,
+
+    /// <summary>A flock wheeling as one, led by the melody and drawn tight by the kick.</summary>
+    Murmuration,
+
+    /// <summary>Drops of ink let fall by the drums and carried in a current the bass stirs.</summary>
+    Ink,
+
+    /// <summary>A night city whose towers are the spectrum and whose searchlights cross on the beat.</summary>
+    Skyline,
+
+    /// <summary>Rings of petals the spectrum opens, turning a step on each beat.</summary>
+    Mandala,
+
+    /// <summary>The listener's outline frozen on every beat, the clones drifting away behind them.</summary>
+    Clones,
+
+    /// <summary>The camera as a slit-scan mirror, each part of the picture a different moment, deepened by the bass.</summary>
+    TimeWarp,
+
+    /// <summary>A glow round the listener that breathes with the bass, with shockwaves on each kick.</summary>
+    Aura,
+
+    /// <summary>The camera's picture on a wall of lights, each column gated by its part of the spectrum.</summary>
+    LedWall,
+
+    /// <summary>The listener made of motes that blast apart on each kick and re-form between.</summary>
+    Stardust,
+
+    /// <summary>The camera's picture folded into mirrors that turn on the beat.</summary>
+    HallOfMirrors,
+
+    /// <summary>Strokes of light wherever the listener's outline moves, flaring on the kick.</summary>
+    LightPainting,
+
+    /// <summary>A bar of light that sweeps the picture once a beat, the picture fading behind it.</summary>
+    Scanner,
+
+    /// <summary>The picture in tiles that the kick blasts apart and that mend between beats.</summary>
+    Shatter,
+
+    /// <summary>Spotlights that follow the listener and change colour on the kick.</summary>
+    Spotlight,
+
+    /// <summary>The picture inside itself, level by level, each a beat further back.</summary>
+    InfinityMirror,
+
+    /// <summary>The picture bent through ripples each kick drops at the listener.</summary>
+    Water,
 }
 
 /// <summary>What the sleep timer does when its time comes (PB-21).</summary>
@@ -393,6 +510,9 @@ public sealed record PlayerSettings
 
     public VisualizerChoice Visualizer { get; init; } = VisualizerChoice.Spectrum;
 
+    /// <summary>The visualisation used for recognised audiobooks, independently of other audio.</summary>
+    public VisualizerChoice AudiobookVisualizer { get; init; } = VisualizerChoice.Spectrum;
+
     /// <summary>Draw a distinctive cover from the sound when a music file has no embedded or folder art.</summary>
     public bool GenerateAudioArtwork { get; init; } = true;
 
@@ -427,6 +547,9 @@ public sealed record PlayerSettings
     /// <summary>Whether the panel's Removal preview section is open.</summary>
     public bool SubjectRemovalOpen { get; init; } = true;
 
+    /// <summary>How the removal preview hides the selection: show what is behind it, or blend it into the surface around it.</summary>
+    public RemovalMode SubjectRemoval { get; init; } = RemovalMode.Remove;
+
     /// <summary>Whether the panel's Help section is open.</summary>
     public bool SubjectHelpOpen { get; init; }
 
@@ -457,8 +580,36 @@ public sealed record PlayerSettings
     /// <summary>How each library view is shown, by the view's name (LIB-05).</summary>
     public IReadOnlyDictionary<string, LibraryViewChoice> LibraryViews { get; init; } = new Dictionary<string, LibraryViewChoice>(StringComparer.Ordinal);
 
+    /// <summary>Representative track locations of albums deliberately pinned to Music Home, newest pin first. A missing file does not fabricate a card.</summary>
+    public IReadOnlyList<string> PinnedAlbumPaths { get; init; } = [];
+
+    /// <summary>Where the user was in each library view and page, by the route's key, newest last (LIB-05).</summary>
+    public IReadOnlyDictionary<string, LibraryPlace> LibraryPlaces { get; init; } = new Dictionary<string, LibraryPlace>(StringComparer.Ordinal);
+
+    /// <summary>The route the library was last at, so the next launch returns to it; null for Home.</summary>
+    public LibraryRoute? LibraryRoute { get; init; }
+
     /// <summary>Opening the library pauses what is playing, so the picture is not missed while browsing (LIB-05).</summary>
     public bool PauseWhenLibraryOpens { get; init; } = true;
+
+    /// <summary>Whether a library item opens on one click or two.</summary>
+    public MediaOpenClick MediaOpenClickMode { get; init; } = Rex.Media.Settings.MediaOpenClick.DoubleClick;
+
+    /// <summary>
+    /// Opening the library reveals the playing item; otherwise it returns to where the library was
+    /// left: the same view or page, scrolled as it was, with the same line chosen. Off by default:
+    /// what was opened was most often opened from there, and a page left open stays open.
+    /// </summary>
+    public bool OpenLibraryAtPlayingItem { get; init; }
+
+    /// <summary>Edited song details go into the files when their format can be written; otherwise rexplayer keeps them.</summary>
+    public bool WriteDetailsIntoFiles { get; init; } = true;
+
+    /// <summary>Opening the library leaves full screen so browsing has the normal window chrome.</summary>
+    public bool LeaveFullScreenWhenLibraryOpens { get; init; } = true;
+
+    /// <summary>Starting media from the library closes it and returns to the player.</summary>
+    public bool ShowPlayerWhenLibraryMediaStarts { get; init; } = true;
 
     /// <summary>With <see cref="PauseWhenLibraryOpens"/>, music and other sound-only items keep playing while the library is open.</summary>
     public bool KeepAudioPlayingInLibrary { get; init; } = true;
@@ -516,6 +667,21 @@ public sealed record PlayerSettings
     /// <summary>The languages to show subtitles in, best first, such as "en, fr"; empty to show files beside the media first.</summary>
     public string SubtitleLanguages { get; init; } = "";
 
+    /// <summary>Words that come in as they are spoken and move the way they were said (OSD-11).</summary>
+    public KineticCaptionSettings KineticCaptions { get; init; } = new();
+
+    /// <summary>The library's speech heard ahead of time, and what plays heard from where it plays (SUB-20, SUB-21).</summary>
+    public TranscriptionSettings Transcription { get; init; } = new();
+
+    /// <summary>Online metadata enrichment: strictly off until the user turns a kind on.</summary>
+    public MetadataSettings Metadata { get; init; } = new();
+
+    /// <summary>How much the player asks of the computer: decided from what the computer is, or chosen.</summary>
+    public PerformanceChoice Performance { get; init; }
+
+    /// <summary>While Windows' energy saver is on, a chosen mode gives way to Automatic; the choice itself is kept.</summary>
+    public bool AutomaticWhenEnergySaver { get; init; } = true;
+
     // Window
 
     public WindowPlacement? Window { get; init; }
@@ -523,6 +689,12 @@ public sealed record PlayerSettings
     public AlwaysOnTop AlwaysOnTop { get; init; } = AlwaysOnTop.Never;
 
     public bool PlaylistVisible { get; init; }
+
+    /// <summary>Whether the library uses its compact icon navigation rail when space permits either form.</summary>
+    public bool LibraryNavigationCollapsed { get; init; }
+
+    /// <summary>Allow taskbar transport buttons, media keys, the lock-screen media card and the jump list.</summary>
+    public bool ShellMediaControls { get; init; } = true;
 
     /// <summary>Only the picture and the menus, without the controls (Ctrl+H).</summary>
     public bool MinimalInterface { get; init; }
@@ -541,8 +713,6 @@ public sealed record PlayerSettings
     public ThemeChoice Theme { get; init; } = ThemeChoice.System;
 
     // Memory
-
-    public ResumeChoice ResumePlayback { get; init; } = ResumeChoice.Ask;
 
     /// <summary>Only skip an offered intro without a click when the viewer opts in.</summary>
     public bool SkipIntrosAutomatically { get; init; }
@@ -568,7 +738,11 @@ public sealed record PlayerSettings
 
     public bool FirstRunDone { get; init; }
 
-    /// <summary>Looking up artwork and details online: off until the user turns it on (§6.15).</summary>
+    /// <summary>
+    /// The old single switch for looking up artwork and details online (§6.15), saved but never
+    /// read. <see cref="Metadata"/> replaced it with a switch per kind; a file that says true turns
+    /// them all on once, in <see cref="Normalize"/>, and the old switch is cleared.
+    /// </summary>
     public bool OnlineLookups { get; init; }
 
     public UpdateCadence UpdateChecks { get; init; } = UpdateCadence.Daily;
@@ -626,6 +800,12 @@ public sealed record PlayerSettings
         // Settings from before schema 2 that kept the old default loudest volume get the new one; a
         // loudest volume the user chose stays.
         var maxVolume = Math.Clamp(Schema < 2 && MaxVolumePercent == OldMaxVolumeDefault ? 200 : MaxVolumePercent, 100, 200);
+        // The old single online-lookups switch becomes the per-kind metadata switches, once.
+        var metadata = (Metadata ?? new MetadataSettings()).Normalize();
+        if (OnlineLookups && metadata is { TvShows: false, Movies: false, Music: false })
+        {
+            metadata = metadata with { TvShows = true, Movies = true, Music = true };
+        }
         return this with
         {
             Schema = CurrentSchema,
@@ -661,10 +841,12 @@ public sealed record PlayerSettings
             Loudness = Enum.IsDefined(Loudness) ? Loudness : LoudnessChoice.Off,
             LoudnessPreamp = Decibels(LoudnessPreamp),
             SleepAction = Enum.IsDefined(SleepAction) ? SleepAction : SleepChoice.Pause,
-            ResumePlayback = Enum.IsDefined(ResumePlayback) ? ResumePlayback : ResumeChoice.Ask,
             Visualizer = Enum.IsDefined(Visualizer) ? Visualizer : VisualizerChoice.Spectrum,
+            AudiobookVisualizer = Enum.IsDefined(AudiobookVisualizer) ? AudiobookVisualizer : VisualizerChoice.Spectrum,
             SubjectPanelSide = Enum.IsDefined(SubjectPanelSide) ? SubjectPanelSide : PanelSide.Right,
             SubjectSelection = Enum.IsDefined(SubjectSelection) ? SubjectSelection : SubjectSelectionMode.Click,
+            SubjectRemoval = Enum.IsDefined(SubjectRemoval) ? SubjectRemoval : RemovalMode.Remove,
+            MediaOpenClickMode = Enum.IsDefined(MediaOpenClickMode) ? MediaOpenClickMode : Rex.Media.Settings.MediaOpenClick.DoubleClick,
             VideoLook = Enum.IsDefined(VideoLook) ? VideoLook : Rex.Media.Primitives.VideoLook.Original,
             VideoEffect = Enum.IsDefined(VideoEffect) ? VideoEffect : Rex.Media.Primitives.VideoEffect.Off,
             VideoEffectStrength = VideoEffects.Strength(VideoEffectStrength),
@@ -677,6 +859,15 @@ public sealed record PlayerSettings
             AudioArtworkContrast = Math.Clamp(AudioArtworkContrast, 0, 200),
             VisualOptions = VisualOptions ?? new Dictionary<string, string>(StringComparer.Ordinal),
             LibraryViews = (LibraryViews ?? new Dictionary<string, LibraryViewChoice>()).Where(pair => pair.Value is not null).ToDictionary(pair => pair.Key, pair => pair.Value.Normalize(), StringComparer.Ordinal),
+            LibraryPlaces = (LibraryPlaces ?? new Dictionary<string, LibraryPlace>())
+                .Where(pair => pair.Key.Length > 0 && pair.Value is not null)
+                .Select(pair => (pair.Key, Place: pair.Value.Normalize()))
+                .Where(pair => !pair.Place.IsEmpty)
+                .TakeLast(LibraryPlace.Most)
+                .ToDictionary(pair => pair.Key, pair => pair.Place, StringComparer.Ordinal),
+            PinnedAlbumPaths = [.. (PinnedAlbumPaths ?? []).Where(path => !string.IsNullOrWhiteSpace(path))
+                .Select(path => path.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Take(40)],
+            LibraryRoute = string.IsNullOrWhiteSpace(LibraryRoute?.View) ? null : LibraryRoute,
             AudioLanguages = AudioLanguages?.Trim() ?? "",
             SubtitleLanguages = SubtitleLanguages?.Trim() ?? "",
             SubtitleFont = string.IsNullOrWhiteSpace(SubtitleFont) ? "Segoe UI" : SubtitleFont.Trim(),
@@ -692,6 +883,27 @@ public sealed record PlayerSettings
             SubtitleBoxOpacity = Math.Clamp(SubtitleBoxOpacity, 0, 100),
             SubtitleMargin = Math.Clamp(SubtitleMargin, 0, 40),
             SubtitleStyles = Enum.IsDefined(SubtitleStyles) ? SubtitleStyles : SubtitleStyleChoice.Respect,
+            KineticCaptions = (KineticCaptions ?? new KineticCaptionSettings()).Normalize(),
+            Transcription = (Transcription ?? new TranscriptionSettings()).Normalize(),
+            Metadata = metadata,
+            OnlineLookups = false,
+            Performance = Enum.IsDefined(Performance) ? Performance : PerformanceChoice.Automatic,
         };
     }
+}
+
+/// <summary>How much the player asks of the computer (Preferences, Performance): Automatic decides from the computer itself.</summary>
+public enum PerformanceChoice
+{
+    Automatic,
+    BestQuality,
+    Balanced,
+    Fastest,
+}
+
+/// <summary>How many clicks open a media item from the library or playlist.</summary>
+public enum MediaOpenClick
+{
+    SingleClick,
+    DoubleClick,
 }

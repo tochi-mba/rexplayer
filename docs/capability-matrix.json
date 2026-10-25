@@ -1,5 +1,10 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "platforms": [
+    "windows",
+    "macos"
+  ],
+  "parityPolicy": "preview",
   "capabilities": [
     {
       "id": "PB-01",
@@ -9,7 +14,10 @@
       "milestone": "M1–M3",
       "priority": "must",
       "oracles": "FRM PCM EVT",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "PB-02",
@@ -19,7 +27,10 @@
       "milestone": "M2",
       "priority": "must",
       "oracles": "EVT FRM",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "PB-03",
@@ -29,7 +40,10 @@
       "milestone": "M2/M3",
       "priority": "must",
       "oracles": "FRM PCM EVT",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "PB-04",
@@ -39,7 +53,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "FRM",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "PB-05",
@@ -49,7 +66,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "FRM UIA",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "built"
+      }
     },
     {
       "id": "PB-06",
@@ -59,7 +79,10 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "FRM SPEC",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "PB-07",
@@ -69,7 +92,10 @@
       "milestone": "M11",
       "priority": "must/should",
       "oracles": "FRM",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "PB-08",
@@ -79,7 +105,10 @@
       "milestone": "M11",
       "priority": "must",
       "oracles": "FRM",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "PB-09",
@@ -89,7 +118,10 @@
       "milestone": "M3/M11",
       "priority": "must",
       "oracles": "FRM EVT UIA",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "PB-10",
@@ -99,7 +131,10 @@
       "milestone": "M6",
       "priority": "should",
       "oracles": "STORE FRM",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "PB-11",
@@ -109,7 +144,10 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "STORE EVT UIA",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "PB-12",
@@ -119,7 +157,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "EVT",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "built"
+      }
     },
     {
       "id": "PB-13",
@@ -129,7 +170,10 @@
       "milestone": "M6",
       "priority": "should",
       "oracles": "EVT",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "PB-14",
@@ -139,7 +183,10 @@
       "milestone": "M2",
       "priority": "must",
       "oracles": "PCM",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "PB-15",
@@ -149,7 +196,10 @@
       "milestone": "M6",
       "priority": "could",
       "oracles": "PCM SPEC",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "PB-16",
@@ -159,7 +209,10 @@
       "milestone": "M3/M11",
       "priority": "must",
       "oracles": "FILE FRM",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "PB-17",
@@ -169,7 +222,10 @@
       "milestone": "M3–M5",
       "priority": "must",
       "oracles": "PCM FRM EVT",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "PB-18",
@@ -179,7 +235,10 @@
       "milestone": "M7",
       "priority": "should",
       "oracles": "FRM EVT",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "PB-19",
@@ -189,7 +248,10 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "SYNC",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "PB-20",
@@ -199,7 +261,10 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "EVT PIX",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "PB-21",
@@ -209,7 +274,10 @@
       "milestone": "M6",
       "priority": "should",
       "oracles": "EVT PCM",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "PB-22",
@@ -219,7 +287,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "CLI EVT",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "PB-23",
@@ -229,7 +300,10 @@
       "milestone": "M4",
       "priority": "should",
       "oracles": "FRM CLI",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "PB-24",
@@ -239,7 +313,10 @@
       "milestone": "M3/M7",
       "priority": "must",
       "oracles": "FUZZ EVT",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "PB-25",
@@ -249,7 +326,10 @@
       "milestone": "M15",
       "priority": "must",
       "oracles": "PERF",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "PB-26",
@@ -259,7 +339,10 @@
       "milestone": "M11",
       "priority": "should",
       "oracles": "PIX UIA",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "PB-27",
@@ -269,7 +352,10 @@
       "milestone": "M15",
       "priority": "must",
       "oracles": "EVT HW",
-      "status": "planned"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-C01",
@@ -279,7 +365,10 @@
       "milestone": "M1",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "FMT-C02",
@@ -289,7 +378,10 @@
       "milestone": "M1",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "FMT-C03",
@@ -299,7 +391,10 @@
       "milestone": "M2",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "FMT-C04",
@@ -309,7 +404,10 @@
       "milestone": "M2",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "FMT-C05",
@@ -319,7 +417,10 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "FMT-C06",
@@ -329,7 +430,10 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "FMT-C07",
@@ -339,7 +443,10 @@
       "milestone": "M7",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-C08",
@@ -349,7 +456,10 @@
       "milestone": "M7",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-C09",
@@ -359,7 +469,10 @@
       "milestone": "M7",
       "priority": "must",
       "oracles": "",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-C10",
@@ -369,7 +482,10 @@
       "milestone": "M7",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-C11",
@@ -379,7 +495,10 @@
       "milestone": "M7",
       "priority": "should",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-C12",
@@ -389,7 +508,10 @@
       "milestone": "M7",
       "priority": "should",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-C13",
@@ -399,7 +521,10 @@
       "milestone": "M3/M7",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-C14",
@@ -409,7 +534,10 @@
       "milestone": "M7",
       "priority": "could",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-C15",
@@ -419,7 +547,10 @@
       "milestone": "M7",
       "priority": "could",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-C16",
@@ -429,7 +560,10 @@
       "milestone": "post",
       "priority": "could/wont",
       "oracles": "",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "FMT-C17",
@@ -439,7 +573,10 @@
       "milestone": "post",
       "priority": "could",
       "oracles": "",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "FMT-C18",
@@ -449,7 +586,10 @@
       "milestone": "post",
       "priority": "could",
       "oracles": "",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "FMT-C19",
@@ -459,7 +599,10 @@
       "milestone": "M6",
       "priority": "should",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-C20",
@@ -469,7 +612,10 @@
       "milestone": "-",
       "priority": "wont",
       "oracles": "",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "FMT-V01",
@@ -479,7 +625,10 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "FMT-V02",
@@ -489,7 +638,10 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "FMT-V03",
@@ -499,7 +651,10 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-V04",
@@ -509,7 +664,10 @@
       "milestone": "M3/M12",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-V05",
@@ -519,7 +677,10 @@
       "milestone": "M12",
       "priority": "should",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-V06",
@@ -529,7 +690,10 @@
       "milestone": "M7",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-V07",
@@ -539,7 +703,10 @@
       "milestone": "M7",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-V08",
@@ -549,7 +716,10 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-V09",
@@ -559,7 +729,10 @@
       "milestone": "M3",
       "priority": "should",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-V10",
@@ -569,7 +742,10 @@
       "milestone": "M3",
       "priority": "could",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-V11",
@@ -579,7 +755,10 @@
       "milestone": "M7",
       "priority": "should",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-V12",
@@ -589,7 +768,10 @@
       "milestone": "M7",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-V13",
@@ -599,7 +781,10 @@
       "milestone": "M12",
       "priority": "could",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-V14",
@@ -609,7 +794,10 @@
       "milestone": "M7",
       "priority": "could",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-V15",
@@ -619,7 +807,10 @@
       "milestone": "post",
       "priority": "could",
       "oracles": "",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "FMT-V16",
@@ -629,7 +820,10 @@
       "milestone": "-",
       "priority": "wont",
       "oracles": "",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "FMT-A01",
@@ -639,7 +833,10 @@
       "milestone": "M1",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "FMT-A02",
@@ -649,7 +846,10 @@
       "milestone": "M2",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "FMT-A03",
@@ -659,7 +859,10 @@
       "milestone": "M7",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-A04",
@@ -669,7 +872,10 @@
       "milestone": "M2",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "FMT-A05",
@@ -679,7 +885,10 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-A06",
@@ -689,7 +898,10 @@
       "milestone": "M7",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-A07",
@@ -699,7 +911,10 @@
       "milestone": "M11/M12",
       "priority": "should",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-A08",
@@ -709,7 +924,10 @@
       "milestone": "M12",
       "priority": "should",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-A09",
@@ -719,7 +937,10 @@
       "milestone": "M7",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "FMT-A10",
@@ -729,7 +950,10 @@
       "milestone": "M7",
       "priority": "must",
       "oracles": "",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-A11",
@@ -739,7 +963,10 @@
       "milestone": "M7",
       "priority": "should",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-A12",
@@ -749,7 +976,10 @@
       "milestone": "M3",
       "priority": "should",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-A13",
@@ -759,7 +989,10 @@
       "milestone": "M7",
       "priority": "could",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-A14",
@@ -769,7 +1002,10 @@
       "milestone": "M7",
       "priority": "should",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-A15",
@@ -779,7 +1015,10 @@
       "milestone": "M7/M13",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-A16",
@@ -789,7 +1028,10 @@
       "milestone": "M11",
       "priority": "should",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-A17",
@@ -799,7 +1041,10 @@
       "milestone": "post",
       "priority": "could",
       "oracles": "",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "FMT-A18",
@@ -809,7 +1054,10 @@
       "milestone": "post",
       "priority": "could",
       "oracles": "",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "FMT-A19",
@@ -819,7 +1067,10 @@
       "milestone": "post",
       "priority": "could",
       "oracles": "",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "FMT-A20",
@@ -829,7 +1080,10 @@
       "milestone": "M12",
       "priority": "could",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "FMT-A21",
@@ -839,7 +1093,10 @@
       "milestone": "-",
       "priority": "wont",
       "oracles": "",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "SUB-01",
@@ -849,7 +1106,10 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "SUB-02",
@@ -859,7 +1119,10 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "SUB-03",
@@ -869,7 +1132,10 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "SUB-04",
@@ -879,7 +1145,10 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "SUB-05",
@@ -889,7 +1158,10 @@
       "milestone": "M5",
       "priority": "should",
       "oracles": "",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "SUB-06",
@@ -899,7 +1171,10 @@
       "milestone": "M7/M13",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "SUB-07",
@@ -909,7 +1184,10 @@
       "milestone": "M7",
       "priority": "must",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "SUB-08",
@@ -919,7 +1197,10 @@
       "milestone": "M7",
       "priority": "should",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "SUB-09",
@@ -929,7 +1210,10 @@
       "milestone": "M15",
       "priority": "should",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "SUB-10",
@@ -939,7 +1223,10 @@
       "milestone": "post",
       "priority": "could",
       "oracles": "",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "SUB-11",
@@ -949,7 +1236,10 @@
       "milestone": "M15",
       "priority": "could",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "SUB-12",
@@ -959,7 +1249,10 @@
       "milestone": "post",
       "priority": "could",
       "oracles": "",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "SUB-13",
@@ -969,7 +1262,10 @@
       "milestone": "post",
       "priority": "could/wont",
       "oracles": "",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "SUB-14",
@@ -979,7 +1275,10 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "SUB-15",
@@ -989,7 +1288,10 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "SUB-16",
@@ -999,7 +1301,10 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "SUB-17",
@@ -1009,7 +1314,62 @@
       "milestone": "M14",
       "priority": "could",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
+    },
+    {
+      "id": "SUB-18",
+      "area": "Formats: Subtitles & captions",
+      "name": "Word timing",
+      "details": "WebVTT cue timestamps and ASS karaoke tags (\\k, \\K, \\kf, \\ko) time the runs of a cue; a cue splits into words with the time each is spoken",
+      "milestone": "M16",
+      "priority": "should",
+      "oracles": "",
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
+    },
+    {
+      "id": "SUB-19",
+      "area": "Formats: Subtitles & captions",
+      "name": "Local transcription",
+      "details": "A transcript of the speech with word timestamps, made on this computer by a downloaded speech model (never bundled, permissive licence only); joins the track list as \"Transcript\", cached per file, exportable as SRT/VTT",
+      "milestone": "M16",
+      "priority": "should",
+      "oracles": "",
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
+    },
+    {
+      "id": "SUB-20",
+      "area": "Formats: Subtitles & captions",
+      "name": "Library transcription",
+      "details": "Transcribes eligible library files ahead of time at low priority, with pause, retry and per-file progress",
+      "milestone": "M16",
+      "priority": "should",
+      "oracles": "",
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
+    },
+    {
+      "id": "SUB-21",
+      "area": "Formats: Subtitles & captions",
+      "name": "Progressive transcription from the playhead",
+      "details": "Hears the part being played first, fills the subtitle buffer piece by piece and then completes the rest",
+      "milestone": "M16",
+      "priority": "should",
+      "oracles": "",
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "PLF-01",
@@ -1019,7 +1379,10 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "PLF-02",
@@ -1029,7 +1392,10 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "PLF-03",
@@ -1039,7 +1405,10 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "PLF-04",
@@ -1049,7 +1418,10 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "PLF-05",
@@ -1059,7 +1431,10 @@
       "milestone": "M6",
       "priority": "should",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "PLF-06",
@@ -1069,7 +1444,10 @@
       "milestone": "M6",
       "priority": "could",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "PLF-07",
@@ -1079,7 +1457,10 @@
       "milestone": "post",
       "priority": "could/wont",
       "oracles": "",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "PLF-08",
@@ -1089,7 +1470,10 @@
       "milestone": "M8",
       "priority": "should",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "PLF-09",
@@ -1099,7 +1483,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "META-01",
@@ -1109,7 +1496,10 @@
       "milestone": "M2",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "META-02",
@@ -1119,7 +1509,10 @@
       "milestone": "M2",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "META-03",
@@ -1129,7 +1522,10 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "META-04",
@@ -1139,7 +1535,10 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "verified"
+      }
     },
     {
       "id": "META-05",
@@ -1149,7 +1548,10 @@
       "milestone": "M7",
       "priority": "should",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "META-06",
@@ -1159,7 +1561,10 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "META-07",
@@ -1169,7 +1574,10 @@
       "milestone": "M6",
       "priority": "should",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "META-08",
@@ -1179,7 +1587,10 @@
       "milestone": "M14",
       "priority": "could",
       "oracles": "",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "META-09",
@@ -1189,7 +1600,10 @@
       "milestone": "M6",
       "priority": "could",
       "oracles": "",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-01",
@@ -1199,7 +1613,10 @@
       "milestone": "M1",
       "priority": "must",
       "oracles": "PCM HW",
-      "status": "verified-hardware"
+      "status": {
+        "windows": "verified-hardware",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-02",
@@ -1209,7 +1626,10 @@
       "milestone": "M11",
       "priority": "must",
       "oracles": "EVT UIA HW",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-03",
@@ -1219,7 +1639,10 @@
       "milestone": "M11",
       "priority": "should",
       "oracles": "PCM HW",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-04",
@@ -1229,7 +1652,10 @@
       "milestone": "M11",
       "priority": "should",
       "oracles": "FILE (framer goldens) HW",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-05",
@@ -1239,7 +1665,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "PCM",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-06",
@@ -1249,7 +1678,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "PCM",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "built"
+      }
     },
     {
       "id": "AU-07",
@@ -1259,7 +1691,10 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "SPEC",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-08",
@@ -1269,7 +1704,10 @@
       "milestone": "M11",
       "priority": "should",
       "oracles": "SPEC",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-09",
@@ -1279,7 +1717,10 @@
       "milestone": "M11",
       "priority": "could",
       "oracles": "SPEC",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-10",
@@ -1289,7 +1730,10 @@
       "milestone": "M11",
       "priority": "could",
       "oracles": "SPEC",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-11",
@@ -1299,7 +1743,10 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "PCM",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-12",
@@ -1309,7 +1756,10 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "PCM (per-channel markers)",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-13",
@@ -1319,7 +1769,10 @@
       "milestone": "M5",
       "priority": "should",
       "oracles": "PCM",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-14",
@@ -1329,7 +1782,10 @@
       "milestone": "M11",
       "priority": "should",
       "oracles": "SPEC",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-15",
@@ -1339,7 +1795,10 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "SPEC",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-16",
@@ -1349,7 +1808,10 @@
       "milestone": "M11",
       "priority": "should",
       "oracles": "SPEC",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-17",
@@ -1359,17 +1821,23 @@
       "milestone": "M11",
       "priority": "could",
       "oracles": "SPEC",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-18",
       "area": "Audio",
       "name": "Visualisations",
-      "details": "Spectrum, oscilloscope, meters and spectrogram, plus music-aware vinyl, halo, mirror wave, aurora, embers, resonance, ripples, strobe, camera silhouette and live beat edit, all moving to a beat clock that locks to the kicks and levels measured against each song's own range; per-effect colours, sensitivity, motion and composition controls, and a beat meter",
+      "details": "Spectrum, oscilloscope, meters and spectrogram, plus music-aware vinyl, halo, mirror wave, aurora, embers, resonance, ripples, strobe, camera silhouette, live beat edit and a scrolling groove of the spectrum, beat grid and drum hits, a flight through rings of light that pass on the beat, cymatics, ridgelines, a synthwave drive, fireworks, a lightning storm, a lava lamp, a constellation of the melody, a galaxy, a kaleidoscope, a murmuration, ink in water, a city skyline and a mandala, and from the camera clones of the listener's dance, a time warp, an aura, an LED wall, stardust, a hall of mirrors, light painting, a scanner, a shatter, spotlights, an infinity mirror and water, moving to levels measured against each song's own range, the beat-driven ones (vinyl, halo, embers, ripples, strobe and beat edit) to a beat clock that locks to the kicks at any frame rate; per-effect colours, sensitivity, motion and composition controls, and a beat meter",
       "milestone": "M5/M11",
       "priority": "should",
       "oracles": "PIX",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-19",
@@ -1379,7 +1847,10 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "UIA PIX",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-20",
@@ -1389,7 +1860,10 @@
       "milestone": "M2",
       "priority": "must",
       "oracles": "SPEC (SNR floors)",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-21",
@@ -1399,7 +1873,10 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "EVT",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-22",
@@ -1409,7 +1886,10 @@
       "milestone": "M11",
       "priority": "should",
       "oracles": "SYNC HW",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-23",
@@ -1419,7 +1899,10 @@
       "milestone": "M11",
       "priority": "must",
       "oracles": "EVT (fake sink) HW",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "AU-24",
@@ -1429,7 +1912,10 @@
       "milestone": "M12",
       "priority": "could",
       "oracles": "FILE",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-01",
@@ -1439,7 +1925,10 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "EVT PERF HW",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-02",
@@ -1449,7 +1938,10 @@
       "milestone": "M3/M11",
       "priority": "must",
       "oracles": "PERF FRM",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-03",
@@ -1459,7 +1951,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "UIA PIX",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-04",
@@ -1469,7 +1964,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "UIA FRM",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-05",
@@ -1479,7 +1977,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "PIX (geometry)",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-06",
@@ -1489,7 +1990,10 @@
       "milestone": "M4/M11",
       "priority": "must",
       "oracles": "PIX",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-07",
@@ -1499,7 +2003,10 @@
       "milestone": "M11",
       "priority": "should",
       "oracles": "PIX",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-08",
@@ -1509,7 +2016,10 @@
       "milestone": "M3 (bob), M11",
       "priority": "must",
       "oracles": "FRM PIX",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-09",
@@ -1519,7 +2029,10 @@
       "milestone": "M11",
       "priority": "must",
       "oracles": "PIX",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-10",
@@ -1529,7 +2042,10 @@
       "milestone": "M11",
       "priority": "should",
       "oracles": "PIX",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-11",
@@ -1539,7 +2055,10 @@
       "milestone": "M11",
       "priority": "should",
       "oracles": "PIX",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-12",
@@ -1549,7 +2068,10 @@
       "milestone": "M11",
       "priority": "should",
       "oracles": "PIX",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-13",
@@ -1559,7 +2081,10 @@
       "milestone": "M11",
       "priority": "could",
       "oracles": "PIX",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-14",
@@ -1569,7 +2094,10 @@
       "milestone": "M3/M11",
       "priority": "must",
       "oracles": "FRM (grid position)",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-15",
@@ -1579,7 +2107,10 @@
       "milestone": "M11",
       "priority": "could",
       "oracles": "PIX",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-16",
@@ -1589,7 +2120,10 @@
       "milestone": "M11",
       "priority": "could",
       "oracles": "PIX",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-17",
@@ -1599,7 +2133,10 @@
       "milestone": "M11",
       "priority": "could",
       "oracles": "PIX",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-18",
@@ -1609,7 +2146,10 @@
       "milestone": "M11",
       "priority": "could",
       "oracles": "PIX",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-19",
@@ -1619,7 +2159,10 @@
       "milestone": "M11",
       "priority": "should",
       "oracles": "PIX",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-20",
@@ -1629,7 +2172,10 @@
       "milestone": "M11",
       "priority": "should",
       "oracles": "PIX",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-21",
@@ -1639,7 +2185,10 @@
       "milestone": "M11",
       "priority": "must",
       "oracles": "PIX HW",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-22",
@@ -1649,7 +2198,10 @@
       "milestone": "M15",
       "priority": "should",
       "oracles": "HW",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-23",
@@ -1659,7 +2211,10 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "PIX (reference fields)",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-24",
@@ -1669,7 +2224,10 @@
       "milestone": "M11",
       "priority": "should",
       "oracles": "PIX",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-25",
@@ -1679,7 +2237,10 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "FRM PERF",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-26",
@@ -1689,7 +2250,10 @@
       "milestone": "M4",
       "priority": "should",
       "oracles": "PIX EVT",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-27",
@@ -1699,7 +2263,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "UIA",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-28",
@@ -1709,7 +2276,10 @@
       "milestone": "M15",
       "priority": "should",
       "oracles": "UIA",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-29",
@@ -1719,7 +2289,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "EVT HW",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-30",
@@ -1729,7 +2302,10 @@
       "milestone": "M11",
       "priority": "could",
       "oracles": "FILE",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "VID-31",
@@ -1739,7 +2315,10 @@
       "milestone": "M4",
       "priority": "should",
       "oracles": "PIX UIA",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "OSD-01",
@@ -1749,7 +2328,10 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "PIX",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "OSD-02",
@@ -1759,7 +2341,10 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "PIX UIA",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "OSD-03",
@@ -1769,7 +2354,10 @@
       "milestone": "M5",
       "priority": "should",
       "oracles": "PIX",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "OSD-04",
@@ -1779,7 +2367,10 @@
       "milestone": "M5",
       "priority": "should",
       "oracles": "PIX EVT",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "OSD-05",
@@ -1789,7 +2380,10 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "PIX",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "OSD-06",
@@ -1799,7 +2393,10 @@
       "milestone": "M15",
       "priority": "should",
       "oracles": "PIX",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "OSD-07",
@@ -1809,7 +2406,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "PIX EVT",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "OSD-08",
@@ -1819,7 +2419,10 @@
       "milestone": "M7",
       "priority": "should",
       "oracles": "EVT",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "OSD-09",
@@ -1829,7 +2432,10 @@
       "milestone": "M5",
       "priority": "must",
       "oracles": "PIX",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "OSD-10",
@@ -1839,7 +2445,23 @@
       "milestone": "M11",
       "priority": "could",
       "oracles": "PIX",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
+    },
+    {
+      "id": "OSD-11",
+      "area": "Subtitle & OSD rendering",
+      "name": "Kinetic captions",
+      "details": "Words land one at a time as they are spoken, sized, coloured, placed and moved by how they were said: loudness, pitch, pace and pauses read from the sound; words from the subtitle track, the transcript, or both; energy, accent, palette, layout and glyphs settable",
+      "milestone": "M16",
+      "priority": "should",
+      "oracles": "PIX",
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "NET-01",
@@ -1849,7 +2471,10 @@
       "milestone": "M8",
       "priority": "must",
       "oracles": "NET FRM",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "NET-02",
@@ -1859,7 +2484,10 @@
       "milestone": "M8",
       "priority": "must",
       "oracles": "NET EVT",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "NET-03",
@@ -1869,7 +2497,10 @@
       "milestone": "M8",
       "priority": "must",
       "oracles": "NET FRM EVT",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "NET-04",
@@ -1879,7 +2510,10 @@
       "milestone": "M12",
       "priority": "should",
       "oracles": "NET FRM",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "NET-05",
@@ -1889,7 +2523,10 @@
       "milestone": "post",
       "priority": "could",
       "oracles": "NET",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "NET-06",
@@ -1899,7 +2536,10 @@
       "milestone": "M12",
       "priority": "must",
       "oracles": "NET FRM",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "NET-07",
@@ -1909,7 +2549,10 @@
       "milestone": "M12",
       "priority": "must",
       "oracles": "NET FRM",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "NET-08",
@@ -1919,7 +2562,10 @@
       "milestone": "M12",
       "priority": "should",
       "oracles": "NET",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "NET-09",
@@ -1929,7 +2575,10 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "UIA (loopback share)",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "NET-10",
@@ -1939,7 +2588,10 @@
       "milestone": "post",
       "priority": "could",
       "oracles": "NET",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "NET-11",
@@ -1949,7 +2601,10 @@
       "milestone": "post",
       "priority": "could/wont",
       "oracles": "-",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "NET-12",
@@ -1959,7 +2614,10 @@
       "milestone": "M8",
       "priority": "must",
       "oracles": "UIA",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "NET-13",
@@ -1969,7 +2627,10 @@
       "milestone": "M8",
       "priority": "must",
       "oracles": "EVT",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "NET-14",
@@ -1979,7 +2640,10 @@
       "milestone": "M14",
       "priority": "should",
       "oracles": "EVT (sample extension)",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "NET-15",
@@ -1989,7 +2653,10 @@
       "milestone": "M8",
       "priority": "should",
       "oracles": "NET STORE",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "NET-16",
@@ -1999,7 +2666,10 @@
       "milestone": "M14",
       "priority": "could",
       "oracles": "NET",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "DISCO-01",
@@ -2009,7 +2679,10 @@
       "milestone": "M10",
       "priority": "should",
       "oracles": "NET (fake server)",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "DISCO-02",
@@ -2019,7 +2692,10 @@
       "milestone": "M10",
       "priority": "must",
       "oracles": "NET",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "DISCO-03",
@@ -2029,7 +2705,10 @@
       "milestone": "M12",
       "priority": "could",
       "oracles": "NET",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "CAST-01",
@@ -2039,7 +2718,10 @@
       "milestone": "M10",
       "priority": "must",
       "oracles": "UIA NET",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "CAST-02",
@@ -2049,7 +2731,10 @@
       "milestone": "M10",
       "priority": "must",
       "oracles": "NET",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "CAST-03",
@@ -2059,7 +2744,10 @@
       "milestone": "M10",
       "priority": "should",
       "oracles": "NET",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "CAST-04",
@@ -2069,7 +2757,10 @@
       "milestone": "M10",
       "priority": "could",
       "oracles": "NET (vectors)",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "CAST-05",
@@ -2079,7 +2770,10 @@
       "milestone": "M10",
       "priority": "should",
       "oracles": "FILE",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "DISC-01",
@@ -2089,7 +2783,10 @@
       "milestone": "M13",
       "priority": "must",
       "oracles": "PCM (FakeDiscDevice) HW",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "DISC-02",
@@ -2099,7 +2796,10 @@
       "milestone": "M13",
       "priority": "should",
       "oracles": "FILE",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "DISC-03",
@@ -2109,7 +2809,10 @@
       "milestone": "M14",
       "priority": "could",
       "oracles": "NET",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "DISC-04",
@@ -2119,7 +2822,10 @@
       "milestone": "M13",
       "priority": "must",
       "oracles": "FRM (image fixtures)",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "DISC-05",
@@ -2129,7 +2835,10 @@
       "milestone": "post",
       "priority": "could",
       "oracles": "FRM",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "DISC-06",
@@ -2139,7 +2848,10 @@
       "milestone": "M13",
       "priority": "should",
       "oracles": "FRM",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "DISC-07",
@@ -2149,7 +2861,10 @@
       "milestone": "post",
       "priority": "wont",
       "oracles": "-",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "DISC-08",
@@ -2159,7 +2874,10 @@
       "milestone": "M13",
       "priority": "could",
       "oracles": "FRM",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "DISC-09",
@@ -2169,7 +2887,10 @@
       "milestone": "M13",
       "priority": "must",
       "oracles": "EVT",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "DISC-10",
@@ -2179,7 +2900,10 @@
       "milestone": "M13/M15",
       "priority": "should",
       "oracles": "EVT HW",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "CAP-01",
@@ -2189,7 +2913,10 @@
       "milestone": "M12",
       "priority": "should",
       "oracles": "FRM (virtual source) HW",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "CAP-02",
@@ -2199,7 +2926,10 @@
       "milestone": "M12",
       "priority": "should",
       "oracles": "FRM (captures a test pattern window)",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "CAP-03",
@@ -2209,7 +2939,10 @@
       "milestone": "M12",
       "priority": "should",
       "oracles": "FILE",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "CAP-04",
@@ -2219,7 +2952,10 @@
       "milestone": "post",
       "priority": "wont",
       "oracles": "-",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "OUT-01",
@@ -2229,7 +2965,10 @@
       "milestone": "M9",
       "priority": "must",
       "oracles": "UIA FILE",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "OUT-02",
@@ -2239,7 +2978,10 @@
       "milestone": "M9",
       "priority": "must",
       "oracles": "FILE",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "OUT-03",
@@ -2249,7 +2991,10 @@
       "milestone": "M9",
       "priority": "should",
       "oracles": "FILE UIA",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "OUT-04",
@@ -2259,7 +3004,10 @@
       "milestone": "M9",
       "priority": "must",
       "oracles": "FILE (ES hash equality)",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "OUT-05",
@@ -2269,7 +3017,10 @@
       "milestone": "M9",
       "priority": "should",
       "oracles": "FILE FRM",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "OUT-06",
@@ -2279,7 +3030,10 @@
       "milestone": "M9",
       "priority": "must",
       "oracles": "FILE",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "OUT-07",
@@ -2289,7 +3043,10 @@
       "milestone": "M9",
       "priority": "should",
       "oracles": "NET (second engine plays it)",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "OUT-08",
@@ -2299,7 +3056,10 @@
       "milestone": "M9",
       "priority": "should",
       "oracles": "NET",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "OUT-09",
@@ -2309,7 +3069,10 @@
       "milestone": "M12",
       "priority": "could",
       "oracles": "NET",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "OUT-10",
@@ -2319,7 +3082,10 @@
       "milestone": "post",
       "priority": "could",
       "oracles": "NET",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "OUT-11",
@@ -2329,7 +3095,10 @@
       "milestone": "M9",
       "priority": "should",
       "oracles": "FILE NET",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "OUT-12",
@@ -2339,7 +3108,10 @@
       "milestone": "M9",
       "priority": "should",
       "oracles": "CLI",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "OUT-13",
@@ -2349,7 +3121,10 @@
       "milestone": "post",
       "priority": "could",
       "oracles": "-",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "OUT-14",
@@ -2359,7 +3134,10 @@
       "milestone": "M9",
       "priority": "must",
       "oracles": "FILE",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "LIB-01",
@@ -2369,7 +3147,10 @@
       "milestone": "M4/M6",
       "priority": "must",
       "oracles": "UIA EVT",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "LIB-02",
@@ -2379,7 +3160,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "UIA EVT",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "LIB-03",
@@ -2389,7 +3173,10 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "FILE STORE",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "LIB-04",
@@ -2399,7 +3186,10 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "STORE UIA",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "LIB-05",
@@ -2409,7 +3199,10 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "STORE UIA",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "LIB-06",
@@ -2419,7 +3212,10 @@
       "milestone": "M6/M10",
       "priority": "must",
       "oracles": "UIA",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "LIB-07",
@@ -2429,7 +3225,10 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "STORE UIA",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "LIB-08",
@@ -2439,7 +3238,10 @@
       "milestone": "M6",
       "priority": "could",
       "oracles": "EVT",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "LIB-09",
@@ -2449,7 +3251,10 @@
       "milestone": "M6",
       "priority": "should",
       "oracles": "UIA STORE",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "LIB-10",
@@ -2459,7 +3264,10 @@
       "milestone": "M6",
       "priority": "should",
       "oracles": "FILE",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "LIB-11",
@@ -2469,7 +3277,10 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "STORE (crash-point property tests)",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "built"
+      }
     },
     {
       "id": "LIB-12",
@@ -2479,7 +3290,10 @@
       "milestone": "post",
       "priority": "could",
       "oracles": "STORE",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "UI-01",
@@ -2489,7 +3303,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "UIA PIX",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "UI-02",
@@ -2499,7 +3316,10 @@
       "milestone": "M4–M15",
       "priority": "must",
       "oracles": "UIA (menu walk)",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "UI-03",
@@ -2509,7 +3329,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "UIA",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "UI-04",
@@ -2519,7 +3342,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "UIA PIX",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "UI-05",
@@ -2529,7 +3355,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "UIA",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "UI-06",
@@ -2539,7 +3368,10 @@
       "milestone": "M15",
       "priority": "should",
       "oracles": "UIA",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "UI-07",
@@ -2549,7 +3381,10 @@
       "milestone": "M5/M11",
       "priority": "must",
       "oracles": "UIA PIX SPEC",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "UI-08",
@@ -2559,7 +3394,10 @@
       "milestone": "M4/M6",
       "priority": "must",
       "oracles": "UIA EVT",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "built"
+      }
     },
     {
       "id": "UI-09",
@@ -2569,7 +3407,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "UIA",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "UI-10",
@@ -2579,7 +3420,10 @@
       "milestone": "M4/M6",
       "priority": "must",
       "oracles": "UIA STORE",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "UI-11",
@@ -2589,7 +3433,10 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "UIA STORE",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "UI-12",
@@ -2599,7 +3446,10 @@
       "milestone": "M14",
       "priority": "should",
       "oracles": "UIA STORE",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "UI-13",
@@ -2609,7 +3459,10 @@
       "milestone": "M4/M15",
       "priority": "must",
       "oracles": "PIX UIA",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "UI-14",
@@ -2619,7 +3472,10 @@
       "milestone": "M4/M15",
       "priority": "must",
       "oracles": "UIA STORE",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "UI-15",
@@ -2629,7 +3485,10 @@
       "milestone": "M4",
       "priority": "should",
       "oracles": "UIA",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "UI-16",
@@ -2639,7 +3498,10 @@
       "milestone": "M4",
       "priority": "should",
       "oracles": "UIA",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "UI-17",
@@ -2649,7 +3511,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "UIA",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "UI-18",
@@ -2659,7 +3524,10 @@
       "milestone": "M4/M15",
       "priority": "must/should",
       "oracles": "UIA EVT",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "TOOL-01",
@@ -2669,7 +3537,10 @@
       "milestone": "M1–M14",
       "priority": "must",
       "oracles": "CLI",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "TOOL-02",
@@ -2679,7 +3550,10 @@
       "milestone": "M0+",
       "priority": "must",
       "oracles": "CLI",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "TOOL-03",
@@ -2689,7 +3563,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "CLI EVT",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "TOOL-04",
@@ -2699,7 +3576,10 @@
       "milestone": "M14",
       "priority": "should",
       "oracles": "NET UIA (Playwright against the page)",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "TOOL-05",
@@ -2709,7 +3589,10 @@
       "milestone": "M14",
       "priority": "should",
       "oracles": "EVT",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "TOOL-06",
@@ -2719,7 +3602,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "EVT CLI",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "TOOL-07",
@@ -2729,7 +3615,10 @@
       "milestone": "M14",
       "priority": "must",
       "oracles": "EVT UIA",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "TOOL-08",
@@ -2739,7 +3628,10 @@
       "milestone": "M12",
       "priority": "could",
       "oracles": "EVT",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "TOOL-09",
@@ -2749,7 +3641,10 @@
       "milestone": "M4",
       "priority": "should",
       "oracles": "NET (FakeOrigin)",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "TOOL-10",
@@ -2759,7 +3654,10 @@
       "milestone": "M4",
       "priority": "should",
       "oracles": "FILE",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "TOOL-11",
@@ -2769,7 +3667,10 @@
       "milestone": "M3",
       "priority": "must",
       "oracles": "CLI",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "TOOL-12",
@@ -2779,7 +3680,10 @@
       "milestone": "M15",
       "priority": "should",
       "oracles": "STORE",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "TOOL-13",
@@ -2789,167 +3693,220 @@
       "milestone": "post",
       "priority": "could",
       "oracles": "-",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "WIN-01",
-      "area": "Windows platform integration",
+      "area": "Platform integration",
       "name": "Distribution",
       "details": "Per-user Inno installer (no admin), portable zip, winget manifest at 1.0",
       "milestone": "M0/M15",
       "priority": "must",
       "oracles": "CLI (smoke)",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "WIN-02",
-      "area": "Windows platform integration",
+      "area": "Platform integration",
       "name": "File associations",
       "details": "Groups: Video (mp4 m4v mkv webm avi mov wmv asf ts m2ts mts mpg mpeg vob flv 3gp ogv y4m), Audio (mp3 flac m4a aac wav ogg oga opus wma aif aiff caf ac3 eac3 dts mka), Playlists (m3u m3u8 pls xspf cue asx wpl), Disc images (iso); per-user ProgIDs + RegisteredApplications capabilities so rexplayer appears in Default Apps; never hijacks: the installer task deep-links to Default Apps",
       "milestone": "M15",
       "priority": "must",
       "oracles": "STORE (registry golden) HW",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "built"
+      }
     },
     {
       "id": "WIN-03",
-      "area": "Windows platform integration",
+      "area": "Platform integration",
       "name": "Explorer verbs",
       "details": "\"Play with rexplayer\", \"Add to rexplayer playlist\" (classic menu, HKCU); modern top-level Windows 11 menu through a sparse package (C, post-1.0)",
       "milestone": "M15",
       "priority": "must",
       "oracles": "STORE",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "not-applicable"
+      },
+      "parityNote": "Explorer verbs are Windows' own; on macOS the Finder's Open With comes from the file associations (WIN-02)."
     },
     {
       "id": "WIN-04",
-      "area": "Windows platform integration",
+      "area": "Platform integration",
       "name": "AutoPlay handlers",
       "details": "Audio CD, DVD movie, Blu-ray movie, removable-media folders",
       "milestone": "M15",
       "priority": "should",
       "oracles": "STORE HW",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "not-applicable"
+      },
+      "parityNote": "AutoPlay has no macOS equivalent."
     },
     {
       "id": "WIN-05",
-      "area": "Windows platform integration",
+      "area": "Platform integration",
       "name": "System Media Transport Controls",
       "details": "Media overlay (title/artist/artwork/timeline), media keys, lock screen, Bluetooth headset buttons, Game Bar media widget",
       "milestone": "M15",
       "priority": "must",
       "oracles": "EVT HW",
-      "status": "planned"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "WIN-06",
-      "area": "Windows platform integration",
+      "area": "Platform integration",
       "name": "Taskbar",
       "details": "Thumbnail toolbar (previous, play/pause, next), progress state (normal/paused/error), live thumbnail",
       "milestone": "M15",
       "priority": "must",
       "oracles": "UIA HW",
-      "status": "planned"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "WIN-07",
-      "area": "Windows platform integration",
+      "area": "Platform integration",
       "name": "Jump list",
       "details": "Recent media, pinned items, tasks (open file, resume last, open network stream); classic `ICustomDestinationList` (works unpackaged)",
       "milestone": "M15",
       "priority": "should",
       "oracles": "STORE",
-      "status": "planned"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "WIN-08",
-      "area": "Windows platform integration",
+      "area": "Platform integration",
       "name": "Toasts on track change",
       "details": "Opt-in (Windows App SDK app notifications, unpackaged registration)",
       "milestone": "M15",
       "priority": "could",
       "oracles": "EVT",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "WIN-09",
-      "area": "Windows platform integration",
+      "area": "Platform integration",
       "name": "High DPI",
       "details": "PerMonitorV2 everywhere incl. the OSD and subtitles; crisp on monitor moves",
       "milestone": "M4",
       "priority": "must",
       "oracles": "PIX (scale matrix)",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "WIN-10",
-      "area": "Windows platform integration",
+      "area": "Platform integration",
       "name": "Theme & materials",
       "details": "Follows system light/dark live; Mica",
       "milestone": "M4",
       "priority": "must",
       "oracles": "PIX",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "WIN-11",
-      "area": "Windows platform integration",
+      "area": "Platform integration",
       "name": "Power awareness",
       "details": "VID-29 power requests; pause on sleep, re-open devices on resume",
       "milestone": "M4/M11",
       "priority": "must",
       "oracles": "EVT HW",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "WIN-12",
-      "area": "Windows platform integration",
+      "area": "Platform integration",
       "name": "Architectures",
       "details": "x64 (M); ARM64 native (S) through cross-platform `Vector128` SIMD paths",
       "milestone": "M0/M15",
       "priority": "must/should",
       "oracles": "CLI (ARM64 build smoke)",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "WIN-13",
-      "area": "Windows platform integration",
+      "area": "Platform integration",
       "name": "Minimum OS",
       "details": "Windows 10 1809 (build 17763) and Windows 11; Windows 11 is the primary target",
       "milestone": "M0",
       "priority": "must",
       "oracles": "-",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "WIN-14",
-      "area": "Windows platform integration",
+      "area": "Platform integration",
       "name": "Crash recovery",
       "details": "Global handlers (house), \"rexplayer closed unexpectedly - resume where you were?\" on next start, opt-in local minidumps, nothing uploaded",
       "milestone": "M4",
       "priority": "must",
       "oracles": "EVT STORE",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "WIN-15",
-      "area": "Windows platform integration",
+      "area": "Platform integration",
       "name": "Share / \"Open with\" from apps",
       "details": "-",
       "milestone": "post",
       "priority": "could",
       "oracles": "-",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "WIN-16",
-      "area": "Windows platform integration",
+      "area": "Platform integration",
       "name": "URL protocol handler",
       "details": "Deliberately not registered (attack surface without user value)",
       "milestone": "-",
       "priority": "wont",
       "oracles": "-",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "A11Y-01",
@@ -2959,7 +3916,10 @@
       "milestone": "M4+",
       "priority": "must",
       "oracles": "UIA",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "A11Y-02",
@@ -2969,7 +3929,10 @@
       "milestone": "M4+",
       "priority": "must",
       "oracles": "UIA (keyboard-journey suite)",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "A11Y-03",
@@ -2979,7 +3942,10 @@
       "milestone": "M15",
       "priority": "must",
       "oracles": "UIA",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "A11Y-04",
@@ -2989,7 +3955,10 @@
       "milestone": "M15",
       "priority": "must",
       "oracles": "PIX",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "A11Y-05",
@@ -2999,7 +3968,10 @@
       "milestone": "M15",
       "priority": "must",
       "oracles": "UIA",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "A11Y-06",
@@ -3009,7 +3981,10 @@
       "milestone": "M15",
       "priority": "should",
       "oracles": "EVT",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "I18N-01",
@@ -3019,7 +3994,10 @@
       "milestone": "M15",
       "priority": "must",
       "oracles": "UIA (pseudo-loc audit)",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "I18N-02",
@@ -3029,7 +4007,10 @@
       "milestone": "M15",
       "priority": "should",
       "oracles": "PIX",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "I18N-03",
@@ -3039,7 +4020,10 @@
       "milestone": "M15",
       "priority": "should",
       "oracles": "UIA",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "I18N-04",
@@ -3049,7 +4033,10 @@
       "milestone": "M15",
       "priority": "must",
       "oracles": "-",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "I18N-05",
@@ -3059,7 +4046,10 @@
       "milestone": "M1+",
       "priority": "must",
       "oracles": "CLI",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "PRIV-01",
@@ -3069,7 +4059,10 @@
       "milestone": "M0",
       "priority": "must",
       "oracles": "NET (no-egress E2E: FakeOrigin as proxy sees zero unexpected requests)",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "PRIV-02",
@@ -3079,7 +4072,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "NET",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "PRIV-03",
@@ -3089,7 +4085,10 @@
       "milestone": "M6",
       "priority": "must",
       "oracles": "STORE",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "PRIV-04",
@@ -3099,7 +4098,10 @@
       "milestone": "M8",
       "priority": "must",
       "oracles": "STORE",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "SEC-01",
@@ -3109,7 +4111,10 @@
       "milestone": "M1+",
       "priority": "must",
       "oracles": "FUZZ",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "SEC-02",
@@ -3119,7 +4124,10 @@
       "milestone": "post",
       "priority": "could",
       "oracles": "-",
-      "status": "post-1.0"
+      "status": {
+        "windows": "post-1.0",
+        "macos": "post-1.0"
+      }
     },
     {
       "id": "SEC-03",
@@ -3129,7 +4137,10 @@
       "milestone": "M14",
       "priority": "must",
       "oracles": "EVT",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "SEC-04",
@@ -3139,7 +4150,10 @@
       "milestone": "M9/M14",
       "priority": "must",
       "oracles": "NET",
-      "status": "planned"
+      "status": {
+        "windows": "planned",
+        "macos": "planned"
+      }
     },
     {
       "id": "SEC-05",
@@ -3149,7 +4163,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "NET",
-      "status": "verified"
+      "status": {
+        "windows": "verified",
+        "macos": "planned"
+      }
     },
     {
       "id": "SYS-01",
@@ -3159,7 +4176,10 @@
       "milestone": "M1",
       "priority": "must",
       "oracles": "FILE",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "planned"
+      }
     },
     {
       "id": "SYS-02",
@@ -3169,7 +4189,10 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "STORE",
-      "status": "built"
+      "status": {
+        "windows": "built",
+        "macos": "built"
+      }
     }
   ]
 }

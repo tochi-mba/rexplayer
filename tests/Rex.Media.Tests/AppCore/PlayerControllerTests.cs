@@ -19,6 +19,50 @@ public sealed class PlayerControllerTests
     private static bool EndedOn(PlayerController controller, string title) =>
         controller.State == SessionState.Ended && controller.Item?.Title == title && controller.Playlist.Current is null;
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DisposingWaitsForTheMediaThreadEvenWhenItsSessionWasAlreadyStopped(bool stopFirst)
+    {
+        using var writing = new ManualResetEventSlim();
+        using var releaseWrite = new ManualResetEventSlim();
+        using var disposalStarted = new ManualResetEventSlim();
+        using var harness = new ControllerHarness(beforeAudioWrite: (_, _) =>
+        {
+            writing.Set();
+            // Model a video or audio adapter still inside a native call during shutdown.
+            releaseWrite.Wait(ControllerHarness.Patience, CancellationToken.None);
+        });
+        harness.Files["a.wav"] = Count(0, 8000);
+        harness.Controller.Open(["a.wav"]);
+        Assert.True(writing.Wait(ControllerHarness.Patience, TestContext.Current.CancellationToken));
+
+        if (stopFirst)
+        {
+            // Stop starts a background shutdown, but does not wait for the media thread.
+            harness.Controller.Stop();
+        }
+
+        var disposing = Task.Run(() =>
+        {
+            disposalStarted.Set();
+            harness.Controller.Dispose();
+        }, TestContext.Current.CancellationToken);
+        try
+        {
+            Assert.True(disposalStarted.Wait(ControllerHarness.Patience, TestContext.Current.CancellationToken));
+            Assert.NotSame(disposing, await Task.WhenAny(disposing,
+                Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken)));
+        }
+        finally
+        {
+            releaseWrite.Set();
+        }
+
+        await disposing.WaitAsync(ControllerHarness.Patience, TestContext.Current.CancellationToken);
+        Assert.True(Assert.Single(harness.Sinks).Disposed);
+    }
+
     [Fact]
     [Capability("PB-14")]
     [Capability("VID-26")]
@@ -71,6 +115,96 @@ public sealed class PlayerControllerTests
         Assert.Contains(harness.Messages, m => m.StartsWith("broken.wav could not be played", StringComparison.Ordinal));
         Assert.Equal(Expected((0, 400), (500, 400)), harness.Played());
         Assert.Equal(2, harness.Sinks.Count);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void AQueuedLibraryFileStillDownloadingIsSkippedWithAStillDownloadingNotice()
+    {
+        using var harness = new ControllerHarness();
+        harness.Files["a.wav"] = Count(0, 400);
+        harness.Files["arriving.wav"] = [1, 2, 3, 4];
+        harness.Files["c.wav"] = Count(500, 400);
+        var library = new Rex.Media.Library.MediaLibrary(Rex.Media.Library.RexStore.InMemory());
+        library.Scan(".", [new("a.wav", 1, default), new("arriving.wav", 4, default), new("c.wav", 1, default)], _ => Rex.Media.Library.LibraryKind.Music);
+        library.SetDetails("arriving.wav", new MediaInfo { FormatName = "WAVE", Tracks = [], DeclaredLength = 20 });
+        harness.Controller.Library = library;
+
+        harness.Controller.PlayFromLibrary([.. new[] { "a.wav", "arriving.wav", "c.wav" }.Select(path => library.Entry(path)!)]);
+        harness.WaitForEngine<EndedEvent>();
+        harness.PumpUntil(controller => EndedOn(controller, "c"));
+
+        Assert.Contains(harness.Messages, m => m.EndsWith(". Still downloading: 20% so far", StringComparison.Ordinal));
+        Assert.DoesNotContain(harness.Messages, m => m.Contains("could not be played", StringComparison.Ordinal));
+        Assert.Equal(Expected((0, 400), (500, 400)), harness.Played());
+    }
+
+    [Fact]
+    public void FailuresBeforeTheUserOpensSomethingElseDoNotStopItsPlayableItems()
+    {
+        using var harness = new ControllerHarness();
+        harness.Files["a.wav"] = Count(0, 400);
+
+        harness.Controller.Open(["gone.wav"]);
+        Assert.Equal(SessionState.Faulted, harness.Controller.State);
+        harness.Controller.Open(["missing.wav", "a.wav"]);
+        harness.PumpUntil(controller => EndedOn(controller, "a"));
+
+        Assert.Equal(Expected((0, 400)), harness.Played());
+    }
+
+    [Fact]
+    public void AQueuedItemRemovedFromThePlaylistIsNotPlayedAndTheOneAfterItIs()
+    {
+        var opened = new List<string>();
+        ControllerHarness? harnessRef = null;
+        using var harness = new ControllerHarness(openSource: location =>
+        {
+            opened.Add(location);
+            return new MemoryByteSource(harnessRef!.Files[location], location);
+        });
+        harnessRef = harness;
+        harness.Files["a.wav"] = Count(0, 400);
+        harness.Files["b.wav"] = Count(1000, 400);
+        harness.Files["c.wav"] = Count(2000, 400);
+
+        harness.Controller.Open(["a.wav", "b.wav", "c.wav"]);
+        // b is opened only to queue it, so once it has been the controller has certainly queued it:
+        // removing it then always takes the path that follows the changed playlist.
+        harness.PumpUntil(_ => opened.Contains("b.wav"));
+        harness.Controller.Playlist.RemoveAt(1);
+        harness.PumpUntil(controller => EndedOn(controller, "c"));
+
+        Assert.DoesNotContain("b.wav", opened.Skip(opened.IndexOf("b.wav") + 1));
+        Assert.Equal(Expected((2000, 400)), harness.Played()[^400..]);
+        Assert.Equal(Expected((2000, 400)), harness.Sinks[^1].Channel(0));
+    }
+
+    [Fact]
+    public void RemovingTheQueuedLastItemEndsPlaybackWithTheItemPlaying()
+    {
+        var opened = new List<string>();
+        ControllerHarness? harnessRef = null;
+        using var harness = new ControllerHarness(openSource: location =>
+        {
+            opened.Add(location);
+            return new MemoryByteSource(harnessRef!.Files[location], location);
+        });
+        harnessRef = harness;
+        harness.Files["a.wav"] = Count(0, 400);
+        harness.Files["b.wav"] = Count(1000, 400);
+
+        harness.Controller.Open(["a.wav", "b.wav"]);
+        // As above: b is opened only to queue it, so it is certainly queued when it is removed.
+        harness.PumpUntil(_ => opened.Contains("b.wav"));
+        harness.Controller.Playlist.RemoveAt(1);
+        // So short an item can end before the engine takes b on; it then opens b just after. Either way
+        // the engine runs into b, and only then is the controller's answer, ending playback, certain.
+        harness.WaitForEngine<MediaOpenedEvent>(2);
+        harness.PumpUntil(controller => controller.State == SessionState.Ended);
+
+        Assert.Equal("a", harness.Controller.Item?.Title);
+        Assert.Single(harness.Sinks);
     }
 
     [Fact]
@@ -365,11 +499,13 @@ public sealed class PlayerControllerTests
         Assert.True(controller.Execute(CommandCatalog.CycleAudioTrack));
         Assert.Equal("There are no audio tracks to choose from.", harness.Messages[^1]);
         Assert.Null(await controller.StatsAsync());
+        await controller.ClearCadenceAsync();
 
         controller.Open(["two.mkv"]);
         harness.PumpUntil(c => c.State == SessionState.Ready && c.AudioTrack == 1);
         Assert.Equal(2, controller.AudioTracks.Count);
         Assert.NotNull(await controller.StatsAsync());
+        await controller.ClearCadenceAsync();
 
         controller.Seek(TimeSpan.FromMilliseconds(100));
         Assert.True(controller.Execute(CommandCatalog.CycleAudioTrack));
@@ -385,6 +521,25 @@ public sealed class PlayerControllerTests
         harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Title == "one");
         Assert.True(controller.Execute(CommandCatalog.CycleAudioTrack));
         Assert.Equal("There is only one audio track.", harness.Messages[^1]);
+    }
+
+    [Fact]
+    [Capability("PB-17")]
+    public void ASecondPressWhileTheTrackChangeOpensMovesOnFromTheTrackJustChosen()
+    {
+        using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { TitleSeconds = 0 });
+        harness.Files["two.mkv"] = TwoAudioTracks();
+        var controller = harness.Controller;
+        controller.Open(["two.mkv"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.AudioTrack == 1);
+
+        // The reopened session has not reported its tracks yet when the second press comes.
+        Assert.True(controller.Execute(CommandCatalog.CycleAudioTrack));
+        Assert.Equal("Audio track 2 of 2: Commentary", harness.Messages[^1]);
+        Assert.Null(controller.Info);
+        Assert.True(controller.Execute(CommandCatalog.CycleAudioTrack));
+        Assert.StartsWith("Audio track 1 of 2: ", harness.Messages[^1], StringComparison.Ordinal);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.AudioTrack == 1);
     }
 
     [Fact]
@@ -577,7 +732,6 @@ public sealed class PlayerControllerTests
         harness.PumpUntil(c => c.State == SessionState.Ready);
         Assert.Equal("a.srt", controller.Subtitles!.Name);
         Assert.Equal(["Hello"], controller.SubtitlesAt(TimeSpan.FromSeconds(2)).Select(cue => cue.Text));
-        Assert.Empty(controller.SubtitlesNow);
 
         Assert.True(controller.Execute(CommandCatalog.SubtitlesLater));
         Assert.True(controller.Execute(CommandCatalog.SubtitlesLater));
@@ -608,6 +762,56 @@ public sealed class PlayerControllerTests
         Assert.Equal("missing.srt is not a subtitle file rexplayer can read.", harness.Messages[^1]);
         Assert.True(changes > 8);
         Assert.Throws<ArgumentNullException>(() => controller.AddSubtitles(null!));
+
+        // A track made in memory (a transcript) joins first; the same name again replaces it; shown only when asked or already showing.
+        var transcript = new Rex.Media.Subtitles.SubtitleTrack("Transcript (base.en)");
+        transcript.Add(new Rex.Media.Subtitles.SubtitleCue(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2), [new Rex.Media.Subtitles.SubtitleLine([new Rex.Media.Subtitles.SubtitleRun("heard")])]));
+        controller.AddSubtitles(transcript, show: false);
+        Assert.Equal(["Transcript (base.en)", "extra.srt", "a.srt"], controller.SubtitleTracks.Select(track => track.Name));
+        Assert.Equal("extra.srt", controller.Subtitles!.Name);
+        controller.ShowSecondarySubtitles(transcript);
+        var again = new Rex.Media.Subtitles.SubtitleTrack("Transcript (base.en)");
+        controller.AddSubtitles(again, show: true);
+        Assert.Equal(3, controller.SubtitleTracks.Count);
+        Assert.Same(again, controller.Subtitles);
+        Assert.Null(controller.SecondarySubtitles);
+        controller.AddSubtitles(new Rex.Media.Subtitles.SubtitleTrack("Transcript (base.en)"), show: false);
+        Assert.Equal("Transcript (base.en)", controller.Subtitles!.Name);
+        Assert.NotSame(again, controller.Subtitles);
+        Assert.Throws<ArgumentNullException>(() => controller.AddSubtitles(null!, show: true));
+
+        var generated = controller.Subtitles;
+        controller.ShowSecondarySubtitles(generated);
+        Assert.True(controller.RemoveSubtitles(generated));
+        Assert.Null(controller.Subtitles);
+        Assert.Null(controller.SecondarySubtitles);
+        Assert.DoesNotContain(generated, controller.SubtitleTracks);
+        Assert.False(controller.RemoveSubtitles(generated));
+        Assert.Throws<ArgumentNullException>(() => controller.RemoveSubtitles(null!));
+    }
+
+    [Fact]
+    [Capability("SUB-16")]
+    public void SwitchingFromAFileWithSubtitlesToAStreamClearsTheOldSubtitleSurface()
+    {
+        using var harness = new ControllerHarness(autoPlay: false,
+            sidecars: new() { ["a.wav"] = ["a.srt"] });
+        harness.Files["a.wav"] = Count(0, 40_000);
+        harness.Files["a.srt"] = Srt("1\n00:00:01,000 --> 00:00:03,000\nFrom the old file\n");
+        var controller = harness.Controller;
+        var updates = 0;
+        controller.SubtitlesChanged += (_, _) => updates++;
+        controller.Open(["a.wav"]);
+        harness.PumpUntil(current => current.Info is not null);
+        Assert.NotNull(controller.Subtitles);
+
+        var oldCount = updates;
+        controller.Open(["https://example.invalid/audio"]);
+        Assert.True(updates > oldCount, "The window must be told to clear previous captions.");
+        Assert.Null(controller.Subtitles);
+        Assert.Null(controller.SecondarySubtitles);
+        Assert.Empty(controller.SubtitleTracks);
+        Assert.Empty(controller.SubtitlesAt(TimeSpan.FromSeconds(2)));
     }
 
     [Fact]

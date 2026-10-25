@@ -27,6 +27,21 @@ public sealed class CliHost
     /// <summary>Decoders only this machine has, added below rexplayer's own on the decode ladder.</summary>
     public IReadOnlyList<IDecoderFactory> ExtraDecoders { get; init; } = [];
 
+    /// <summary>Finds faces in a picture, for keeping captions off them (OSD-11); null where the host has no detector.</summary>
+    public Captions.FaceSpotter? Faces { get; init; }
+
+    /// <summary>A transcriber on the model file given, named as given (SUB-19); null where the host cannot hear speech.</summary>
+    public Func<string, string, Captions.ISpeechTranscriber?> Transcriber { get; init; } = (_, _) => null;
+
+    /// <summary>A speech model on the model file given, for hearing piece by piece (SUB-21); null where the host cannot hear speech.</summary>
+    public Func<string, Transcription.ISpeechHearer?> Hearer { get; init; } = _ => null;
+
+    /// <summary>Creates the speech-model store; tests replace its HTTP handler without using the network.</summary>
+    public Func<string, Captions.SpeechModelStore> SpeechStore { get; init; } = root => new(root);
+
+    /// <summary>The player's data folder, where models and transcripts are kept.</summary>
+    public string? DataRoot { get; init; }
+
     /// <summary>Describes the machine for probe --system, or gives null when this host cannot.</summary>
     public Func<SystemReport?> SystemReport { get; init; } = () => null;
 

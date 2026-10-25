@@ -24,15 +24,32 @@ public sealed partial class RepositoryTests
         "installer/build.ps1",
         "installer/prepare-upgrade.ps1",
         "installer/update-test.ps1",
+        "scripts/build-screenshot-review.py",
+        "scripts/check-screenshot-repeatability.ps1",
         "scripts/check_site.py",
+        "scripts/effect-contact-sheets.ps1",
         "scripts/make-fixtures.ps1",
         "scripts/make-icon.ps1",
+        "scripts/measure-beats.ps1",
+        "scripts/measure-startup.ps1",
+        "scripts/verify-mac-bundle.py",
+        "scripts/sections/compare.py",
+        "scripts/sections/compose_sheet.py",
+        "scripts/sections/find_boundaries.py",
         "site/app.js",
         "tests/site/app.test.mjs",
         "tests/site/pages.spec.js",
         "tests/site/serve.py",
         "tests/site/test_check_site.py",
+        "tests/site/test_screenshot_review.py",
+        "tests/site/test_verify_mac_bundle.py",
         "playwright.config.js",
+        "playwright.live.config.js",
+        "scripts/check_release_media.py",
+        "scripts/check_release_notes.py",
+        "tests/site/pages.live.spec.js",
+        "tests/site/test_release_media.py",
+        "tests/site/test_release_notes.py",
     ];
 
     /// <summary>Folders whose every source file implements a published format and must say which.</summary>
@@ -139,6 +156,18 @@ public sealed partial class RepositoryTests
     }
 
     [Fact]
+    public void NoTrackedTextContainsAnEmDash()
+    {
+        // House style: a middle dot or a plain dash, never an em dash, in code, text and UI strings.
+        var offenders = SourceFiles()
+            .Where(Lexicon.IsCheckedText)
+            .Where(path => File.ReadAllText(RepoPaths.Combine(path)).Contains((char)0x2014))
+            .ToList();
+
+        Assert.True(offenders.Count == 0, "Replace the em dash in: " + string.Join(", ", offenders));
+    }
+
+    [Fact]
     public void NoFileHardCodesSomeonesHomeFolder()
     {
         var offenders = SourceFiles()
@@ -178,6 +207,9 @@ public sealed partial class RepositoryTests
         Assert.True(missing.Count == 0, "Add a '// Spec:' line naming the standard and clause to: " + string.Join(", ", missing));
     }
 
+    /// <summary>The projects where native declarations and pointers live: Windows' and the Mac's interop (ADR-0008, ADR-0021).</summary>
+    private static readonly string[] InteropProjects = ["src/Rex.Media.Interop/", "src/Rex.Media.Interop.Mac/"];
+
     [Fact]
     public void UnsafeCodeLivesOnlyInInteropAndListedKernels()
     {
@@ -188,7 +220,7 @@ public sealed partial class RepositoryTests
             .ToHashSet(StringComparer.Ordinal);
         var offenders = RepoPaths.SourceFiles()
             .Where(path => path.StartsWith("src/", StringComparison.Ordinal) && path.EndsWith(".cs", StringComparison.Ordinal))
-            .Where(path => !path.StartsWith("src/Rex.Media.Interop/", StringComparison.Ordinal))
+            .Where(path => !InteropProjects.Any(project => path.StartsWith(project, StringComparison.Ordinal)))
             .Where(path => !allowed.Contains(path))
             .Where(path => UnsafeKeyword().IsMatch(File.ReadAllText(RepoPaths.Combine(path))))
             .ToList();
@@ -201,7 +233,7 @@ public sealed partial class RepositoryTests
     {
         var offenders = RepoPaths.SourceFiles()
             .Where(path => path.StartsWith("src/", StringComparison.Ordinal) && path.EndsWith(".cs", StringComparison.Ordinal))
-            .Where(path => !path.StartsWith("src/Rex.Media.Interop/", StringComparison.Ordinal))
+            .Where(path => !InteropProjects.Any(project => path.StartsWith(project, StringComparison.Ordinal)))
             .Where(path => NativeImport().IsMatch(File.ReadAllText(RepoPaths.Combine(path))))
             .ToList();
 
@@ -243,6 +275,18 @@ public sealed partial class RepositoryTests
     }
 
     [Fact]
+    public void TheChangelogsOpeningWordsStayAboveEveryVersion()
+    {
+        // A version's section is its release notes and its "What's new": the changelog's own
+        // opening words, once pushed down by a new section, were showing in 0.18.0's.
+        var lines = File.ReadAllLines(RepoPaths.Combine("CHANGELOG.md"));
+        var opening = Array.FindIndex(lines, line => line.StartsWith("Every version of rexplayer", StringComparison.Ordinal));
+        var firstVersion = Array.FindIndex(lines, line => line.StartsWith("## ", StringComparison.Ordinal));
+
+        Assert.InRange(opening, 1, firstVersion);
+    }
+
+    [Fact]
     public void ContinuousDeliveryNeverRewritesARelease()
     {
         foreach (var workflow in new[] { ".github/workflows/ci.yml", ".github/workflows/release.yml" })
@@ -264,8 +308,16 @@ public sealed partial class RepositoryTests
             .Select(element => (string)element.Attribute("Include")!)
             .Order(StringComparer.Ordinal);
 
-        // ADR-0019 adds Windows ML, the part of the Windows App SDK that runs downloaded model weights.
-        Assert.Equal(["Microsoft.Windows.CsWin32", "Microsoft.WindowsAppSDK", "Microsoft.WindowsAppSDK.ML"], product);
+        // ADR-0019 adds Windows ML, the part of the Windows App SDK that runs downloaded model weights;
+        // ADR-0020 adds Whisper.net, which runs downloaded speech models.
+        Assert.Equal(["Microsoft.Windows.CsWin32", "Microsoft.WindowsAppSDK", "Microsoft.WindowsAppSDK.ML", "Whisper.net", "Whisper.net.Runtime"], product);
+
+        // Whisper.net is referenced by the speech adapter alone.
+        var whisperUsers = RepoPaths.SourceFiles()
+            .Where(path => path.StartsWith("src/", StringComparison.Ordinal) && path.EndsWith(".csproj", StringComparison.Ordinal))
+            .Where(path => XDocument.Load(RepoPaths.Combine(path)).Descendants("PackageReference").Any(reference => ((string?)reference.Attribute("Include"))?.StartsWith("Whisper.net", StringComparison.Ordinal) == true))
+            .ToList();
+        Assert.Equal(["src/Rex.Media.Speech/Rex.Media.Speech.csproj"], whisperUsers);
 
         // Windows ML is referenced by the vision adapter alone; the app reaches it through the SDK.
         var mlUsers = RepoPaths.SourceFiles()

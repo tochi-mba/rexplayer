@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import contextlib
 import io
+import struct
 import sys
+import zlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -56,6 +58,39 @@ class CheckSiteTests(unittest.TestCase):
     def test_a_missing_index_is_the_only_problem_worth_naming(self) -> None:
         empty = Path(tempfile.mkdtemp())
         self.assertEqual([f"{empty / 'index.html'} is missing; there is no site to publish."], check_site.check(empty, "Thing"))
+
+    def test_walkthrough_assets_are_checked_even_though_javascript_changes_the_image(self) -> None:
+        html = GOOD.replace(
+            '<a href="./">home</a>',
+            '<button data-tour-step="1" data-tour-src="mark.svg" '
+            'data-tour-alt="Sample screenshot">Preview</button><a href="./">home</a>',
+        )
+        self.assertEqual([], self.index_problems(html))
+        self.assertIn(
+            "index.html: asset 'missing.png' is referenced but missing.",
+            self.index_problems(html.replace('data-tour-src="mark.svg"', 'data-tour-src="missing.png"')),
+        )
+        self.assertIn(
+            "index.html: walkthrough image 'mark.svg' has no descriptive data-tour-alt.",
+            self.index_problems(html.replace('data-tour-alt="Sample screenshot"', 'data-tour-alt=" "')),
+        )
+        self.assertIn(
+            "index.html: walkthrough image '' must use an existing local asset.",
+            self.index_problems(html.replace('data-tour-src="mark.svg"', 'data-tour-src=""')),
+        )
+        self.assertIn(
+            "index.html: walkthrough image 'https://example.com/remote.png' must use an existing local asset.",
+            self.index_problems(html.replace('data-tour-src="mark.svg"', 'data-tour-src="https://example.com/remote.png"')),
+        )
+        for source in (
+            "../scripts/check_site.py", "/rexplayer/mark.svg", "mark.svg?version=1",
+            "assets/%2e%2E/secret.png", "assets/%2fescape.png",
+            "%68ttps%3a//example.com/remote.png", "assets/mark.svg%0A",
+        ):
+            self.assertIn(
+                f"index.html: walkthrough image '{source}' must use an existing local asset.",
+                self.index_problems(html.replace('data-tour-src="mark.svg"', f'data-tour-src="{source}"')),
+            )
 
     def test_each_kind_of_problem_is_named(self) -> None:
         cases = {
@@ -121,6 +156,38 @@ class CheckSiteTests(unittest.TestCase):
         with contextlib.redirect_stdout(output):
             self.assertEqual(1, check_site.main([str(self.site(nojekyll=False)), "Thing"]))
         self.assertIn("1 problem(s) with the site:", output.getvalue())
+
+    @staticmethod
+    def png(width: int, height: int) -> bytes:
+        def chunk(kind: bytes, data: bytes) -> bytes:
+            return (struct.pack(">I", len(data)) + kind + data +
+                    struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff))
+
+        header = struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)
+        rows = (b"\x00" + b"\x00" * (width * 4)) * height
+        return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) +
+                chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b""))
+
+    def test_gallery_pngs_require_real_readable_images(self) -> None:
+        site = self.site()
+        assets = site / "assets"
+        assets.mkdir()
+        shot = assets / "windows-view.png"
+        good = self.png(640, 360)
+        shot.write_bytes(good)
+        self.assertEqual([], check_site.check(site, "Thing"))
+
+        shot.write_bytes(good[:-10])
+        self.assertIn("windows-view.png: incomplete PNG: missing IEND chunk.", check_site.check(site, "Thing"))
+        altered = bytearray(good)
+        altered[20] ^= 0x01
+        shot.write_bytes(altered)
+        self.assertIn("windows-view.png: PNG chunk checksum mismatch.", check_site.check(site, "Thing"))
+        shot.write_bytes(self.png(1, 1))
+        self.assertIn("windows-view.png: screenshot 1×1 is too small for a readable preview.",
+                      check_site.check(site, "Thing"))
+        shot.write_bytes(b"not an image")
+        self.assertIn("windows-view.png: not a PNG image.", check_site.check(site, "Thing"))
 
     def test_main_defaults_to_the_shipped_site(self) -> None:
         with contextlib.redirect_stdout(io.StringIO()):

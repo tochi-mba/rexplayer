@@ -16,7 +16,7 @@ public static class MediaFiles
     public static IReadOnlyList<string> Audio { get; } =
     [
         ".mp3", ".flac", ".m4a", ".aac", ".adts", ".wav", ".ogg", ".oga", ".opus", ".wma", ".aif", ".aiff", ".aifc",
-        ".caf", ".ac3", ".eac3", ".dts", ".mka", ".mp2", ".rf64", ".w64",
+        ".caf", ".au", ".snd", ".ac3", ".eac3", ".dts", ".mka", ".mp2", ".rf64", ".w64",
     ];
 
     /// <summary>Pictures (FMT-C19): shown for a while each, so a folder of them plays as a slideshow.</summary>
@@ -30,16 +30,64 @@ public static class MediaFiles
     /// <summary>Whether a file with this name is one the player offers to play.</summary>
     public static bool IsMedia(string path) => Known.Contains(Path.GetExtension(path));
 
+    /// <summary>Filters pasted paths to media files and folders, returning how many items were skipped.</summary>
+    public static (IReadOnlyList<string> Supported, int Skipped) FilterClipboardPaths(IEnumerable<string> paths, Func<string, bool> isDirectory)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        ArgumentNullException.ThrowIfNull(isDirectory);
+        var supported = new List<string>();
+        var skipped = 0;
+        foreach (var path in paths)
+        {
+            if (!string.IsNullOrWhiteSpace(path) && IsLocalClipboardPath(path) && (IsMedia(path) || isDirectory(path)))
+            {
+                supported.Add(path);
+            }
+            else
+            {
+                skipped++;
+            }
+        }
+
+        return (supported, skipped);
+    }
+
+    /// <summary>Splits pasted text into paths and filters unsupported items, ignoring blank lines.</summary>
+    public static (IReadOnlyList<string> Supported, int Skipped) FilterClipboardText(string text, Func<string, bool> isDirectory)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(isDirectory);
+
+        var paths = text.Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(path => path.Trim('"', '\'').Trim())
+            .Where(path => path.Length > 0)
+            .ToArray();
+        return FilterClipboardPaths(paths, isDirectory);
+    }
+
+    private static bool IsLocalClipboardPath(string path)
+    {
+        if (!Uri.TryCreate(path, UriKind.Absolute, out var uri) || uri.IsFile)
+        {
+            return true;
+        }
+
+        return uri.Scheme.Length == 1 && path.Length > 2 && path[1] == ':' && path[2] is '\\' or '/';
+    }
+
     private static readonly HashSet<string> PictureSet = new(Pictures, StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> VideoSet = new(Video, StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> AudioSet = new(Audio, StringComparer.OrdinalIgnoreCase);
 
-    public static bool IsPicture(string path) => PictureSet.Contains(Path.GetExtension(path));
+    private static readonly HashSet<string>.AlternateLookup<ReadOnlySpan<char>> PictureLookup = PictureSet.GetAlternateLookup<ReadOnlySpan<char>>();
 
-    /// <summary>What the library files a file as, by its name; null for a file that is not media.</summary>
+    /// <summary>Whether a file with this name is a picture; asked as often as the position moves, so it allocates nothing.</summary>
+    public static bool IsPicture(string path) => PictureLookup.Contains(Path.GetExtension(path.AsSpan()));
+
+    /// <summary>What the library files a file as, by its name ("film.mp4.part" as the video it will be); null for a file that is not media.</summary>
     public static Rex.Media.Library.LibraryKind? LibraryKindOf(string path)
     {
-        var extension = Path.GetExtension(path);
+        var extension = Path.GetExtension(Rex.Media.Library.Downloads.WholeNameOf(path) ?? path);
         return VideoSet.Contains(extension) ? Rex.Media.Library.LibraryKind.Video
             : AudioSet.Contains(extension) ? Rex.Media.Library.LibraryKind.Music
             : PictureSet.Contains(extension) ? Rex.Media.Library.LibraryKind.Picture

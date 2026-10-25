@@ -22,6 +22,12 @@ public sealed record TrackFailedEvent(int TrackId, string Reason) : SessionEvent
 /// <summary>The session cannot continue.</summary>
 public sealed record ErrorEvent(string Message) : SessionEvent;
 
+/// <summary>
+/// The media is damaged and plays as far as it can be read. <paramref name="Skipped"/> is how long a
+/// stretch that could not be read was passed over; zero when the damage was first found.
+/// </summary>
+public sealed record MediaDamagedEvent(MediaTime Skipped) : SessionEvent;
+
 /// <summary>A queued item could not be played and was passed over; playback continues with the next.</summary>
 public sealed record ItemSkippedEvent(string Name, string Reason) : SessionEvent;
 
@@ -70,6 +76,9 @@ public sealed record SessionStats
 
     /// <summary>Where pictures are decoded: rexplayer's own code, Windows in software, or the graphics card.</summary>
     public DecoderSource? VideoDecoderSource { get; init; }
+
+    /// <summary>How steadily the newest pictures were presented: the spread of their intervals and lateness.</summary>
+    public FrameCadenceStats Cadence { get; init; }
 }
 
 /// <summary>
@@ -189,7 +198,18 @@ public sealed class EventPump : IDisposable
 
             foreach (var sessionEvent in batch)
             {
-                _listener(sessionEvent);
+                // A window that has closed or a failing subscriber may reject an event. The
+                // dispatch thread must stay alive to deliver the next state or failure.
+                try
+                {
+                    _listener(sessionEvent);
+                }
+#pragma warning disable CA1031 // Final boundary to code outside the event pump.
+                catch (Exception)
+#pragma warning restore CA1031
+                {
+                    // Drop this notification, never the remaining events.
+                }
             }
 
             batch.Clear();

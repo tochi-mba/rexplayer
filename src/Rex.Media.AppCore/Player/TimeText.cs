@@ -20,6 +20,34 @@ public static class TimeText
     }
 
     /// <summary>
+    /// Timeline coordinates that never become negative, infinite, or extend past
+    /// the known duration. Unknown durations retain a disabled/placeholder rail
+    /// and no invented remaining time.
+    /// </summary>
+    public static (TimeSpan Elapsed, TimeSpan? Remaining, double SliderValue, double SliderMaximum) Timeline(
+        TimeSpan position, TimeSpan duration)
+    {
+        var elapsed = position < TimeSpan.Zero ? TimeSpan.Zero : position;
+        if (duration <= TimeSpan.Zero)
+        {
+            return (elapsed, null, 0, 1);
+        }
+
+        if (position < TimeSpan.Zero)
+        {
+            // An invalid negative clock position must not invent a remaining time.
+            return (TimeSpan.Zero, TimeSpan.Zero, 0, Math.Max(1, duration.TotalSeconds));
+        }
+
+        if (elapsed > duration)
+        {
+            elapsed = duration;
+        }
+
+        return (elapsed, duration - elapsed, elapsed.TotalSeconds, Math.Max(1, duration.TotalSeconds));
+    }
+
+    /// <summary>
     /// A time typed by the user: "1:02:03", "62:03", "3723" or "12.5" (seconds), with spaces around
     /// the parts allowed; null when it is not a time. Minutes and seconds after a colon stay below 60.
     /// </summary>

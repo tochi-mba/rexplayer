@@ -3,6 +3,7 @@ using Rex.Media.Codecs.Software.Pcm;
 using Rex.Media.Containers;
 using Rex.Media.Containers.Riff;
 using Rex.Media.Engine;
+using Rex.Media.IO;
 using Rex.Media.Primitives;
 using Rex.Media.TestKit;
 
@@ -44,6 +45,114 @@ public sealed class MediaSessionTests
     }
 
     [Fact]
+    public async Task PlaybackResumesWhenTheLocalWavFileGrows()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"rexplayer-growing-{Guid.NewGuid():N}.wav");
+        var wav = Pcm.RampWav(8000, 80_000);
+        const int initialLength = 44 + 4000;
+        await File.WriteAllBytesAsync(path, wav[..initialLength], Token);
+
+        try
+        {
+            using var source = new FileByteSource(path);
+            using var harness = new SessionHarness(growingFileStallTimeout: TimeSpan.FromSeconds(5));
+
+            await harness.Session.OpenAsync(source);
+            harness.WaitForState(SessionState.Buffering);
+
+            await using (var writer = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+            {
+                await writer.WriteAsync(wav.AsMemory(initialLength), Token);
+            }
+
+            await harness.FinishAsync();
+
+            Assert.Equal(80_000, harness.Recording.Channel(0).Length);
+            Assert.Contains(SessionState.Buffering, harness.States);
+            Assert.Equal(SessionState.Ended, harness.Session.State);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Theory]
+    [InlineData(ByteSourceChange.Truncated)]
+    [InlineData(ByteSourceChange.Replaced)]
+    [InlineData(ByteSourceChange.Grew)]
+    public async Task AChangedGrowingSourceFollowsItsWaitPolicy(ByteSourceChange firstChange)
+    {
+        using var source = new ScriptedGrowingSource(Pcm.RampWav(8000, 80_000)[..(44 + 4000)], firstChange, ByteSourceChange.TimedOut);
+        using var harness = new SessionHarness(growingFileStallTimeout: TimeSpan.FromSeconds(5));
+
+        await harness.Session.OpenAsync(source);
+        harness.WaitForState(SessionState.Buffering);
+        await harness.FinishAsync();
+
+        Assert.Equal(SessionState.Ended, harness.Session.State);
+        Assert.Contains(SessionState.Buffering, harness.States);
+        Assert.Equal(1, source.Waits);
+    }
+
+    [Fact]
+    public async Task AStalledGrowingSourceKeepsRetryingUntilStopped()
+    {
+        using var source = new ScriptedGrowingSource(Pcm.RampWav(8000, 80_000)[..(44 + 4000)], ByteSourceChange.TimedOut, ByteSourceChange.TimedOut);
+        using var harness = new SessionHarness(growingFileStallTimeout: TimeSpan.Zero);
+
+        await harness.Session.OpenAsync(source);
+        harness.WaitForState(SessionState.Buffering);
+        await harness.Session.StopAsync();
+
+        Assert.Equal(SessionState.Idle, harness.Session.State);
+        Assert.Contains(SessionState.Buffering, harness.States);
+        Assert.True(source.Waits >= 2);
+    }
+
+    [Fact]
+    public async Task ReplacingBufferedPlaybackIgnoresItsLateBufferingCallback()
+    {
+        using var waitEntered = new ManualResetEventSlim();
+        using var source = new ScriptedGrowingSource(
+            Pcm.RampWav(8000, 80_000)[..(44 + 4000)],
+            waitEntered);
+        using var harness = new SessionHarness(autoPlay: false, growingFileStallTimeout: TimeSpan.FromSeconds(5));
+
+        await harness.Session.OpenAsync(source);
+        Assert.True(waitEntered.Wait(TimeSpan.FromSeconds(5), Token));
+
+        // Capture the old playback explicitly: cancellation can race with its last buffering callback.
+        var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+        var oldPlayback = typeof(MediaSession).GetField("_playback", flags)!.GetValue(harness.Session);
+        Assert.NotNull(oldPlayback);
+
+        await harness.Session.OpenAsync(SessionHarness.Source(Ramp));
+        // Replay the callback after replacement to exercise the stale-playback guard reliably.
+        typeof(MediaSession).GetMethod("OnBuffering", flags)!.Invoke(harness.Session, [oldPlayback, false]);
+        await harness.Session.GetStatsAsync();
+
+        Assert.Equal(SessionState.Ready, harness.Session.State);
+    }
+
+    [Fact]
+    public async Task ASeekCancelsTheGrowingFileWait()
+    {
+        using var source = new ScriptedGrowingSource(Pcm.RampWav(8000, 80_000)[..(44 + 4000)], cancelFirstWait: true);
+        using var harness = new SessionHarness(growingFileStallTimeout: TimeSpan.FromSeconds(5));
+
+        await harness.Session.OpenAsync(source);
+        harness.WaitForState(SessionState.Buffering);
+        await harness.Session.SeekAsync(MediaTime.FromSeconds(5));
+        SpinWait.SpinUntil(() => source.Waits >= 2, TimeSpan.FromSeconds(5));
+        await harness.Session.StopAsync();
+
+        Assert.Equal(SessionState.Idle, harness.Session.State);
+        Assert.Contains(SessionState.Seeking, harness.States);
+        Assert.True(source.Waits >= 2);
+    }
+
+    [Fact]
     [Capability("PB-03")]
     public async Task APreciseSeekLandsOnTheExactSample()
     {
@@ -62,6 +171,31 @@ public sealed class MediaSessionTests
         Assert.Equal(8000 - 4321, samples.Length);
         Assert.Equal(RampValue(4321), samples[0]);
         Assert.Equal(RampValue(7999), samples[^1]);
+    }
+
+    [Fact]
+    public async Task ASeekIsNotPublishedBeforeThePreviousGenerationIsCancelled()
+    {
+        using var harness = new SessionHarness(autoPlay: false);
+        await harness.Session.OpenAsync(SessionHarness.Source(Ramp));
+        var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+        var playback = typeof(MediaSession).GetField("_playback", flags)!.GetValue(harness.Session)!;
+        var type = playback.GetType();
+        var cancellation = (CancellationTokenSource)type.GetField("_generationCancel", flags)!.GetValue(playback)!;
+        object? published = null;
+        var cancelled = false;
+        using var registration = cancellation.Token.Register(() =>
+        {
+            cancelled = true;
+            published = type.GetField("_pendingSeek", flags)!.GetValue(playback);
+        });
+
+        await harness.Session.SeekAsync(MediaTime.FromSamples(4321, 8000));
+
+        Assert.True(cancelled);
+        Assert.Null(published);
+        Assert.Equal(MediaTime.FromSamples(4321, 8000), harness.WaitFor<SeekCompletedEvent>().Position);
+        harness.WaitForState(SessionState.Paused);
     }
 
     [Fact]
@@ -438,6 +572,68 @@ public sealed class MediaSessionTests
             public void Dispose()
             {
             }
+
+        }
+    }
+
+    private sealed class ScriptedGrowingSource(byte[] data, params ByteSourceChange[] changes) : IGrowingByteSource
+    {
+        private readonly Queue<ByteSourceChange> _changes = new(changes);
+        private readonly bool _cancelFirstWait;
+        private ManualResetEventSlim? _waitEntered;
+        private int _waits;
+
+        public int Waits => Volatile.Read(ref _waits);
+
+        public ScriptedGrowingSource(byte[] data, bool cancelFirstWait) : this(data) => _cancelFirstWait = cancelFirstWait;
+
+        public ScriptedGrowingSource(byte[] data, ManualResetEventSlim waitEntered) : this(data, ByteSourceChange.Grew)
+        {
+            _waitEntered = waitEntered;
+        }
+
+        public string Name => "growing.wav";
+
+        public long? Length => data.Length;
+
+        public bool CanSeek => true;
+
+        public ByteSourceExtent Extent => new(data.Length, 0);
+
+        public int Read(long position, Span<byte> destination, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (position >= data.Length)
+            {
+                return 0;
+            }
+
+            var count = Math.Min(destination.Length, data.Length - (int)position);
+            data.AsSpan((int)position, count).CopyTo(destination);
+            return count;
+        }
+
+        public ByteSourceChange WaitForChange(ByteSourceExtent observed, TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _waits);
+            if (_waitEntered is not null)
+            {
+                _waitEntered.Set();
+                cancellationToken.WaitHandle.WaitOne();
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            if (_cancelFirstWait && _waits == 1)
+            {
+                cancellationToken.WaitHandle.WaitOne();
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            return _changes.TryDequeue(out var change) ? change : ByteSourceChange.TimedOut;
+        }
+
+        public void Dispose()
+        {
         }
     }
 

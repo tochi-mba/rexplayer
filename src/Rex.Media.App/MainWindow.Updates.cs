@@ -1,5 +1,4 @@
 using Microsoft.UI.Xaml.Controls;
-using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Engine;
 using Rex.Media.Video;
@@ -8,7 +7,7 @@ namespace Rex.Media.App;
 
 public sealed partial class MainWindow
 {
-    private static readonly string ResumePath = Path.Combine(App.DataRoot, "resume.json");
+    private static readonly string ResumePath = App.Roots.ResumePath;
     private bool _installingUpdate;
     private UpdateWindowState? _pendingUpdateWindowState;
     private PlaylistItem? _pendingUpdateItem;
@@ -98,24 +97,9 @@ public sealed partial class MainWindow
         PlaylistPane.Visibility = saved.PlaylistVisible
             ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
         PlaylistButton.IsChecked = saved.PlaylistVisible;
-        if (Enum.TryParse<LibrarySource>(saved.LibrarySource, out var source) && Enum.IsDefined(source))
+        if (saved.LibrarySource is { Length: > 0 })
         {
-            var index = Array.FindIndex(LibrarySourceItems, item => item.Source == source);
-            if (index >= 0)
-            {
-                LibrarySources.SelectedIndex = index;
-                _librarySource = source;
-                if (saved.GroupName is { Length: > 0 } && _library is { } library)
-                {
-                    _libraryGroup = Groups(source, library.Entries).FirstOrDefault(group =>
-                        group.Name == saved.GroupName && group.Detail == saved.GroupDetail);
-                    if (_libraryGroup is not null && saved.SeasonName is { Length: > 0 })
-                    {
-                        _librarySeason = LibraryViews.TvSeasons(_libraryGroup)
-                            .FirstOrDefault(season => season.Name == saved.SeasonName);
-                    }
-                }
-            }
+            ApplyLibraryRoute(new Rex.Media.Settings.LibraryRoute(saved.LibrarySource, saved.GroupName, saved.GroupDetail, saved.SeasonName));
         }
 
         if (saved.Search.Length > 0)
@@ -215,7 +199,52 @@ public sealed partial class MainWindow
             TryClearResumeMarker();
         }
 
-        ShowUpdateNews(news.News);
+        ShowUpdateNews();
         StartUpdates();
+    }
+
+    /// <summary>
+    /// Tells the user how the update the last run handed over went: a failure in error styling with
+    /// its reason and Retry, a cancel plainly, a success as the small "Updated to" note.
+    /// </summary>
+    private void ShowUpdateNews()
+    {
+        if (_updateNotice is not { } notice)
+        {
+            if (_showUpdatedNote && !Notice.IsOpen)
+            {
+                ShowUpdatedNote();
+            }
+
+            return;
+        }
+
+        Button? retry = null;
+        if (Pending is { Stage: Rex.Media.Settings.UpdateStage.Ready })
+        {
+            retry = new Button { Content = "Retry" };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(retry, "UpdateInstallRetryButton");
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(retry, "Retry the update");
+            retry.Click += (_, _) =>
+            {
+                Notice.IsOpen = false;
+                Forget(InstallAsync(unattended: false));
+            };
+        }
+
+        ShowNotice(notice.Title, notice.Message, retry, notice.Failure ? InfoBarSeverity.Error : InfoBarSeverity.Informational);
+    }
+
+    /// <summary>The small note the first start of a new version shows: "Updated to X", with What's new.</summary>
+    private void ShowUpdatedNote()
+    {
+        var whatsNew = new Button { Content = "What's new" };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(whatsNew, "UpdatedWhatsNewButton");
+        whatsNew.Click += (_, _) =>
+        {
+            Notice.IsOpen = false;
+            Forget(ShowWhatsNewAsync());
+        };
+        ShowNotice($"Updated to rexplayer {Version}", "Everything you had open is as you left it.", whatsNew, InfoBarSeverity.Success);
     }
 }

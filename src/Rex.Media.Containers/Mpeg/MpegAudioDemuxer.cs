@@ -177,6 +177,9 @@ public sealed class MpegAudioDemuxer : IDemuxer
             IsSeekable = source.CanSeek,
             Metadata = metadata,
             Chapters = chapters,
+            // The Xing or VBRI tag counts the stream's bytes. Encoders differ on whether the leading
+            // tag is included, so only the count itself is taken: a file shorter is surely cut short.
+            DeclaredLength = tagFrame?.Bytes is > 0 and var streamBytes ? streamBytes : null,
             CoverArt = PictureBlock.Cover(pictures)?.Data,
         };
     }
@@ -281,11 +284,27 @@ public sealed class MpegAudioDemuxer : IDemuxer
             }
 
             _window.Consume(next + 1);
-            if (MpegAudioHeader.TryParse(_window.Span, out var header) && header.SameStreamAs(_first))
+            if (MpegAudioHeader.TryParse(_window.Span, out var header) && header.SameStreamAs(_first) && Confirmed(header))
             {
                 return;
             }
         }
+    }
+
+    /// <summary>
+    /// Whether a header found after lost sync is followed by another of the stream where its frame
+    /// ends (or by the end of the data). Damaged audio is full of bytes that look like one header,
+    /// and playing from one of those would be a burst of noise.
+    /// </summary>
+    private bool Confirmed(MpegAudioHeader header)
+    {
+        var length = FrameLength(header);
+        if (_window.Position + length + MpegAudioHeader.Size > _dataEnd || !_window.Ensure(length + MpegAudioHeader.Size))
+        {
+            return true;
+        }
+
+        return MpegAudioHeader.TryParse(_window.Span[length..], out var next) && next.SameStreamAs(_first);
     }
 
     private (long Offset, MpegAudioHeader Header)? FindFirstFrame(long start)

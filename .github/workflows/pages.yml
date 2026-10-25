@@ -8,6 +8,13 @@ on:
       - "site/**"
       - ".github/workflows/pages.yml"
       - "scripts/check_site.py"
+      - "scripts/check_release_notes.py"
+      - "scripts/check_release_media.py"
+      - "CHANGELOG.md"
+      - "Directory.Build.props"
+      - "README.md"
+      - "tests/site/pages.live.spec.js"
+      - "playwright.live.config.js"
   workflow_dispatch:
 
 permissions:
@@ -22,14 +29,25 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Check the site
-        run: python3 scripts/check_site.py
+      - name: Check the site and source release version
+        run: |
+          python3 scripts/check_site.py
+          python3 scripts/check_release_notes.py
+          python3 scripts/check_release_media.py
+
+      # The deployed CDN must be provably serving these exact committed files,
+      # not a stale prior push with the same screenshot filenames.
+      - name: Stamp the deployed commit
+        shell: bash
+        run: printf '{"commit":"%s"}\n' "$GITHUB_SHA" > site/deployment.json
 
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
@@ -39,3 +57,38 @@ jobs:
 
       - id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+  verify-live:
+    name: Verify deployed Pages at phone and desktop widths
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Verify live revision, decoded screenshots, mobile layout and keyboard modal
+        env:
+          CI: "true"
+          PAGES_URL: ${{ needs.deploy.outputs.page_url }}
+          EXPECTED_PAGES_SHA: ${{ github.sha }}
+        run: npx playwright test --config playwright.live.config.js
+
+      - name: Keep evidence from the actually deployed site
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: deployed-pages-review
+          path: |
+            artifacts/deployed-pages/
+            playwright-report-live/
+          if-no-files-found: ignore
+          retention-days: 30

@@ -39,13 +39,13 @@ public sealed class SectionDetectionControllerTests
             new PlayerMemory(store).SetProposals(fileA,
                 new SectionProposals(SectionAnalysis.SignatureOf(fileA), []));
             var analyzed = 0;
-            var cacheFolder = Path.Combine(folder, "analysis-cache");
+            var cache = new SectionAnalysisCache();
             using (var harness = new ControllerHarness(autoPlay: false, pictures: true, store: store))
             {
+                harness.Controller.SectionCache = cache;
                 harness.Files[fileA] = bytes;
                 harness.Files[fileB] = bytes;
                 var controller = harness.Controller;
-                controller.SectionCache = new SectionAnalysisCache(cacheFolder);
                 controller.SectionAnalyzer = (path, token) =>
                 {
                     token.ThrowIfCancellationRequested();
@@ -66,13 +66,12 @@ public sealed class SectionDetectionControllerTests
                 harness.PumpUntil(x => x.State == SessionState.Ready && x.Info is not null);
                 harness.PumpUntil(x => x.CurrentProposals is { Candidates.Count: > 0 });
                 Assert.Equal(2, analyzed);
-                Assert.NotNull(new SectionAnalysisCache(cacheFolder).Get(fileB, SectionAnalysis.SignatureOf(fileB)));
+                Assert.NotNull(cache.Get(fileB, SectionAnalysis.SignatureOf(fileB)));
                 Assert.NotNull(controller.CurrentProposals!.Best(EpisodeSectionKind.Intro, TimeSpan.FromMinutes(43)));
             }
 
             using var again = new ControllerHarness(autoPlay: false, pictures: true, store: store);
             again.Files[fileA] = bytes;
-            again.Controller.SectionCache = new SectionAnalysisCache(cacheFolder);
             again.Controller.SectionAnalyzer = (_, _) => throw new InvalidOperationException(
                 "A signature-matched proposal must load without decoding");
             again.Controller.Open([fileA]);
@@ -85,9 +84,83 @@ public sealed class SectionDetectionControllerTests
         }
     }
 
-
     [Fact]
-    public void NamedChaptersMayBeSavedOnceWithoutOverwritingManualAdjustments()
+    public void EmptyDetectionSurvivesRestartButAChangedSiblingInvalidatesIt()
+    {
+        var folder = Directory.CreateTempSubdirectory("rexplayer-section-result-cache-").FullName;
+        try
+        {
+            var first = Path.Combine(folder, "Series.S01E01.mkv");
+            var sibling = Path.Combine(folder, "Series.S01E02.mkv");
+            var third = Path.Combine(folder, "Series.S01E03.mkv");
+            var bytes = MatroskaCraftedTests.Mkv(
+                EbmlWriter.Element(MatroskaId.Info,
+                    EbmlWriter.UInt(MatroskaId.TimestampScale, 1_000_000),
+                    EbmlWriter.Float(MatroskaId.Duration, 10_000)),
+                MatroskaCraftedTests.Tracks(EbmlWriter.Element(MatroskaId.TrackEntry,
+                    EbmlWriter.UInt(MatroskaId.TrackNumber, 2),
+                    EbmlWriter.UInt(MatroskaId.TrackType, 1),
+                    EbmlWriter.Text(MatroskaId.CodecId, "V_MPEG4/ISO/AVC"),
+                    EbmlWriter.Element(MatroskaId.Video,
+                        EbmlWriter.UInt(MatroskaId.PixelWidth, 16),
+                        EbmlWriter.UInt(MatroskaId.PixelHeight, 8)))),
+                MatroskaCraftedTests.Cluster(0, MatroskaCraftedTests.Simple(2, 0, true, 40)));
+            File.WriteAllBytes(first, bytes);
+            File.WriteAllBytes(sibling, bytes);
+            File.WriteAllBytes(third, bytes);
+            var store = RexStore.InMemory();
+            var cache = new SectionAnalysisCache();
+            var analyzed = 0;
+
+            EpisodeAnalysis Analyze(string path, CancellationToken token)
+            {
+                token.ThrowIfCancellationRequested();
+                Interlocked.Increment(ref analyzed);
+                return new EpisodeAnalysis(path, SectionAnalysis.SignatureOf(path),
+                    TimeSpan.FromMinutes(43), [], [], []);
+            }
+
+            void OpenAndWait(int expectedAnalyses)
+            {
+                using var harness = new ControllerHarness(autoPlay: false, pictures: true, store: store);
+                harness.Files[first] = bytes;
+                harness.Controller.SectionCache = cache;
+                harness.Controller.SectionAnalyzer = Analyze;
+                harness.Controller.Open([first]);
+                // The early, one-episode result is also empty, and it is shown before the last
+                // sibling is decoded; disposing then cancels the worker before it keeps anything.
+                // Only the kept result (saved just before the final one is shown) says it is done.
+                harness.PumpUntil(player => player.State == SessionState.Ready &&
+                    player.CurrentProposals is { Candidates.Count: 0 } proposals &&
+                    player.Memory.Proposals(first, proposals.Signature) is not null &&
+                    Volatile.Read(ref analyzed) >= expectedAnalyses);
+            }
+
+            OpenAndWait(3);
+            Assert.Equal(3, analyzed);
+
+            // No result is a durable result: reopening does no decoding.
+            OpenAndWait(3);
+            Assert.Equal(3, analyzed);
+
+            // The result depended on the sibling. Replacing it changes the dependency signature;
+            // the current episode's analysis remains reusable and only the sibling is decoded.
+            using (var changed = new FileStream(sibling, FileMode.Append))
+            {
+                changed.WriteByte(0);
+            }
+            OpenAndWait(4);
+            Assert.Equal(4, analyzed);
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+
+    /// <summary>A ten-second video whose chapters name an opening and end credits.</summary>
+    private static byte[] ChapterVideo()
     {
         static byte[] At(long nanoseconds, string title) => EbmlWriter.Element(
             MatroskaId.ChapterAtom,
@@ -110,10 +183,15 @@ public sealed class SectionDetectionControllerTests
         var info = EbmlWriter.Element(MatroskaId.Info,
             EbmlWriter.UInt(MatroskaId.TimestampScale, 1_000_000),
             EbmlWriter.Float(MatroskaId.Duration, 10_000));
-        var bytes = MatroskaCraftedTests.Mkv(info, MatroskaCraftedTests.Tracks(video),
+        return MatroskaCraftedTests.Mkv(info, MatroskaCraftedTests.Tracks(video),
             chapters, MatroskaCraftedTests.Cluster(0, MatroskaCraftedTests.Simple(2, 0, true, 8)));
+    }
+
+    [Fact]
+    public void NamedChaptersMayBeSavedOnceWithoutOverwritingManualAdjustments()
+    {
         using var test = new ControllerHarness(autoPlay: false, pictures: true);
-        test.Files["chapter-video.mkv"] = bytes;
+        test.Files["chapter-video.mkv"] = ChapterVideo();
         var player = test.Controller;
         player.Open(["chapter-video.mkv"]);
         test.PumpUntil(p => p.State == SessionState.Ready && p.Info is not null);
@@ -130,6 +208,42 @@ public sealed class SectionDetectionControllerTests
         Assert.Throws<ArgumentOutOfRangeException>(() => player.SetSectionBounds(
             (EpisodeSectionKind)77, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(4)));
         Assert.False(player.RejectDetectedSection(EpisodeSectionKind.Intro));
+    }
+
+    [Fact]
+    public void EditedSectionTimesAreSavedOnlyOntoTheEpisodeTheEditorOpenedFor()
+    {
+        using var test = new ControllerHarness(autoPlay: false, pictures: true);
+        test.Files["first-video.mkv"] = ChapterVideo();
+        test.Files["second-video.mkv"] = ChapterVideo();
+        var player = test.Controller;
+        player.Open(["first-video.mkv"]);
+        test.PumpUntil(p => p.State == SessionState.Ready && p.Info is not null);
+        var first = player.Item!;
+
+        // An empty box reads as NaN; a typed or pasted value can be infinite or far outside the
+        // video. None may reach TimeSpan.FromSeconds, which throws for them.
+        Assert.False(player.SetSectionBounds(EpisodeSectionKind.Intro, double.NaN, 4, first));
+        Assert.False(player.SetSectionBounds(EpisodeSectionKind.Intro, 0, double.NaN, first));
+        Assert.False(player.SetSectionBounds(EpisodeSectionKind.Intro, double.NegativeInfinity, 4, first));
+        Assert.False(player.SetSectionBounds(EpisodeSectionKind.Intro, 0, double.PositiveInfinity, first));
+        Assert.False(player.SetSectionBounds(EpisodeSectionKind.Intro, 0, 1e300, first));
+        Assert.False(player.SetSectionBounds(EpisodeSectionKind.Intro, -1e300, 4, first));
+        Assert.False(player.SetSectionBounds(EpisodeSectionKind.Intro, 0, 10.5, first));
+        Assert.Equal(new EpisodeSections(), player.CurrentSections);
+        Assert.True(player.SetSectionBounds(EpisodeSectionKind.Intro, 0.5, 10, first));
+        Assert.Equal(TimeSpan.FromSeconds(10), player.CurrentSections.IntroEnd);
+
+        // The next episode opened while the editor (or the chapter review) was still showing the
+        // first: saving must not land on the second one.
+        player.Open(["second-video.mkv"]);
+        test.PumpUntil(p => p.State == SessionState.Ready && p.Info is not null && p.Item != first);
+        Assert.False(player.SetSectionBounds(EpisodeSectionKind.Credits, 6, 9, first));
+        Assert.False(player.ApplyChapterSectionSuggestions(first));
+        Assert.Equal(new EpisodeSections(), player.CurrentSections);
+        Assert.True(player.ApplyChapterSectionSuggestions(player.Item));
+        Assert.True(player.SetSectionBounds(EpisodeSectionKind.Credits, 6, 9, player.Item!));
+        Assert.Equal(TimeSpan.FromSeconds(9), player.CurrentSections.CreditsEnd);
     }
 
     [Fact]
@@ -162,25 +276,22 @@ public sealed class SectionDetectionControllerTests
         player.Open(["scene.mkv"]);
         test.PumpUntil(p => p.State == SessionState.Ready);
         player.Seek(TimeSpan.FromSeconds(1));
-        // Playback position notifications are intentionally not produced by a paused
-        // session. Drive the position policy directly, without racing the renderer.
-        var maybeSkip = typeof(PlayerController).GetMethod("MaybeSkipAutomatically",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
-        maybeSkip.Invoke(player, null);
+        // A paused session reports no positions; the position policy is driven directly.
+        player.MaybeSkipAutomatically();
         // An automatic skip counts down first, never past a second before the section ends.
         Assert.Equal(TimeSpan.FromSeconds(1), player.Position);
         Assert.Equal(1, player.SkipPrompt!.AutomaticInSeconds);
         player.Seek(TimeSpan.FromSeconds(2.5));
-        maybeSkip.Invoke(player, null);
+        player.MaybeSkipAutomatically();
         Assert.Equal(TimeSpan.FromSeconds(3), player.Position);
         Assert.False(player.Settings.SkipCreditsAutomatically);
         player.Seek(TimeSpan.FromSeconds(7));
-        maybeSkip.Invoke(player, null);
+        player.MaybeSkipAutomatically();
         Assert.Equal(TimeSpan.FromSeconds(7), player.Position);
     }
 
 
-    private static byte[] TestVideo()
+    internal static byte[] TestVideo()
     {
         var video = EbmlWriter.Element(MatroskaId.TrackEntry,
             EbmlWriter.UInt(MatroskaId.TrackNumber, 2),
@@ -220,7 +331,7 @@ public sealed class SectionDetectionControllerTests
             test.Controller.SectionAnalyzer = (_, _) => throw new IOException("Decoder unavailable");
             test.Controller.Open([path]);
             test.PumpUntil(x => x.State == SessionState.Ready);
-            Assert.True(reported.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+            Assert.True(reported.Wait(ControllerHarness.Patience, TestContext.Current.CancellationToken));
             Assert.Null(test.Controller.CurrentProposals);
             Assert.Equal(SessionState.Ready, test.Controller.State);
         }
@@ -267,10 +378,10 @@ public sealed class SectionDetectionControllerTests
             };
             test.Controller.Open([first]);
             test.PumpUntil(x => x.State == SessionState.Ready);
-            Assert.True(started.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+            Assert.True(started.Wait(ControllerHarness.Patience, TestContext.Current.CancellationToken));
             test.Controller.Open([second]);
             test.PumpUntil(x => x.State == SessionState.Ready && x.Item?.Location == second);
-            Assert.True(canceled.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+            Assert.True(canceled.Wait(ControllerHarness.Patience, TestContext.Current.CancellationToken));
             test.PumpUntil(x => x.CurrentProposals is not null);
             Assert.Equal(second, test.Controller.Item?.Location);
             Assert.Empty(test.Controller.CurrentProposals!.Candidates);
@@ -301,7 +412,7 @@ public sealed class SectionDetectionControllerTests
             };
             test.Controller.Open([path]);
             test.PumpUntil(x => x.State == SessionState.Ready);
-            Assert.True(invoked.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+            Assert.True(invoked.Wait(ControllerHarness.Patience, TestContext.Current.CancellationToken));
             Assert.False(SpinWait.SpinUntil(() => test.Controller.Memory.Proposals(
                 path, SectionAnalysis.SignatureOf(path)) is not null,
                 TimeSpan.FromMilliseconds(50)));
@@ -338,7 +449,7 @@ public sealed class SectionDetectionControllerTests
 
             var store = RexStore.InMemory();
             var memory = new PlayerMemory(store);
-            var signature = SectionAnalysis.SignatureOf(path);
+            var signature = PlayerController.DetectionSignature(path, []);
             var proposal = new SectionProposals(signature, [
                 new SectionCandidate(EpisodeSectionKind.Intro, TimeSpan.Zero,
                     TimeSpan.FromSeconds(4), 0.96, "A repeated opening", "shared audio"),

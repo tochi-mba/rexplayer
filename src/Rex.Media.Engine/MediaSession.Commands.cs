@@ -18,6 +18,7 @@ public sealed partial class MediaSession
 
         Volatile.Write(ref _finished, NewCompletion());
         _failureReason = null;
+        Reach("open");
         MoveTo(SessionState.Opening);
         MediaItem? item = null;
         IAudioSink? sink = null;
@@ -26,9 +27,11 @@ public sealed partial class MediaSession
         {
             item = OpenItem(source, () => presenter ??= _options.VideoPresenterFactory!());
             _events.Post(new MediaOpenedEvent(item.Info));
+            Reach("opened");
             sink = _options.AudioSinkFactory();
             var audio = item.AudioTrack.Audio!;
             var sinkFormat = sink.Open(new AudioFormat(audio.SampleRate, audio.Channels, SampleFormat.F32, audio.Layout));
+            Reach("audio-device");
             _log.Info(LogSource, $"Audio: {item.AudioTrack.Codec.DisplayName()} via {item.Decoder.Name} into {sink.Name} at {sinkFormat}.");
 
             if (item.VideoDecoder is null)
@@ -65,8 +68,10 @@ public sealed partial class MediaSession
             _playback.Start(play);
             MoveTo(play ? SessionState.Playing : SessionState.Ready);
         }
-        catch (Exception ex) when (ex is MediaFormatException or NotSupportedException or IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (Exception ex)
         {
+            // Whatever stops the media opening (a reader's own fault on hostile bytes too) leaves the
+            // session failed with the reason, never stuck opening.
             presenter?.Dispose();
             sink?.Dispose();
             item?.Dispose();
@@ -124,6 +129,7 @@ public sealed partial class MediaSession
 
         var duration = playback.Info.Duration;
         var clamped = MediaTime.Max(MediaTime.Zero, duration.IsKnown ? MediaTime.Min(target, duration) : target);
+        Reach("seek");
         playback.RequestSeek(clamped, mode);
         MoveTo(SessionState.Seeking);
     }
@@ -152,6 +158,9 @@ public sealed partial class MediaSession
     }
 
     private Playback RequirePlayback() => _playback ?? throw new InvalidOperationException("Nothing is open.");
+
+    /// <summary>Marks a moment of opening or playing in the log's timing lines, when the host asked for them.</summary>
+    private void Reach(string milestone) => _options.Milestones?.Reach(milestone);
 
     /// <summary>Reports from the pipeline threads, applied on the mailbox thread.</summary>
     private void OnSeekCompleted(Playback playback, long generation, MediaTime position)
@@ -190,6 +199,28 @@ public sealed partial class MediaSession
             null));
     }
 
+    private void OnBuffering(Playback playback, bool buffering)
+    {
+        Enqueue(new Command(
+            () =>
+            {
+                if (!ReferenceEquals(playback, _playback))
+                {
+                    return;
+                }
+
+                if (buffering && _state == SessionState.Playing)
+                {
+                    MoveTo(SessionState.Buffering);
+                }
+                else if (!buffering && _state == SessionState.Buffering)
+                {
+                    MoveTo(playback.IsPaused ? SessionState.Paused : SessionState.Playing);
+                }
+            },
+            null));
+    }
+
     private void OnFailed(Playback playback, string message)
     {
         Enqueue(new Command(
@@ -204,6 +235,15 @@ public sealed partial class MediaSession
     }
 
     private void OnTrackFailed(int trackId, string reason) => _events.Post(new TrackFailedEvent(trackId, reason));
+
+    /// <summary>The playing item turned out damaged: <paramref name="skipped"/> long was passed over (zero: found, playing on).</summary>
+    private void OnDamaged(Playback playback, MediaTime skipped)
+    {
+        if (ReferenceEquals(playback, _playback))
+        {
+            _events.Post(new MediaDamagedEvent(skipped));
+        }
+    }
 
     private void OnPosition(MediaTime position, MediaTime duration) => _events.Post(new PositionEvent(position, duration));
 }

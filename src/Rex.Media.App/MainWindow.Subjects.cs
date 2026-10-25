@@ -57,10 +57,10 @@ public sealed partial class MainWindow
             PollSubjectOverlay();
         };
         SubjectToolbar.Loaded += (_, _) => SizeSubjectToolbar();
-        _subjectTimer = DispatcherQueue.CreateTimer();
+        _subjectTimer = CreateTimer();
         _subjectTimer.Interval = TimeSpan.FromMilliseconds(200);
         _subjectTimer.IsRepeating = true;
-        _subjectTimer.Tick += (_, _) => PollSubjectOverlay();
+        OnTick(_subjectTimer, PollSubjectOverlay);
         WireRemovalTools();
     }
 
@@ -96,6 +96,7 @@ public sealed partial class MainWindow
         _subjectOpen = true;
         UpdateSubjectPanelHelp();
         ShowRemovalReadouts();
+        ShowRemovalMode();
         SubjectCanvas.Visibility = Visibility.Visible;
         SubjectToolbar.Visibility = Visibility.Visible;
         SizeSubjectToolbar();
@@ -105,6 +106,7 @@ public sealed partial class MainWindow
         SubjectEraseButton.Content = SubjectPanel.EraseText(false);
         SubjectStatusText.Text = SubjectPanel.Instruction(_settings.SubjectSelection, SubjectFollow.IsOn);
         _subjectTimer?.Start();
+        OpenSubjectModels();
         Stage.Focus(FocusState.Programmatic);
     }
 
@@ -377,7 +379,9 @@ public sealed partial class MainWindow
             var x = visible.Left + (float)start.Value.X * (visible.Right - visible.Left);
             var y = visible.Top + (float)start.Value.Y * (visible.Bottom - visible.Top);
             _subjectShowChosen = true;
-            BeginSubjectLock(p => p.SelectSubjectAround(x, y));
+            // A paused picture (or a still image) stays on screen, so an installed model may outline the object.
+            var paused = !_player.IsPlaying || (_player.Item is { } item && Rex.Media.AppCore.Player.MediaFiles.IsPicture(item.Location));
+            BeginSubjectLock(p => p.SelectSubjectAround(x, y, paused));
             SubjectOutline.Visibility = Visibility.Collapsed;
             e.Handled = true;
             return;
@@ -500,8 +504,15 @@ public sealed partial class MainWindow
 
         _subjectPollBusy = true;
         var revision = _subjectRevision;
+        var paused = !_player.IsPlaying;
         OnPresenterThread(p =>
         {
+            // A model's answer for the paused picture is shown as soon as it comes.
+            if (paused)
+            {
+                p.RefreshSubject();
+            }
+
             var snapshot = p.SubjectStatus();
             OnWindowThread(() =>
             {
@@ -518,7 +529,8 @@ public sealed partial class MainWindow
                 SubjectConfidenceText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(
                     (byte)(tint >> 24), (byte)(tint >> 16), (byte)(tint >> 8), (byte)tint));
                 SubjectSelectButton.Content = SubjectPanel.SelectText(snapshot.Locked);
-                SubjectEraseButton.IsEnabled = snapshot.Tracking;
+                // While a lost subject is looked for, the preview stays asked for and can still be turned off.
+                SubjectEraseButton.IsEnabled = snapshot.Tracking || snapshot.Erase;
                 _subjectErase = snapshot.Erase;
                 SubjectEraseButton.Content = SubjectPanel.EraseText(snapshot.Erase);
                 if (!snapshot.Locked)

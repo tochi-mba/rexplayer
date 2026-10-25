@@ -1,5 +1,560 @@
 # Changelog
 
+Every version of rexplayer that reaches users, newest first. A version is published by the CI
+pipeline the moment its number reaches `main`.
+
+## Unreleased
+### Improved
+- Find Windows Preferences by category, setting label or choice, with a persistent category list on wide windows and readable no-results feedback (#467). Reject blank and nearly uniform UI screenshots before accepting visual baselines.
+
+## 0.30.8 - 2026-10-24
+### Added
+- **Native Mac library browsing.** A local-first AppKit library window lists watched folders, songs, videos and pictures, with search, safe pagination, Play and Add to Up Next. Add and stop watching folders without deleting the original media; rescan available folders periodically.
+- **Mac Up Next interactions.** Browse, reorder, shuffle and remove queue entries in the native window, including recovery when the last queue page becomes empty. Queue and library windows expose descriptive names to assistive technology.
+- **More useful local Home shelves.** Pin real music albums, browse matching movies and shows, continue listening and watching, and return to the correct library view after narrowing a search or filter.
+
+### Improved
+- **Music and lyrics.** Distinguish missing, plain, line-timed, partly word-timed and word-timed local lyrics. Seek by a source-provided line time, keep manual scrolling under the user's control and use readable system colors and word-weight emphasis in high contrast.
+- **Adaptive Windows library.** Keep useful Home content width in compact windows, restore desktop navigation when widened, explain disconnected folders and offer an immediate scan retry. Movie and TV Browse respect ordinary saved sort order on their All items shelves.
+- **Movie and show discovery.** Present accessible feature actions and native detail pages without mixing up Play and More info. High-contrast settings replace photographic hero backgrounds with system colors and suppress decorative fades.
+- **Visualisation and app responsiveness.** Rebuild visualisation backing pixels when display scale changes; preserve the chosen mode through pause, seek, track changes, resizing and window minimization.
+
+### Fixed
+- **Featured media controls.** Clicking Play or More info on a movie/TV feature no longer also activates its parent card.
+- **Empty library recovery.** Clearing a search or filter returns keyboard focus to the surviving control, while a disconnected folder is explained instead of being mistaken for an empty library.
+- **Mac queue page removal.** Deleting items from the final queue page returns to a valid remaining page.
+- **Website previews and image provenance.** Pre-publication checks catch broken or undersized PNG assets; any future finalized native release screenshot must carry matching platform, source-version, reviewer and SHA-256 evidence rather than being relabeled from a test fixture. Responsive browser checks verify decoded screenshots and narrow-width layout. The Pages workflow also checks the actual deployed commit and retains browser captures after publication.
+
+## 0.30.7 - 2026-10-23
+### Fixed
+- **Mac playback tools and release builds (#460).** Use the saved bookmark time field and connect the new Playback tools window to the Mac application menu, automatic state refresh and cleanup, restoring the Intel and Apple Silicon builds.
+- **Warnings-as-errors compliance (#460).** Remove an unfinished, unused native media-list prototype rather than suppressing the unused-type analyzer; existing playback functionality stays intact.
+
+### Improved
+- Refresh the Windows library with soft light and dark surfaces, clearer navigation, a persistent Add folder action, and a dedicated search row. View and library actions scroll at smaller window sizes.
+- Make playback easier to discover with a prominent play/pause button, transport hints, and direct welcome-screen actions. Separate the macOS timeline from its playback controls and add file/folder welcome actions.
+- Offer a Clear search action when no media matches, and make empty-library folder suggestions fit narrow windows.
+
+## 0.30.6 - 2026-10-23
+### Fixed
+- **Season 0 detection (#458).** Recognise S00, Season 00 and Specials folders with quality labels, including the Simpsons S00-S09 collection and its original shorts. Keep unnumbered clips and bonus folders with their show rather than losing them to Movies or separate series.
+- **TV season selection (#458).** Show “Season 0 (Specials)” explicitly in the season picker; preserve numbered-season playback and the usual Specials grouping.
+
+## 0.30.5 - 2026-10-23
+### Added
+- **Audiobook controls (#455).** Audiobooks have their own transcription preference and default visualisation, independent of songs and other audio. Camera-based defaults still require consent and classification changes take effect with the item that is actually playing.
+- **Browse throughout the media library (#455).** Songs, albums, artists, genres, audiobooks, authors, podcasts, recordings, videos, pictures and recent views can use horizontal Browse shelves as well as their existing layouts.
+- **Completed media (#455).** A dedicated library view gathers finished audiobooks, watched movies and episodes, played podcast episodes, music and recordings, while keeping anything with a resume point in progress.
+
+### Improved
+- **Media parsing against real libraries (#455).** Recognise dotted and bracketed audiobook collections, author/title/part filenames, audiobook genre variants and season-labelled TV specials more reliably, while keeping albums together when only some chapters carry useful tags.
+- **Richer discovery (#455).** Fill missing genre groupings from fetched album metadata and search audiobook credits, movie and show genres, cast, directors, writers and creators in addition to local tags.
+- **Collapsed library navigation (#455).** Use a purpose-built centred icon rail with consistent touch targets, selection styling, tooltips and accessible names instead of clipping the expanded sidebar.
+
+### Fixed
+- **Audiobook shelf leaks (#455).** Keep audiobook intros and chapters, including the Chronicles of Narnia, Roald Dahl collections and spoken-word releases tagged as non-fiction audiobooks, out of Songs and genre shelves.
+- **Library scrolling stalls (#455).** In Balanced and Fastest modes, background transcription and intro or credit analysis yield while browsing so artwork and navigation stay responsive. Best quality leaves that background work running; Automatic follows the selected tier.
+
+## 0.30.4 - 2026-10-23
+### Fixed
+- **Mac launch on Sequoia (#454).** Ad-hoc-signed Intel, Apple Silicon and universal app bundles include the .NET JIT entitlement needed to prevent a runtime abort before the window opens.
+- **Mac bundle validation (#454).** Parse the actual code-signing entitlements separately from diagnostic output, retaining strict checks for signed entitlements, supported architectures, minimum macOS version and package layout.
+- **Mac media information (#454).** Restore codec display names in the Mac media-information window.
+
+### Improved
+- **Sequoia launch verification (#454).** The final signed universal download is launched and tested for video playback and clean shutdown on a macOS 15 CI runner, in addition to per-architecture build checks.
+- **Finder integration and parity tracking (#454).** Expand supported Open With file associations, clarify actual Mac feature coverage and update the generated parity and capability documents without claiming unfinished features are complete.
+
+## 0.30.3 - 2026-10-22
+### Improved
+- **Mac compatibility.** The Mac app now ships as one universal download for Intel and Apple Silicon, explicitly supports macOS 12 and later, and verifies every release bundle against macOS Sequoia 15.8.1 before publishing.
+- **The right download for each computer.** The website detects Windows and macOS, offers the matching current release automatically, and keeps the other supported downloads available when needed.
+
+## 0.30.2 - 2026-10-22
+### Improved
+- **Audiobook writer credits (#445).** Prefer dedicated author tags over performer or narrator credits, recognize explicit written-by bylines and author/book folders, and carry a single confirmed writer across a book's untagged chapters.
+- **Conservative book matching (#445).** Use an exact-title catalogue match to fill in a missing author only when a complete Open Library response confirms one work and one writer; keep ambiguous books under Unknown author and cache credited book information across restarts.
+
+### Fixed
+- **Disc and part folders (#446).** Keep book titles intact and avoid mistaking disc or chapter folders for writers, while keeping conflicting author credits separate.
+
+## 0.30.1 - 2026-10-22
+### Improved
+- **A calmer library during downloads.** Bursts of file changes are batched so large download queues do not repeatedly rebuild the library. New, renamed and removed files still appear, while growing downloads keep their progress and become playable as usable data arrives.
+- **Reversible library navigation.** The sidebar expands with one click even in a narrow window with a saved collapsed preference. Widening the window restores the desktop preference without losing your place.
+- **Minimal interface controls stay within reach.** A visible Restore full interface button makes minimal mode easy to leave. Library and fullscreen controls remain available, compact volume controls fit beside playback, and long titles are bounded so they cannot push essential actions out of view.
+
+## 0.30.0 - 2026-10-22
+### Added
+- **Subject tracking (#419).** Improved selected-subject tracking and its controls, making it easier to follow the intended subject across video frames.
+- **Featured artists (#436).** Songs with multiple or featured performers now credit and group their artists more accurately, including featured appearances on artist pages.
+- **Audiobook recognition (#437).** Better separation of audiobooks, podcasts, recordings and music, with audiobook-oriented library browsing.
+- **Collapsible library groups (#438).** Sidebar groups can be collapsed for a tidier library while keeping available collections easy to find.
+- **Album, genre and movie parsing (#439).** Improved recognition and grouping of albums, genres and movie titles from local metadata and filenames.
+- **Authors, book descriptions and artist profiles (#441).** Audiobook Authors navigation leads from author to book to chapters, including an Unknown author fallback. Conservatively matched Open Library book synopses show attribution and a source link. Music artists can display real Wikimedia Commons portraits and credited biographies.
+
+### Changed
+- **Minimal UI and movie details (#440).** Refined the library's visual presentation and made movie information and navigation more useful.
+
+### Fixed
+- **Edited transcript preservation (#421).** Preserve user-edited transcript content instead of overwriting those edits during subsequent processing.
+
+## 0.29.0 - 2026-10-22
+### Added
+- **A library that always gives you a way back.** Movie, show, season, episode, artist and album pages have a persistent, labelled Back button and Alt+Left support. Back restores the exact source, search, selection, focus and scroll position that opened the page instead of rebuilding a similar-looking view somewhere else. Browse keeps Sort and Filter available, so changing what is shown never requires switching layouts.
+- **An immersive library rail.** The sidebar can collapse to a 64-pixel icon rail, remembers the choice and compacts automatically in narrow windows. Every icon keeps its name in a tooltip and to assistive technology, while Browse and details expand into the reclaimed space.
+- **A varied Browse showcase.** Movies and TV Shows curate five distinct features from the library and rotate them slowly with a restrained fade. Rotation pauses during interaction, stops while hidden or outside Browse and becomes an immediate swap when animations are disabled. The billboard opens rich details; its separate Play or Resume action names the actual next episode when there is one. It never starts a trailer, network request or video by itself.
+
+### Changed
+
+- **The player now looks and reads like the medium playing.** Music, podcasts, audiobooks, recordings, other audio, pictures, episodes and videos receive their own label and useful title, creator, show, album, year, genre and length hierarchy. Artwork has more presence, the bottom transport carries a compact second line of context, and the seek target and control grouping are calmer and easier to use.
+
+### Fixed
+
+- **Playable downloads start before the download ends.** rexplayer re-probes a growing file as bytes arrive, opens it once its headers and first required ranges are usable, and buffers only when playback reaches bytes that are not present yet. The buffering card shows determinate progress when the expected size is known, retries through quiet download intervals, resumes automatically, cancels cleanly on a seek and still finishes normally when a changed source settles at its end.
+- **An empty playlist explains what to do.** The playlist panel now says that media can be opened or dropped there instead of showing a blank surface.
+
+## 0.28.0 - 2026-10-21
+
+### Added
+
+- **Choose between local movie resolutions.** Releases like `[SPVT] Iron.Lung.2026.1080p` and `Iron.Lung.2026.2160p` now resolve to the same film rather than making separate catalogue lookups. When the library holds different encodings of one film, a dropdown beside the seek bar lists their resolutions and exact filenames; switching keeps the time, paused state and playlist. Different years, short clips and noticeably longer cuts do not join automatically.
+- **Optional cleanup of generated SRT copies.** Transcription preferences can remove rexplayer's model-labelled original and edited SRT files beside known media when sidecar saving is turned off, or clean them manually. Other subtitle files and saved transcript data stay in place.
+- **Audiobooks, Podcasts and Recordings have views of their own.** Each appears in the library's sidebar, after the music views, only while it has something in it, and goes again when its last file is moved, deleted or its folder unwatched; a view that empties while open returns to Home and says so. During a scan the sidebar waits for the scan to settle, so views never blink in and out. Audiobooks shows one card per book (its parts, "Disc 2" folders and "Part 3 of 12" files gathered by album, folder and author) with how far it is and "Continue listening" first; a book's page lists its chapters (an .m4b's chapter marks, else one a part), Play goes on from where the book was left, each book keeps its own speed, and "Mark as finished" or "Mark as unfinished" is a right-click away. Podcasts shows one card per show (album, artist or folder, the same show in two folders as one) with its newest episode's date and how many are unplayed; a show's page lists its episodes newest first with their played state, and offers "Play unplayed in order" and "Mark all played". Recordings lists voice memos and recorders' files by day (Today, Yesterday, This week, then each month), WhatsApp voice notes under their own heading, and short sounds, ringtones and effects at the foot. Home gains "Continue listening" and "New episodes" shelves when there is something for them. Right-click any audio file for "Move to Music", "Move to Audiobooks", "Move to Podcasts" or "Move to Recordings"; the move is kept like your other edits, so rescans and clearing fetched metadata never undo it. The rules are in docs/library-classification.md.
+- **The details rexplayer fetches, on screen.** The Movies and TV shows billboard shows a two- or three-line synopsis, a facts line (year, length, rating, genres) and Play and More info, over the film's backdrop when it has one. More info, a movie card's info button or its right-click Details open the movie's own page: its backdrop and poster, facts, synopsis, directors and writers, a row of its cast with photos and characters, Watch trailer, the other films of its series in the library and More like this, with Play or Resume; Back returns to exactly where you were. A show's page shows its synopsis and facts (network, years, status) under its title, its cast, each season's overview and each episode's synopsis (two lines; click to read it all). Clicking anyone in a cast row shows everything in the library they appear in. Synopses from Wikipedia carry "Description from Wikipedia" linking to the article, and TVmaze's data a "Data from TVmaze" line. Anything missing is left out, and with metadata turned off every page still reads complete from your files alone. Photos and backdrops load only when shown, at the size shown.
+- **Mac sound for MP4, MOV and MKV videos.** On a Mac, AAC (the sound of most videos) decodes through the Mac's own AudioToolbox, held to the same reference as Windows' decoder.
+- **Every release now includes the Mac app.** Each version on the releases page carries rexplayer for Apple Silicon and for Intel Macs beside the Windows installer, with checksums; a version that does not build for a Mac does not publish.
+- **Videos show their pictures on a Mac.** rexplayer.app draws with Metal, with the same colours and the same letterboxing as Windows; picture looks and effects follow.
+- **rexplayer.app, the first Mac window.** A native Mac window plays music and the sound of videos with the same menus, shortcuts (Cmd where Windows says Ctrl), settings, queue and history as on Windows; pictures arrive next. Every change builds it for Apple Silicon and Intel Macs.
+- **Mac video through VideoToolbox.** On a Mac, H.264 and HEVC (including 10-bit) decode through the Mac's own VideoToolbox, picture for picture identical to Windows' decode of the same file.
+- **A streaming-style music Home, album page and Songs table.** A new Music view opens on a hero for the album or artist you play most lately, tinted from its artwork, with Play, Shuffle and a way to its page, over rows of Jump back in (albums and playlists), On repeat, Recently added, Made for you (an artist mix for each top artist, a genre mix for each top genre and a decade mix, all made on this computer from your own library), albums you haven't played in a while and artists new to your library. Albums, mixes and playlists sit on square cards and artists in round portraits; cards lift when pointed at or focused and their play button plays without opening. An album's page has a larger cover over a backdrop tinted from it, each artist a link, the release's kind (Album, EP, Single or Compilation), year, songs and length, a "..." menu beside Play, Shuffle and Add, numbered tracks with featured artists and a subtle bar of plays, disc headings for a set, the release date, phonographic line and genres when music lookups found them, and more by the same artist. The Songs list is a table: small art, the title, the artist and album as links to their pages, plays and length (right-aligned, in even-width figures), under headings that line up with their columns; the playing song's title takes the accent colour and a small equaliser plays over its dimmed art (still while paused), and Play shows over the art when pointed at. An album's tracks match it, with the equaliser in place of the playing track's number. Long mixes and sets never rank in On repeat.
+- **Music lookups fetch artists and release facts.** With the Music switch on, each album also gets its release type (Album, EP, Single, Compilation), first release date, labels and genres from MusicBrainz, and each artist their type, origin, years active, genres and a group's members. An artist's photo is the freely licensed picture their Wikidata item names on Wikimedia Commons, and their bio is the English Wikipedia summary, credited as such. Nothing needs a key, every service keeps its own pace, folder exclusions still apply, and albums settled by an earlier version are looked up once more for the facts they lack (a cover fetched before is kept, and albums with their own art still never get a fetched cover).
+
+### Changed
+
+- **The library lists only the views that have something in them.** Home is always there, and an empty library shows its welcome alone; Songs, Artists, Albums (when a song has an album), Genres (when a song has a genre), Movies, TV Shows, All videos, Pictures, Continue watching, Recently played, Playlists (once you keep one) and Folders each appear when there is something for them, in the same order as before. During a scan the sidebar waits for the scan to settle, so nothing blinks; a view that empties while open returns to Home and says so, and a saved place in a view that has gone opens on Home.
+- **Songs, Albums, Artists and Genres hold only music.** An audio file is music when you say so, when the music lookups match its album, or when it has music tags (an artist with a title or album, or a track number; a file named "Artist - Title" counts) and is not marked as an audiobook, podcast or recording by its format, genre, tags, folder or name. Long tagged tracks such as DJ mixes and live sets stay music but no longer count towards "Your most played" or an artist's top songs. Music read before this change is read again in the background, after any new files, to pick up its chapters and podcast marks.
+- **Movies holds only films; everything else goes to Other videos.** A video is a movie when you say so, when the movie lookups match it to a film, or, with lookups off or not yet run, when a release-style name or folder ("Title (2007)", "Title.2007.1080p.BluRay") or a title tag with a year comes with a running time of at least 40 minutes. Camera and phone clips, screen recordings, music videos, clips under 40 minutes and anything the lookups could not match go to a new Other videos section, a plain grid of thumbnails beside TV shows, with its own Home shelf when there are some. All videos still lists every video. Films arrive in Movies as their matches come in, without the view losing its place. Right-click any video for "This is a movie" or "Not a movie"; the choice is kept like your other edits, so rescans and clearing fetched metadata never undo it. A film in Movies the lookups could not match says "Not matched" and offers "Find the film..." to search Wikidata by hand.
+
+### Improved
+
+- **How to install rexplayer on a Mac.** A new guide, docs/mac.md, says which download fits which Mac, how to open an app not yet signed by Apple on each macOS version, where its files live, and how an older Mac can reach macOS 12.
+- **The parity ledger counts what already works on a Mac.** Thirty rows (playback, gapless, speed, the sleep timer, every container, the audio decoders rexplayer writes itself, playlists and tags) are now verified on macOS, proved by the same tests on the Mac runner as on Windows.
+- **Songs by several artists show under each of them.** "beabadoobee/The Marías" or "A$AP Rocky/Brent Faiyaz" no longer appear as artists of their own: the song is counted once under every artist it names, as are artists named with feat., ft., featuring or " x ", those a title features ("Song (feat. Asake)"), and "&", "and" or "," credits whose artists each have songs of their own, while names such as AC/DC, Tyler, The Creator and Earth, Wind & Fire stay whole. Spellings that differ only in case, accents or punctuation are one artist, every value of a multi-artist tag is read (with ARTISTS lists in FLAC, Ogg, MP3 and MP4 files, read again in the background once), an artist page's top songs take in the songs they are featured on and a Featured on section lists other artists' albums they are on, and a song's artist line lists its artists ("beabadoobee, The Marías").
+
+### Fixed
+
+- **Collage shows its pictures.** A show page, or any view, laid out as Collage stayed on grey tiles: its tiles never asked for their pictures. Every tile on screen now gets one, first, and a tile scrolled away lets its request go. Until a picture comes, an episode's tile shows its number on a tint of its show's own over the show's poster blurred, then the picture fades in under a scrim that keeps the title readable.
+- **Every show and movie has a poster.** A show with no art of its own gets, in turn, art in its folder or its season's folder (poster, folder, show, cover), the catalogue's poster, its season's art, then a strong frame of its first episode cut to a poster's shape. A movie without a poster gets one cut from a frame the same way, and a show's page wears its poster.
+- **Episode pictures show the episode.** An episode shows art beside it, then the catalogue's still of it (fetched once with TV enrichment on), then a frame from well inside it, past the intro and before the credits, skipping black, blown-out and blank frames, so a season no longer shows the same title card on every tile. A thumbnail cut free of recorded bars also loses their last lines, which the picture had tinted, so no dark band runs along a card's edge.
+- **rexplayer opens where you can see it.** A window left on a screen since unplugged, or saved larger than the screen there is now, opens on the main screen instead of out of sight; a launch given a blank argument (as some shortcuts pass) opens its window instead of quitting; and a speech model download whose connection stops answering says so.
+- **Specials and extras join their show.** A special such as `Futurama S07X01 Simpsorama` no longer appears as a one-episode show of its own: specials marked `S07X01`, `S07 SP01`, `S07 Special 1`, `S07E00`, `S07.5`, `S00E05`, `SP01`, `Special`, `OVA` or `OAD`, and videos in Extras, Featurettes or Behind the Scenes folders, go in the show's Specials, labelled "S07 Special 1" ("Season 7, special 1"). Show names that differ only in case, accents or punctuation are one show, a lone episode named after a show and a season mark joins that show, and a movie's extras stay with the movies.
+- **An odd answer from a catalogue no longer stops metadata lookups.** A show, episode or album whose numbers are not whole ones, or whose poster address is not one, used to stop every lookup until rexplayer restarted; now only that detail is left out. A cover offered in Replace cover... that is not a picture is passed over, and a metadata folder rexplayer may not write to is tried again later.
+- **Specials and extras join their show.** A special such as `Futurama S07X01 Simpsorama` no longer appears as a one-episode show of its own: specials marked `S07X01`, `S07 SP01`, `S07 Special 1`, `S07E00`, `S07.5`, `S00E05`, `SP01`, `Special`, `OVA` or `OAD`, and videos in Extras, Featurettes or Behind the Scenes folders, go in the show's Specials, labelled "S07 Special 1" ("Season 7, special 1"). Show names that differ only in case, accents or punctuation are one show, a lone episode named after a show and a season mark joins that show, and a movie's extras stay with the movies.
+- **A full disk or a locked file no longer stops rexplayer.** Resume points, bookmarks and the library are kept in memory when they cannot be written (a full disk, or another rexplayer window holding the file) and written in full as soon as they can; a library record missing its path or title is passed over instead of stopping rexplayer from opening; a song whose drive is unplugged while its details are written keeps the edit for later instead of losing it; and a transcript that cannot be saved says why.
+- **A settings file edited by hand with a setting twice opens.** rexplayer could not start at all; the last value written now wins.
+- **Pressing "next audio track" twice quickly keeps going.** The second press used to find no audio tracks while the file reopened on the first choice; it now moves on from the track just chosen.
+
+## 0.27.0 - 2026-10-21
+
+### Added
+
+- **rexplay runs on a Mac.** The command line now builds for macOS and plays through the Mac's own audio output; it answers the same commands and JSON as on Windows, checked on a Mac on every change. The full macOS player follows.
+- **Files still downloading show as such.** A file arriving in a watched folder (named by a downloader, marked by its control file, short of the size its MP4, Matroska, AVI, WAVE or MP3 header or its downloader declares, a torrent's sparse file whose pieces are not all on the disk yet, or one another program is still writing or growing) wears a down-arrow badge with a progress ring on its card, line and shelf tile, and its detail line reads "Downloading · 1.2 GB of 3.4 GB" as it grows, until the moment it is whole. The library's Filter menu gains a Download group (Fully downloaded, Still downloading) that combines with the others and is remembered per view; Home shows a Downloading shelf while anything is partial, newest first, with See all opening the view filtered to it; Play on a file too incomplete to open says "Still downloading: 20% so far" in the library instead of failing, the queue passes over such a file with the same words, and playing a torrent's file buffers where a piece has not arrived yet (and on a seek there) instead of playing the missing part as silence and garbage; Edit details never writes into a file that is still downloading, and says so.
+- **Automatic performance mode while Energy Saver is on.** When Windows' Energy Saver turns on, a chosen Best quality, Balanced or Fastest gives way to Automatic so the device budget adapts, with a short notice over the picture; the chosen mode comes back, and is announced, when Energy Saver turns off. Preferences > Performance shows which mode is in effect and why, and "When Energy Saver is on, use the Automatic performance mode" turns the behaviour off.
+
+### Changed
+
+- **Movie details now come from Wikidata and Wikipedia, with no key needed.** The Movies switch in Preferences alone turns lookups on: facts, cast and trailers come from Wikidata, the synopsis and poster from English Wikipedia, and nothing asks for a key or a sign-up. A movie's right-click offers More like this, ranked from the library's own movies by shared series, directors, cast and genres. TV shows TVmaze does not know fall back to Wikidata and Wikipedia too. Movie details fetched before are fetched again once, and a key stored by an earlier version is dropped. Preferences and Help, About credit Wikidata, TVmaze, MusicBrainz, the Cover Art Archive and Wikipedia.
+
+- **Artwork fills its card.** Posters, covers, video thumbnails, episode stills, the billboard and the timeline preview now fill their frames edge to edge, cropped rather than shrunk inside grey bars; poster cards keep the top of the picture, where faces usually are. A card with no picture yet keeps its clean placeholder.
+- **Thumbnails without recorded bars.** A letterboxed film or a 4:3 programme in a wide frame gets a thumbnail cut from the picture inside its black or grey bars, so a card shows picture, not bars; video thumbnails are made once more to pick this up.
+- **Movies and TV shows open on Browse.** The billboard and rows are the layout for both views unless you pick another: a Cards layout saved only because an order or card size changed, or kept from before Browse existed, opens as Browse; a layout you pick stays.
+
+### Improved
+
+- **One home for rexplayer's files on every platform.** Where settings, logs, the library, bookmarks and caches live is decided once in the shared player code: under Local AppData on Windows and under Library/Application Support on a Mac.
+
+- **The menu bar is one list for every shell.** The menus, their groups and which items carry a tick now live in the shared player code, so the coming macOS build shows exactly the menus Windows does.
+
+- **Shortcuts speak every platform's language.** A shortcut typed the Mac way (Cmd+O, Option+Left) is understood, and the shared player code can show any shortcut in Windows words or Mac words, so one settings file means the same keys on both.
+
+### Fixed
+
+- **No more silent exits from the window's own work.** A failure in work rexplayer hands to its window from elsewhere (a later launch's files, the library, downloads), in one of its clocks, in the library's background scan or in episode analysis used to close rexplayer without a trace; it is now written to the log with its details and the player carries on. A task left to finish on its own that fails is written down as it fails instead of being lost, and a script's request that fails is answered with why instead of being left waiting.
+
+- **A right-click on a library line acts on that line.** With other lines chosen, right-clicking a line that is not among them in the list or the collage now chooses it alone, so Play next, Add to queue and Add to a playlist use the line under the pointer.
+- **Down in the library search moves into the results.** It chooses the first item found, so Enter plays it.
+- **No more crash while subtitles are being transcribed.** With a transcript being made for what plays, a seek, a pause or the next item could end rexplayer at once: the stretch to hear next sometimes held no sound at all (the file's sound lands later than asked, or there is none there), and the speech model was asked to hear nothing, which the model cannot survive. Such a stretch is now passed over as heard with no words, and the model is never asked to hear an empty piece.
+
+## 0.26.0 - 2026-10-20
+
+### Added
+
+- **Richer facts behind every enriched title.** Shows and movies now cache everything the free catalogues offer - taglines, runtimes, status, network or studio, content rating, language, cast with characters, directors, creators and writers, per-season and per-episode details with air dates and stills, trailer links, suggestions and collections - all offline once fetched; movie cards say more and a movie's right-click offers Watch trailer (opened in your browser).
+- **Movies enriched from TMDB with your own free key.** With movie lookups on and a key pasted in Preferences, movies get posters, genres and ratings in the library, fetched once and kept on this computer; artwork beside the files always wins, and a movie's right-click offers Refresh metadata. This product uses the TMDB API but is not endorsed or certified by TMDB.
+- **Album covers from MusicBrainz and the Cover Art Archive.** With music lookups on, albums whose files carry no artwork of their own get their real cover, fetched once at no more than one request a second and kept on this computer; embedded and folder art wins unless you choose Replace existing covers too, an album's right-click offers Refresh metadata, Replace cover... (pick from the catalogue or any image, shown by rexplayer without ever writing to your files) and Restore original cover.
+- **TV shows enriched from TVmaze.** With TV lookups on, shows get posters, descriptions, genres, ratings and episode titles in the library, fetched once in the background and kept on this computer; a right-click offers Refresh metadata and Wrong match..., and a corrected match outlives every rescan.
+- **A Metadata section in Preferences.** rexplayer can now be allowed, kind by kind and strictly off by default, to fetch TV, movie and music details from free online catalogues; it keeps everything fetched on this computer beside the library, never looks inside excluded folders, and the downloads can be measured and cleared in one click.
+- **Artist pages.** Opening an artist in the library shows their most played songs and their albums, newest first, instead of one long song list. An album opens from the page into its own track list with the artist, year, song count and total length over it, Back returns to the artist, and Play and Shuffle play the artist's songs without repeating a top song that is also on an album.
+- Write a song's title, artist, album, album artist, track, disc, year, genre and cover into MP3 (ID3v2.3/2.4 and ID3v1) and FLAC files safely: a verified copy replaces the file only when its audio is byte-identical.
+- Edit details: right-click songs or an album to change title, artist, album, album artist, track, disc, year and genre; several songs at once show "(several values)" for fields that differ. Kept in rexplayer for now, over the files' own tags.
+- **A Metadata section in Preferences.** rexplayer can now be allowed, kind by kind and strictly off by default, to fetch TV, movie and music details from free online catalogues; it keeps everything fetched on this computer beside the library, never looks inside excluded folders, and the downloads can be measured and cleared in one click.
+- **A streaming-style browse for Movies and TV shows.** Both views now open on a featured billboard - the movie or show you left part-way, else the most watched, else the newest - with Play and one more action, over rows that scroll sideways: Continue watching with progress bars, Recently added, Most watched, the movies' genres, and everything A-Z. The Browse layout sits beside List, Cards, Big cards and Collage, and each view remembers the layout you choose.
+- Edit details: right-click songs or an album to change title, artist, album, album artist, track, disc, year and genre; several songs at once show "(several values)" for fields that differ. MP3 and FLAC files take the new details and cover (written once a playing file is free); other files keep them in rexplayer. Preferences > Library chooses "write them into the files" or "keep them in rexplayer only".
+- **About rexplayer.** Help, About rexplayer names the version and when it last updated, shows where the settings, library and log live, and leads to What's new, the website, the log folder and a check for updates. Help, What's new in this version opens the release notes at any time, not only from Preferences after an update.
+
+### Improved
+
+- **A macOS build is on its way, and the capability matrix now says where each platform stands.** Every row carries a Windows and a macOS status, and the new parity ledger (`docs/parity.md`) lists each difference between them with its reason, so the two builds cannot drift apart unnoticed.
+- **Clearer Preferences.** What the sleep timer does at its time is now chosen under Playback, beside the other playback choices, instead of under History and resume. Loudest volume and Text of older subtitle files say what they do.
+- **Visualisations listed by family.** Preferences groups the visualisations under headings, with the ones that use the camera together; saved choices are kept.
+- **The shortcut editor names its jumps.** The wheel and side-button choices say how far they jump, and opened from Preferences the editor uses the jump lengths just set there, saved or not.
+- **Zoom out from the right-click menu.** The picture's right-click menu offers Zoom out beside Zoom in and Reset zoom.
+- **Quick play and queue on song lines.** Pointing at or arrowing onto a song, album or genre line in the library shows Play and Add to queue right on the line, so a single click plays it or queues it without a right-click menu; keyboard focus shows exactly what hovering shows.
+- **Artwork fades in.** Covers in the library's lists, cards and banner fade in over their placeholder once decoded instead of popping, and a focused or pointed-at line's artwork loads first.
+- **Playback allocates less each frame.** Finding the subtitles on screen, the caption choreography and the visualiser meters and oscilloscope reuse their memory instead of allocating every frame.
+- **A paused visualisation rests.** Once the music pauses or ends, the visualisation lets the last sound die away for a second and a half and then stops redrawing a still picture, instead of drawing it up to sixty times a second; it moves again the moment the music plays. Camera visualisations keep following you while paused.
+- **A quieter idle window.** With nothing open, no sleep timer and nothing to transcribe, the window's own clocks no longer wake it 132 times a minute: the resume point is saved while something is open, the sleep timer ticks while it is set, and transcription looks at the computer only while it has work.
+- **Paused kinetic captions stand still.** While a video is paused the words on screen are left as they are, instead of being worked out, laid out and announced to screen readers again on every display refresh; they move again when playback, a seek, the window's size or the captions' look changes them.
+- **Shorter menus.** Finer variants now sit one level in, so each menu reads at a glance: Playback has Jump (every jump length, including the very short and long ones the menu never offered), Speed (with A little faster and A little slower) and Sleep timer; Audio has Sound timing; Subtitles has Subtitle timing, Subtitle size and Kinetic caption style; Video has Window size; View has Library backup. Clear the playlist and Clear the history moved to the end of View, away from Preferences.
+- **Library search from the keyboard.** In the library search box, Escape clears the search and Down moves to the first result, so Enter plays it.
+- **Letter headings.** Titles that start with an accented letter now go under the plain letter's heading ("Édith" under E) instead of under a separate "É" heading.
+- **A minimised window draws nothing.** While the window is minimised, video pictures are no longer uploaded, drawn and presented to nobody (about 1,760 a minute for 30-frame video), and the visualisation and kinetic captions stop drawing; the video keeps decoding and the sound and timeline play on in step. The latest picture is drawn the moment the window comes back.
+- **A page for each TV show.** Opening a TV show now goes straight to its episodes: the show's artwork behind its name, a season picker, and Play that names the episode it resumes or starts (such as "Resume S02 E04"). It opens on the season holding the episode to go on with. Each episode is a numbered line with its picture, its title (taken from the file's tags or the words after "S01E03" in its name), where it was left or that it was watched, a progress bar, and its length. Back returns to the list of shows.
+- **Cards lift when pointed at or focused.** Library cards rise slightly and show their play mark on hover and on keyboard focus alike, animated by the compositor.
+
+### Fixed
+
+- **No transcript rail over a picture.** While a picture is on screen the caption coverage rail under the timeline, and the wait for captions, stay away; they come back the moment a song or video plays.
+- **Reopening the library returns to where you were.** With Preferences set to return to where you left the library, it now opens on the same view or page (an album, an artist, a show, a season), scrolled as it was, with the same line chosen; that is now the default, since what plays was most often opened from there. "Show the playing item" still opens the view holding it.
+- **The library remembers your place everywhere.** Every view keeps its scroll place and chosen line, in the session and across restarts; Back returns to the parent with the line you opened chosen and on screen; a view built again after a scan, a new order or a filter stays on the line in view instead of jumping to the top; clearing a search returns to the place before it, and each view keeps its last search for the session.
+- **A right-click on a library line acts on that line.** With other lines chosen, right-clicking a line that is not among them in the list or the collage now chooses it alone, so Play next, Add to queue and Add to a playlist use the line under the pointer.
+- **Down in the library search moves into the results.** It chooses the first item found, so Enter plays it.
+- **A damaged Vorbis track no longer hangs opening.** A codebook whose length runs never moved on, or that claimed more entries or values than its header holds, kept the decoder setting up for many seconds; it is now refused at once and the file plays its other tracks or is reported as damaged. The nightly fuzzer's input joins the corpus.
+- **No more crash on closing.** Closing the window within a moment of an on-screen notice (a title, a seek, a saved setting) could end rexplayer with an error instead of closing cleanly; every clock now stops as the window closes, work queued for the window (such as the visualisation letting its memory go) no longer runs once it has closed, and a part that fails to close is written to the log instead.
+- **Enhanced Subject Lock download is back in Preferences.** The optional models can again be downloaded, stopped and removed from Preferences, now under Video and pictures.
+- **What's new from Preferences opens.** The What's new link beside the last update in Preferences could close Preferences without showing the notes; it now shows them every time.
+- **The right title after a late repeat change.** Choosing Repeat one (or shuffle) while a song was already lined up to follow without a gap no longer leaves the window naming the old song, with the new one's length, once the new one begins.
+- **Preferences tells the truth about transcription quality.** The Balanced and Fastest modes said transcription would use "at most the Base/Tiny speech model", but no such cap was ever applied: the Fast, Default or Best quality you choose on the caption rail always decides, because transcripts are saved per quality. Preferences now says the quality stays as you choose it; on Fastest it still says the library is transcribed only while nothing plays.
+- **Replaying the last item marks it in the queue.** Dragging the seek bar after the queue ended plays the last item again, and the queue panel now shows it as current.
+- **Moving through unseekable media says why nothing happened.** Go to time and the jump keys show a short notice on media that cannot be moved through.
+- **Full-screen controls stay while a button in them has focus.** Tabbing to a button in the controls bar keeps the bar up, as focus on the bar itself already did.
+- **Compilation tracks show under their own artists.** In the library's Artists view a song on a "Various Artists" album is listed under its own artist too, once.
+- **Caption waits across quality changes.** Changing the transcription quality from the caption rail or Preferences while playback waits for captions keeps the wait and its overlay until the new quality's saved coverage is known, instead of briefly resuming playback or leaving it paused with no overlay.
+- **Switching transcription quality.** Choosing a quality whose speech model is not downloaded yet now fetches it (never on a metered connection unless you ask) instead of silently making no subtitles, and two requests for one model share a single download.
+- **Subtitle track choices after a quality switch.** The newly chosen quality is listed once, as its live transcript, rather than also as a frozen copy loaded while another quality was active.
+- **Caption waits at launch.** A file opened with rexplayer waits for its captions from the start when "pause media while transcribing" is on, rather than playing uncaptioned until the launch settles.
+- **Library right-click menus.** Right-clicking a song, video, picture, album or card that is not selected now selects it and opens its menu, instead of offering "Choose something first" or acting on an earlier selection.
+- **Jump names follow your jump lengths.** The menus, the shortcut editor and the shortcut sheet name each jump by the length set in Preferences (such as Jump forward 30 seconds) instead of always saying a minute or five minutes, and each length in Preferences shows the keys that make that jump.
+- **TV episodes filed under Movies.** A show's season folder ("Season 6", "S06", "Series 6", "Staffel 6", "Saison 6", "Specials") now makes its videos that show's episodes wherever it lives, even inside a folder called Movies and with no episode number in the file names; they go in natural order. Episode marks are also read in more forms ("s6e1", "6x01-02", "S06E01E02", "Episode 1", "Ep 01", "601" in season 6's folder), while movies such as "Title (2007)" and sequels stay in Movies. Libraries already scanned are sorted again the moment they load.
+- **Files that fail to play.** Files that failed before you open, pick or skip to something else no longer count against it. Before, after a few failures, opening a new list that started with a broken file could stop without trying the playable files after it.
+- **Play next after removing the playing item.** If you remove the item that is playing from the queue, items you then choose to Play next (or a next episode) go where it was and play next, instead of going to the top of the queue and being passed over. Items added above that spot no longer change what plays next.
+- **Empty library views.** When quick filters hide everything in a view, it now names those filters and offers Clear filters, instead of saying the library has nothing of that kind. "Looking through your folders..." now updates when a scan starts or finishes, even if the scan found nothing new.
+- **Removing the next item near the end of one.** Removing the item that was already lined up to follow, in the last seconds of what plays, now skips it: what the playlist holds next plays, or playback ends, instead of the removed item playing anyway.
+- **Section times stay with their episode.** If the next episode opens while the intro or credits times are being edited, or while chapter suggestions are on screen, Save no longer writes them onto the new episode; rexplayer says nothing was saved instead.
+- **Empty or out-of-range section times.** Clearing a time box, or typing a value outside the video, now shows the usual message instead of silently failing to save.
+- **Library names for screen readers.** Library lists, cards and home shelves now tell a screen reader which item is playing ("Sungba, now playing"), as the screen already showed. Nothing on screen changes.
+- **See all on Your most played.** It now opens Songs ordered by plays, most played first, so the view starts with what the shelf showed, instead of in the usual Songs order. Your own Songs order comes back when you leave the view.
+- **Changing view with a search typed.** Choosing another view while the search box holds text now builds the new view once, not twice.
+
+## 0.25.9 - 2026-10-18
+
+### Added
+
+- **Independent transcript corrections.** Edit each transcription quality's words without changing the recognised original. Corrections autosave with Undo, Redo and Reset; original and edited SRT files stay separate.
+- **Subtitle track choices.** Select embedded, sidecar, or Fast, Default and Best original/edited transcript tracks from the Subtitles menu.
+
+### Improved
+
+- **Transcription quality beside playback.** Choose Fast, Default or Best on the caption rail and restore the selected model's coverage without borrowing progress or wait state from another model.
+
+## 0.25.8 - 2026-10-18
+
+### Fixed
+
+- **AVI files with trailing metadata.** Accept non-RIFF metadata after a valid AVI movie segment without weakening initial RIFF validation.
+- **Queue playback error notices.** Clear a failed file's on-screen error when playback advances to the next item, even when opening titles are turned off.
+
+## 0.25.7 - 2026-10-18
+
+### Fixed
+
+- **Transcript coverage and quality selection.** Restore completed transcript coverage and wait for the selected transcription quality without mistaking an older generated track for usable subtitles.
+- **Timeline previews.** Clear stale preview frames and release cached images when changing media or disabling previews.
+- **Preferences and shortcuts.** Keep pending Preferences changes while opening and closing the shortcut editor, with independent Save and Cancel behavior.
+
+## 0.25.6 - 2026-10-17
+
+### Improved
+
+- **Preferences are easier to navigate.** Jump directly to a section using a fixed selector,
+  with accessible headings, clearer descriptions, and expandable artwork and library
+  transcription settings. Edits stay in the dialog as you move between sections;
+  Save applies them together and Cancel leaves saved settings unchanged.
+- **Transcription quality is clearer.** Choose Fast, Default or Best with model sizes and
+  speed-versus-accuracy guidance in Preferences and kinetic caption settings, preserving
+  existing saved model choices. Model availability and Download now follow the selected
+  model, while a transcription in progress keeps using its original model.
+
+## 0.25.5 - 2026-10-17
+
+### Improved
+
+- **Recently Played stays in playback order.** Show the most recently played item first in
+  a simple mixed-media list without unrelated music-only sorting controls.
+- **Smaller library pictures on Fastest.** Apply the selected performance tier's picture
+  width budget to local artwork, cached pictures, and Windows thumbnails. Discard old
+  decoded resolutions when switching tiers so the budget stays effective.
+
+## 0.25.4 - 2026-10-15
+
+### Improved
+
+- **Short-audio resume behavior.** Apply the configurable resume threshold based on the
+  opened media's actual tracks and duration, so short audio starts from the beginning.
+- **Whole-player CPU and memory measurements.** Measure processor use during timed
+  scenarios and memory changes during steady playback, UI and library work.
+
+## 0.25.3 - 2026-10-15
+
+### Added
+
+- **Play VP8 video through Windows.** Decode compatible VP8 tracks using Media Foundation.
+- **Show what is playing in the library.** Highlight the current item and reveal its song,
+  picture, movie, or TV season when opening the library.
+- **Show local download waits.** Indicate when playback needs more bytes from a growing file,
+  then clear the message automatically when playback resumes.
+
+### Improved
+
+- **Short audio starts from the beginning.** Skip the resume prompt for short audio files,
+  with a configurable duration threshold.
+- **Whole-player performance measurements.** Report processor use for timed scenarios and
+  start-to-end memory changes during playback, UI and library scenarios alongside peak metrics.
+
+### Fixed
+
+- **Gapless playlist seek bar.** Reset the displayed position as the next track begins.
+- **Reliable Windows shell shutdown.** Keep the background shell worker's wake handle
+  alive until the worker exits, preventing a shutdown race.
+
+## 0.25.2 - 2026-10-15
+
+### Added
+
+- **Sun/NeXT audio support.** Open AU audio files.
+- **Playback while files download.** Start playback from a local file that is still growing.
+
+### Improved
+
+- **Clearer resume choice.** Make the resume decision explicit.
+- **More reliable library grouping.** Keep year-qualified releases distinct, including remakes.
+- **Easier playlist management.** Improve long-title display and duplicate-entry handling.
+- **More responsive transcription queues.** Make queue behavior clearer and more intentional.
+
+## 0.25.1 - 2026-10-15
+
+### Added
+
+- **Peak memory measurements.** Timed launch, open, play and seek measurements report peak
+  working-set and private-memory usage alongside current memory and managed-heap metrics.
+
+### Fixed
+
+- **Performance preferences stay selected.** The chosen performance tier is saved and restored
+  instead of reverting to Automatic. Changing tiers also keeps the active transcription item's
+  model stable, so subtitle buffering and its pause behavior continue uninterrupted.
+
+## 0.25.0 - 2026-10-15
+
+### Added
+
+- **Play AVI videos through Windows decoders.** Open AVI movie files with XviD/MPEG-4,
+  Motion JPEG or H.264 video and their audio tracks. rexplayer reads RIFF and AVIX segments,
+  uses older file indexes to seek to keyframes, and scans files without an index.
+
+### Improved
+
+- **Uninterrupted caption playback mode.** With *Wait for subtitles before playing* enabled, rexplayer now
+  waits for the predicted amount of caption coverage needed to watch the remainder without
+  rebuffering, based on conservative transcription speed, playback speed and remaining duration.
+  It no longer resumes after an arbitrary 90-second maximum. An empty new transcript holds
+  before playback rather than first running out of captions. Progress shows the target;
+  playback remains manually resumable, and errors release the wait.
+- **Caption preparation overlay.** When playback waits for captions, a clear message over the
+  picture shows how much subtitle coverage is ready and how much is needed. **Play now** lets
+  you start immediately rather than wait for the target.
+- **A clearer choice for subtitle waiting.** Preferences now gives the existing opt-in
+  setting its own plain-language explanation, including the possibility of a long wait.
+  The same setting controls the new overlay rather than adding a second toggle.
+- **The Z shortcut follows what is showing.** While a video or picture is on screen,
+  Z moves to the next picture effect and wraps back to Off; for audio-only playback,
+  Z continues to move between music visualisations.
+- **Audio follows Windows' multimedia output.** Music and videos use the default
+  playback device for multimedia, even when Windows routes console sounds elsewhere.
+
+## 0.24.1 - 2026-10-14
+
+### Fixed
+
+- **Background logging keeps up with a busy processor.** Log entries are written promptly even
+  while decoding and other work keep the processor occupied. Writing stays in the background and
+  critical entries still reach the file immediately.
+- **Smoother progressive transcript buffering.** The buffer learns how long each newly transcribed
+  stretch really takes, including variability between chunks and overlapping recognition context.
+  When pausing for subtitles is enabled, it waits for a bounded safety reserve instead of
+  repeatedly catching up after a single slow chunk, and releases promptly as new subtitles arrive.
+- **Visible transcription progress.** A labelled CAPTIONS coverage rail sits below the playback
+  timeline instead of drawing a faint mark over it, with the remaining lead beside it. The
+  transcription button opens the actual list of queued filenames, the active file's progress,
+  each file's completion and quick pause/stop controls.
+
+## 0.24.0 - 2026-10-14
+
+### Added
+
+- **rexplayer fits itself to the computer.** On a slower computer it does a little less so
+  playback stays smooth: visualisations are drawn smaller and less often, the heaviest picture
+  effects stay off, Subject Lock follows its subject in a half-size copy, transcription uses a
+  smaller speech model and waits while something plays, an empty launch prepares only the window,
+  the timeline preview and list animations are off, and fewer
+  pictures wait to be decoded. Windows' energy saver makes it a step lighter. Preferences has a
+  new Performance section showing what was chosen and why, with Automatic, Best quality, Balanced
+  and Fastest. A capable computer loses nothing.
+- `./dev.ps1 measure` measures the whole player as people feel it (launch, opening each kind of
+  media, seeking, steady playback, memory, the panels, the library) and `-LowEnd` repeats it on
+  an imitation of a weak computer. The performance suite also measures every visualisation, every
+  picture effect on the graphics card, Subject Lock and a library of 20 000 files.
+
+### Changed
+
+- Playing comes first: the threads that read, decode and play run above ordinary priority, so other
+  work on a busy computer no longer makes pictures late or sound break.
+- The log is written in the background, so the window never waits for the disk to note something.
+- Subject Lock converts each picture several times faster, and decoding through Windows no longer
+  makes a new copy of every picture and packet for the memory manager to clear away.
+
+## 0.23.0 - 2026-10-14
+
+### Added
+
+- Transcribe eligible library videos quietly in the background, with per-file progress, a pause
+  control, retries and folder exclusions. It is off until enabled in Preferences.
+- Hear the currently playing file ahead of the playhead, adding subtitles piece by piece and
+  showing the part already transcribed on the seek bar. The `rexplay transcribe --from` command
+  measures the same progressive speech path without opening the window.
+- Keep partial transcripts between sessions and provide controls to forget them.
+
+- **Kinetic captions.** Words come in one at a time as they are spoken, and how each word was
+  said decides how it looks: a quiet run of words is small and lower case, a stressed word lands
+  big and bold in capitals, a word said with a lift in the voice turns gold and italic, and a
+  shout flashes and shakes. A pause clears the words and the next ones start somewhere new.
+  Ctrl+Shift+V turns them on; they work with any subtitle file or with a transcript.
+- **Captions that stay off faces.** The picture is read ahead of what plays, with Windows' own
+  face detector, and words go where they cover no face, no text already in the picture and
+  nothing that moves. A word gets a dark plate wherever the picture behind it is too bright or
+  busy for white text to read.
+- **Seventeen caption looks.** Creator cut, sing-along, typewriter, neon sign, headline, comic,
+  minimal, rave, classic with the spoken word lit, glitch, news ticker, ghosts, rubber stamp,
+  pills, marker pen, stairs and wire, each its own kind of motion, type and placement, plus a
+  custom look of your own (Ctrl+Shift+K moves through them). Whatever the look, every word has
+  an outline or a plate keeping it readable over the picture.
+- **Transcripts.** rexplayer can hear a film's speech on this computer, word by word with the
+  moment each is said, using an open speech model downloaded once on request. The transcript
+  becomes a subtitle track, is kept for next time, and can be saved as SRT or WebVTT; with a
+  subtitle file as well, its words are put at the moments the transcript heard them.
+- **rexplay captions, transcribe and models.** Kinetic captions frame by frame as JSON, the
+  speech of a file as a transcript, and the speech models listed, fetched or removed.
+
+### Fixed
+
+- Kinetic captions from a subtitle file and a transcript now take the transcript's timing, so
+  each word lands on its syllable; before, the subtitle file's own cue times were used.
+- Words in confetti and plated looks no longer overlap: widths follow the typeface and case,
+  and each confetti word lands clear of the others.
+
+## 0.22.0 - 2026-10-13
+
+### Fixed
+
+- **The beat of syncopated music.** The beat is found where the kicks fall in time, not how the
+  rhythm repeats, so Amapiano and other music with a 3-3-2 bass no longer reads at four-thirds or
+  two-thirds of its tempo, and its beats land evenly.
+- **Subject Lock removal looks right on real footage.** The removed area is now filled from
+  the edge inwards with the texture actually around it (grass continues as grass, a gravel band
+  or a skirting board runs straight through), and shading is blended so no seam shows where the
+  fill meets the picture. Nothing is ever copied from the subject itself, so shoes and trouser
+  legs no longer reappear inside the hole, and background is trusted as seen only once it has
+  looked the same for a few frames, so a person walking past is not pasted back in. A head
+  above a dark coat, a hand and other parts unlike the scene around the subject are removed
+  with it.
+- **Removal no longer switches off for good when the subject is lost.** The preview pauses and
+  says so, and resumes once the subject is found again and followed steadily.
+- **The beat keeps time at any frame rate.** The visualisations' beat is judged against the last
+  second and a half of the music however many frames a second the window draws, and the tempo is
+  only replaced after nearly half a second of doubt, not after eight frames. On a fast screen the beat
+  used to settle on the off-beat of a busy groove.
+- Trails, tunnels and smoke in the visualisations last as long and move as fast at sixty frames a
+  second as at thirty; they used to fade twice as fast whenever the window drew quickly.
+- The silhouette's dimmed room no longer streaks across the bars beside the camera's picture.
+- The vinyl record's groove and sound ring follow the Sensitivity setting again.
+- The embers' swirl no longer jerks back and forth around each beat.
+- The beat meter's beat light shows on small visualisations and goes out when the song changes.
+- Deleting the file that is playing no longer leaves it in Continue watching.
+- Play next plays next even with shuffle on.
+- The Delete key on a watched folder in the library no longer offers to delete every file in it.
+- Restoring a library backup no longer brings back files removed from the library.
+- The library's delete and remove confirmations read correctly for several files.
+
+### Added
+
+- **Kinetic captions and offline speech transcription.** Words can arrive with the music,
+  grow, move and highlight according to the voice, with ten ready-made looks and custom
+  controls. Subtitle timing can be aligned to locally generated transcripts; speech models
+  are downloaded only when requested. The `rexplay captions`, `transcribe` and `models`
+  commands make the same features available from scripts.
+- **Five camera visualisations** that put you in the music: Clones (your dance frozen on each
+  beat), Time warp (a slit-scan mirror the bass deepens), Aura (a glow with shockwaves on the
+  kick), LED wall (you as a spectrum-gated wall of lights) and Stardust (you in motes that the kick
+  blasts apart).
+- **Seven more camera visualisations:** Hall of mirrors (you folded into mirrors that turn on the
+  beat), Light painting (strokes of light wherever you move), Scanner (a bar that sweeps you once a
+  beat), Shatter (your picture in tiles the kick blasts apart), Spotlight (stage lights that follow
+  you and change on the kick), Infinity mirror (you inside yourself, each level a beat behind) and
+  Water (you through ripples each kick drops).
+- **Fifteen new visualisations**, each moved by the music its own way: Groove (the last seconds
+  scrolling by as spectrum, beat grid and drum lanes), Flight (a tunnel of light rings that pass on
+  the beat), Cymatics, Ridgelines, Synthwave, Fireworks, Lightning, Lava lamp, Constellation,
+  Galaxy, Kaleidoscope, Murmuration, Ink, Skyline and Mandala.
+- **Thirteen more picture effects.** A new Weather & light group: Snow settle piles snow on
+  ledges, Thunderstorm flashes lightning through driving rain, Aurora turns the scene to night
+  under rippling curtains, Stage lights sweep coloured beams through haze. Tiny planet wraps the
+  picture into a little world, Droste repeats it inward forever, Reflection pool turns the lower
+  part into water. Page curl, Bubbles and Disintegrate answer the pointer. Hologram, Paper layers
+  and Stencil graffiti remake the picture in light, paper and spray paint.
+- `rexplay pulse --fps` hears a file at the frame rate asked, to check the beat at any of them.
+- **Blend, a second removal mode.** In Subject Lock's Removal preview, Blend covers the
+  selection with the surface just around it, as a retouching brush hides a logo or a stain on a
+  shirt, instead of showing what is behind it. The choice is remembered.
+- **Enhanced Subject Lock works on paused pictures.** With the optional models installed, a
+  click on a paused picture outlines the whole object ("Finding the object..."), and the removal
+  preview of a paused picture is painted by the inpainting model, with the status saying so.
+  Models run in the background, any new picture or click cancels them, and without them, or
+  when they are unsure, Subject Lock uses its own methods as before.
+
+### Improved
+
+- **Faster starts and first pictures.** The app warms up storage, decoding, sound and its
+  picture surface as the window loads; it reads ahead for the next item, keeps compiled
+  shaders available and can show the first available picture sooner after a seek.
+- **Subject Lock reacquisition diagnostics.** The search retains the best candidate's
+  match evidence, relative resemblance and closest rival for more reliable investigation
+  when a lost subject is found again.
+- **The object effects, tuned from rendered previews.** Fireflies no longer hide the picture,
+  Electric edges arc only on strong outlines, Jigsaw pieces have proper tabs and sockets, and
+  Confetti, Bokeh, Melt and Motion outline are easier to see and steadier.
+
 ## 0.21.0 - 2026-10-13
 
 ### Added
@@ -111,9 +666,6 @@
 - Reset puts an effect's intensity back to its own default.
 - Effects that compare with the previous picture keep it only while they need it (not at
   zero strength, nor with Motion smear's amount at 0).
-
-Every version of rexplayer that reaches users, newest first. A version is published by the CI
-pipeline the moment its number reaches `main`.
 
 ## 0.17.0 - 2026-10-12
 
@@ -424,539 +976,4 @@ pipeline the moment its number reaches `main`.
   installer and update tests, portable engine tests, site checks and performance baselines
   passed on the fix pull request.
 
-## 0.15.2 - 2026-10-10
-
-### Added
-
-- **Ghostwire Motion and Surface Shape.** A separately selectable, non-destructive GPU
-  visualization reveals fine recorded outlines and softly shaded curvature. Its
-  default Surface shape mode works on still images and paused video without needing
-  any subject movement or a previous frame.
-- **Four visualization modes.** Surface shape highlights visible luminance isolines
-  and shaded relief; Hybrid adds motion accents; Contours only isolates spatial
-  detail; Motion only highlights actual two-frame differences.
-- **Independent saved controls.** Adjust contour sensitivity, motion emphasis and
-  short motion-trail length for the new effect. Settings have accessible named modes,
-  live previews and independent reset behavior.
-
-### Improved
-
-- **Temporal safety.** Adjacent decoded pictures are compared on the GPU in motion
-  modes, with a small spatial match to reduce one-pixel camera shake. Stationary
-  modes use no previous-frame storage. Seeks, long gaps, mode switches and size
-  changes invalidate stale temporal history; paused redraws do not advance time.
-- **Verification.** Windows GPU/WARP and portable tests cover still curved surfaces
-  under bright and dim lighting, uniform regions without invented lines, motion
-  against stationary features, independent trail settings, discontinuities, and
-  restoration of the original frame when the effect is switched off.
-
-### Limitations
-
-- This visualization displays apparent curvature inferred from *visible* pixels;
-  it does not recover real 3D shape or hidden anatomy. Strong reflections, shadows,
-  poor video detail, compression and camera cuts can distort apparent contours.
-  Temporal motion cues are bounded two-frame comparisons, not semantic object
-  tracking or dense optical flow.
-
-## 0.15.1 - 2026-10-10
-
-### Improved
-
-- **Subject Lock auto-follow.** Gently centres the selected visible region with a
-  contextual zoom capped at 1.85x. The camera responds to a moving target and restores
-  the previous framing when follow is switched off. Manual navigation takes priority.
-- **Return tracking.** After losing the subject, periodically searches the frame for
-  the original visible texture and resumes only on a sufficiently distinctive match.
-  Ambiguous lookalikes are rejected; removal does not restart automatically.
-- **Subject tools usability.** A responsive, vertically scrollable control panel uses
-  a two-column action layout instead of clipping its buttons. Separate Auto-follow
-  and Show tracking box switches let the user hide the outline while tracking continues.
-- **Camera silhouette.** Better distinguishes similarly bright colours, stabilizes fine
-  outlines, raises the mask resolution to 240 by 180, and fits the whole camera picture
-  into the visual stage without cutting off its top and bottom. A new recalibration
-  button and clearer empty-room instructions help when camera or lighting changes.
-- **Detailed video contours.** Neon contours, Ink trace, Topographic contours,
-  Chromatic contours, Ghostwire and Ghostwire mask mode detect narrow internal lines,
-  gentle recorded shading changes and colour differences that have similar luminance.
-  The per-effect sensitivity slider controls the fine-detail response.
-- **Quality and verification.** Added GPU readback tests for grey-on-grey texture,
-  near-equal-brightness colour edges and original-frame restoration, along with
-  tracking, interface, camera mask and framing regressions. The GPU shader and
-  renderer sources are separated to meet the repository's file-size gate.
-
-### Limitations
-
-- Contour effects cannot reveal edges missing from the recording; higher sensitivity
-  may also illuminate compression noise. Subject Lock matches visible texture rather
-  than semantic identity, so prolonged occlusion or lookalikes can still defeat it.
-- Camera silhouette is local background separation, not a person-segmentation model;
-  it works best after calibrating on an empty, stable room. Ghost Peel remains a
-  non-destructive preview, not edited-video export.
-
-## 0.15.0 - 2026-10-10
-
-### Added
-
-- **Ghostwire mask mode.** A separately selectable, adjustable GPU contour effect turns
-  visible gradients into fine luminous filaments and a subdued, glass-like image mask.
-  Switching it off restores the recorded frame without changing the source file.
-
-### Improved
-
-- **Subject Lock selection.** Dragging a selection no longer conflicts with the picture's
-  pointer capture or touch-pan handlers. A keyboard-accessible control can lock the centre
-  of the visible picture. Reselecting resets the previous removal preview immediately.
-- **Tracking safeguards.** Featureless patches without distinguishing visible detail are
-  rejected instead of falsely reporting a reliable lock. Texture matching favours
-  continuity when multiple locations look alike.
-- **Paused-frame editing.** Selecting and resetting a subject on a decoded video frame
-  avoids reapplying YUV colour conversion to an already converted BGRA picture.
-- **Verification.** Additional WARP and UI tests cover the separate mask effect, restoring
-  the original image, centre selection, weak-texture refusal and re-acquisition. Tests
-  and source-size quality gates were updated for the additional effect.
-
-### Limitations
-
-- Ghostwire mask mode only stylizes recorded pixels; it cannot reveal hidden surfaces.
-  Subject Lock does not provide semantic person/limb/garment segmentation or guaranteed
-  tracking through occlusion. Ghost Peel is a non-destructive preview, not video export.
-
-## 0.14.0 - 2026-10-10
-
-### Added
-
-- **Ghostwire contours.** A near-transparent, dark-glass rendering of the visible video frame,
-  with fine luminous cyan contours and secondary colour accents. It is an artistic image-aware
-  effect and does not reveal pixels hidden by real-world objects.
-- **Colour spotlight and Relief etch.** Colour spotlight responds to a pointed-at colour in
-  the current picture; Relief etch adds directional lighting based on visible image contrast.
-  Neither effect claims to recognize or track an object's identity.
-- **Subject Lock preview.** Select a visible region with a drag and follow its texture as it
-  moves. Bounded coarse-to-fine matching follows larger frame-to-frame motion; ambiguous or
-  lost matches stop rather than silently attaching to another subject. A visible selection,
-  tracking status, reselect and reset controls keep the original picture available.
-- **Ghost Peel removal preview.** Reconstruct the selected region from authentic background
-  pixels exposed elsewhere in the played footage when the camera is sufficiently steady.
-  Where a region is never exposed, use a four-sided background-colour estimate, with
-  adjustable feathering and colour tolerance. Preview, show original and reset do not
-  change the video file.
-
-### Improved
-
-- **Resume after an in-app update.** One-time recovery restores the ordered playlist, selected
-  item, position, playing or paused state, speed, open library source and search, and window
-  display choices including fullscreen, crop, aspect and zoom. Recovery checks the installed
-  target version; explicit newly opened media takes precedence, and stale update hand-offs
-  are discarded.
-- **Performance and quality checks.** The selected-region path avoids an extra full-frame
-  copy. Regression tests exercise GPU rendering and reset, visible-frame tracking, lost
-  targets, seeking, rough selections, inferred fill, and the real Subject Lock controls.
-
-### Limitations
-
-- Subject Lock uses local visible-texture matching and a rectangular, colour-refined mask:
-  it is not a semantic person, limb or garment segmentation system, and difficult
-  occlusions, camera changes and similar objects can cause tracking to stop.
-- Ghost Peel is a **non-destructive preview**, not an editor that exports modified video.
-  Unseen regions are only plausible background estimates; they cannot reveal authentic
-  surfaces or anatomy that the footage never captured.
-
-## 0.13.1 - 2026-10-10
-
-### Fixed
-
-- **More reliable library artwork.** Damaged cached thumbnails are generated again instead of
-  permanently leaving an empty card. Local video posters and folder covers decode from scaled
-  file streams without loading the whole original image into managed memory. Slow thumbnail
-  decoding follows cancellation when the view changes.
-- **Sound-derived cover identity.** Generated music artwork accounts for playback sample rate
-  and avoids temporary spectrum-slice allocations during rendering.
-- **Library responsiveness.** The post-release audit improved row refresh stability, picture
-  loading and cancellation, and direct resumption from the Home shelf's Jump back in cards.
-- **Playback and effects stability.** The audit tightened gapless playback timing and object
-  lifetimes, visualisation canvas resets, portrait rendering limits and camera cleanup.
-- **Smoother update checking.** Installer checksum verification no longer runs on the window
-  thread, keeping the interface responsive during a handoff.
-
-## 0.13.0 - 2026-10-10
-
-### Added
-
-- **Eight more real-time GPU picture effects.** Ink trace, Topographic contours and
-  Chromatic contours respond to outlines and image structure. Liquid glass, Slice shift,
-  Vortex and Cursor lens warp the video in different ways; Edge gravity responds to
-  spatial image detail. All effects are non-destructive and work alongside video looks.
-- **Organized picture styling.** Browse effects in Contours, Motion & geometry, Interactive
-  and Image-aware groups. Effect intensity and detail or movement each have independent
-  saved values with controls for previewing, resetting and restoring original playback.
-- **Per-episode intro and credits markers.** Mark the start and end of an intro or credit
-  segment for each video, then choose Skip Intro or Skip Credits when playback enters a
-  confirmed section. Nothing is guessed or skipped automatically: cold opens, recaps,
-  alternative intros and post-credit scenes remain under the viewer's control.
-
-## 0.12.0 - 2026-10-10
-
-### Added
-
-- **Collage layout for the library.** A fourth layout choice arranges different-sized artwork
-  in dense, justified rows. Pictures load only as tiles become visible, with hover/focus
-  priority preserved; the layout choice is remembered for each view.
-- **Four optional GPU picture effects.** Prism flow refracts and separates colour, Neon contours
-  outlines edges found in the picture, Pixel drift moves quantised image blocks, and
-  Kaleidoscope remaps the frame into reflected sectors. The Video menu keeps these separate
-  from colour looks. Effects can be switched during playback, adjusted in Preferences and
-  turned fully off. Files are never modified.
-- **Resonance visualisation.** A new music-driven light field maps spectral bands into layered
-  filaments while percussion launches expanding pressure waves. Control colour, shape,
-  fluidity, intensity, trails and symmetry in the visualisation settings.
-
-### Improved
-
-- **Camera visualisations.** Foreground masks compensate for exposure changes, join tiny
-  silhouette gaps and discard small disconnected noise. Beat Edit can smoothly follow a
-  sufficiently confident foreground outline. This is local background subtraction, not
-  semantic recognition; a static camera and a clean background still matter.
-- **Sharper music graphics.** A higher software drawing ceiling improves definition on
-  capable hardware while the existing adaptive quality controller protects responsiveness.
-- **Cleaner timed lyrics.** Compact text backdrops replace the broad dark overlay across
-  bright visualisations, keeping words readable without hiding the scene.
-
-## 0.11.0 - 2026-10-10
-
-### Added
-
-- **Movies and TV Shows have their own library views.** Filenames identify series, seasons and
-  episodes locally, including S01E02 and 1x03 naming; shows open into seasons and episodes in
-  viewing order. Standalone movies get a poster-style grid with cleaned-up titles and years when
-  available. All videos remain accessible in the original all-videos view.
-- **Eight real-time video looks.** Cinema, Clear, Sunset, Arctic, Monochrome, Vintage, Neon and
-  Night vision, alongside Original, are selectable from the video menu and Preferences. The GPU
-  adjusts the displayed picture without rewriting the source or changing its metadata.
-- **Artwork beside videos.** Local posters and folder covers are used when present; otherwise the
-  library can show a frame from the video. Hovered and keyboard-focused cards, followed by nearby
-  cards, get priority while background thumbnail work remains bounded and cancellable.
-
-### Fixed
-
-- A large library banner image could expand the header until the Home shelves and media lists were
-  pushed offscreen. The banner now has a bounded height and browse views retain vertical scrolling.
-
-## 0.10.0 - 2026-10-10
-
-### Added
-
-- **A library to browse, not just a list.** Home opens on shelves of what to play next: jump back
-  into videos, recently played, your most played, new in your library, albums, videos and
-  pictures. Every view has a banner with its artwork, what it holds and how long it lasts, with
-  Play, Shuffle and Add to the playlist. Choose for each view how it is laid out (a list, cards or
-  big cards), how big the cards are, what it is ordered by (title, artist, album, year, date added,
-  last played, most played, length, either way round) and what it is grouped under (first letter,
-  artist, album, genre, year, decade, folder, date added or length), with headings; each view
-  remembers. Videos left part-way show how far you got; cards show a play mark under the pointer.
-- **Every piece of media has a picture.** Videos Windows has no thumbnail for (WebM, Matroska and
-  others) show a frame of the video itself, and the playlist shows every item's picture too.
-- **Menus show what is on.** Shuffle, repeat, mute, subtitles, always on top, full screen, the
-  playlist, the library, lyrics, statistics, the navigator, the minimal interface and stop or pause
-  after this one are ticked when on.
-- **Lyrics over any visualisation.** A song's lyrics now show over the visualisation, not instead
-  of it; Shift+L (or right-click the visualisation) puts them away and brings them back.
-
-### Improved
-
-- **Every visualisation moves with the music.** Kicks, snares and hi-hats are heard apart, as well
-  as the beat, the tempo and the drop, and every effect answers to them: nothing is left to chance.
-  Light no longer builds up until the picture goes white: trails fade and bloom glows without ever
-  piling up, through a filmic curve. Drawing happens away from the window and adapts to the
-  computer, so the window never stutters.
-- **Vinyl** is a turntable: grooves that catch the lamp, the song cut into them in light as it plays,
-  the sound as a ring round the record, strobe dots that flash on the kick, and a tone-arm that swings
-  to the needle.
-- **Aurora** is the northern lights: curtains of rays that fold and drift, green at the hem and
-  violet above, over mountains and stars, with a wave of light along them on each kick.
-- **The beat edit** cuts to the drums: punches in on the kick and swings with it, tilts and glitches
-  on the snare, changes grade on the bar, freezes and snaps back, glitters on the hats, and breaks
-  into four screens on the drop. Its shadows take the palette's colour.
-- **New palettes** (neon, fire, aurora, ocean and sunset), each visualisation starting in the one
-  that suits it; Halo and Embers draw streaks of light; the silhouette's outline is smooth.
-- Settings that did nothing are gone or now work: the aurora's stars and drift, the ripples'
-  origin and when they fall, the strobe's patterns and colours, vinyl's waveform ring and strobe dots.
-
-### Fixed
-
-- The camera visualisations ask before using the camera, wherever they are chosen, and use it
-  reliably: switching between them no longer leaves one on its fallback, a camera that fails to
-  start is tried again, and the beat edit's picture is four times as detailed.
-- Choosing a visualisation while a song had lyrics did nothing.
-- Closing the window as the library finished a scan could end in a crash.
-
-## 0.9.0 - 2026-10-09
-
-### Added
-
-- **Artwork made from the music.** Songs without a cover now get a stable, unique image whose
-  palette follows the spectrum and whose shapes follow its waveform and dynamics. Preferences has
-  controls for the style, colour, detail, contrast and filename influence. Covers are made only as
-  they become visible, two at a time, and cached by the file and settings.
-- **A live beat edit.** The camera or cover art now punches, cuts, colour-splits, freezes, echoes and
-  changes grade with the music. Five styles and all of their controls sit beside every other
-  visualisation's settings. Camera pictures stay in memory and never leave the computer.
-- **Library backup and restore**, including watched folders, history and named playlists.
-
-### Improved
-
-- Vinyl, halo, mirror wave, aurora, embers, ripples, strobe and camera silhouette now use a shared
-  music-aware renderer with beat, tempo and drop tracking, richer motion and more individual
-  controls. Lyrics can be hidden so any visualisation fills the presentation.
-- Music, video, picture, album, artist and genre views have purpose-built compact, cover-grid,
-  thumbnail and gallery layouts. Missing video thumbnails fall back to a decoded frame.
-- Opening a large picture yields to the window before decoding, and thumbnail/artwork work is
-  bounded, cancellable and cached so scrolling does not stall the app.
-
-### Fixed
-
-- Choosing a video in Continue watching starts at its saved point immediately without a second
-  resume question.
-- Gapless autoplay now changes the title, duration, picture and seek position exactly when the next
-  item's first sample is heard instead of leaving the previous item frozen on screen.
-- Right Ctrl works everywhere Left Ctrl does.
-- Updating closes rexplayer cleanly, then a tiny hand-off starts the verified installer after the
-  process has exited; the window no longer hangs while the installer tries to replace it.
-
-## 0.8.0 - 2026-10-09
-
-### Added
-
-- **Eight new visualisations**, twelve in all. **Vinyl**: a record turning at 33, 45 or 78, its
-  groove cut by the music itself, the song's cover as the label and a tone-arm that rides in as
-  the song plays. **Halo**: the spectrum radiating from a ring that swells with the bass.
-  **Mirror wave**, **Aurora** and **Embers** (sparks the music throws up). **Ripples**: a ring
-  bursting outward on every beat. **Strobe**: the screen glowing with the music in the colours you
-  choose, kept to three flashes a second unless you allow more. **Camera silhouette**: you, seen by
-  the camera, drawn as a glowing outline, a figure filled with the music, or sparks; it asks first,
-  records nothing, and the camera is on only while it shows.
-- **Settings for every visualisation** (Audio, Visualisation settings, Shift+Z, or right-click the
-  visualisation): colours (Windows' accent, following the pitch, a rainbow, warm, cool or one of
-  your own), sensitivity, and what each has of its own, such as bars and peaks, ray count, spark
-  amount, ring thickness or record speed. Changes show as you make them.
-- **Change any shortcut** (View, Keyboard and mouse, Ctrl+K): press the new keys, clear one, or
-  give it its own back; a shortcut taken from another command is reported. Tick Everywhere for a
-  shortcut that works while another program is in front. Choose what the wheel, the tilted wheel,
-  the middle button and the back and forward buttons do, and save the whole set to a file.
-- **Pinch to zoom.** Pinching a touchpad (or Ctrl with the wheel) zooms into videos and pictures
-  at the pointer, with the whole picture small in a corner; scrolling with two fingers moves about.
-  Touch screens pinch and drag too. Sizing subtitles with Ctrl and the wheel is a setting.
-- **The timeline shows more.** Bookmarks are marked on it, a click away; with Preferences, Show
-  the video frame under the pointer, hovering over it shows the exact picture there. A speed button
-  beside the volume shows the rate and offers every speed, with a step to normal.
-- **Lyrics you can click.** A timed line of the lyrics takes the song to it.
-- **More in the library.** Pictures have a gallery of their own; albums, artists and genres show as
-  covers; videos named like Show.S01E02 are marked with their season and episode, and play on with
-  the rest of their season; songs credited to several artists appear under each of them.
-- **VP9 and 10-bit HEVC** video play with Windows' decoders, and subtitles kept in a folder named
-  after the film inside Subs or Subtitles are found.
-- **Missing files.** Playlist entries whose files have moved are greyed and marked; right-click,
-  Find it, or Look for the missing files in a folder to relink them all at once.
-- **Preferences** gains the navigator, the visualisation, and a way to the keyboard and mouse.
-
-### Fixed
-
-- Closing the playlist or choosing the minimal interface while music played left grey strips
-  where the black picture area had not grown to fill the window.
-- Tooltips named the shortcut rexplayer came with, not the one in use.
-- Closing the window as the pointer left the timeline, or with a visualisation showing, could
-  crash rexplayer on its way out.
-
-## 0.7.0 - 2026-10-08
-
-### Added
-
-- **Pictures.** JPEG, PNG, GIF, WebP, BMP and TIFF open like any other media, and HEIC and AVIF
-  too where Windows has their extensions. Each shows for 5 seconds (Preferences, Playback) before
-  the next item, so a folder of pictures plays as a slideshow; an album's cover stays out of its
-  playlist. Animated GIFs move, with rexplayer's own GIF decoder; photos stand the right way up,
-  as their cameras recorded. Zoom, pan, full screen and snapshots work on pictures as on video.
-  The installer adds rexplayer to Open with for pictures too.
-- **The media library** (View, Library, or Ctrl+Shift+L). Choose folders and rexplayer keeps up
-  with the music and videos in them as files come and go: songs, albums, artists and genres;
-  videos with their pictures; what you played or added lately; videos you left part-way; and a
-  search across everything. It fills in quietly in the background.
-- **Named playlists.** Keep the playlist, or the entries you choose, under a name (Media,
-  Playlists), add what is playing to any of them (Playback, Add to a playlist), and play, rename,
-  copy or delete them.
-- **Cover and lyrics.** Music shows its cover (its own, or a cover.jpg or folder.jpg beside it)
-  with its title, artist and album; lyrics from an .lrc file beside the song, or its own tag,
-  follow along with the line being sung marked.
-- **Ogg and Opus.** .ogg, .oga and .opus files play: Vorbis and FLAC with rexplayer's own
-  decoders, Opus with the decoder Windows provides, also inside WebM.
-- **Louder.** The volume goes to 200 % out of the box, bending smoothly at the top instead of
-  clipping.
-
-### Fixed
-
-- An MP4 whose header gives an impossible length no longer fails to open.
-
-## 0.6.0 - 2026-10-08
-
-### Added
-
-- **Open with rexplayer.** The installer adds rexplayer to Explorer's Open with for every video,
-  audio and playlist file it plays, and to Windows' Default apps; nothing that already opens your
-  files is changed. Its last box opens Default apps to make rexplayer your player if you want.
-  Opening several files at once from Explorer puts them in one playlist.
-- **Updates that carry on.** An update installed from inside rexplayer opens it again afterwards,
-  with your playlist back and an offer to carry on where you were.
-- **Playlists.** Open M3U, M3U8, PLS, XSPF, cue sheets, ASX and WPL playlists (Ctrl+X, or drop
-  them on the window), and save the playlist as M3U8, XSPF or PLS (Ctrl+Y). A cue sheet's tracks
-  play as tracks of the one album file, without a gap between them.
-- **Carry on where you left off.** Open something you stopped part-way through and rexplayer
-  offers to go back there (or always does, or never: Preferences, Memory). The playlist comes back
-  when rexplayer starts.
-- **Bookmarks** (Ctrl+B), listed under Playback, Bookmarks to go to, rename or delete.
-- **Quick slots.** Ctrl+Shift+1 to 9 keeps what is playing and where; Ctrl+1 to 9 goes back to it.
-- **Recent media** under Media, Recent media. History can be cleared (View, Clear the history) or
-  not kept at all (Preferences, Memory).
-- **Stop or pause after this item**, and a **sleep timer** (Playback menu) that fades the sound
-  out and pauses or stops after 15 minutes to 2 hours, or at the end of the item.
-
-- **Vorbis sound.** WebM and Matroska files with Vorbis sound now play with it: rexplayer has its
-  own Vorbis decoder. A video whose sound still cannot be decoded plays its pictures in silence,
-  and the window says why, instead of refusing the whole file.
-- **Zoom and pan.** Alt with the mouse wheel zooms into the picture at the pointer; drag to move
-  about, or use Alt with the arrow keys. Alt+Plus and Alt+Minus step the zoom, Alt+0 shows the
-  whole picture again. While zoomed, a navigator in the corner shows the whole picture with the
-  part in view marked: click or drag in it to look somewhere else (Alt+N turns it off).
-- **Detailed logs.** rexplayer writes down what it does, so a problem can be diagnosed from the
-  log alone: Help, Open the log folder.
-- **The mouse.** The middle button plays or pauses; the back and forward buttons go to the previous
-  and next item. In full screen the pointer hides along with the controls.
-
-### Fixed
-
-- **Space played or paused and also opened a menu** (or pressed a button a second time) when a menu
-  or button had the focus.
-- **Closing the window while a dialog was open could crash rexplayer.**
-- **Dragging the seek bar jumped about** as the playing position pulled the thumb back.
-- **The playlist scrolled back to the top and lost its selection** each time the playing item changed.
-
-## 0.5.0 - 2026-10-07
-
-### Added
-
-- **Subtitles.** Subtitle files beside a film show with it: SubRip (.srt), WebVTT, ASS and SSA,
-  MicroDVD, MPL2, SubViewer and SAMI, found by name in the film's folder or a Subs folder, with
-  the language read from names such as `film.en.srt`. Subtitles inside MKV and MP4 files show as
-  well. Drop a subtitle file on the window, or use Subtitles, Add a subtitle file, to add one.
-- **Subtitle controls.** V picks the next subtitle track and Shift+V turns them on or off; G and
-  H move them 50 ms earlier or later; Alt+V shows a second track at the top at the same time.
-  Ctrl+Plus, Ctrl+Minus and Ctrl with the mouse wheel change their size, and Ctrl+0 puts it back.
-- **How subtitles look.** Preferences sets their font, size, colour, opacity, outline, shadow
-  and background box, the gap from the edge of the picture, whether they sit in the black bars
-  below a wide film, and whether a subtitle file's own colours are used. Older subtitle files
-  that are not in Unicode are read in the code page you choose.
-- **Languages.** Tell rexplayer which languages you prefer, such as "ja, original" for sound and
-  "en, fr" for subtitles, and it picks those tracks; "original" is the language the film was
-  made in, and a commentary only plays when you ask for it.
-- **The equaliser and effects** (Ctrl+E): ten bands with presets, a preamp, mono, left, right or
-  swapped channels, and loudness evening from ReplayGain tags.
-- **Playback speed.** Plus and Minus play faster or slower, from a quarter to four times, without
-  changing the pitch; ] and [ change it a little; Equals returns to normal.
-- **Sound in step.** J and K move the sound 50 ms earlier or later than the pictures.
-- **Visualisations.** Music without pictures shows a spectrum, an oscilloscope, level meters or
-  a spectrogram; Z changes which.
-
-## 0.4.0 - 2026-10-07
-
-### Added
-
-- **The player window.** rexplayer now opens in a window of its own: video drawn by the graphics
-  card, a seek bar, play, pause, stop, previous and next, shuffle and repeat, a playlist, volume
-  and mute, full screen, always on top, and a menu with every command and its shortcut. Drop
-  files on it to play them (hold Ctrl to add them to the playlist). The window keeps your volume,
-  modes and size for next time.
-- **One window.** Opening a file while rexplayer is running plays it in the window you already
-  have.
-- **Snapshots and statistics.** Shift+S saves the picture on screen to Pictures\rexplayer, and
-  Ctrl+Shift+I shows what is decoding the media and how well it is keeping up.
-- **Video without sound** now plays.
-- **Audio tracks.** B switches to the next audio track of media that has several.
-- **Aspect ratio and crop.** A and C step through the common shapes, for media recorded with
-  the wrong shape or with black bars in the picture itself.
-- **Right-click the picture** for the commands you reach for most, even in full screen.
-- **Preferences** (Ctrl+P): jump sizes, volume steps and the loudest volume, theme, always on
-  top, the full-screen controls, messages over the picture, and one window.
-- **A welcome** on the first start, with rexplayer's one privacy question: whether to look for
-  new versions. After an update, "What's new" shows what changed.
-- **Updates.** rexplayer can look for a new version weekly, daily or only when asked. It installs
-  one only when you agree, and only if the download matches its published checksum.
-- **Crash recovery.** If rexplayer did not close properly, it offers to carry on where you were.
-- **The log and diagnostics.** Ctrl+M shows the log; Help, Save diagnostics makes a zip to
-  attach to a problem report, with your home folder hidden. Nothing is sent anywhere.
-- **Scripting.** The running window takes commands through a pipe of its own, one JSON line at
-  a time, for scripts and agents.
-
-### Fixed
-
-- **Playlists made on Windows** show their songs' names on any system.
-- **A decoder that fails unexpectedly** no longer closes rexplayer; the next decoder is tried.
-- **Settings files missing some settings** (from an older version, or edited by hand) keep the
-  defaults for those instead of turning them to zero.
-- **Media that fails part-way** now moves on to the next item.
-- **Damaged video headers.** An H.264 or HEVC stream whose header declares counts or sizes beyond
-  what the format allows is now refused as damaged, with a message naming the field, instead of
-  failing with an internal error.
-- **Matroska playback** no longer creates work for the garbage collector on every block it reads.
-
-## 0.3.0 - 2026-10-06
-
-### Added
-
-- **Video.** `rexplay play film.mkv --window` shows the pictures in a window, drawn with Direct3D
-  11 and kept in step with the sound; pictures that would arrive too late are dropped and counted.
-- **H.264, HEVC and AAC through Windows.** Windows' own decoders handle the codecs rexplayer
-  leaves to them; every H.264 and HEVC picture they give matches an independent decoder exactly.
-- **MP4 and QuickTime.** Progressive and fragmented files, edit lists for gapless audio, B-frame
-  timestamps, iTunes tags and cover art, chapter tracks, display rotation and colour information.
-- **Matroska and WebM.** Every lacing form, cues (down to the block a cue names), seek heads,
-  live streams with clusters of unknown size, chapters, tags, attached cover art, header
-  stripping, and the padding an encoder adds at the end of a stream, which is cut to the sample.
-- **Snapshots.** `rexplay snapshot film.mkv --at 1:30` saves the exact picture shown at a moment
-  as a PNG.
-- **System report.** `rexplay probe --system` lists which codecs rexplayer and Windows can decode
-  on this PC, the graphics adapter and the audio output.
-
-### Fixed
-
-- Sound with timestamps a container rounded (Matroska stores milliseconds) no longer loses or
-  repeats samples where frames meet.
-- With no audio device, the first pictures of a video were dropped while a window opened.
-
-## 0.2.0 - 2026-10-06
-
-### Added
-
-- **MP3.** rexplayer's own Layer III decoder for MPEG-1, MPEG-2 and MPEG 2.5 at every rate, matching
-  an independent decoder to the conformance standard's full accuracy. Joint, intensity and
-  mixed-block streams, free format, and Xing, LAME and VBRI tags for exact durations.
-- **FLAC.** rexplayer's own decoder for all of RFC 9639, from 4 to 32 bits and one to eight
-  channels, with seek tables, cue-sheet chapters and embedded pictures.
-- **Gapless playback.** `rexplay play` takes several files and plays them into one output with
-  nothing between them, and MP3 encoder delay and padding are cut to the sample.
-- **Tags.** ID3v2.2 to 2.4, ID3v1, Vorbis comments and cover art, read wherever they appear.
-
-### Fixed
-
-- A sound card that failed part-way through a packet could make the engine release an audio
-  buffer twice, which could corrupt another stream's audio.
-
-## 0.1.0 - 2026-10-05
-
-### Added
-
-- **The engine.** A media session with a single-threaded command mailbox, a ten-state life cycle,
-  sample-accurate seeking that interrupts whatever the pipeline was doing, pause, resume and stop.
-- **WAV, RF64 and AIFF.** Every PCM storage format, big- and little-endian, plus G.711 A-law and
-  µ-law, with tags read from LIST/INFO and AIFF text chunks.
-- **Windows audio.** Playback to the default device through WASAPI, with rexplayer's own resampler
-  and channel mixer converting to whatever the device mixes at.
-- **The command line.** `rexplay play`, `probe`, `version`, `help` and `agent capabilities`, with
-  one-line JSON output for scripts and agents.
+Versions before 0.15.3 are in [docs/changelog-archive.md](docs/changelog-archive.md).

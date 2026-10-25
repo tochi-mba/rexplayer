@@ -2,6 +2,7 @@ using System.Globalization;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.Engine;
 using Rex.Media.IO;
+using Rex.Media.Library;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
 
@@ -11,6 +12,9 @@ public sealed partial class PlayerController
 {
     /// <summary>Within this of the start, Previous goes to the previous item; later it restarts this one.</summary>
     public static readonly TimeSpan RestartThreshold = TimeSpan.FromSeconds(3);
+
+    /// <summary>Whether Previous would go back to the start of this item rather than to the one before it.</summary>
+    public bool PreviousRestarts => _session is not null && CanSeek && Position > RestartThreshold;
 
     private const string LogSource = "player";
 
@@ -59,12 +63,12 @@ public sealed partial class PlayerController
             case CommandCatalog.NextEpisode:
                 if (!PlayNextEpisode())
                 {
-                    Say("There is no next episode in this folder.");
+                    Say("There is no next episode.");
                 }
 
                 break;
             case CommandCatalog.Previous:
-                if (_session is not null && CanSeek && Position > RestartThreshold)
+                if (PreviousRestarts)
                 {
                     Seek(TimeSpan.Zero);
                 }
@@ -187,20 +191,28 @@ public sealed partial class PlayerController
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// The tracks and the track chosen by the last cycle, while the session reopens on it: until the
+    /// new session reports its tracks, a second press would otherwise find none (or no current one).
+    /// </summary>
+    private (IReadOnlyList<TrackInfo> Tracks, int Chosen)? _audioSwitch;
+
     /// <summary>Moves to the next audio track, carrying on from the same moment.</summary>
     private void CycleAudioTrack()
     {
-        var tracks = AudioTracks;
+        var tracks = Info is null && _audioSwitch is { } switching ? switching.Tracks : AudioTracks;
         if (tracks.Count < 2 || Item is null)
         {
             Say(tracks.Count == 1 ? "There is only one audio track." : "There are no audio tracks to choose from.");
             return;
         }
 
-        var current = tracks.ToList().FindIndex(track => track.Id == AudioTrack);
+        var chosen = AudioTrack ?? _audioSwitch?.Chosen;
+        var current = tracks.ToList().FindIndex(track => track.Id == chosen);
         var next = tracks[(current + 1) % tracks.Count];
         var position = Position;
         Start(Item, position, next.Id);
+        _audioSwitch = (tracks, next.Id);
         var name = next.Title ?? next.Language ?? next.Codec.DisplayName();
         Say($"Audio track {tracks.ToList().IndexOf(next) + 1} of {tracks.Count}: {name}");
     }
@@ -212,7 +224,14 @@ public sealed partial class PlayerController
             Seek(Position + TimeSpan.FromSeconds(forward ? seconds : -seconds));
             Say(TimeText.Format(Position, Duration));
         }
+        else if (Item is not null)
+        {
+            Say(CannotSeekNotice);
+        }
     }
+
+    /// <summary>What the player says when asked to move through media that cannot be moved through.</summary>
+    public const string CannotSeekNotice = "This media cannot be moved through.";
 
     private void Say(string text) => Message?.Invoke(this, text);
 
@@ -236,10 +255,22 @@ public sealed partial class PlayerController
 
                 break;
             case MediaOpenedEvent opened:
+                if (_openedInSession && _queued is not null && Playlist.IndexOf(_queued) < 0)
+                {
+                    // The queued item was removed from the playlist after it was lined up: it is not
+                    // played, and what the playlist says now plays instead.
+                    _log.Info(LogSource, $"{_queued.Location} was removed after it was queued; following the playlist instead.");
+                    _queued = null;
+                    FinishQueuedOver();
+                    return;
+                }
+
                 if (_openedInSession && _queued is not null)
                 {
-                    // The queued item has begun, without a gap: the playlist moves on with it.
-                    Item = Playlist.Next(automatic: true);
+                    // The queued item has begun, without a gap: the playlist moves on with it, even
+                    // when repeat or shuffle changed after it was queued and would now pick another.
+                    Item = CarryOnInto(_queued);
+                    Position = TimeSpan.Zero;
                     _log.Info(LogSource, $"Carried on without a gap into {Item!.Location}.");
                     _queued = null;
                     FindSubtitles(Item!);
@@ -259,6 +290,7 @@ public sealed partial class PlayerController
                 _queueTried = false;
                 _openedInSession = true;
                 _failuresInARow = 0;
+                _damageSaid = false;
                 Info = opened.Info;
                 _log.Info(LogSource, "Opened " + Describe(opened.Info));
                 Duration = PartDuration(opened.Info.Duration);
@@ -288,6 +320,19 @@ public sealed partial class PlayerController
                 // An item shorter than the queueing distance may end before its first position report.
                 QueueNextIfNearTheEnd(session);
                 break;
+            case MediaDamagedEvent damaged:
+                // Plain words, once for the file and then for each stretch passed over; never a dialog.
+                if (damaged.Skipped > Rex.Media.Primitives.MediaTime.Zero)
+                {
+                    Say(DamageNotices.Skipped(damaged.Skipped.ToTimeSpan()));
+                }
+                else if (!_damageSaid)
+                {
+                    Say(DamageNotices.Damaged);
+                }
+
+                _damageSaid = true;
+                break;
             case TrackFailedEvent trackFailed:
                 _log.Warning(LogSource, $"Track {trackFailed.TrackId} cannot be played: {trackFailed.Reason}");
                 _trackFailures.Add(trackFailed);
@@ -298,7 +343,27 @@ public sealed partial class PlayerController
             case TracksChangedEvent tracks:
                 AudioTrack = tracks.AudioTrack;
                 break;
+            case SeekCompletedEvent completed:
+                // A position tick queued just before a paused seek can report the
+                // old location after Seek() optimistically updates Position. The
+                // completion carries the authoritative target, even when paused
+                // playback produces no further position ticks.
+                var reached = completed.Position.ToTimeSpan();
+                Position = reached > Item!.Start ? reached - Item.Start : TimeSpan.Zero;
+                _seekAwaitingCompletion = false;
+                PositionChanged?.Invoke(this, EventArgs.Empty);
+                break;
             case PositionEvent position:
+                // Seek completion arrives before the engine's Seeking -> Paused/Playing
+                // state change. A coalesced position tick from the previous generation
+                // can slip between those events, after _seekAwaitingCompletion is cleared.
+                // Ignore position ticks throughout Seeking as well as while paused,
+                // or the previous position can become stuck when playback stays paused.
+                if (_seekAwaitingCompletion || State is SessionState.Seeking or SessionState.Paused)
+                {
+                    break;
+                }
+
                 var heard = position.Position.ToTimeSpan();
                 if (Item?.End is { } end && heard >= end)
                 {
@@ -319,10 +384,19 @@ public sealed partial class PlayerController
             case ItemSkippedEvent skipped:
                 // The queued item would not open: the playlist steps past it, and if the session has
                 // already ended (it was queued too late to follow on) the item after it starts here.
-                Item = Playlist.Next(automatic: true);
+                // When the playlist has changed since it was queued, there is nothing of it to step past.
+                if (ReferenceEquals(Playlist.PeekNext(automatic: true), _queued))
+                {
+                    Item = Playlist.Next(automatic: true);
+                }
+
+                // A library file still downloading is passed over for now, and the notice says so.
+                var partial = _queued?.Location is { } location ? Library?.Entry(location) : null;
                 _queued = null;
                 _log.Warning(LogSource, $"Skipped {skipped.Name}: {skipped.Reason}");
-                Say($"{skipped.Name} could not be played: {skipped.Reason}");
+                Say(partial is { Downloading: true }
+                    ? $"Skipped {skipped.Name}. {Downloads.NotYetNotice(partial.Size, partial.FinalSize, partial.Allocated)}"
+                    : DamageNotices.Failed(skipped.Name, skipped.Reason));
                 if (State == SessionState.Ended)
                 {
                     StartNext();
@@ -358,6 +432,37 @@ public sealed partial class PlayerController
                 break;
         }
     }
+
+    /// <summary>
+    /// The item playing is over, but the engine ran on into a queued item the playlist no longer
+    /// plays next: the item the playlist names starts in a session of its own, or playback ends.
+    /// </summary>
+    private void FinishQueuedOver()
+    {
+        Position = Duration;
+        RememberPosition();
+        FinishItem(() =>
+        {
+            if (Playlist.Next(automatic: true) is { } following)
+            {
+                Start(following);
+                return;
+            }
+
+            EndSession();
+            State = SessionState.Ended;
+            Changed?.Invoke(this, EventArgs.Empty);
+            PositionChanged?.Invoke(this, EventArgs.Empty);
+        });
+    }
+
+    /// <summary>
+    /// The playlist's place moved to <paramref name="queued"/>, the item the engine has just begun:
+    /// the next one when nothing changed, otherwise wherever it now stands. A queued item removed
+    /// since never gets here; the playlist is followed instead.
+    /// </summary>
+    private PlaylistItem CarryOnInto(PlaylistItem queued) =>
+        Playlist.PeekNext(automatic: true) == queued ? Playlist.Next(automatic: true)! : Playlist.JumpTo(Playlist.IndexOf(queued));
 
     private void StartNext()
     {

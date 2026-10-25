@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Runtime.InteropServices;
 using Rex.Media.Primitives;
 
@@ -30,10 +31,21 @@ public sealed class SubjectRemovalPlate
     /// <summary>The cell holds a background pixel the video showed.</summary>
     public const byte Observed = 255;
 
-    // A zoom this far from where the scene was first recorded makes old cells too coarse to use.
-    private const float MaximumZoom = 0.2f;
+    /// <summary>How many sightings in a row must agree before a cell counts as observed background.</summary>
+    public const int Confirmations = 3;
+
+    // Two sightings agree when their colours differ by at most this much, summed over the channels:
+    // a little more than compression noise and a fraction of a pixel's misalignment leave.
+    private const int Agreement = 42;
+
+    // A zoom this far from where the scene was first recorded makes old cells too coarse to use. Up
+    // to it a cell read back is a little soft, which is far less noticeable than the whole fill
+    // turning into estimates at once.
+    private const float MaximumZoom = 0.4f;
 
     private uint[] _cells = [];
+    // Each cell's latest sighting, with how many sightings in a row agreed with it in the top byte.
+    private uint[] _sightings = [];
     private float _scale = 1;
     private float _offsetX;
     private float _offsetY;
@@ -63,6 +75,7 @@ public sealed class SubjectRemovalPlate
         {
             (Width, Height) = (width, height);
             _cells = new uint[width * height];
+            _sightings = new uint[width * height];
         }
 
         Clear();
@@ -72,6 +85,7 @@ public sealed class SubjectRemovalPlate
     public void Release()
     {
         _cells = [];
+        _sightings = [];
         Width = Height = 0;
         Map(1, 0, 0);
     }
@@ -80,6 +94,7 @@ public sealed class SubjectRemovalPlate
     public void Clear()
     {
         Array.Clear(_cells);
+        Array.Clear(_sightings);
         Map(1, 0, 0);
     }
 
@@ -124,19 +139,20 @@ public sealed class SubjectRemovalPlate
 
         var dx = (int)MathF.Round(Width / 2f - (left + right) / 2);
         var dy = (int)MathF.Round(Height / 2f - (top + bottom) / 2);
-        Shift(dx, dy);
+        Shift(_cells, dx, dy);
+        Shift(_sightings, dx, dy);
         Map(_scale, _offsetX + dx, _offsetY + dy);
     }
 
-    private void Shift(int dx, int dy)
+    private void Shift(uint[] plate, int dx, int dy)
     {
         if (Math.Abs(dx) >= Width || Math.Abs(dy) >= Height)
         {
-            Array.Clear(_cells);
+            Array.Clear(plate);
             return;
         }
 
-        var cells = _cells.AsSpan();
+        var cells = plate.AsSpan();
         var width = Width;
         var kept = width - Math.Abs(dx);
         var from = Math.Max(0, -dx);
@@ -163,12 +179,17 @@ public sealed class SubjectRemovalPlate
     /// Record the background pixels of <paramref name="frame"/> (BGRA) inside <paramref name="area"/>.
     /// Inside <paramref name="guard"/> a pixel is recorded only where <paramref name="distance"/> (one
     /// value a pixel across the guard, in eighths of a pixel from the subject) exceeds
-    /// <paramref name="clearance"/>; with no distances the whole guard is left alone.
+    /// <paramref name="clearance"/>; with no distances the whole guard is left alone. With a
+    /// <paramref name="rowStep"/> above one, only every so many plate rows are recorded, those whose
+    /// index plus <paramref name="rowPhase"/> it divides: a large area is recorded in turns over a few
+    /// pictures instead of all at once.
     /// </summary>
     public void Learn(VideoFrame frame, (int Left, int Top, int Right, int Bottom) area,
-        (int Left, int Top, int Right, int Bottom) guard, ReadOnlySpan<short> distance, int clearance)
+        (int Left, int Top, int Right, int Bottom) guard, ReadOnlySpan<short> distance, int clearance,
+        int rowStep = 1, int rowPhase = 0)
     {
         ArgumentNullException.ThrowIfNull(frame);
+        rowStep = Math.Max(1, rowStep);
         var pixels = MemoryMarshal.Cast<byte, uint>(frame.Plane(0));
         var stride = frame.Stride(0) / 4;
         var (left, top) = (Math.Max(0, area.Left), Math.Max(0, area.Top));
@@ -181,13 +202,18 @@ public sealed class SubjectRemovalPlate
         var guardWidth = guard.Right - guard.Left;
         if (_unzoomed)
         {
-            LearnUnzoomed(pixels, stride, frame.Width, (left, top, right, bottom), guard, distance, clearance);
+            LearnUnzoomed(pixels, stride, frame.Width, (left, top, right, bottom), guard, distance, clearance, rowStep, rowPhase);
             return;
         }
 
         var inverse = 1 / _scale;
         for (var v = v0; v < v1; v++)
         {
+            if ((v + rowPhase) % rowStep != 0)
+            {
+                continue;
+            }
+
             var y = Math.Clamp((v - _offsetY) * inverse, top, bottom - 1);
             var y0 = (int)y;
             var wy = (int)((y - y0) * 256);
@@ -200,6 +226,7 @@ public sealed class SubjectRemovalPlate
             var row0 = pixels.Slice(y0 * stride, frame.Width);
             var row1 = pixels.Slice(y1 * stride, frame.Width);
             var plate = _cells.AsSpan(v * Width, Width);
+            var sightings = _sightings.AsSpan(v * Width, Width);
             for (var u = u0; u < u1; u++)
             {
                 var x = Math.Clamp((u - _offsetX) * inverse, left, right - 1);
@@ -213,9 +240,7 @@ public sealed class SubjectRemovalPlate
                     continue;
                 }
 
-                plate[u] = (wx | wy) == 0
-                    ? row0[x0] | ((uint)Observed << 24)
-                    : Mix(row0[x0], row0[x1], row1[x0], row1[x1], wx, wy) | ((uint)Observed << 24);
+                See(ref plate[u], ref sightings[u], (wx | wy) == 0 ? row0[x0] : Mix(row0[x0], row0[x1], row1[x0], row1[x1], wx, wy));
             }
         }
     }
@@ -226,7 +251,7 @@ public sealed class SubjectRemovalPlate
     /// </summary>
     private void LearnUnzoomed(ReadOnlySpan<uint> pixels, int stride, int pictureWidth,
         (int Left, int Top, int Right, int Bottom) area, (int Left, int Top, int Right, int Bottom) guard,
-        ReadOnlySpan<short> distance, int clearance)
+        ReadOnlySpan<short> distance, int clearance, int rowStep, int rowPhase)
     {
         // Cell u shows the picture at x = u - offset: x0 = u - baseX, blended towards x0 + 1 by wx.
         var (wx, wy) = (_fractionX == 0 ? 0 : 256 - _fractionX, _fractionY == 0 ? 0 : 256 - _fractionY);
@@ -243,6 +268,11 @@ public sealed class SubjectRemovalPlate
         var guardWidth = guard.Right - guard.Left;
         for (var v = v0; v < v1; v++)
         {
+            if ((v + rowPhase) % rowStep != 0)
+            {
+                continue;
+            }
+
             var y0 = v - baseY;
             var nearestY = y0 + nearY;
             var guarded = nearestY >= guard.Top && nearestY < guard.Bottom;
@@ -252,22 +282,141 @@ public sealed class SubjectRemovalPlate
             var row0 = pixels.Slice(y0 * stride, pictureWidth);
             var row1 = pixels.Slice((y0 + stepY) * stride, pictureWidth);
             var plate = _cells.AsSpan(v * Width, Width);
-            for (var u = u0; u < u1; u++)
+            var sightings = _sightings.AsSpan(v * Width, Width);
+            // The cells whose nearest pixel lies in the guard's columns, which only the guard's
+            // distances may let through.
+            var (g0, g1) = guarded
+                ? (Math.Clamp(guard.Left - nearX + baseX, u0, u1), Math.Clamp(guard.Right - nearX + baseX, u0, u1))
+                : (u1, u1);
+            var row = new Run(plate, sightings, row0, row1, baseX, stepX, wx, wy);
+            row.See(u0, g0, default, 0, 0);
+            if (!guardRow.IsEmpty)
+            {
+                row.See(g0, g1, guardRow, g0 - baseX + nearX - guard.Left, clearance);
+            }
+
+            row.See(g1, u1, default, 0, 0);
+        }
+    }
+
+    /// <summary>
+    /// One plate row being recorded from one or two picture rows with no zoom: the same blend
+    /// weights for every cell, so a run of cells is read, blended and counted at once with the
+    /// processor's vector instructions.
+    /// </summary>
+    private readonly ref struct Run(Span<uint> plate, Span<uint> sightings, ReadOnlySpan<uint> row0, ReadOnlySpan<uint> row1,
+        int baseX, int stepX, int wx, int wy)
+    {
+        private readonly Span<uint> _plate = plate;
+        private readonly Span<uint> _sightings = sightings;
+        private readonly ReadOnlySpan<uint> _row0 = row0;
+        private readonly ReadOnlySpan<uint> _row1 = row1;
+
+        /// <summary>
+        /// Counts a sighting for the cells from <paramref name="from"/> to <paramref name="to"/>; with
+        /// <paramref name="distances"/>, only those whose distance (from <paramref name="first"/> on)
+        /// exceeds <paramref name="clearance"/>.
+        /// </summary>
+        public void See(int from, int to, ReadOnlySpan<short> distances, int first, int clearance)
+        {
+            var u = from;
+            var guarded = !distances.IsEmpty;
+            var (w00, w10, w01, w11) = Weights(wx, wy);
+            Span<int> clear = stackalloc int[Vector<int>.Count];
+            for (; u + Vector<uint>.Count <= to; u += Vector<uint>.Count)
             {
                 var x0 = u - baseX;
-                var nearestX = x0 + nearX;
-                if (guarded && nearestX >= guard.Left && nearestX < guard.Right
-                    && (guardRow.IsEmpty || guardRow[nearestX - guard.Left] <= clearance))
+                var colour = (wx | wy) == 0 ? new Vector<uint>(_row0[x0..])
+                    : Mix(new Vector<uint>(_row0[x0..]), new Vector<uint>(_row0[(x0 + stepX)..]),
+                        new Vector<uint>(_row1[x0..]), new Vector<uint>(_row1[(x0 + stepX)..]), w00, w10, w01, w11);
+                var wanted = Vector<uint>.AllBitsSet;
+                if (guarded)
+                {
+                    var at = first + u - from;
+                    for (var lane = 0; lane < clear.Length; lane++)
+                    {
+                        clear[lane] = distances[at + lane];
+                    }
+
+                    wanted = Vector.AsVectorUInt32(Vector.GreaterThan(new Vector<int>(clear), new Vector<int>(clearance)));
+                }
+
+                SeeAll(_plate.Slice(u, Vector<uint>.Count), _sightings.Slice(u, Vector<uint>.Count), colour, wanted);
+            }
+
+            for (; u < to; u++)
+            {
+                if (guarded && distances[first + u - from] <= clearance)
                 {
                     continue;
                 }
 
-                plate[u] = (wx | wy) == 0
-                    ? row0[x0] | ((uint)Observed << 24)
-                    : Mix(row0[x0], row0[x0 + stepX], row1[x0], row1[x0 + stepX], wx, wy) | ((uint)Observed << 24);
+                var x0 = u - baseX;
+                SubjectRemovalPlate.See(ref _plate[u], ref _sightings[u], (wx | wy) == 0 ? _row0[x0]
+                    : SubjectRemovalPlate.Mix(_row0[x0], _row0[x0 + stepX], _row1[x0], _row1[x0 + stepX], wx, wy));
             }
         }
     }
+
+    /// <summary>The four bilinear weights in 256ths that <see cref="Mix(uint, uint, uint, uint, int, int)"/> uses.</summary>
+    private static (uint W00, uint W10, uint W01, uint W11) Weights(int wx, int wy)
+    {
+        var w00 = (uint)((256 - wx) * (256 - wy)) >> 8;
+        var w10 = (uint)(wx * (256 - wy)) >> 8;
+        var w01 = (uint)((256 - wx) * wy) >> 8;
+        return (w00, w10, w01, 256 - w00 - w10 - w01);
+    }
+
+    /// <summary><see cref="Mix(uint, uint, uint, uint, int, int)"/> for a run of pixels.</summary>
+    private static Vector<uint> Mix(Vector<uint> a, Vector<uint> b, Vector<uint> c, Vector<uint> d, uint w00, uint w10, uint w01, uint w11)
+    {
+        var mask = new Vector<uint>(0xFF00FF);
+        var greenMask = new Vector<uint>(0xFF00);
+        var blueRed = ((a & mask) * w00 + (b & mask) * w10 + (c & mask) * w01 + (d & mask) * w11 + new Vector<uint>(0x800080)) >> 8;
+        var green = ((a & greenMask) * w00 + (b & greenMask) * w10 + (c & greenMask) * w01 + (d & greenMask) * w11 + new Vector<uint>(0x8000)) >> 8;
+        return (blueRed & mask) | (green & greenMask);
+    }
+
+    /// <summary><see cref="See(ref uint, ref uint, uint)"/> for a run of cells, only where <paramref name="record"/> is set.</summary>
+    private static void SeeAll(Span<uint> cells, Span<uint> sightings, Vector<uint> colour, Vector<uint> record)
+    {
+        colour &= new Vector<uint>(0xFFFFFF);
+        var sighting = new Vector<uint>(sightings);
+        var count = sighting >> 24;
+        var difference = Channel(sighting, colour, 0) + Channel(sighting, colour, 8) + Channel(sighting, colour, 16);
+        var agrees = ~Vector.Equals(count, Vector<uint>.Zero) & Vector.AsVectorUInt32(Vector.LessThanOrEqual(difference, new Vector<int>(Agreement)));
+        count = Vector.ConditionalSelect(agrees, Vector.Min(count + Vector<uint>.One, new Vector<uint>((uint)Confirmations)), Vector<uint>.One);
+        Vector.ConditionalSelect(record, colour | (count << 24), sighting).CopyTo(sightings);
+        var confirmed = record & Vector.Equals(count, new Vector<uint>((uint)Confirmations));
+        Vector.ConditionalSelect(confirmed, colour | new Vector<uint>((uint)Observed << 24), new Vector<uint>(cells)).CopyTo(cells);
+    }
+
+    /// <summary>How far apart two runs of packed colours are in one channel.</summary>
+    private static Vector<int> Channel(Vector<uint> a, Vector<uint> b, int shift) =>
+        Vector.Abs(Vector.AsVectorInt32((a >> shift) & new Vector<uint>(0xFF)) - Vector.AsVectorInt32((b >> shift) & new Vector<uint>(0xFF)));
+
+    /// <summary>
+    /// Counts a sighting of a cell's background. Only when <see cref="Confirmations"/> sightings in a
+    /// row agree does the cell become observed, so a person or a car passing through the area for a
+    /// moment is never recorded as background (Granados et al. likewise trust only background that
+    /// stays consistent over time); once observed, the cell follows the latest agreeing sightings, so
+    /// a slow change of light is followed too.
+    /// </summary>
+    private static void See(ref uint cell, ref uint sighting, uint colour)
+    {
+        colour &= 0xFFFFFF;
+        var count = sighting >> 24;
+        count = count > 0 && Agrees(sighting, colour) ? Math.Min(count + 1, (uint)Confirmations) : 1;
+        sighting = colour | (count << 24);
+        if (count >= Confirmations)
+        {
+            cell = colour | ((uint)Observed << 24);
+        }
+    }
+
+    private static bool Agrees(uint a, uint b) =>
+        Math.Abs((int)(a & 0xFF) - (int)(b & 0xFF)) + Math.Abs((int)((a >> 8) & 0xFF) - (int)((b >> 8) & 0xFF))
+            + Math.Abs((int)((a >> 16) & 0xFF) - (int)((b >> 16) & 0xFF)) <= Agreement;
 
     /// <summary>
     /// Bilinear blend of the colour of four packed BGRA pixels (alpha dropped), with weights in
@@ -332,11 +481,95 @@ public sealed class SubjectRemovalPlate
         var lowest = Math.Min(Math.Min(c00 >> 24, c10 >> 24), Math.Min(c01 >> 24, c11 >> 24));
         if (lowest == Unknown)
         {
-            return Unknown;
+            return Edge(c00, c10, c01, c11, wx, wy, out colour);
         }
 
         colour = Mix(c00, c10, c01, c11, wx, wy);
         return lowest == Observed ? Observed : Estimated;
+    }
+
+    /// <summary>
+    /// A pixel between known and unknown cells, at the edge of what was seen or estimated, as when
+    /// the camera has moved a fraction of a pixel since a fill was kept: it is estimated from the
+    /// known cells around it alone, so a fill kept on the plate stays whole instead of leaving a
+    /// fringe to synthesise again. With none known it is unknown.
+    /// </summary>
+    private static byte Edge(uint c00, uint c10, uint c01, uint c11, int wx, int wy, out uint colour)
+    {
+        var (w00, w10) = (c00 >> 24 == Unknown ? 0 : (256 - wx) * (256 - wy), c10 >> 24 == Unknown ? 0 : wx * (256 - wy));
+        var (w01, w11) = (c01 >> 24 == Unknown ? 0 : (256 - wx) * wy, c11 >> 24 == Unknown ? 0 : wx * wy);
+        var total = w00 + w10 + w01 + w11;
+        colour = 0;
+        if (total == 0)
+        {
+            return Unknown;
+        }
+
+        for (var shift = 0; shift < 24; shift += 8)
+        {
+            var sum = ((c00 >> shift) & 0xFF) * w00 + ((c10 >> shift) & 0xFF) * w10 + ((c01 >> shift) & 0xFF) * w01 + ((c11 >> shift) & 0xFF) * w11;
+            colour |= (uint)((sum + total / 2) / total) << shift;
+        }
+
+        return Estimated;
+    }
+
+    /// <summary>Samples a horizontal run of plate colours and states.</summary>
+    public void SampleRow(int x, int y, Span<uint> colours, Span<byte> states)
+    {
+        var count = colours.Length;
+        if (!_unzoomed)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                states[i] = Sample(x + i, y, out colours[i]);
+            }
+
+            return;
+        }
+
+        var (wx, wy) = (_fractionX, _fractionY);
+        var (stepX, stepY) = (wx > 0 ? 1 : 0, wy > 0 ? 1 : 0);
+        var v0 = y + _wholeY;
+        // A shifted row can fall entirely outside the plate. Do not construct an invalid span.
+        if (v0 < 0 || v0 + stepY >= Height)
+        {
+            colours.Clear();
+            states.Clear();
+            return;
+        }
+
+        var first = Math.Clamp(-(x + _wholeX), 0, count);
+        var last = Math.Clamp(Width - stepX - x - _wholeX, first, count);
+        colours[..first].Clear();
+        states[..first].Clear();
+        colours[last..].Clear();
+        states[last..].Clear();
+        var row = _cells.AsSpan(Math.Max(0, v0) * Width, Width);
+        var below = _cells.AsSpan(Math.Min(Height - 1, Math.Max(0, v0 + stepY)) * Width, Width);
+        var (w00, w10, w01, w11) = Weights(wx, wy);
+        var i0 = first;
+        for (; i0 + Vector<uint>.Count <= last; i0 += Vector<uint>.Count)
+        {
+            var u = x + i0 + _wholeX;
+            var (c00, c10) = (new Vector<uint>(row[u..]), new Vector<uint>(row[(u + stepX)..]));
+            var (c01, c11) = (new Vector<uint>(below[u..]), new Vector<uint>(below[(u + stepX)..]));
+            var lowest = Vector.Min(Vector.Min(c00 >> 24, c10 >> 24), Vector.Min(c01 >> 24, c11 >> 24));
+            var known = ~Vector.Equals(lowest, Vector<uint>.Zero);
+            Vector.ConditionalSelect(known, Mix(c00, c10, c01, c11, w00, w10, w01, w11), Vector<uint>.Zero).CopyTo(colours[i0..]);
+            for (var lane = 0; lane < Vector<uint>.Count; lane++)
+            {
+                // A partly known neighbourhood uses the scalar edge reconstruction, which
+                // estimates from known neighbours rather than discarding their colour.
+                var at = i0 + lane;
+                states[at] = lowest[lane] == Unknown ? Sample(x + at, y, out colours[at]) : (byte)lowest[lane];
+            }
+        }
+
+        for (; i0 < last; i0++)
+        {
+            states[i0] = Sample(x + i0, y, out colours[i0]);
+        }
     }
 
     /// <summary>Record a synthesised colour (packed BGR) for the picture's pixel (x, y), never over an observed cell.</summary>

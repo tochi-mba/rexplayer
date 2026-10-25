@@ -34,6 +34,11 @@ public sealed partial class MediaSession
 
         public IVideoDecoder? VideoDecoder { get; init; }
 
+        /// <summary>1 once the session has been told this item is damaged; changed only with <see cref="Interlocked"/>.</summary>
+#pragma warning disable CA1051 // A field, so the threads that find damage can set it with one atomic exchange.
+        public int DamageTold;
+#pragma warning restore CA1051
+
         public void Dispose()
         {
             VideoDecoder?.Dispose();
@@ -56,6 +61,7 @@ public sealed partial class MediaSession
         {
             demuxer = _options.Demuxers.Open(source, CancellationToken.None);
             var info = demuxer.Info;
+            Reach("demuxer");
             _log.Info(LogSource, $"Opened {source.Name} as {info.FormatName} with {info.Tracks.Count} track(s).");
             if (ChooseAudioTrack(info, PreferredAudioTrack, AudioLanguages) is not { } audioTrack)
             {
@@ -63,6 +69,7 @@ public sealed partial class MediaSession
             }
 
             var decoded = _options.Decoders.CreateAudio(audioTrack);
+            Reach("audio-decoder");
             if (decoded.Decoder is null)
             {
                 _log.Warning(LogSource, $"Audio track {audioTrack.Id} ({audioTrack.Codec.DisplayName()}) cannot be decoded: {decoded.Reason}");
@@ -80,8 +87,9 @@ public sealed partial class MediaSession
             var (videoTrack, videoDecoder) = OpenVideo(info, presenter);
             return new MediaItem { Source = source, Demuxer = demuxer, Info = info, AudioTrack = audioTrack, Decoder = decoded.Decoder, VideoTrack = videoTrack, VideoDecoder = videoDecoder, Subtitles = SubtitleReaders(info) };
         }
-        catch (Exception ex) when (ex is MediaFormatException or NotSupportedException or IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (Exception)
         {
+            // Whatever went wrong (a reader's own fault on hostile bytes too), nothing opened is kept.
             demuxer?.Dispose();
             source.Dispose();
             throw;
@@ -121,7 +129,8 @@ public sealed partial class MediaSession
             return (null, null);
         }
 
-        var decoded = _options.Decoders.CreateVideo(track, shown.Gpu);
+        var decoded = _options.Decoders.CreateVideo(track, _options.GraphicsCardDecoding ? shown.Gpu : null);
+        Reach("video-decoder");
         if (decoded.Decoder is null)
         {
             _log.Warning(LogSource, $"Video track {track.Id} ({track.Codec.DisplayName()}) cannot be shown: {decoded.Reason}");
@@ -182,6 +191,10 @@ public sealed partial class MediaSession
             null));
     }
 
+    /// <summary>
+    /// Readers for the subtitle tracks rexplayer can read. Their headers are read leniently (a damaged
+    /// style is passed over), and the packets are guarded as they are read (<see cref="Playback"/>).
+    /// </summary>
     private static Dictionary<int, Rex.Media.Subtitles.SubtitlePackets> SubtitleReaders(MediaInfo info) =>
         info.Tracks.Where(track => track.Kind == MediaKind.Subtitle && Rex.Media.Subtitles.SubtitlePackets.CanRead(track.Codec))
             .ToDictionary(track => track.Id, track => new Rex.Media.Subtitles.SubtitlePackets(track));

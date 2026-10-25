@@ -149,6 +149,8 @@ $common = @('-map', '0:v', '-map', '1:a', '-map_metadata', '2', '-map_chapters',
 Invoke-Mp4 -Name 'h264-aac.mp4' -Source 'testsrc2=size=128x72:rate=25:duration=0.4' -Inputs $video -Options ($common + @('-movflags', '+faststart'))
 Invoke-Mp4 -Name 'h264-aac-fragmented.mp4' -Source 'testsrc2=size=128x72:rate=25:duration=0.4' -Inputs $video -Options ($common + @('-movflags', '+frag_keyframe+empty_moov+default_base_moof'))
 Invoke-Mp4 -Name 'h264-rotated.mov' -Source 'testsrc2=size=128x72:rate=25:duration=0.2' -Before @('-display_rotation', '90', '-noautorotate') -Options @('-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-bsf:v', 'filter_units=remove_types=6', '-map_metadata', '-1')
+# A wide film letterboxed into 16:9: black bars recorded above and below the picture, for thumbnails cut free of them.
+Invoke-Mp4 -Name 'h264-letterboxed.mp4' -Source 'testsrc2=size=256x108:rate=25:duration=0.4,pad=256:144:0:18:black' -Options @('-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-bsf:v', 'filter_units=remove_types=6', '-map_metadata', '-1')
 
 # Matroska and WebM, from FFmpeg's muxers.
 $mkv = Join-Path $root 'tests/fixtures/mkv'

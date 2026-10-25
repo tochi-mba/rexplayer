@@ -42,6 +42,35 @@ public sealed class MediaFilesTests
     }
 
     [Fact]
+    public void PastedFilesAreFilteredWithoutDroppingFoldersOrSupportedMedia()
+    {
+        var (supported, skipped) = MediaFiles.FilterClipboardPaths(
+            ["C:\\Videos", "C:\\Videos\\clip.MKV", "https://example.test/clip.mp4", "C:\\notes.txt", ""],
+            path => path == "C:\\Videos");
+
+        Assert.Equal(["C:\\Videos", "C:\\Videos\\clip.MKV"], supported);
+        Assert.Equal(3, skipped);
+        Assert.Throws<ArgumentNullException>(() => MediaFiles.FilterClipboardPaths(null!, _ => false));
+        Assert.Throws<ArgumentNullException>(() => MediaFiles.FilterClipboardPaths([], null!));
+    }
+
+    [Fact]
+    public void PastedTextIsSplitUnquotedAndFilteredAsLocalPaths()
+    {
+        var (supported, skipped) = MediaFiles.FilterClipboardText(
+            "\"C:\\Videos\\clip.MKV\"\r\nC:\\Videos\r\nhttps://example.test/clip.mp4\r\nnotes.txt\r\n",
+            path => path == "C:\\Videos");
+
+        Assert.Equal(["C:\\Videos\\clip.MKV", "C:\\Videos"], supported);
+        Assert.Equal(2, skipped);
+        var (empty, emptySkipped) = MediaFiles.FilterClipboardText(" \r\n ", _ => false);
+        Assert.Empty(empty);
+        Assert.Equal(0, emptySkipped);
+        Assert.Throws<ArgumentNullException>(() => MediaFiles.FilterClipboardText(null!, _ => false));
+        Assert.Throws<ArgumentNullException>(() => MediaFiles.FilterClipboardText("", null!));
+    }
+
+    [Fact]
     [Capability("PLF-09")]
     public void AFolderExpandsToItsMediaInNaturalOrderFilesBeforeSubfolders()
     {
@@ -140,6 +169,24 @@ public sealed class MediaFilesTests
     public void TimesAreWrittenAsPeopleReadThem(double seconds, double? scale, string text)
     {
         Assert.Equal(text, TimeText.Format(TimeSpan.FromSeconds(seconds), scale is { } s ? TimeSpan.FromSeconds(s) : null));
+    }
+
+    [Theory]
+    [InlineData(-30, 100, 0, 100, 0)]
+    [InlineData(30, 100, 30, 100, 70)]
+    [InlineData(105, 100, 100, 100, 0)]
+    [InlineData(65, 0, 65, 1, -1)]
+    [InlineData(-10, 0, 0, 1, -1)]
+    [InlineData(90, 20, 20, 20, 0)]
+    [Capability("PB-05")]
+    public void TimelineNeverInventsOutOfRangePositionOrRemainingTime(
+        double position, double duration, double elapsed, double maximum, double remaining)
+    {
+        var result = TimeText.Timeline(TimeSpan.FromSeconds(position), TimeSpan.FromSeconds(duration));
+        Assert.Equal(elapsed, result.Elapsed.TotalSeconds);
+        Assert.Equal(maximum, result.SliderMaximum);
+        Assert.Equal(remaining < 0 ? 0 : elapsed, result.SliderValue);
+        Assert.Equal(remaining < 0 ? null : TimeSpan.FromSeconds(remaining), result.Remaining);
     }
 
     [Theory]

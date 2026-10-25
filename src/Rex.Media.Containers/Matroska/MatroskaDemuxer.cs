@@ -23,6 +23,7 @@ public sealed class MatroskaDemuxer : IDemuxer
 {
     private const long MaxHeaderBytes = 64L << 20;
     private const long MaxBlockBytes = 64L << 20;
+    private const long MaximumResync = 8L << 20;
 
     private readonly ByteCursor _stream;
     private readonly long _segmentStart;
@@ -73,6 +74,7 @@ public sealed class MatroskaDemuxer : IDemuxer
         var later = new List<(uint Id, long Position)>();
         _firstCluster = _segmentEnd;
         var position = _segmentStart;
+        var fileEnd = Math.Min(_segmentEnd, _stream.Length ?? long.MaxValue);
         while (position < _segmentEnd && TryReadHeader(position, out var id, out var size, out var dataStart))
         {
             if (id == MatroskaId.Cluster)
@@ -81,13 +83,28 @@ public sealed class MatroskaDemuxer : IDemuxer
                 break;
             }
 
-            if (size == Ebml.UnknownSize)
+            if (size == Ebml.UnknownSize || size > fileEnd - dataStart)
             {
+                // An element with no size, or one larger than what is left (damage, or a file cut
+                // short): what it holds is read as far as it goes, and the clusters are found after it.
+                if (size != Ebml.UnknownSize)
+                {
+                    Read(id, dataStart, Math.Max(0, fileEnd - dataStart));
+                }
+
+                position = dataStart;
                 break;
             }
 
             Read(id, dataStart, size);
             position = dataStart + size;
+        }
+
+        if (_firstCluster == _segmentEnd && position < fileEnd)
+        {
+            // Damage between the headers and the first cluster: the clusters are found by their ID.
+            _position = position;
+            _firstCluster = FindNextCluster() ? _position : _segmentEnd;
         }
 
         foreach (var (id, offset) in later)
@@ -113,6 +130,7 @@ public sealed class MatroskaDemuxer : IDemuxer
         Info = new MediaInfo
         {
             FormatName = docType == "webm" ? "WebM" : "Matroska",
+            DeclaredLength = segmentSize == Ebml.UnknownSize ? null : _segmentEnd,
             Tracks = [.. _tracks.Values.Select(t => t.Describe(duration))],
             Duration = duration,
             IsSeekable = source.CanSeek,
@@ -131,13 +149,26 @@ public sealed class MatroskaDemuxer : IDemuxer
 
             if (size > MaxHeaderBytes)
             {
-                throw new MediaFormatException("A Matroska header element is larger than rexplayer accepts.");
+                // Damage, not a header: the file plays without whatever it was meant to hold (and
+                // without tracks, says so).
+                return;
             }
 
             seen.Add(id);
             _stream.Seek(dataStart);
-            var body = new byte[size];
+
+            // A file cut short (or a damaged size) leaves less than the element claims: what is
+            // there is read, and an element cut part-way loses only its last children.
+            var available = _stream.Length is { } total ? Math.Clamp(total - dataStart, 0, size) : size;
+            var body = new byte[available];
             _stream.ReadExactly(body);
+
+            // The readers below are lenient: damaged children are passed over, never thrown on.
+            ReadElement(id, body);
+        }
+
+        void ReadElement(uint id, byte[] body)
+        {
             switch (id)
             {
                 case MatroskaId.Info:
@@ -157,7 +188,8 @@ public sealed class MatroskaDemuxer : IDemuxer
 
                     break;
                 case MatroskaId.Cues:
-                    _cues.AddRange(MatroskaMetadata.ReadCues(body));
+                    // A cue pointing past the end of the file (damage, or a file cut short) would send a seek nowhere.
+                    _cues.AddRange(MatroskaMetadata.ReadCues(body).Where(cue => cue.Position >= 0 && _segmentStart + cue.Position < Math.Min(_segmentEnd, _stream.Length ?? long.MaxValue)));
                     break;
                 case MatroskaId.Chapters:
                     chapters.AddRange(MatroskaMetadata.ReadChapters(body));
@@ -189,9 +221,19 @@ public sealed class MatroskaDemuxer : IDemuxer
 
             if (!_inCluster)
             {
-                if (_position >= _segmentEnd || !TryReadHeader(_position, out var id, out var size, out var dataStart))
+                if (_position >= _segmentEnd)
                 {
                     return null;
+                }
+
+                if (!TryReadHeader(_position, out var id, out var size, out var dataStart))
+                {
+                    if (!FindNextCluster())
+                    {
+                        return null;
+                    }
+
+                    continue;
                 }
 
                 if (id == MatroskaId.Cluster)
@@ -203,9 +245,14 @@ public sealed class MatroskaDemuxer : IDemuxer
                     continue;
                 }
 
-                if (size == Ebml.UnknownSize)
+                if (size == Ebml.UnknownSize || dataStart + size > _segmentEnd)
                 {
-                    return null;
+                    if (!FindNextCluster())
+                    {
+                        return null;
+                    }
+
+                    continue;
                 }
 
                 _position = dataStart + size;
@@ -217,10 +264,16 @@ public sealed class MatroskaDemuxer : IDemuxer
                 _inCluster = false;
                 if (_clusterEnd < 0)
                 {
-                    return null;
+                    if (!FindNextCluster())
+                    {
+                        return null;
+                    }
+                }
+                else
+                {
+                    _position = _clusterEnd;
                 }
 
-                _position = _clusterEnd;
                 continue;
             }
 
@@ -231,9 +284,15 @@ public sealed class MatroskaDemuxer : IDemuxer
                 continue;
             }
 
-            if (childSize == Ebml.UnknownSize || childSize > MaxBlockBytes)
+            if (childSize == Ebml.UnknownSize || childSize > MaxBlockBytes
+                || (_stream.Length is { } total && childStart + childSize > total))
             {
-                throw new MediaFormatException("A Matroska block has an unusable size.");
+                if (!FindNextCluster())
+                {
+                    return null;
+                }
+
+                continue;
             }
 
             var elementStart = _position;
@@ -266,6 +325,49 @@ public sealed class MatroskaDemuxer : IDemuxer
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// Recover at the next cluster after a malformed block or lost EBML header. Limit the
+    /// search so a wholly corrupt file cannot hold the demux thread indefinitely.
+    /// </summary>
+    private bool FindNextCluster()
+    {
+        var from = _position + 1;
+        var limit = Math.Min(_segmentEnd, _stream.Length ?? long.MaxValue);
+        limit = Math.Min(limit, from + MaximumResync);
+        ReadOnlySpan<byte> signature = [0x1F, 0x43, 0xB6, 0x75];
+        Span<byte> block = stackalloc byte[4096];
+        while (from + signature.Length <= limit)
+        {
+            _stream.Seek(from);
+            var count = _stream.Peek(block[..(int)Math.Min(block.Length, limit - from)]);
+            if (count < signature.Length)
+            {
+                return false;
+            }
+
+            var found = block[..count].IndexOf(signature);
+            if (found >= 0)
+            {
+                var candidate = from + found;
+                if (TryReadHeader(candidate, out var id, out var size, out var dataStart)
+                    && id == MatroskaId.Cluster && (size == Ebml.UnknownSize || dataStart + size <= _segmentEnd))
+                {
+                    _position = candidate;
+                    _inCluster = false;
+                    return true;
+                }
+
+                from = candidate + 1;
+            }
+            else
+            {
+                from += count - signature.Length + 1;
+            }
+        }
+
+        return false;
     }
 
     public void Seek(MediaTime target, CancellationToken cancellationToken)
@@ -318,7 +420,13 @@ public sealed class MatroskaDemuxer : IDemuxer
         _position = position;
         _inCluster = false;
         _awaitKeyframe = video?.Number;
-        _resumeAt = relative > 0 && TryReadHeader(position, out var id, out _, out var dataStart) && id == MatroskaId.Cluster ? dataStart + relative : 0;
+        var atCluster = TryReadHeader(position, out var id, out _, out var dataStart) && id == MatroskaId.Cluster;
+        _resumeAt = relative > 0 && atCluster ? dataStart + relative : 0;
+        if (!atCluster && position < _segmentEnd && !FindNextCluster())
+        {
+            // A cue into damage: the next cluster after it, or the end when none follows.
+            _position = _segmentEnd;
+        }
     }
 
     public void Dispose()

@@ -17,7 +17,7 @@ internal sealed class SessionHarness : IDisposable
     private readonly List<SessionEvent> _events = [];
     private readonly object _gate = new();
 
-    public SessionHarness(bool autoPlay = true, IAudioSink? sink = null, IDecoderFactory? decoder = null, IDemuxerFactory? demuxer = null, int maxCorrupt = 30, IDecoderFactory? videoDecoder = null, IVideoPresenter? presenter = null, int videoQueueCapacity = 32)
+    public SessionHarness(bool autoPlay = true, IAudioSink? sink = null, IDecoderFactory? decoder = null, IDemuxerFactory? demuxer = null, int maxCorrupt = 30, IDecoderFactory? videoDecoder = null, IVideoPresenter? presenter = null, int videoQueueCapacity = 32, bool graphicsCardDecoding = true, TimeSpan? growingFileStallTimeout = null)
     {
         Sink = sink ?? new RecordingAudioSink(channels: 1);
         var demuxers = new DemuxerRegistry().Add(new WavDemuxerFactory());
@@ -43,6 +43,8 @@ internal sealed class SessionHarness : IDisposable
                 PositionInterval = TimeSpan.Zero,
                 VideoPresenterFactory = presenter is null ? null : () => presenter,
                 VideoQueueCapacity = videoQueueCapacity,
+                GraphicsCardDecoding = graphicsCardDecoding,
+                GrowingFileStallTimeout = growingFileStallTimeout ?? TimeSpan.FromSeconds(30),
             },
             Record);
     }

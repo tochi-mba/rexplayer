@@ -80,9 +80,10 @@ public sealed class VisualStage
     /// The canvas for a stage <paramref name="width"/> by <paramref name="height"/> layout units
     /// across on a screen of <paramref name="scale"/> pixels a unit: the stage's own pixels, so
     /// nothing is scaled up at full quality until its longest side would pass
-    /// <see cref="MaxSide"/>. Quality scales that fitted size, including on smaller windows.
+    /// <see cref="MaxSide"/>, or <paramref name="maxSide"/> on a computer that cannot spare the time.
+    /// Quality scales that fitted size, including on smaller windows.
     /// </summary>
-    public static (int Width, int Height) SizeFor(double width, double height, double quality = 1, double scale = 1)
+    public static (int Width, int Height) SizeFor(double width, double height, double quality = 1, double scale = 1, int maxSide = MaxSide)
     {
         if (!(width >= 2 && height >= 2) || !double.IsFinite(width) || !double.IsFinite(height))
         {
@@ -91,7 +92,7 @@ public sealed class VisualStage
 
         scale = double.IsFinite(scale) && scale > 0 ? scale : 1;
         var longest = Math.Max(width, height);
-        var fitted = Math.Min(MaxSide, longest * scale)
+        var fitted = Math.Min(Math.Clamp(maxSide, 16, MaxSide), longest * scale)
             * (double.IsFinite(quality) ? Math.Clamp(quality, LowestQuality, 1) : 1);
         // Divide before multiplying so even very large finite layout sizes or scales retain
         // their aspect ratio instead of producing infinity times zero.
@@ -106,12 +107,19 @@ public sealed class VisualStage
     /// <see cref="SpectrumAnalyzer.Size"/>, with the sensitivity applied; the beat is heard from the
     /// sound as it is, the sensitivity setting how strongly it moves things.
     /// </summary>
-    public bool Draw(VisualizerChoice choice, IReadOnlyDictionary<string, string> options, ReadOnlySpan<float> left, ReadOnlySpan<float> right, int sampleRate, TimeSpan elapsed)
+    public bool Draw(VisualizerChoice choice, IReadOnlyDictionary<string, string> options, ReadOnlySpan<float> left, ReadOnlySpan<float> right, int sampleRate, TimeSpan elapsed, CancellationToken cancellation = default)
     {
         ArgumentNullException.ThrowIfNull(options);
-        if (left.Length != SoundSize || right.Length != SoundSize)
+        cancellation.ThrowIfCancellationRequested();
+        // A short or unavailable source need not fabricate a full frame of
+        // audio. Zero-pad at the older end so the newest actual samples still
+        // line up with the latest sound; an absent right channel means mono.
+        // Longer capture buffers use their newest samples without allocating.
+        left = left.Length > SoundSize ? left[^SoundSize..] : left;
+        right = right.Length > SoundSize ? right[^SoundSize..] : right;
+        if (right.IsEmpty)
         {
-            throw new ArgumentException($"Each channel takes {SoundSize} samples.", nameof(left));
+            right = left;
         }
 
         if (_scene is null || choice != _choice)
@@ -133,20 +141,25 @@ public sealed class VisualStage
         Context.Prepare();
         var gain = (float)Context.Number(Player.VisualizerOptions.Sensitivity);
         var skip = SoundSize - Context.Left.Length;
+        var leftPad = SoundSize - left.Length;
+        var rightPad = SoundSize - right.Length;
         for (var i = 0; i < _mono.Length; i++)
         {
-            var (l, r) = (float.IsFinite(left[i]) ? Math.Clamp(left[i], -1, 1) : 0, float.IsFinite(right[i]) ? Math.Clamp(right[i], -1, 1) : 0);
-            _mono[i] = (l + r) / 2;
+            var l = i >= leftPad ? SafeSample(left[i - leftPad]) : 0;
+            var r = i >= rightPad ? SafeSample(right[i - rightPad]) : 0;
+            _mono[i] = (l + r) * 0.5f;
             if (i >= skip)
             {
-                Context.Left[i - skip] = Math.Clamp(l * gain, -1, 1);
-                Context.Right[i - skip] = Math.Clamp(r * gain, -1, 1);
+                Context.Left[i - skip] = SafeSample(l * gain);
+                Context.Right[i - skip] = SafeSample(r * gain);
             }
         }
 
         _pulse.Sensitivity = gain;
         _pulse.Update(_mono, Math.Max(1, sampleRate), elapsed);
+        cancellation.ThrowIfCancellationRequested();
         _scene.Draw(Context);
+        cancellation.ThrowIfCancellationRequested();
         Canvas.Settle();
         Canvas.ToBgra(Pixels, 1, 0.35f);
         if (Context.Toggle(Player.VisualizerOptions.Meter))
@@ -157,6 +170,9 @@ public sealed class VisualStage
 
         return true;
     }
+
+    /// <summary>Clamp decoded samples, treating damaged or unavailable audio as silence.</summary>
+    public static float SafeSample(float sample) => float.IsFinite(sample) ? Math.Clamp(sample, -1, 1) : 0;
 
     /// <summary>
     /// The beat meter, along the bottom: the bands as thin bars; the bass, middle and treble, the
@@ -177,7 +193,8 @@ public sealed class VisualStage
             Shade((int)(band * across / bands.Count), h - 1 - tall, Math.Max(1, (int)(across / bands.Count) - 1), tall, Context.Paint((double)band / bands.Count), 1);
         }
 
-        float[] levels = [_pulse.Bass, _pulse.Mid, _pulse.Treble, _pulse.Punch, _pulse.Loudness];
+        var levels = _levels;
+        (levels[0], levels[1], levels[2], levels[3], levels[4]) = (_pulse.Bass, _pulse.Mid, _pulse.Treble, _pulse.Punch, _pulse.Loudness);
         var block = w * 0.05;
         for (var i = 0; i < levels.Length; i++)
         {
@@ -186,8 +203,9 @@ public sealed class VisualStage
         }
 
         _beatLight = _pulse.Beat ? (_pulse.Filled ? 0.5f : 1) : Math.Max(0, _beatLight - (float)(Context.Dt * 6));
-        var left = (int)(across + (levels.Length * block) + 6);
-        var side = Math.Min(strip - 4, w - left - 4);
+        // The square keeps a few pixels even on a stage too narrow for all of it.
+        var side = Math.Max(3, Math.Min(strip - 4, (int)(w - (across + (levels.Length * block) + 6) - 4)));
+        var left = Math.Min((int)(across + (levels.Length * block) + 6), w - side);
         Shade(left, top + 2, side, side, Rgb.White, Math.Min(1, 0.12f + _beatLight));
         Shade(left, h - 3, (int)(side * _pulse.Phase), 2, _pulse.Locked ? Rgb.White : new Rgb(0.5f, 0.5f, 0.5f), 1);
     }
@@ -209,6 +227,7 @@ public sealed class VisualStage
         }
     }
 
+    private readonly float[] _levels = new float[5];
     private float _beatLight;
 
     /// <summary>
@@ -233,6 +252,7 @@ public sealed class VisualStage
     {
         _pulse.Reset();
         _scene = null;
+        _beatLight = 0;
         Canvas.Clear(Rgb.Black);
     }
 }

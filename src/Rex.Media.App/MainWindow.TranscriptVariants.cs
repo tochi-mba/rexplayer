@@ -1,0 +1,57 @@
+using Rex.Media.AppCore.Captions;
+using Rex.Media.Settings;
+using Rex.Media.Subtitles;
+
+namespace Rex.Media.App;
+
+/// <summary>Loads each speech quality's independent original and edited tracks off the window thread.</summary>
+public sealed partial class MainWindow
+{
+    private void QueueTranscriptVariants(string media, long generation)
+    {
+        var active = SpeechModels.For(_settings.KineticCaptions.TranscriptModel).Id;
+        // A quality chosen while this plays had its saved original loaded as a variant; its live
+        // track takes over now, so the frozen copy would be a second "Original" of the same quality.
+        foreach (var stale in _player.SubtitleTracks.Where(track => TranscriptVariant.ReplacedByLiveTrack(track.Name, active)).ToArray())
+        {
+            _player.RemoveSubtitles(stale);
+        }
+
+        Forget(Task.Run(() =>
+        {
+            var tracks = new List<SubtitleTrack>();
+            foreach (var choice in Enum.GetValues<TranscriptModelChoice>())
+            {
+                var model = SpeechModels.For(choice).Id;
+                // The active original is owned by the live worker and must not be added twice.
+                if (model != active)
+                {
+                    var generated = _transcripts.Load(media, model)
+                        ?? _transcripts.LoadPartial(media, model)?.ToTranscript();
+                    if (generated is { IsEmpty: false })
+                    {
+                        tracks.Add(generated.ToTrack(new TranscriptVariant(model, false).TrackName));
+                    }
+                }
+
+                if (_transcripts.LoadEdited(media, model) is { Content.IsEmpty: false } edited)
+                {
+                    tracks.Add(edited.Content.ToTrack(new TranscriptVariant(model, true).TrackName));
+                }
+            }
+
+            return tracks;
+        }).ContinueWith(task => OnWindowThread(() =>
+        {
+            if (!task.IsCompletedSuccessfully || generation != _transcriptGeneration || _player.Item?.Location != media)
+            {
+                return;
+            }
+
+            foreach (var track in task.Result)
+            {
+                _player.AddSubtitles(track, show: false);
+            }
+        }), TaskScheduler.Default));
+    }
+}

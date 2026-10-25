@@ -180,13 +180,42 @@ public sealed class VisualizationTests
         Assert.Equal(VisualizerChoice.Silhouette, Visualizers.Next(VisualizerChoice.Strobe));
         Assert.Equal(VisualizerChoice.BeatEdit, Visualizers.Next(VisualizerChoice.Silhouette));
         Assert.Equal(VisualizerChoice.Resonance, Visualizers.Next(VisualizerChoice.BeatEdit));
-        Assert.Equal(VisualizerChoice.Off, Visualizers.Next(VisualizerChoice.Resonance));
+        Assert.Equal(VisualizerChoice.Groove, Visualizers.Next(VisualizerChoice.Resonance));
+        Assert.Equal(VisualizerChoice.Flight, Visualizers.Next(VisualizerChoice.Groove));
+        Assert.Equal(VisualizerChoice.Cymatics, Visualizers.Next(VisualizerChoice.Flight));
+        Assert.Equal(VisualizerChoice.Ridgelines, Visualizers.Next(VisualizerChoice.Cymatics));
+        Assert.Equal(VisualizerChoice.Synthwave, Visualizers.Next(VisualizerChoice.Ridgelines));
+        Assert.Equal(VisualizerChoice.Fireworks, Visualizers.Next(VisualizerChoice.Synthwave));
+        Assert.Equal(VisualizerChoice.Lightning, Visualizers.Next(VisualizerChoice.Fireworks));
+        Assert.Equal(VisualizerChoice.Lava, Visualizers.Next(VisualizerChoice.Lightning));
+        Assert.Equal(VisualizerChoice.Constellation, Visualizers.Next(VisualizerChoice.Lava));
+        Assert.Equal(VisualizerChoice.Galaxy, Visualizers.Next(VisualizerChoice.Constellation));
+        Assert.Equal(VisualizerChoice.Kaleidoscope, Visualizers.Next(VisualizerChoice.Galaxy));
+        Assert.Equal(VisualizerChoice.Murmuration, Visualizers.Next(VisualizerChoice.Kaleidoscope));
+        Assert.Equal(VisualizerChoice.Ink, Visualizers.Next(VisualizerChoice.Murmuration));
+        Assert.Equal(VisualizerChoice.Skyline, Visualizers.Next(VisualizerChoice.Ink));
+        Assert.Equal(VisualizerChoice.Mandala, Visualizers.Next(VisualizerChoice.Skyline));
+        Assert.Equal(VisualizerChoice.Clones, Visualizers.Next(VisualizerChoice.Mandala));
+        Assert.Equal(VisualizerChoice.TimeWarp, Visualizers.Next(VisualizerChoice.Clones));
+        Assert.Equal(VisualizerChoice.Aura, Visualizers.Next(VisualizerChoice.TimeWarp));
+        Assert.Equal(VisualizerChoice.LedWall, Visualizers.Next(VisualizerChoice.Aura));
+        Assert.Equal(VisualizerChoice.Stardust, Visualizers.Next(VisualizerChoice.LedWall));
+        Assert.Equal(VisualizerChoice.HallOfMirrors, Visualizers.Next(VisualizerChoice.Stardust));
+        Assert.Equal(VisualizerChoice.LightPainting, Visualizers.Next(VisualizerChoice.HallOfMirrors));
+        Assert.Equal(VisualizerChoice.Scanner, Visualizers.Next(VisualizerChoice.LightPainting));
+        Assert.Equal(VisualizerChoice.Shatter, Visualizers.Next(VisualizerChoice.Scanner));
+        Assert.Equal(VisualizerChoice.Spotlight, Visualizers.Next(VisualizerChoice.Shatter));
+        Assert.Equal(VisualizerChoice.InfinityMirror, Visualizers.Next(VisualizerChoice.Spotlight));
+        Assert.Equal(VisualizerChoice.Water, Visualizers.Next(VisualizerChoice.InfinityMirror));
+        Assert.Equal(VisualizerChoice.Off, Visualizers.Next(VisualizerChoice.Water));
         Assert.Equal(VisualizerChoice.Spectrum, Visualizers.Next(VisualizerChoice.Off));
         Assert.Equal(VisualizerChoice.Off, Visualizers.Next((VisualizerChoice)42));
         Assert.Equal(
-            ["No visualisation", "Spectrum", "Oscilloscope", "Level meters", "Spectrogram", "Vinyl", "Halo", "Mirror wave", "Aurora", "Embers", "Ripples", "Strobe", "Camera silhouette", "Beat edit", "Resonance"],
+            ["No visualisation", "Spectrum", "Oscilloscope", "Level meters", "Spectrogram", "Vinyl", "Halo", "Mirror wave", "Aurora", "Embers", "Ripples", "Strobe", "Camera silhouette", "Beat edit", "Resonance", "Groove", "Flight", "Cymatics", "Ridgelines", "Synthwave", "Fireworks", "Lightning", "Lava lamp", "Constellation", "Galaxy", "Kaleidoscope", "Murmuration", "Ink", "Skyline", "Mandala", "Clones", "Time warp", "Aura", "LED wall", "Stardust", "Hall of mirrors", "Light painting", "Scanner", "Shatter", "Spotlight", "Infinity mirror", "Water"],
             Enum.GetValues<VisualizerChoice>().Select(Visualizers.Name));
-        Assert.Equal(VisualizerChoice.Spectrum, new PlayerSettings { Visualizer = (VisualizerChoice)99 }.Normalize().Visualizer);
+        var normalized = new PlayerSettings { Visualizer = (VisualizerChoice)99, AudiobookVisualizer = (VisualizerChoice)99 }.Normalize();
+        Assert.Equal(VisualizerChoice.Spectrum, normalized.Visualizer);
+        Assert.Equal(VisualizerChoice.Spectrum, normalized.AudiobookVisualizer);
 
         Assert.Equal(new Argb(255, 255, 0, 0), Visualizers.Hsv(0, 1, 1));
         Assert.Equal(new Argb(255, 0, 255, 0), Visualizers.Hsv(480, 1, 1));
@@ -196,9 +225,6 @@ public sealed class VisualizationTests
         Assert.Equal(new Argb(255, 255, 0, 255), Visualizers.Hsv(300, 1, 1));
         Assert.Equal(new Argb(255, 128, 128, 128), Visualizers.Hsv(90, 0, 0.5));
         Assert.Equal(new Argb(255, 0, 0, 0), Visualizers.Hsv(double.NaN, double.PositiveInfinity, double.NaN));
-        Assert.Equal(2, Visualizers.DominantBand([0.1f, 0.3f, 0.9f, 0.2f]));
-        Assert.Equal(0, Visualizers.DominantBand(Array.Empty<float>()));
-        Assert.Throws<ArgumentNullException>(() => Visualizers.DominantBand(null!));
 
         Assert.Equal(new Argb(255, 0, 0, 0), Visualizers.Heat(0));
         Assert.Equal(new Argb(255, 0, 0, 0), Visualizers.Heat(float.NaN));

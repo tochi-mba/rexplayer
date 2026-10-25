@@ -52,6 +52,20 @@ public sealed class SnapshotTests : IDisposable
     }
 
     [Fact]
+    public void TheNearestPictureIsTheFirstDecodedAfterTheSeek()
+    {
+        var factory = new FakeVideoDecoderFactory();
+        using var demuxer = Open(Video(0, 40, 80, 120));
+
+        var (frame, _) = Snapshot.Take(demuxer, Decoders(factory), MediaTime.FromSeconds(0.1), CancellationToken.None, nearest: true);
+        using (frame)
+        {
+            Assert.Equal(0, frame.Row(0, 0)[0]);
+            Assert.Equal(1, factory.Decoded);
+        }
+    }
+
+    [Fact]
     public void AMomentBeforeTheFirstPictureTakesTheFirst()
     {
         using var demuxer = Open(Video(100, 140));
