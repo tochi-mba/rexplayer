@@ -167,7 +167,25 @@ public sealed partial class LibraryFixtureVisualTests
         var compact = width < 760; // LibraryNavigationNarrowBreakpoint, in XAML.
         Assert.Equal(compact ? "Expand library navigation" : "Collapse library navigation",
             app.Find("LibraryNavigationToggle").Current.Name);
-        Screenshots.Match(app, "library-home-shell-" + size, "LibraryPane");
+
+        // On a freshly opened 720px window, the navigation toggle can advertise
+        // its compact state before the 64px rail and populated Home shelves have
+        // finished layout. Both states paint stable frames, but only one is the
+        // intended screenshot. Match the same settled state across launches.
+        bool CompactHomeReady() =>
+            app.Find("LibrarySources").Current.BoundingRectangle.Width is >= 55 and <= 75
+            && app.Text("LibrarySubtitle") == "3 songs · 0 videos · 1 picture"
+            && app.Find("LibraryShelfCards-Albums").Current.Name == "Albums";
+
+        if (size == "compact")
+        {
+            Wait.For(CompactHomeReady, "the populated 720px Home shell and 64px navigation rail",
+                () => $"Rail: {app.Find("LibrarySources").Current.BoundingRectangle.Width:0.#}px; " +
+                    $"subtitle: {app.Text("LibrarySubtitle")}");
+        }
+
+        Screenshots.Match(app, "library-home-shell-" + size, "LibraryPane",
+            extraReadiness: size == "compact" ? CompactHomeReady : null);
         Assert.Equal(0, app.Close());
     }
 
