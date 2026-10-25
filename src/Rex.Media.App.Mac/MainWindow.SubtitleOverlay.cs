@@ -1,4 +1,6 @@
 using Rex.Media.AppCore.Commands;
+using Rex.Media.AppCore.Player;
+using Rex.Media.Primitives;
 using Rex.Media.Engine;
 using Rex.Media.Settings;
 using Rex.Media.Subtitles;
@@ -13,7 +15,13 @@ public sealed partial class MainWindow
     private NSTextField? _videoMessageOverlay;
     private SessionState _lastTitleState = SessionState.Idle;
     private NSLayoutConstraint? _subtitleBottomConstraint;
+    private NSLayoutConstraint? _subtitleTopConstraint;
+    private NSLayoutConstraint? _subtitleMiddleConstraint;
     private NSLayoutConstraint? _secondaryTopConstraint;
+    private NSLayoutConstraint? _secondaryMiddleConstraint;
+    private NSLayoutConstraint? _secondaryBottomConstraint;
+    private SubtitlePlacement _primaryPlacement = SubtitlePlacement.Bottom;
+    private SubtitlePlacement _secondaryPlacement = SubtitlePlacement.Top;
 
     private void AddSubtitleOverlays(NSView container)
     {
@@ -29,10 +37,14 @@ public sealed partial class MainWindow
         }
 
         _subtitleBottomConstraint = _primarySubtitleOverlay.BottomAnchor.ConstraintEqualTo(_picture!.BottomAnchor, -28);
+        _subtitleTopConstraint = _primarySubtitleOverlay.TopAnchor.ConstraintEqualTo(_picture.TopAnchor, 28);
+        _subtitleMiddleConstraint = _primarySubtitleOverlay.CenterYAnchor.ConstraintEqualTo(_picture.CenterYAnchor);
         _subtitleBottomConstraint.Active = true;
         _secondaryTopConstraint = _secondarySubtitleOverlay.TopAnchor.ConstraintEqualTo(_picture.TopAnchor, 28);
+        _secondaryMiddleConstraint = _secondarySubtitleOverlay.CenterYAnchor.ConstraintEqualTo(_picture.CenterYAnchor);
+        _secondaryBottomConstraint = _secondarySubtitleOverlay.BottomAnchor.ConstraintEqualTo(_primarySubtitleOverlay.TopAnchor, -12);
         _secondaryTopConstraint.Active = true;
-        _videoMessageOverlay.TopAnchor.ConstraintEqualTo(_secondarySubtitleOverlay.BottomAnchor, 12).Active = true;
+        _videoMessageOverlay.TopAnchor.ConstraintEqualTo(_picture.TopAnchor, 14).Active = true;
     }
 
     private static NSTextField SubtitleLabel(string accessibilityName)
@@ -65,20 +77,78 @@ public sealed partial class MainWindow
             (int)Math.Round(_settings.SubtitleOpacity * 255.0 / 100));
         _primarySubtitleOverlay.TextColor = rgba;
         _secondarySubtitleOverlay.TextColor = rgba;
-        if (_subtitleBottomConstraint is not null && _secondaryTopConstraint is not null)
-        {
-            var margin = Math.Max(8, (double)_picture!.Bounds.Height *
-                _settings.SubtitleMargin / 100.0);
-            _subtitleBottomConstraint.Constant = _settings.SubtitlesInBars
-                ? -8 : -(nfloat)margin;
-            _secondaryTopConstraint.Constant = (nfloat)margin;
-        }
         var primary = _player.SubtitlesAt(_player.Position);
         var secondary = _player.SecondarySubtitlesAt(_player.Position);
+        PositionMacSubtitles(primary, secondary);
         var visible = _player.Item is not null;
         var regular = visible && (!MacKineticVisible || _settings.KineticCaptions.KeepSubtitles);
         SetSubtitleLines(_primarySubtitleOverlay, regular ? primary : [], _player.Position);
         SetSubtitleLines(_secondarySubtitleOverlay, regular ? secondary : [], _player.Position);
+    }
+
+    private void PositionMacSubtitles(IReadOnlyList<SubtitleCue> primary,
+        IReadOnlyList<SubtitleCue> secondary)
+    {
+        if (_picture is null || _subtitleBottomConstraint is null ||
+            _subtitleTopConstraint is null || _subtitleMiddleConstraint is null ||
+            _secondaryTopConstraint is null || _secondaryMiddleConstraint is null ||
+            _secondaryBottomConstraint is null) return;
+
+        var width = (double)_picture.Bounds.Width;
+        var height = (double)_picture.Bounds.Height;
+        var video = _player.Info?.FirstTrack(MediaKind.Video)?.Video;
+        // Derive the actual letterbox from source dimensions or the user's aspect override.
+        // The picture may be resized while playing; compute offsets from its live bounds.
+        var ratio = MacAspectRatios[_aspectIndex].Value;
+        var across = ratio is { } chosen ? (long)Math.Round(chosen * 10000) : video?.Width ?? 0;
+        var down = ratio is not null ? 10000 : video?.Height ?? 0;
+        var picture = SubtitleLook.Picture(width, height, across, down);
+        var margin = Math.Max(8, height * _settings.SubtitleMargin / 100.0);
+        var bottomBar = picture.Y;
+        var topBar = Math.Max(0, height - picture.Y - picture.Height);
+        var bottomOffset = _settings.SubtitlesInBars && bottomBar > 16
+            ? Math.Min(margin, bottomBar / 2) : picture.Y + margin;
+        var topOffset = _settings.SubtitlesInBars && topBar > 16
+            ? Math.Min(margin, topBar / 2) : topBar + margin;
+
+        _subtitleBottomConstraint.Constant = -(nfloat)bottomOffset;
+        _subtitleTopConstraint.Constant = (nfloat)topOffset;
+        _secondaryTopConstraint.Constant = (nfloat)topOffset;
+        _secondaryBottomConstraint.Constant = -(nfloat)Math.Max(8, margin / 3);
+
+        var primaryPlacement = _settings.SubtitlesAtBottom ? SubtitlePlacement.Bottom
+            : primary.FirstOrDefault()?.Placement ?? SubtitlePlacement.Bottom;
+        // The second language normally stays at the top to keep two streams legible.
+        var secondaryPlacement = _settings.SubtitlesAtBottom ? SubtitlePlacement.Bottom
+            : secondary.FirstOrDefault()?.Placement is SubtitlePlacement.Middle or SubtitlePlacement.Top
+                ? secondary[0].Placement : SubtitlePlacement.Top;
+        if (primaryPlacement != _primaryPlacement)
+        {
+            _subtitleBottomConstraint.Active = false;
+            _subtitleTopConstraint.Active = false;
+            _subtitleMiddleConstraint.Active = false;
+            _primaryPlacement = primaryPlacement;
+            (primaryPlacement switch
+            {
+                SubtitlePlacement.Top => _subtitleTopConstraint,
+                SubtitlePlacement.Middle => _subtitleMiddleConstraint,
+                _ => _subtitleBottomConstraint,
+            }).Active = true;
+        }
+
+        if (secondaryPlacement != _secondaryPlacement)
+        {
+            _secondaryTopConstraint.Active = false;
+            _secondaryMiddleConstraint.Active = false;
+            _secondaryBottomConstraint.Active = false;
+            _secondaryPlacement = secondaryPlacement;
+            (secondaryPlacement switch
+            {
+                SubtitlePlacement.Middle => _secondaryMiddleConstraint,
+                SubtitlePlacement.Bottom => _secondaryBottomConstraint,
+                _ => _secondaryTopConstraint,
+            }).Active = true;
+        }
     }
 
     private static void SetSubtitleLines(NSTextField label, IReadOnlyList<SubtitleCue> cues, TimeSpan position)
