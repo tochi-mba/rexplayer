@@ -63,7 +63,11 @@ public sealed partial class MainWindow
     {
         if (LibraryHero.Visibility == Visibility.Visible)
         {
-            SetLibraryHeaderCompact(offset > LibraryHeaderCollapseOffset);
+            // A short library viewport needs the compact header even at scroll
+            // offset zero. WinUI emits ViewChanged during resize/layout; that
+            // notification must not undo OnLibraryPaneSized's compact layout.
+            var shortViewport = LibraryPane.ActualHeight is > 0 and < 550;
+            SetLibraryHeaderCompact(shortViewport || offset > LibraryHeaderCollapseOffset);
         }
     }
 
