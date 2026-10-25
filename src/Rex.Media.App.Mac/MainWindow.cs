@@ -234,6 +234,9 @@ public sealed partial class MainWindow : IDisposable
                 case "mac-quick-slots":
                     answered.SetResult(QuickSlotSmokeAction(request.Id));
                     return;
+                case "mac-startup-guidance":
+                    answered.SetResult(StartupGuidanceSmokeAction(request.Id));
+                    return;
                 case "mac-diagnostics":
                     answered.SetResult(DiagnosticsSmokeAction(request.Id, request.Path));
                     return;

@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 155 planned, 76 built, 62 verified, 27 post-1.0, 2 not-applicable.
+macOS: 155 planned, 75 built, 63 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -348,7 +348,7 @@ macOS: 155 planned, 76 built, 62 verified, 27 post-1.0, 2 not-applicable.
 | UI-12 | Customise interface | Toolbar editor: palette of every transport button (frame step, A-B, record, snapshot, loop, shuffle, speed, playlist, fullscreen, effects, stop, chapter nav, cast), drag to order, save/restore layouts | M14 | should | planned | planned |
 | UI-13 | Themes | System / light / dark; accent from the system or the REX signal colour; high contrast; Mica backdrop; theme packages (C) | M4/M15 | must | built | built |
 | UI-14 | First run | Welcome, privacy choices (metadata lookups off by default, update checks on with an opt-out), file-association offer, short tour (house first-run tour pattern) | M4/M15 | must | verified | built |
-| UI-15 | What's new | Shown once after an update (house pattern) | M4 | should | verified | built |
+| UI-15 | What's new | Shown once after an update (house pattern) | M4 | should | verified | verified |
 | UI-16 | Window title | `<title> - rexplayer`; token format configurable | M4 | should | verified | verified |
 | UI-17 | In-window confirmations | No modal pop-ups during playback; system dialogs only before a window exists (house rule) | M4 | must | built | built |
 | UI-18 | Mouse & touch | Wheel volume (default) or seek; double-click fullscreen; middle-click pause; back/forward buttons = previous/next; touch: tap shows controls, double-tap left/right edge seeks ∓10 s, pinch zoom in zoom/360° modes | M4/M15 | must/should | built | built |

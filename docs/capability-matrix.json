@@ -3487,7 +3487,7 @@
       "oracles": "UIA",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {

@@ -4,6 +4,7 @@ using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Platform;
 using Rex.Media.Library;
+using Rex.Media.Settings;
 using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.AppCore;
@@ -38,6 +39,7 @@ public sealed class MacAppSmokeTests
     [Capability("AU-06", CapabilityPlatform.MacOS)]
     [Capability("LIB-04", CapabilityPlatform.MacOS)]
     [Capability("LIB-08", CapabilityPlatform.MacOS)]
+    [Capability("UI-15", CapabilityPlatform.MacOS)]
     [Capability("UI-11", CapabilityPlatform.MacOS)]
     [Capability("LIB-03", CapabilityPlatform.MacOS)]
     [Capability("LIB-04", CapabilityPlatform.MacOS)]
@@ -49,6 +51,12 @@ public sealed class MacAppSmokeTests
     {
         var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
         var root = Path.Combine(Path.GetTempPath(), "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8]);
+        var startupRoots = new DataRoots(root);
+        SettingsStore.Save(startupRoots.SettingsPath, new PlayerSettings
+        {
+            FirstRunDone = true,
+            LastSeenVersion = "0.0.0",
+        });
         var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
         var screenshots = RepoPaths.Combine("artifacts", "mac-queue-screenshots");
         Directory.CreateDirectory(screenshots);
@@ -84,6 +92,13 @@ public sealed class MacAppSmokeTests
         {
             var up = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Ok: true }, app, root);
             Assert.Equal("Idle", up.State);
+            var whatsNew = await Ask(pipe, new AutomationRequest { Command = "mac-startup-guidance", Id = "status" });
+            Assert.Contains("first=False;whats=True;seen=0.0.0", whatsNew?.Text, StringComparison.Ordinal);
+            var dismissedWhatsNew = await Ask(pipe, new AutomationRequest { Command = "mac-startup-guidance", Id = "done-whats-new" });
+            Assert.Contains("whats=False", dismissedWhatsNew?.Text, StringComparison.Ordinal);
+            Assert.DoesNotContain("seen=0.0.0", dismissedWhatsNew?.Text, StringComparison.Ordinal);
+            var notShownTwice = await Ask(pipe, new AutomationRequest { Command = "mac-startup-guidance", Id = "check-again" });
+            Assert.Contains("whats=False", notShownTwice?.Text, StringComparison.Ordinal);
             var handedOverVideo = RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4");
             var secondStart = new ProcessStartInfo(Path.Combine(bundle!, "Contents", "MacOS", "rexplayer"))
             {

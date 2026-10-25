@@ -1,4 +1,5 @@
 using Rex.Media.AppCore;
+using Rex.Media.AppCore.Automation;
 using Rex.Media.Settings;
 
 namespace Rex.Media.App.Mac;
@@ -8,6 +9,7 @@ public sealed partial class MainWindow
 {
     private NSWindow? _firstRunWindow;
     private NSWindow? _whatsNewWindow;
+    private NSButton? _whatsNewDone;
 
     private static string RunningVersion =>
         typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "unknown";
@@ -122,6 +124,7 @@ public sealed partial class MainWindow
                 SaveSeenVersion(firstRun: false);
                 _whatsNewWindow?.OrderOut(null);
             });
+            _whatsNewDone = done;
             var actions = NSStackView.FromViews([site, done]);
             actions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             actions.Spacing = 8;
@@ -186,5 +189,28 @@ public sealed partial class MainWindow
         _whatsNewWindow?.Close();
         _whatsNewWindow?.Dispose();
         _whatsNewWindow = null;
+    }
+
+    private AutomationReply StartupGuidanceSmokeAction(string? action)
+    {
+        switch (action)
+        {
+            case "done-whats-new":
+                _whatsNewDone?.PerformClick(_whatsNewDone);
+                break;
+            case "check-again":
+                ShowStartupGuidance();
+                break;
+            case "status":
+                break;
+            default:
+                return AutomationReply.Failed("Unknown startup-guidance action: " + action);
+        }
+
+        return new AutomationReply
+        {
+            Ok = true,
+            Text = $"first={_firstRunWindow?.IsVisible == true};whats={_whatsNewWindow?.IsVisible == true};seen={_settings.LastSeenVersion}",
+        };
     }
 }
