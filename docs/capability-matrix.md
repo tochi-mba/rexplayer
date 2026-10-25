@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 160 planned, 77 built, 56 verified, 27 post-1.0, 2 not-applicable.
+macOS: 159 planned, 78 built, 56 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -350,7 +350,7 @@ macOS: 160 planned, 77 built, 56 verified, 27 post-1.0, 2 not-applicable.
 | UI-14 | First run | Welcome, privacy choices (metadata lookups off by default, update checks on with an opt-out), file-association offer, short tour (house first-run tour pattern) | M4/M15 | must | verified | built |
 | UI-15 | What's new | Shown once after an update (house pattern) | M4 | should | verified | built |
 | UI-16 | Window title | `<title> - rexplayer`; token format configurable | M4 | should | verified | verified |
-| UI-17 | In-window confirmations | No modal pop-ups during playback; system dialogs only before a window exists (house rule) | M4 | must | built | planned |
+| UI-17 | In-window confirmations | No modal pop-ups during playback; system dialogs only before a window exists (house rule) | M4 | must | built | built |
 | UI-18 | Mouse & touch | Wheel volume (default) or seek; double-click fullscreen; middle-click pause; back/forward buttons = previous/next; touch: tap shows controls, double-tap left/right edge seeks ∓10 s, pinch zoom in zoom/360° modes | M4/M15 | must/should | built | built |
 
 ## Tools, interfaces, extensions & CLI
