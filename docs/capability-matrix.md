@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 155 planned, 82 built, 56 verified, 27 post-1.0, 2 not-applicable.
+macOS: 155 planned, 81 built, 57 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -15,7 +15,7 @@ macOS: 155 planned, 82 built, 56 verified, 27 post-1.0, 2 not-applicable.
 | PB-02 | Play / pause / stop / toggle | Stop returns to start and releases devices; pause holds the decoders warm | M2 | must | verified | verified |
 | PB-03 | Precise seek (time) | Sample-accurate audio, frame-accurate video; seek bar click, drag (keyframe while dragging, precise on release) | M2/M3 | must | verified | verified |
 | PB-04 | Relative jumps | Very short 3 s, short 10 s, medium 60 s, long 300 s; every size configurable | M4 | must | verified | verified |
-| PB-05 | Go to time | Dialog (Ctrl+T) accepting `h:mm:ss`, `mm:ss` or seconds; also `rexplay seek` | M4 | must | verified | built |
+| PB-05 | Go to time | Dialog (Ctrl+T) accepting `h:mm:ss`, `mm:ss` or seconds; also `rexplay seek` | M4 | must | verified | verified |
 | PB-06 | Playback rate | 0.25×–4×; coarse steps (0.25/0.5/0.75/1/1.25/1.5/2/3/4) and fine steps of ±0.1; reset to 1.0; pitch preserved by default | M5 | must | verified | verified |
 | PB-07 | Frame step | Forward E; backward Shift+E (decode-from-keyframe cache) | M11 | must/should | planned | planned |
 | PB-08 | A-B loop | Set A, set B, clear; loop survives a pause; snaps to frames | M11 | must | planned | planned |

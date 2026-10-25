@@ -182,6 +182,12 @@ public sealed partial class MainWindow : IDisposable
                 case "run":
                     answered.SetResult(AutomationReply.Failed($"There is no command \"{request.Id}\"."));
                     return;
+                case "seek" when request.To is { } seconds && double.IsFinite(seconds) && seconds >= 0:
+                    _player.Seek(TimeSpan.FromSeconds(seconds));
+                    break;
+                case "seek":
+                    answered.SetResult(AutomationReply.Failed("seek needs a non-negative time in seconds."));
+                    return;
                 case "mac-queue":
                     if (!QueueSmokeAction(request.Id))
                     {

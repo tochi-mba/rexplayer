@@ -6,13 +6,12 @@ platform while the other catches up; under *locked* every must row is verified o
 applicable with a reason, and CI blocks a release otherwise (ADR-0020). A **gap** is a difference someone has
 accepted for now: its note says why and its issue says who closes it.
 
-Totals: 48 rows differ (28 must), 2 not applicable, 0 gaps.
+Totals: 47 rows differ (27 must), 2 not applicable, 0 gaps.
 
 ## Playback core
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| PB-05 | Go to time | must | verified | built |  |
 | PB-10 | Bookmarks (per file) | should | verified | built |  |
 | PB-11 | Resume where you left off | must | verified | built |  |
 | PB-16 | Snapshot | must | verified | built |  |

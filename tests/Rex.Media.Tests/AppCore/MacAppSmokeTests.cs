@@ -32,6 +32,7 @@ public sealed class MacAppSmokeTests
     [Capability("UI-05", CapabilityPlatform.MacOS)]
     [Capability("SUB-16", CapabilityPlatform.MacOS)]
     [Capability("A11Y-02", CapabilityPlatform.MacOS)]
+    [Capability("PB-05", CapabilityPlatform.MacOS)]
     [Capability("UI-11", CapabilityPlatform.MacOS)]
     [Capability("LIB-03", CapabilityPlatform.MacOS)]
     [Capability("LIB-04", CapabilityPlatform.MacOS)]
@@ -199,6 +200,10 @@ public sealed class MacAppSmokeTests
             Assert.True(opened?.Ok == true, "The app did not acknowledge the open request: " + (opened?.Error ?? "no reply") + ". Its log ends:" + LogTail(root));
             var playing = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Title: not null, State: "Playing" or "Ended" or "Paused" }, app, root);
             Assert.False(string.IsNullOrWhiteSpace(playing.Title), "The app opened the video but reports no title.");
+            var sought = await Ask(pipe, new AutomationRequest { Command = "seek", To = 0.25 });
+            Assert.True(sought?.Ok == true && sought.Position is >= 0.2 and <= 0.5,
+                "The Mac did not seek to the requested playback time: " +
+                (sought?.Error ?? "unexpected position"));
             var droppedSubtitles = Path.Combine(root, "drop-test.srt");
             await File.WriteAllTextAsync(droppedSubtitles,
                 "1\n00:00:00,000 --> 00:00:02,000\nDropped subtitle\n",
