@@ -50,10 +50,11 @@ public sealed partial class MainWindow
         _preferencesResumeMode = EffectChoices(["Ask before resuming", "Always resume", "Start from beginning"]);
         _preferencesTheme = EffectChoices(["Follow system appearance", "Light", "Dark"]);
         var clearHistory = NSButton.CreateButton("Clear playback history", () =>
-        {
-            _player.ClearHistory();
-            Say("Playback history cleared");
-        });
+            ConfirmInWindow("Clear playback history and saved positions? This cannot be undone.", () =>
+            {
+                _player.ClearHistory();
+                Say("Playback history cleared");
+            }));
 
         _preferencesMaxVolumeValue = NSTextField.CreateLabel("");
         _preferencesMaxVolumeValue.Font = NSFont.MonospacedDigitSystemFontOfSize(12, NSFontWeight.Regular)!;
