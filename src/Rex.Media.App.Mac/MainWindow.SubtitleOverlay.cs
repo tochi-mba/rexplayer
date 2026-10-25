@@ -1,4 +1,5 @@
 using Rex.Media.AppCore.Commands;
+using Rex.Media.Engine;
 using Rex.Media.Settings;
 using Rex.Media.Subtitles;
 
@@ -10,6 +11,7 @@ public sealed partial class MainWindow
     private NSTextField? _primarySubtitleOverlay;
     private NSTextField? _secondarySubtitleOverlay;
     private NSTextField? _videoMessageOverlay;
+    private SessionState _lastTitleState = SessionState.Idle;
 
     private void AddSubtitleOverlays(NSView container)
     {
@@ -69,6 +71,22 @@ public sealed partial class MainWindow
         }
 
         label.Hidden = text.Length == 0;
+    }
+
+    private void ShowTitleOnPlaybackStart()
+    {
+        var state = _player.State;
+        var enteringOpen = state == SessionState.Opening && _lastTitleState != SessionState.Opening;
+        _lastTitleState = state;
+        if (!enteringOpen || _player.Item is null || _settings.TitleSeconds <= 0)
+        {
+            return;
+        }
+
+        SetVideoOSD(_player.Title);
+        _clearMessage?.Invalidate();
+        _clearMessage = NSTimer.CreateScheduledTimer(TimeSpan.FromSeconds(_settings.TitleSeconds),
+            _ => SetVideoOSD(""));
     }
 
     private void SetVideoOSD(string message)

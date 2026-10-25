@@ -897,6 +897,7 @@ public sealed partial class MainWindow : IDisposable
         _title.StringValue = _player.Item is null ? "Drop media here, or press Cmd+O to open a file." : _player.Title;
         _artist.StringValue = _player.Item is null ? "Private, local playback" : _player.Artist ?? _player.State.ToString();
         _window.Title = _player.Item is null ? "rexplayer" : _player.Title + " - rexplayer";
+        ShowTitleOnPlaybackStart();
         _playPause.Title = _player.IsPlaying ? "Pause" : "Play";
         _seek.Enabled = _player.CanSeek;
         if (_resumeBanner is not null && _resumeNotice is not null)
