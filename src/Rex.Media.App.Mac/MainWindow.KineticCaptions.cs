@@ -146,6 +146,49 @@ public sealed partial class MainWindow
         });
     }
 
+    private static T NextCaptionChoice<T>(T current) where T : struct, Enum
+    {
+        var values = Enum.GetValues<T>();
+        var index = Array.IndexOf(values, current);
+        return values[(index + 1) % values.Length];
+    }
+
+    private void ChangeMacCaptionEnergy(int delta)
+    {
+        SaveMacCaptionSettings(_settings with
+        {
+            KineticCaptions = _settings.KineticCaptions with
+            {
+                Energy = Math.Clamp(_settings.KineticCaptions.Energy + delta,
+                    KineticCaptionSettings.LeastEnergy, KineticCaptionSettings.MostEnergy),
+            },
+        });
+    }
+
+    private void CycleMacCaptionLayout() => SaveMacCaptionSettings(_settings with
+    {
+        KineticCaptions = _settings.KineticCaptions with
+        {
+            Layout = NextCaptionChoice(_settings.KineticCaptions.Layout),
+        },
+    });
+
+    private void CycleMacCaptionSource() => SaveMacCaptionSettings(_settings with
+    {
+        KineticCaptions = _settings.KineticCaptions with
+        {
+            Words = NextCaptionChoice(_settings.KineticCaptions.Words),
+        },
+    });
+
+    private void CycleMacCaptionPreset() => SaveMacCaptionSettings(_settings with
+    {
+        KineticCaptions = _settings.KineticCaptions with
+        {
+            Preset = NextCaptionChoice(_settings.KineticCaptions.Preset),
+        },
+    });
+
     private void ShowMacKineticSettings()
     {
         if (_macCaptionSettings is null)

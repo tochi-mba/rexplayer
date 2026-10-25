@@ -159,6 +159,21 @@ public sealed partial class MainWindow
             case CommandCatalog.KineticCaptionSettings:
                 ShowMacKineticSettings();
                 return true;
+            case CommandCatalog.KineticCaptionsLivelier:
+                ChangeMacCaptionEnergy(+25);
+                return true;
+            case CommandCatalog.KineticCaptionsCalmer:
+                ChangeMacCaptionEnergy(-25);
+                return true;
+            case CommandCatalog.CycleCaptionLayout:
+                CycleMacCaptionLayout();
+                return true;
+            case CommandCatalog.CycleCaptionWords:
+                CycleMacCaptionSource();
+                return true;
+            case CommandCatalog.CycleCaptionStyle:
+                CycleMacCaptionPreset();
+                return true;
             case CommandCatalog.Transcribe:
                 AskMacSpeech();
                 return true;
