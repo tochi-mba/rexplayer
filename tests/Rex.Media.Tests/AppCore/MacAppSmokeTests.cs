@@ -33,6 +33,7 @@ public sealed class MacAppSmokeTests
     [Capability("SUB-16", CapabilityPlatform.MacOS)]
     [Capability("A11Y-02", CapabilityPlatform.MacOS)]
     [Capability("PB-05", CapabilityPlatform.MacOS)]
+    [Capability("PB-10", CapabilityPlatform.MacOS)]
     [Capability("UI-11", CapabilityPlatform.MacOS)]
     [Capability("LIB-03", CapabilityPlatform.MacOS)]
     [Capability("LIB-04", CapabilityPlatform.MacOS)]
@@ -204,6 +205,16 @@ public sealed class MacAppSmokeTests
             Assert.True(sought?.Ok == true && sought.Position is >= 0.2 and <= 0.5,
                 "The Mac did not seek to the requested playback time: " +
                 (sought?.Error ?? "unexpected position"));
+            var bookmarkAdded = await Ask(pipe, new AutomationRequest { Command = "mac-bookmarks", Id = "add" });
+            Assert.Equal("Mac moment", bookmarkAdded?.Text);
+            var bookmarkRenamed = await Ask(pipe, new AutomationRequest { Command = "mac-bookmarks", Id = "rename" });
+            Assert.Equal("Mac renamed moment", bookmarkRenamed?.Text);
+            await Ask(pipe, new AutomationRequest { Command = "seek", To = 0 });
+            var bookmarkJumped = await Ask(pipe, new AutomationRequest { Command = "mac-bookmarks", Id = "jump" });
+            Assert.True(bookmarkJumped?.Position is >= 0.2 and <= 0.5,
+                "The native bookmark did not seek back to its saved position.");
+            var bookmarkRemoved = await Ask(pipe, new AutomationRequest { Command = "mac-bookmarks", Id = "remove" });
+            Assert.Equal("", bookmarkRemoved?.Text);
             var droppedSubtitles = Path.Combine(root, "drop-test.srt");
             await File.WriteAllTextAsync(droppedSubtitles,
                 "1\n00:00:00,000 --> 00:00:02,000\nDropped subtitle\n",

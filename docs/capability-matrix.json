@@ -133,7 +133,7 @@
       "oracles": "STORE FRM",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {

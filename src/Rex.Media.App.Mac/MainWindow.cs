@@ -223,6 +223,9 @@ public sealed partial class MainWindow : IDisposable
                 case "mac-keyboard":
                     answered.SetResult(ProbeMacKeyboardTraversal());
                     return;
+                case "mac-bookmarks":
+                    answered.SetResult(BookmarkSmokeAction(request.Id));
+                    return;
                 case "mac-diagnostics":
                     answered.SetResult(DiagnosticsSmokeAction(request.Id, request.Path));
                     return;

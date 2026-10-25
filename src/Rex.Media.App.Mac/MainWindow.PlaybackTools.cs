@@ -1,5 +1,6 @@
 using System.Globalization;
 using Rex.Media.AppCore.Commands;
+using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Primitives;
 
@@ -18,6 +19,10 @@ public sealed partial class MainWindow
     private readonly List<NSButton> _bookmarkActions = [];
     private readonly List<NSButton> _seekActions = [];
     private string? _bookmarkSignature;
+    private NSButton? _bookmarkAdd;
+    private NSButton? _bookmarkJump;
+    private NSButton? _bookmarkRename;
+    private NSButton? _bookmarkRemove;
 
     /// <summary>Native controls over the shared player's bookmarks, sound and saved progress.</summary>
     private void ShowPlaybackTools()
@@ -53,13 +58,16 @@ public sealed partial class MainWindow
                     ShowSelectedBookmarkName();
                 }
             });
+            _bookmarkAdd = add;
             _seekActions.Add(add);
             var jump = NSButton.CreateButton("Go to", () => _player.GoToBookmark((int)_bookmarkPicker.IndexOfSelectedItem));
+            _bookmarkJump = jump;
             var rename = NSButton.CreateButton("Rename", () =>
             {
                 _player.RenameBookmark((int)_bookmarkPicker.IndexOfSelectedItem, _bookmarkName.StringValue);
                 RefreshPlaybackTools();
             });
+            _bookmarkRename = rename;
             var remove = NSButton.CreateButton("Remove", () =>
             {
                 var index = (int)_bookmarkPicker.IndexOfSelectedItem;
@@ -71,6 +79,7 @@ public sealed partial class MainWindow
                     RefreshPlaybackTools();
                 });
             });
+            _bookmarkRemove = remove;
             _bookmarkActions.AddRange([jump, rename, remove]);
 
             _audioDescription = NSTextField.CreateLabel("No audio track");
@@ -212,5 +221,43 @@ public sealed partial class MainWindow
         _playbackTools?.Close();
         _playbackTools?.Dispose();
         _playbackTools = null;
+    }
+
+    /// <summary>Drive the same native bookmark controls used by a person in the playback-tools window.</summary>
+    private AutomationReply BookmarkSmokeAction(string? action)
+    {
+        ShowPlaybackTools();
+        switch (action)
+        {
+            case "add":
+                _bookmarkName!.StringValue = "Mac moment";
+                _bookmarkAdd!.PerformClick(_bookmarkAdd);
+                break;
+            case "rename":
+                _bookmarkName!.StringValue = "Mac renamed moment";
+                _bookmarkRename!.PerformClick(_bookmarkRename);
+                break;
+            case "jump":
+                _bookmarkJump!.PerformClick(_bookmarkJump);
+                break;
+            case "remove":
+                _bookmarkRemove!.PerformClick(_bookmarkRemove);
+                var accept = _confirmationAccept;
+                HideConfirmation();
+                accept?.Invoke();
+                break;
+            case "status":
+                break;
+            default:
+                return AutomationReply.Failed("Unknown bookmark action: " + action);
+        }
+
+        RefreshPlaybackTools();
+        return new AutomationReply
+        {
+            Ok = true,
+            Text = string.Join("|", _player.Bookmarks.Select(bookmark => bookmark.Name)),
+            Position = _player.Position.TotalSeconds,
+        };
     }
 }
