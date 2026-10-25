@@ -73,7 +73,7 @@ public static class VideoStyleOptions
             VideoEffect.DiceMosaic => ("Die size (%)", "The size of each die: higher gives fewer, bigger dice."),
             VideoEffect.CubeMosaic => ("Cube size (%)", "The size of each cube of nine stickers."),
             VideoEffect.HexTiles => ("Tile size (%)", "The size of each hexagonal tile."),
-            VideoEffect.RetroPixels => ("Pixel size (%)", "Adjusts Pixel size (%)"),
+            VideoEffect.RetroPixels => ("Pixel size (%)", "The size of each big pixel."),
             VideoEffect.MotionAmplify => ("Motion reach (%)", "How far the previous picture is searched for each patch."),
             VideoEffect.FlowField => ("Match reach (%)", "How far the previous picture is searched for each patch: higher follows faster motion."),
             VideoEffect.RippleTouch => ("Ring spacing (%)", "Higher packs the rings closer together."),
@@ -101,6 +101,19 @@ public static class VideoStyleOptions
             VideoEffect.MotionOutline => ("Outline thickness (%)", "How wide the band of ants is."),
             VideoEffect.HeatHaze => ("Haze strength (%)", "How much the air above bright areas wobbles."),
             VideoEffect.Confetti => ("Piece density (%)", "How many pieces are in the air."),
+            VideoEffect.SnowSettle => ("Flake count (%)", "How many flakes fall."),
+            VideoEffect.Thunderstorm => ("Rain density (%)", "How many rain streaks fall."),
+            VideoEffect.StageLights => ("Beam width (%)", "How wide each spotlight beam and pool is."),
+            VideoEffect.Hologram => ("Scanline density (%)", "How close together the scanlines are."),
+            VideoEffect.PaperLayers => ("Shadow depth (%)", "How far each sheet's shadow falls."),
+            VideoEffect.Droste => ("Circle size (%)", "How large the repeating circle is."),
+            VideoEffect.ReflectionPool => ("Ripple fineness (%)", "Higher makes finer, closer ripples."),
+            VideoEffect.Disintegrate => ("Grain fineness (%)", "Higher breaks the picture into smaller grains."),
+            VideoEffect.Aurora => ("Ray detail (%)", "How finely the curtains are streaked."),
+            VideoEffect.PageCurl => ("Fold softness (%)", "How soft the shading along the fold is."),
+            VideoEffect.Bubbles => ("Bubble count (%)", "Higher fits more, smaller bubbles."),
+            VideoEffect.TinyPlanet => ("Planet size (%)", "How large the planet is in the frame."),
+            VideoEffect.StencilGraffiti => ("Spray fuzz (%)", "How rough the spray edges are."),
             _ => ("Movement (%)", "How fast the effect moves with the video's time."),
         };
         var options = new List<VideoStyleOption>
@@ -318,6 +331,58 @@ public static class VideoStyleOptions
                 options.Add(new($"effect.{name}.speed", "Fall speed (%)", 50, 0, 100, "How fast the pieces fall."));
                 options.Add(new($"effect.{name}.blow", "Pointer gust (%)", 60, 0, 100, "How hard the pointer blows pieces aside."));
                 break;
+            case VideoEffect.SnowSettle:
+                options.Add(new($"effect.{name}.speed", "Fall speed (%)", 50, 0, 100, "How fast the flakes fall."));
+                options.Add(new($"effect.{name}.build", "Build-up speed (%)", 50, 0, 100, "How fast snow piles up on ledges."));
+                break;
+            case VideoEffect.Thunderstorm:
+                options.Add(new($"effect.{name}.wind", "Rain speed (%)", 50, 0, 100, "How fast the rain drives down."));
+                options.Add(new($"effect.{name}.lightning", "Lightning (%)", 50, 0, 100, "How often lightning strikes."));
+                break;
+            case VideoEffect.StageLights:
+                options.Add(new($"effect.{name}.sweep", "Sweep speed (%)", 40, 0, 100, "How fast the lights move."));
+                options.Add(new($"effect.{name}.house", "House lights (%)", 20, 0, 100, "How much of the picture shows outside the lights."));
+                break;
+            case VideoEffect.Hologram:
+                options.Add(new($"effect.{name}.mode", "Light colour", 0, 0, 2, "The colour of the projection."));
+                options.Add(new($"effect.{name}.glitch", "Glitch (%)", 40, 0, 100, "How far the tears shift the picture."));
+                break;
+            case VideoEffect.PaperLayers:
+                options.Add(new($"effect.{name}.sheets", "Sheets (%)", 30, 0, 100, "How many sheets of paper the picture is cut from."));
+                options.Add(new($"effect.{name}.grey", "Paper greyness (%)", 0, 0, 100, "How much the sheets lose their colour."));
+                break;
+            case VideoEffect.Droste:
+                options.Add(new($"effect.{name}.ratio", "Copy size (%)", 50, 0, 100, "How much smaller each copy is than the last."));
+                options.Add(new($"effect.{name}.twist", "Spiral twist (%)", 50, 0, 100, "How strongly the copies spiral."));
+                break;
+            case VideoEffect.ReflectionPool:
+                options.Add(new($"effect.{name}.waterline", "Waterline (%)", 40, 0, 100, "How far down the picture the water starts."));
+                options.Add(new($"effect.{name}.ripples", "Ripple strength (%)", 50, 0, 100, "How much the ripples distort the reflection."));
+                break;
+            case VideoEffect.Disintegrate:
+                options.Add(new($"effect.{name}.speed", "Sweep speed (%)", 50, 0, 100, "How fast the picture blows away."));
+                options.Add(new($"effect.{name}.lift", "Updraft (%)", 50, 0, 100, "How much the grains rise as they drift."));
+                break;
+            case VideoEffect.Aurora:
+                options.Add(new($"effect.{name}.speed", "Ripple speed (%)", 40, 0, 100, "How fast the curtains move."));
+                options.Add(new($"effect.{name}.glow", "Brightness (%)", 60, 0, 100, "How brightly the curtains glow."));
+                break;
+            case VideoEffect.PageCurl:
+                options.Add(new($"effect.{name}.shadow", "Fold shadow (%)", 60, 0, 100, "How dark the shadow under the flap is."));
+                options.Add(new($"effect.{name}.beneath", "Sheet beneath (%)", 0, 0, 100, "At 0 a blank sheet, higher a dim copy of the picture."));
+                break;
+            case VideoEffect.Bubbles:
+                options.Add(new($"effect.{name}.speed", "Float speed (%)", 40, 0, 100, "How fast the bubbles rise."));
+                options.Add(new($"effect.{name}.size", "Bubble size (%)", 50, 0, 100, "How large the bubbles are."));
+                break;
+            case VideoEffect.TinyPlanet:
+                options.Add(new($"effect.{name}.spin", "Spin speed (%)", 30, 0, 100, "How fast the planet turns when the pointer is away."));
+                options.Add(new($"effect.{name}.mode", "Shape", 0, 0, 1, "A planet, or a tunnel with the sky at the centre."));
+                break;
+            case VideoEffect.StencilGraffiti:
+                options.Add(new($"effect.{name}.mode", "Paint", 0, 0, 3, "The paint colours."));
+                options.Add(new($"effect.{name}.wall", "Wall brightness (%)", 60, 0, 100, "How bright the brick wall is."));
+                break;
             case VideoEffect.RetroPixels:
                 options.Add(new($"effect.{name}.dither", "Dither (%)", 70, 0, 100, "How much a pattern of dots blends neighbouring colours; 0 gives flat bands."));
                 options.Add(new($"effect.{name}.mode", "Palette", 0, 0, 3, "The few colours the picture is drawn in."));
@@ -361,6 +426,9 @@ public static class VideoStyleOptions
         VideoEffect.CelShade => ["Black", "Brown", "Navy", "Darker picture"],
         VideoEffect.ScanSweep => ["Heat", "Edges", "Negative (right side)", "X-ray style"],
         VideoEffect.ZoomBurst => ["Outward", "Inward", "Outward with glow"],
+        VideoEffect.Hologram => ["Cyan", "Green", "Pink"],
+        VideoEffect.TinyPlanet => ["Planet", "Tunnel"],
+        VideoEffect.StencilGraffiti => ["Black on brick", "Red and black", "Navy and yellow", "Neon"],
         VideoEffect.TimeLens => ["Cool", "Warm", "None"],
         VideoEffect.InkSpill => ["Black", "Blue", "Red", "White"],
         VideoEffect.MotionOutline => ["Black and white", "Navy and gold", "Red"],
