@@ -29,6 +29,7 @@ public sealed class MacAppSmokeTests
     [Capability("TOOL-06", CapabilityPlatform.MacOS)]
     [Capability("TOOL-10", CapabilityPlatform.MacOS)]
     [Capability("UI-09", CapabilityPlatform.MacOS)]
+    [Capability("UI-05", CapabilityPlatform.MacOS)]
     [Capability("PB-12", CapabilityPlatform.MacOS)]
     [Capability("VID-03", CapabilityPlatform.MacOS)]
     [Capability("VID-27", CapabilityPlatform.MacOS)]
@@ -168,6 +169,14 @@ public sealed class MacAppSmokeTests
             Assert.False(string.IsNullOrWhiteSpace(playing.Title), "The app opened the video but reports no title.");
             var titled = await Ask(pipe, new AutomationRequest { Command = "mac-window" });
             Assert.Contains(playing.Title, titled?.Text, StringComparison.Ordinal);
+            Assert.Contains("minimal=False", titled?.Text, StringComparison.Ordinal);
+            Assert.Contains("context=33", titled?.Text, StringComparison.Ordinal);
+            var minimal = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.MinimalInterface });
+            Assert.True(minimal?.Ok == true, "The Mac minimal-interface command was not handled.");
+            var hiddenChrome = await Ask(pipe, new AutomationRequest { Command = "mac-window" });
+            Assert.Contains("minimal=True", hiddenChrome?.Text, StringComparison.Ordinal);
+            Assert.Contains("context=33", hiddenChrome?.Text, StringComparison.Ordinal);
+            await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.MinimalInterface });
             await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleAlwaysOnTop });
             var floating = await Ask(pipe, new AutomationRequest { Command = "mac-window" });
             Assert.Contains("floating=True", floating?.Text, StringComparison.Ordinal);
@@ -175,7 +184,8 @@ public sealed class MacAppSmokeTests
             await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleFullScreen });
             await Until(
                 () => Ask(pipe, new AutomationRequest { Command = "mac-window" }),
-                reply => reply?.Text?.Contains("fullscreen=True", StringComparison.Ordinal) == true,
+                reply => reply?.Text?.Contains("fullscreen=True", StringComparison.Ordinal) == true &&
+                    reply.Text.Contains("context=33", StringComparison.Ordinal),
                 app, root);
             await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.LeaveFullScreen });
             await Queue(pipe, "capture-current");

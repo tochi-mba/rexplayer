@@ -6,7 +6,7 @@ platform while the other catches up; under *locked* every must row is verified o
 applicable with a reason, and CI blocks a release otherwise (ADR-0020). A **gap** is a difference someone has
 accepted for now: its note says why and its issue says who closes it.
 
-Totals: 72 rows differ (50 must), 2 not applicable, 0 gaps.
+Totals: 70 rows differ (48 must), 2 not applicable, 0 gaps.
 
 ## Playback core
 
@@ -102,9 +102,7 @@ Totals: 72 rows differ (50 must), 2 not applicable, 0 gaps.
 |---|---|---|---|---|---|
 | UI-01 | Main window | must | verified | planned |  |
 | UI-02 | Menu system | must | built | planned |  |
-| UI-03 | Video context menu | must | built | planned |  |
 | UI-04 | Fullscreen controller | must | verified | planned |  |
-| UI-05 | Minimal interface | must | verified | planned |  |
 | UI-07 | Effects & filters panel (Ctrl+E) | must | built | planned |  |
 | UI-10 | Preferences | must | built | planned |  |
 | UI-11 | Hotkey editor | must | verified | planned |  |

@@ -3331,7 +3331,7 @@
       "oracles": "UIA",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -3357,7 +3357,7 @@
       "oracles": "UIA",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "verified"
       }
     },
     {

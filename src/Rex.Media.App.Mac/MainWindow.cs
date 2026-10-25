@@ -44,6 +44,9 @@ public sealed partial class MainWindow : IDisposable
     private readonly NSSlider _seek;
     private readonly NSSlider _volume;
     private readonly List<(NSMenuItem Item, string Command)> _checks = [];
+    private NSStackView? _chrome;
+    private NSMenu? _pictureMenu;
+    private bool _minimalInterface;
     private PlayerSettings _settings;
     private NSTimer? _clearMessage;
     private PictureView? _picture;
@@ -170,7 +173,7 @@ public sealed partial class MainWindow : IDisposable
                     answered.SetResult(new AutomationReply
                     {
                         Ok = true,
-                        Text = $"fullscreen={IsFullScreen};floating={_window.Level == NSWindowLevel.Floating};title={_window.Title}",
+                        Text = $"fullscreen={IsFullScreen};floating={_window.Level == NSWindowLevel.Floating};minimal={_minimalInterface};context={ContextCommandCount};title={_window.Title}",
                     });
                     return;
                 case "status":
@@ -328,6 +331,7 @@ public sealed partial class MainWindow : IDisposable
         timeline.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
         timeline.Spacing = 12;
         var stack = NSStackView.FromViews([_title, _artist, _message, timeline, controls]);
+        _chrome = stack;
         stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
         stack.Alignment = NSLayoutAttribute.Leading;
         stack.Spacing = 12;
@@ -337,6 +341,8 @@ public sealed partial class MainWindow : IDisposable
         timeline.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
 
         var content = new DropView(paths => _player.Open(paths));
+        _pictureMenu = BuildPictureMenu();
+        content.Menu = _pictureMenu;
         _picture = new PictureView(_log) { TranslatesAutoresizingMaskIntoConstraints = false };
         content.AddSubview(_picture);
         content.AddSubview(stack);
@@ -395,6 +401,40 @@ public sealed partial class MainWindow : IDisposable
 
         return bar;
     }
+
+    /// <summary>
+    /// The picture menu uses the shared context layout, so every command stays available when
+    /// the ordinary controls are hidden or the window is full screen (UI-03/UI-05).
+    /// </summary>
+    private NSMenu BuildPictureMenu()
+    {
+        var menu = new NSMenu("Playback");
+        foreach (var (title, commands) in ContextMenuLayout.Groups)
+        {
+            if (title.Length == 0)
+            {
+                FillContextGroup(menu, commands);
+            }
+            else
+            {
+                var group = new NSMenu(title);
+                FillContextGroup(group, commands);
+                menu.AddItem(new NSMenuItem(title) { Submenu = group });
+            }
+        }
+
+        return menu;
+    }
+
+    private void FillContextGroup(NSMenu menu, IEnumerable<string?> commands)
+    {
+        foreach (var command in commands)
+        {
+            menu.AddItem(command is null ? NSMenuItem.SeparatorItem : Entry(command, null));
+        }
+    }
+
+    private static int ContextCommandCount => ContextMenuLayout.Groups.Sum(group => group.Commands.Count(command => command is not null));
 
     private NSMenu Fill(NSMenu menu, string?[] entries)
     {
@@ -484,6 +524,14 @@ public sealed partial class MainWindow : IDisposable
                 return true;
             case CommandCatalog.ToggleAlwaysOnTop:
                 _window.Level = _window.Level == NSWindowLevel.Floating ? NSWindowLevel.Normal : NSWindowLevel.Floating;
+                return true;
+            case CommandCatalog.MinimalInterface:
+                _minimalInterface = !_minimalInterface;
+                if (_chrome is not null)
+                {
+                    _chrome.Hidden = _minimalInterface;
+                }
+
                 return true;
             case CommandCatalog.GoToTime:
                 GoToTime();
@@ -615,6 +663,7 @@ public sealed partial class MainWindow : IDisposable
         CommandCatalog.SleepAtEndOfItem => _player.SleepAtEndOfItem,
         CommandCatalog.ToggleFullScreen => IsFullScreen,
         CommandCatalog.ToggleAlwaysOnTop => _window.Level == NSWindowLevel.Floating,
+        CommandCatalog.MinimalInterface => _minimalInterface,
         _ => false,
     };
 
