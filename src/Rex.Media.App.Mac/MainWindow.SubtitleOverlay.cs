@@ -81,9 +81,9 @@ public sealed partial class MainWindow
         var visible = _player.Item is not null;
         var regular = visible && (!MacKineticVisible || _settings.KineticCaptions.KeepSubtitles);
         RenderMacSubtitleLines(_primarySubtitleOverlay, regular ? primary : [],
-            _player.Position, look, font, styleChanged);
+            _player.Position, look, font, styleChanged, _settings.SubtitleSize / 100.0);
         RenderMacSubtitleLines(_secondarySubtitleOverlay, regular ? secondary : [],
-            _player.Position, look, font, styleChanged);
+            _player.Position, look, font, styleChanged, _settings.SubtitleSize / 100.0);
     }
 
     private void PositionMacSubtitles(IReadOnlyList<SubtitleCue> primary,
