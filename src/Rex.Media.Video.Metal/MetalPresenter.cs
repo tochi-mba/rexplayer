@@ -21,11 +21,12 @@ public sealed class MetalPresenter : IVideoPresenter
         struct Placed { float4 position [[position]]; float2 uv; };
         struct Colour { float4 rowR; float4 rowG; float4 rowB; };
 
-        vertex Placed placeQuad(uint corner [[vertex_id]], constant float4& quad [[buffer(0)]]) {
+        vertex Placed placeQuad(uint corner [[vertex_id]], constant float4& quad [[buffer(0)]],
+            constant float4& uvRect [[buffer(1)]]) {
             float2 at = float2(corner & 1, corner >> 1);
             Placed placed;
             placed.position = float4(quad.x + at.x * quad.z, quad.y - at.y * quad.w, 0, 1);
-            placed.uv = at;
+            placed.uv = uvRect.xy + at * uvRect.zw;
             return placed;
         }
 
@@ -51,6 +52,11 @@ public sealed class MetalPresenter : IVideoPresenter
     private (ColorInfo Color, PixelFormat Format) _rowsFor;
     private (int Width, int Height) _target;
     private long _drawn;
+    private double? _displayAspect;
+    private double? _cropAspect;
+    private double _zoom = 1;
+    private double _panX;
+    private double _panY;
 
     private MetalPresenter(CAMetalLayer layer, IMTLDevice device)
     {
@@ -104,6 +110,23 @@ public sealed class MetalPresenter : IVideoPresenter
         {
             _target = (Math.Max(width, 1), Math.Max(height, 1));
             _layer.DrawableSize = new CoreGraphics.CGSize(_target.Width, _target.Height);
+        }
+    }
+
+    /// <summary>
+    /// Controls display aspect, symmetric source crop and zoom/pan without resampling decoded frames.
+    /// Normalized pan [-1,1] reaches each edge of the cropped source; all updates redraw the last picture.
+    /// </summary>
+    public void SetViewGeometry(double? aspect, double? crop, double zoom, double panX, double panY)
+    {
+        lock (_gate)
+        {
+            _displayAspect = aspect is > 0 && double.IsFinite(aspect.Value) ? aspect : null;
+            _cropAspect = crop is > 0 && double.IsFinite(crop.Value) ? crop : null;
+            _zoom = double.IsFinite(zoom) ? Math.Clamp(zoom, 1, 8) : 1;
+            _panX = double.IsFinite(panX) ? Math.Clamp(panX, -1, 1) : 0;
+            _panY = double.IsFinite(panY) ? Math.Clamp(panY, -1, 1) : 0;
+            Draw();
         }
     }
 
@@ -185,8 +208,30 @@ public sealed class MetalPresenter : IVideoPresenter
             return;
         }
 
-        var placed = VideoLayout.Fit(_picture.Width, _picture.Height, _aspect, _target.Width, _target.Height);
+        var sourceAspect = _picture.Width * (_aspect.Numerator > 0 ? _aspect.Value : 1) / _picture.Height;
+        var cropU = 1.0;
+        var cropV = 1.0;
+        if (_cropAspect is { } cropped)
+        {
+            if (cropped > sourceAspect)
+            {
+                cropV = sourceAspect / cropped;
+            }
+            else
+            {
+                cropU = cropped / sourceAspect;
+            }
+        }
+
+        // Crop changes the displayed content's natural aspect; an explicit aspect overrides it.
+        var displayAspect = _displayAspect ?? (sourceAspect * cropU / cropV);
+        var placed = VideoLayout.FitAspect((long)Math.Round(displayAspect * 100000),
+            100000, _target.Width, _target.Height);
         var (left, top, width, height) = VideoLayout.ToClipSpace(placed, _target.Width, _target.Height);
+        var visibleU = cropU / _zoom;
+        var visibleV = cropV / _zoom;
+        var u = (1.0 - cropU) / 2 + (cropU - visibleU) * (1 + _panX) / 2;
+        var v = (1.0 - cropV) / 2 + (cropV - visibleV) * (1 + _panY) / 2;
         var pass = new MTLRenderPassDescriptor();
         pass.ColorAttachments[0].Texture = drawable.Texture;
         pass.ColorAttachments[0].LoadAction = MTLLoadAction.Clear;
@@ -199,6 +244,8 @@ public sealed class MetalPresenter : IVideoPresenter
         {
             var quad = stackalloc float[] { left, top, width, height };
             encoder.SetVertexBytes((IntPtr)quad, sizeof(float) * 4, 0);
+            var uv = stackalloc float[] { (float)u, (float)v, (float)visibleU, (float)visibleV };
+            encoder.SetVertexBytes((IntPtr)uv, sizeof(float) * 4, 1);
             fixed (float* rows = _rows)
             {
                 encoder.SetFragmentBytes((IntPtr)rows, (nuint)(sizeof(float) * _rows.Length), 0);

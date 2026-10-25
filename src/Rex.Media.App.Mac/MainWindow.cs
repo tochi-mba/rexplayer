@@ -604,6 +604,45 @@ public sealed partial class MainWindow : IDisposable
             case CommandCatalog.ToggleAlwaysOnTop:
                 _window.Level = _window.Level == NSWindowLevel.Floating ? NSWindowLevel.Normal : NSWindowLevel.Floating;
                 return true;
+            case CommandCatalog.CycleAspectRatio:
+                CycleVideoAspect();
+                return true;
+            case CommandCatalog.CycleCrop:
+                CycleVideoCrop();
+                return true;
+            case CommandCatalog.ZoomIn:
+                ChangeVideoZoom(1.25);
+                return true;
+            case CommandCatalog.ZoomOut:
+                ChangeVideoZoom(1 / 1.25);
+                return true;
+            case CommandCatalog.ResetZoom:
+                ResetVideoZoom();
+                return true;
+            case CommandCatalog.PanLeft:
+                PanVideo(-0.15, 0);
+                return true;
+            case CommandCatalog.PanRight:
+                PanVideo(+0.15, 0);
+                return true;
+            case CommandCatalog.PanUp:
+                PanVideo(0, -0.15);
+                return true;
+            case CommandCatalog.PanDown:
+                PanVideo(0, +0.15);
+                return true;
+            case CommandCatalog.ScaleQuarter:
+                SizeWindowToVideo(0.25);
+                return true;
+            case CommandCatalog.ScaleHalf:
+                SizeWindowToVideo(0.5);
+                return true;
+            case CommandCatalog.ScaleOriginal:
+                SizeWindowToVideo(1);
+                return true;
+            case CommandCatalog.ScaleDouble:
+                SizeWindowToVideo(2);
+                return true;
             case CommandCatalog.MinimalInterface:
                 _minimalInterface = !_minimalInterface;
                 if (_chrome is not null)
