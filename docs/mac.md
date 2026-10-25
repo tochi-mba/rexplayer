@@ -138,3 +138,15 @@ text, letterbox placement and kinetic-caption parity are still planned.
 
 All newly advanced capabilities are recorded as **built**, not verified. No full Mac parity
 verification has been performed as part of this implementation batch.
+
+## Mac system media controls and update security
+
+Control Center, headset commands and media keys are registered through the native MediaPlayer
+remote command center. Now Playing publishes the current title, artist, embedded artwork,
+position, duration and state, and removes handlers at shutdown.
+
+The software updates window checks the owner's pinned GitHub release feed on the configured cadence
+or on demand. Mac universal ZIPs are downloaded with resumable transfers and accepted only after
+matching a companion SHA-256 file. The verified archive can be opened for manual installation.
+Automatic in-place installation, restart-session handoff, deferral and full updater parity
+remain **planned**; neither this UI nor the ledger implies they have been implemented.

@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 166 planned, 71 built, 56 verified, 27 post-1.0, 2 not-applicable.
+macOS: 163 planned, 74 built, 56 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -37,7 +37,7 @@ macOS: 166 planned, 71 built, 56 verified, 27 post-1.0, 2 not-applicable.
 | PB-24 | Corrupt-file resilience | Skip bad access units, keep playing other streams, rebuild a missing MP4/AVI index by scanning (with progress) | M3/M7 | must | planned | planned |
 | PB-25 | Instant start | Cold start under 300 ms to UI; open to first frame under 500 ms on the hardware lane | M15 | must | planned | planned |
 | PB-26 | Scrubbing preview | Seek-bar thumbnail preview generated off-thread from keyframes and cached | M11 | should | planned | planned |
-| PB-27 | Media key / external control | SMTC, keyboard media keys, Bluetooth headset buttons (§6.13) | M15 | must | built | planned |
+| PB-27 | Media key / external control | SMTC, keyboard media keys, Bluetooth headset buttons (§6.13) | M15 | must | built | built |
 
 ## Formats: Containers / demuxers
 
@@ -379,7 +379,7 @@ macOS: 166 planned, 71 built, 56 verified, 27 post-1.0, 2 not-applicable.
 | WIN-02 | File associations | Groups: Video (mp4 m4v mkv webm avi mov wmv asf ts m2ts mts mpg mpeg vob flv 3gp ogv y4m), Audio (mp3 flac m4a aac wav ogg oga opus wma aif aiff caf ac3 eac3 dts mka), Playlists (m3u m3u8 pls xspf cue asx wpl), Disc images (iso); per-user ProgIDs + RegisteredApplications capabilities so rexplayer appears in Default Apps; never hijacks: the installer task deep-links to Default Apps | M15 | must | built | built |
 | WIN-03 | Explorer verbs | "Play with rexplayer", "Add to rexplayer playlist" (classic menu, HKCU); modern top-level Windows 11 menu through a sparse package (C, post-1.0) | M15 | must | planned | not-applicable |
 | WIN-04 | AutoPlay handlers | Audio CD, DVD movie, Blu-ray movie, removable-media folders | M15 | should | planned | not-applicable |
-| WIN-05 | System Media Transport Controls | Media overlay (title/artist/artwork/timeline), media keys, lock screen, Bluetooth headset buttons, Game Bar media widget | M15 | must | built | planned |
+| WIN-05 | System Media Transport Controls | Media overlay (title/artist/artwork/timeline), media keys, lock screen, Bluetooth headset buttons, Game Bar media widget | M15 | must | built | built |
 | WIN-06 | Taskbar | Thumbnail toolbar (previous, play/pause, next), progress state (normal/paused/error), live thumbnail | M15 | must | built | built |
 | WIN-07 | Jump list | Recent media, pinned items, tasks (open file, resume last, open network stream); classic `ICustomDestinationList` (works unpackaged) | M15 | should | built | built |
 | WIN-08 | Toasts on track change | Opt-in (Windows App SDK app notifications, unpackaged registration) | M15 | could | planned | planned |
@@ -420,6 +420,6 @@ macOS: 166 planned, 71 built, 56 verified, 27 post-1.0, 2 not-applicable.
 | SEC-02 | Decoder isolation | MF transforms run in-process at 1.0; out-of-process decode host is a post-1.0 hardening option | post | could | post-1.0 | post-1.0 |
 | SEC-03 | Extension trust | Capability manifest shown at install; quarantine on faults; documented "trusted code" stance | M14 | must | planned | planned |
 | SEC-04 | Network services off by default | Web remote and stream-out need explicit enabling and show a firewall explanation | M9/M14 | must | planned | planned |
-| SEC-05 | Update integrity | HTTPS, owner-pinned release URL, sha256 verification; Authenticode once signing exists (§11) | M4 | must | verified | planned |
+| SEC-05 | Update integrity | HTTPS, owner-pinned release URL, sha256 verification; Authenticode once signing exists (§11) | M4 | must | verified | built |
 | SYS-01 | Logging | House rotating logger (never throws, critical always written) + ETW EventSource | M1 | must | built | built |
 | SYS-02 | Settings safety | Atomic writes, cross-process lock, `.rex-backup`, schema version + migrations, Normalize() clamps (house patterns) | M4 | must | built | built |
