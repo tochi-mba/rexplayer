@@ -12,6 +12,8 @@ public sealed partial class MainWindow
     private NSPopUpButton? _preferencesTheme;
     private NSButton? _preferencesSingleInstance;
     private NSButton? _preferencesHardwareDecoding;
+    private NSButton? _preferencesH264Hardware;
+    private NSButton? _preferencesHevcHardware;
     private NSSlider? _preferencesMaxVolume;
     private NSSlider? _preferencesPictureSeconds;
     private NSTextField? _preferencesMaxVolumeValue;
@@ -52,6 +54,8 @@ public sealed partial class MainWindow
             "Allow VideoToolbox hardware decoding (applies to the next opened video)");
         _preferencesHardwareDecoding.ToolTip =
             "Turn off to request software decoding for H.264 and HEVC on this Mac.";
+        _preferencesH264Hardware = CheckBox("Prefer hardware H.264 decoding");
+        _preferencesHevcHardware = CheckBox("Prefer hardware HEVC decoding");
         _preferencesResumeMode = EffectChoices(["Ask before resuming", "Always resume", "Start from beginning"]);
         _preferencesTheme = EffectChoices(["Follow system appearance", "Light", "Dark"]);
         var clearHistory = NSButton.CreateButton("Clear playback history", () =>
@@ -90,6 +94,8 @@ public sealed partial class MainWindow
             volume,
             pictures,
             _preferencesHardwareDecoding,
+            _preferencesH264Hardware,
+            _preferencesHevcHardware,
             PreferencesHeading("Appearance"),
             EffectChoiceRow("Theme", _preferencesTheme),
             PreferencesHeading("Opening media"),
@@ -149,6 +155,8 @@ public sealed partial class MainWindow
         _preferencesSingleInstance!.State = State(_settings.SingleInstance);
         _preferencesEnqueue!.State = State(_settings.EnqueueFromSecondLaunch);
         _preferencesHardwareDecoding!.State = State(_settings.HardwareVideoDecoding);
+        _preferencesH264Hardware!.State = State(_settings.HardwareH264Decoding);
+        _preferencesHevcHardware!.State = State(_settings.HardwareHevcDecoding);
         _preferencesResumeMode!.SelectItem((int)_settings.ResumeMode);
         _preferencesTheme!.SelectItem((int)_settings.Theme);
         _preferencesMaxVolume!.DoubleValue = _settings.MaxVolumePercent;
@@ -171,6 +179,8 @@ public sealed partial class MainWindow
             SingleInstance = IsChecked(_preferencesSingleInstance),
             EnqueueFromSecondLaunch = IsChecked(_preferencesEnqueue),
             HardwareVideoDecoding = IsChecked(_preferencesHardwareDecoding),
+            HardwareH264Decoding = IsChecked(_preferencesH264Hardware),
+            HardwareHevcDecoding = IsChecked(_preferencesHevcHardware),
             ResumeMode = (ResumeBehavior)(int)_preferencesResumeMode!.IndexOfSelectedItem,
             Theme = (ThemeChoice)(int)_preferencesTheme!.IndexOfSelectedItem,
             MaxVolumePercent = (int)Math.Round(_preferencesMaxVolume!.DoubleValue),
