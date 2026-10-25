@@ -25,6 +25,7 @@ public sealed class MacAppSmokeTests
 
     [Fact(Skip = MacAppRequired, SkipUnless = nameof(CanDriveMacApp))]
     [Capability("TOOL-03", CapabilityPlatform.MacOS)]
+    [Capability("TOOL-06", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
         var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
@@ -62,6 +63,28 @@ public sealed class MacAppSmokeTests
         {
             var up = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Ok: true }, app, root);
             Assert.Equal("Idle", up.State);
+            var handedOverVideo = RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4");
+            var secondStart = new ProcessStartInfo(Path.Combine(bundle!, "Contents", "MacOS", "rexplayer"))
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            secondStart.Environment["REXPLAYER_ROOT"] = root;
+            secondStart.Environment["REXPLAYER_FAKE_AUDIO"] = "1";
+            secondStart.Environment["REXPLAYER_PIPE_NAME"] = pipe;
+            secondStart.ArgumentList.Add(handedOverVideo);
+            using (var second = Process.Start(secondStart)!)
+            {
+                await second.WaitForExitAsync(TestContext.Current.CancellationToken).WaitAsync(Patience, TestContext.Current.CancellationToken);
+                Assert.Equal(0, second.ExitCode);
+            }
+
+            var handedOver = await Until(
+                () => Ask(pipe, new AutomationRequest { Command = "status" }),
+                reply => reply is { Ok: true, Title: not null }, app, root);
+            Assert.Contains("h264-aac", handedOver.Title, StringComparison.OrdinalIgnoreCase);
+            Assert.False(app.HasExited, "The original player exited when the later launch handed over its file.");
             var emptyLibrary = await Library(pipe, "show");
             Assert.Contains("0 items", emptyLibrary.Title, StringComparison.Ordinal);
             await Library(pipe, "capture-empty");

@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 222 planned, 29 built, 42 verified, 27 post-1.0, 2 not-applicable.
+macOS: 222 planned, 28 built, 43 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -362,7 +362,7 @@ macOS: 222 planned, 29 built, 42 verified, 27 post-1.0, 2 not-applicable.
 | TOOL-03 | Local automation / remote-control interface | Named-pipe JSON-RPC + event subscription (§9.2), current-user only, size-bounded, deadline-controlled (house IPC invariants); optional localhost text console (C) | M4 | must | verified | verified |
 | TOOL-04 | HTTP web remote | Off by default; password required; LAN bind with an explicit choice; mobile-friendly page (transport, seek, volume, playlist, library browse); JSON API over the same command bus; CSRF tokens; rate-limited login | M14 | should | planned | planned |
 | TOOL-05 | Global hotkeys | Opt-in per binding (RegisterHotKey); conflicts reported | M14 | should | planned | planned |
-| TOOL-06 | Single instance | "Use only one instance" (default on), "enqueue instead of play" (default off), explicit `--new-instance` | M4 | must | verified | built |
+| TOOL-06 | Single instance | "Use only one instance" (default on), "enqueue instead of play" (default off), explicit `--new-instance` | M4 | must | verified | verified |
 | TOOL-07 | Extensions | §7.8 model; extension points: commands/menus, playback observers, metadata/art/lyrics providers, link resolvers, subtitle providers, service-discovery providers, visualisers (C); manager UI (enable/disable/remove, declared capabilities shown at install); install from local `.rexext` packages; sample extensions + SDK docs + template in the repo | M14 | must | planned | planned |
 | TOOL-08 | Program guide | EPG from transport-stream EIT tables | M12 | could | planned | planned |
 | TOOL-09 | Updater | Automatic check (off / daily / weekly), background resumable download + sha256 verify, install automatically, on close, tonight or now with the session restored paused, remind / skip, release notes shown | M4 | should | verified | planned |

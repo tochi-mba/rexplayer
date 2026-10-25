@@ -6,7 +6,7 @@ platform while the other catches up; under *locked* every must row is verified o
 applicable with a reason, and CI blocks a release otherwise (ADR-0020). A **gap** is a difference someone has
 accepted for now: its note says why and its issue says who closes it.
 
-Totals: 87 rows differ (63 must), 2 not applicable, 0 gaps.
+Totals: 86 rows differ (62 must), 2 not applicable, 0 gaps.
 
 ## Playback core
 
@@ -128,7 +128,6 @@ Totals: 87 rows differ (63 must), 2 not applicable, 0 gaps.
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| TOOL-06 | Single instance | must | verified | built |  |
 | TOOL-09 | Updater | should | verified | planned |  |
 | TOOL-10 | Diagnostics bundle | should | verified | planned |  |
 | TOOL-11 | System probe | must | verified | planned |  |

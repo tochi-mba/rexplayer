@@ -3604,7 +3604,7 @@
       "oracles": "EVT CLI",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
