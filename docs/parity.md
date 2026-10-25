@@ -66,7 +66,7 @@ Totals: 50 rows differ (30 must), 2 not applicable, 0 gaps.
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| OSD-01 | Text subtitle style | must | verified | planned |  |
+| OSD-01 | Text subtitle style | must | verified | built |  |
 | OSD-03 | Placement | should | verified | built |  |
 | OSD-04 | Dual subtitles | should | verified | built |  |
 | OSD-05 | ASS style policy | must | built | planned |  |
