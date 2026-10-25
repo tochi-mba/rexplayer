@@ -53,6 +53,17 @@ public enum UpdateMode
     NotifyOnly,
 }
 
+/// <summary>How rexplayer behaves when a remembered position exists for a file.</summary>
+public enum ResumeBehavior
+{
+    /// <summary>Offer an unobtrusive choice after media opens.</summary>
+    Ask,
+    /// <summary>Return to the saved position automatically.</summary>
+    Always,
+    /// <summary>Start at the beginning and do not seek to a saved position.</summary>
+    Never,
+}
+
 /// <summary>How the two front channels are heard.</summary>
 public enum StereoChoice
 {
@@ -460,6 +471,9 @@ public sealed record PlayerSettings
 
     public bool Muted { get; init; }
 
+    /// <summary>Keep musical pitch when playback speed changes; off deliberately shifts the pitch too.</summary>
+    public bool PreservePitch { get; init; } = true;
+
     /// <summary>The highest volume the slider offers, in percent (100 to 200).</summary>
     public int MaxVolumePercent { get; init; } = 200;
 
@@ -476,6 +490,9 @@ public sealed record PlayerSettings
 
     public bool Shuffle { get; init; }
 
+    /// <summary>Whether and how to return to remembered playback positions.</summary>
+    public ResumeBehavior ResumeMode { get; init; } = ResumeBehavior.Always;
+
     /// <summary>The four jump sizes, in seconds: very short, short, medium and long.</summary>
     public int VeryShortJumpSeconds { get; init; } = 3;
 
@@ -487,6 +504,24 @@ public sealed record PlayerSettings
 
     /// <summary>Whether pointing at the timeline decodes and shows the exact video frame there.</summary>
     public bool SeekPreview { get; init; }
+
+    /// <summary>Last selected snapshot directory; null chooses the pictures folder.</summary>
+    public string? SnapshotFolder { get; init; }
+
+    /// <summary>Snapshot name tokens: {title}, {time} (hours-minutes-seconds) and optional {n}.</summary>
+    public string SnapshotNamePattern { get; init; } = "{title} {time}";
+
+    /// <summary>Append a sequence number instead of overwriting an existing automatic name.</summary>
+    public bool SnapshotSequential { get; init; } = true;
+
+    /// <summary>Allow hardware video decoding when the native platform supports it. Reopening a video applies changes.</summary>
+    public bool HardwareVideoDecoding { get; init; } = true;
+
+    /// <summary>Allow hardware H.264 decoding when hardware video decoding is enabled.</summary>
+    public bool HardwareH264Decoding { get; init; } = true;
+
+    /// <summary>Allow hardware HEVC decoding when hardware video decoding is enabled.</summary>
+    public bool HardwareHevcDecoding { get; init; } = true;
 
     // Sound
 
@@ -814,6 +849,7 @@ public sealed record PlayerSettings
             VolumeStepPercent = Math.Clamp(VolumeStepPercent, 1, 25),
             PictureSeconds = Math.Clamp(PictureSeconds, 1, 3600),
             Repeat = Enum.IsDefined(Repeat) ? Repeat : RepeatMode.Off,
+            ResumeMode = Enum.IsDefined(ResumeMode) ? ResumeMode : ResumeBehavior.Always,
             VeryShortJumpSeconds = Math.Clamp(VeryShortJumpSeconds, 1, 3600),
             ShortJumpSeconds = Math.Clamp(ShortJumpSeconds, 1, 3600),
             MediumJumpSeconds = Math.Clamp(MediumJumpSeconds, 1, 3600),
@@ -870,6 +906,9 @@ public sealed record PlayerSettings
             LibraryRoute = string.IsNullOrWhiteSpace(LibraryRoute?.View) ? null : LibraryRoute,
             AudioLanguages = AudioLanguages?.Trim() ?? "",
             SubtitleLanguages = SubtitleLanguages?.Trim() ?? "",
+            SnapshotFolder = string.IsNullOrWhiteSpace(SnapshotFolder) ? null : SnapshotFolder.Trim(),
+            SnapshotNamePattern = string.IsNullOrWhiteSpace(SnapshotNamePattern)
+                ? "{title} {time}" : SnapshotNamePattern.Trim()[..Math.Min(120, SnapshotNamePattern.Trim().Length)],
             SubtitleFont = string.IsNullOrWhiteSpace(SubtitleFont) ? "Segoe UI" : SubtitleFont.Trim(),
             SubtitleSize = Math.Clamp(SubtitleSize, 50, 400),
             SubtitleColor = Rgb(SubtitleColor),

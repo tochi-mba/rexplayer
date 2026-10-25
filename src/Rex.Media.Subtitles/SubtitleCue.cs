@@ -14,7 +14,8 @@ public enum SubtitlePlacement
 /// default. <paramref name="At"/> is when the run is spoken, measured from the cue's start, where
 /// the file says (a WebVTT cue timestamp or an ASS karaoke tag); null when it does not.
 /// </summary>
-public sealed record SubtitleRun(string Text, bool Bold = false, bool Italic = false, bool Underline = false, int? Color = null, TimeSpan? At = null);
+public sealed record SubtitleRun(string Text, bool Bold = false, bool Italic = false, bool Underline = false,
+    int? Color = null, TimeSpan? At = null, string? Font = null, double? FontSize = null);
 
 /// <summary>One line of a cue, made of runs.</summary>
 public sealed record SubtitleLine(IReadOnlyList<SubtitleRun> Runs)

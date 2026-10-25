@@ -31,6 +31,8 @@ public static partial class CliApplication
 
             host.Out.WriteLine(MachineEnvelope.Success("probe", new JsonObject
             {
+                ["platform"] = report.Platform,
+                ["operatingSystem"] = report.Windows,
                 ["windows"] = report.Windows,
                 ["graphics"] = report.Graphics,
                 ["graphicsInSoftware"] = report.GraphicsInSoftware,
@@ -40,7 +42,7 @@ public static partial class CliApplication
             return 0;
         }
 
-        host.Out.WriteLine($"Windows {report.Windows}");
+        host.Out.WriteLine($"{report.Platform} {report.Windows}");
         host.Out.WriteLine(report.Graphics is null ? "Graphics: none would start" : $"Graphics: {report.Graphics}{(report.GraphicsInSoftware ? " (software)" : string.Empty)}");
         host.Out.WriteLine(report.AudioOutput is { } output
             ? string.Create(CultureInfo.InvariantCulture, $"Audio output: {output.SampleRate} Hz, {output.Channels} channels")

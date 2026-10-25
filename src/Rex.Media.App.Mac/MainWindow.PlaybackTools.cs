@@ -1,7 +1,9 @@
 using System.Globalization;
 using Rex.Media.AppCore.Commands;
+using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Primitives;
+using Rex.Media.Settings;
 
 namespace Rex.Media.App.Mac;
 
@@ -12,11 +14,19 @@ public sealed partial class MainWindow
     private NSTextField? _bookmarkName;
     private NSTextField? _audioDescription;
     private NSTextField? _audioDelayDescription;
+    private NSTextField? _audioDelayEntry;
     private NSTextField? _playbackToolsTitle;
+    private NSPopUpButton? _playbackSpeed;
+    private NSTextField? _playbackSpeedHint;
+    private NSButton? _playbackPreservePitch;
     private NSButton? _nextAudioTrack;
     private readonly List<NSButton> _bookmarkActions = [];
     private readonly List<NSButton> _seekActions = [];
     private string? _bookmarkSignature;
+    private NSButton? _bookmarkAdd;
+    private NSButton? _bookmarkJump;
+    private NSButton? _bookmarkRename;
+    private NSButton? _bookmarkRemove;
 
     /// <summary>Native controls over the shared player's bookmarks, sound and saved progress.</summary>
     private void ShowPlaybackTools()
@@ -52,10 +62,28 @@ public sealed partial class MainWindow
                     ShowSelectedBookmarkName();
                 }
             });
+            _bookmarkAdd = add;
             _seekActions.Add(add);
             var jump = NSButton.CreateButton("Go to", () => _player.GoToBookmark((int)_bookmarkPicker.IndexOfSelectedItem));
-            var rename = NSButton.CreateButton("Rename", () => _player.RenameBookmark((int)_bookmarkPicker.IndexOfSelectedItem, _bookmarkName.StringValue));
-            var remove = NSButton.CreateButton("Remove", () => _player.DeleteBookmark((int)_bookmarkPicker.IndexOfSelectedItem));
+            _bookmarkJump = jump;
+            var rename = NSButton.CreateButton("Rename", () =>
+            {
+                _player.RenameBookmark((int)_bookmarkPicker.IndexOfSelectedItem, _bookmarkName.StringValue);
+                RefreshPlaybackTools();
+            });
+            _bookmarkRename = rename;
+            var remove = NSButton.CreateButton("Remove", () =>
+            {
+                var index = (int)_bookmarkPicker.IndexOfSelectedItem;
+                if (index < 0 || index >= _player.Bookmarks.Count) return;
+                var name = _player.Bookmarks[index].Name;
+                ConfirmInWindow("Remove saved moment '" + name + "' from this file?", () =>
+                {
+                    _player.DeleteBookmark(index);
+                    RefreshPlaybackTools();
+                });
+            });
+            _bookmarkRemove = remove;
             _bookmarkActions.AddRange([jump, rename, remove]);
 
             _audioDescription = NSTextField.CreateLabel("No audio track");
@@ -63,9 +91,46 @@ public sealed partial class MainWindow
             _nextAudioTrack = NSButton.CreateButton("Next audio track", () => Run(CommandCatalog.CycleAudioTrack));
             _audioDelayDescription = NSTextField.CreateLabel("Audio in sync");
             _audioDelayDescription.Font = NSFont.MonospacedDigitSystemFontOfSize(12, NSFontWeight.Regular)!;
+            _audioDelayEntry = new NSTextField(new CGRect(0, 0, 120, 24))
+            {
+                PlaceholderString = "Milliseconds",
+                ToolTip = "Audio delay from -10000 to 10000 milliseconds",
+            };
             var earlier = NSButton.CreateButton("Earlier 50 ms", () => _player.SetAudioDelay(_player.AudioDelay - TimeSpan.FromMilliseconds(50)));
             var later = NSButton.CreateButton("Later 50 ms", () => _player.SetAudioDelay(_player.AudioDelay + TimeSpan.FromMilliseconds(50)));
             var reset = NSButton.CreateButton("Reset sync", () => _player.SetAudioDelay(TimeSpan.Zero));
+            var apply = NSButton.CreateButton("Set exact delay", SetExactAudioDelay);
+            _playbackSpeed = new NSPopUpButton(new CGRect(0, 0, 250, 28), false);
+            foreach (var speed in PlayerController.SpeedSteps)
+            {
+                _playbackSpeed.AddItem(speed.ToString("0.##", CultureInfo.InvariantCulture) + "×");
+            }
+            _playbackSpeed.Activated += (_, _) =>
+            {
+                var index = (int)_playbackSpeed.IndexOfSelectedItem;
+                if (index >= 0 && index < PlayerController.SpeedSteps.Count)
+                {
+                    _player.SetSpeed(PlayerController.SpeedSteps[index]);
+                    RefreshPlaybackTools();
+                }
+            };
+            ((NSView)_playbackSpeed).AccessibilityLabel = "Playback speed, pitch preserved";
+            _playbackSpeedHint = NSTextField.CreateLabel("WSOLA keeps pitch, or use chipmunk mode.");
+            _playbackSpeedHint.TextColor = NSColor.SecondaryLabel;
+            _playbackPreservePitch = NSButton.CreateCheckbox("Preserve pitch at different speeds", () =>
+            {
+                var preserve = IsChecked(_playbackPreservePitch);
+                _settings = _settings with { PreservePitch = preserve };
+                _player.SetPreservePitch(preserve);
+                try
+                {
+                    SettingsStore.Save(_roots.SettingsPath, _settings);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    _log.Warning(LogSource, "Pitch mode could not be saved: " + ex.Message);
+                }
+            });
             var hint = NSTextField.CreateLabel("Changes apply immediately. Bookmarks stay with this file.");
             hint.TextColor = NSColor.SecondaryLabel;
 
@@ -78,8 +143,12 @@ public sealed partial class MainWindow
                 PlaybackToolsRow(add, jump, rename, remove),
                 PlaybackToolsHeading("Sound & sync"),
                 PlaybackToolsRow(_audioDescription, _nextAudioTrack),
+                PlaybackToolsRow(PlaybackToolsHeading("Playback speed"), _playbackSpeed),
+                _playbackPreservePitch,
+                _playbackSpeedHint,
                 _audioDelayDescription,
                 PlaybackToolsRow(earlier, later, reset),
+                PlaybackToolsRow(_audioDelayEntry, apply),
                 hint,
             ]);
             stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
@@ -120,6 +189,19 @@ public sealed partial class MainWindow
         {
             _bookmarkName.StringValue = index >= 0 && index < _player.Bookmarks.Count ? _player.Bookmarks[index].Name : "";
         }
+    }
+
+    private void SetExactAudioDelay()
+    {
+        if (double.TryParse(_audioDelayEntry?.StringValue, NumberStyles.Float,
+            CultureInfo.InvariantCulture, out var milliseconds))
+        {
+            _player.SetAudioDelay(TimeSpan.FromMilliseconds(milliseconds));
+            RefreshPlaybackTools();
+            return;
+        }
+
+        Say("Enter an audio delay in milliseconds, from -10000 to 10000.");
     }
 
     private void RefreshPlaybackTools()
@@ -169,6 +251,17 @@ public sealed partial class MainWindow
         _audioDescription!.StringValue = track is null ? "No audio track" : $"{track.Title ?? track.Language ?? track.Codec.DisplayName()} · {_player.AudioTracks.Count} track(s)";
         _nextAudioTrack!.Enabled = _player.AudioTracks.Count > 1;
         _audioDelayDescription!.StringValue = string.Create(CultureInfo.InvariantCulture, $"Audio delay: {_player.AudioDelay.TotalMilliseconds:+0;-0;0} ms");
+        _audioDelayEntry!.StringValue = _player.AudioDelay.TotalMilliseconds.ToString("0", CultureInfo.InvariantCulture);
+        if (_playbackPreservePitch is not null)
+        {
+            _playbackPreservePitch.State = State(_settings.PreservePitch);
+        }
+        if (_playbackSpeed is not null)
+        {
+            var index = PlayerController.SpeedSteps.ToList().FindIndex(
+                speed => Math.Abs(speed - _player.Speed) < 0.001);
+            _playbackSpeed.SelectItem(Math.Max(0, index));
+        }
     }
 
     private void DisposePlaybackTools()
@@ -176,5 +269,43 @@ public sealed partial class MainWindow
         _playbackTools?.Close();
         _playbackTools?.Dispose();
         _playbackTools = null;
+    }
+
+    /// <summary>Drive the same native bookmark controls used by a person in the playback-tools window.</summary>
+    private AutomationReply BookmarkSmokeAction(string? action)
+    {
+        ShowPlaybackTools();
+        switch (action)
+        {
+            case "add":
+                _bookmarkName!.StringValue = "Mac moment";
+                _bookmarkAdd!.PerformClick(_bookmarkAdd);
+                break;
+            case "rename":
+                _bookmarkName!.StringValue = "Mac renamed moment";
+                _bookmarkRename!.PerformClick(_bookmarkRename);
+                break;
+            case "jump":
+                _bookmarkJump!.PerformClick(_bookmarkJump);
+                break;
+            case "remove":
+                _bookmarkRemove!.PerformClick(_bookmarkRemove);
+                var accept = _confirmationAccept;
+                HideConfirmation();
+                accept?.Invoke();
+                break;
+            case "status":
+                break;
+            default:
+                return AutomationReply.Failed("Unknown bookmark action: " + action);
+        }
+
+        RefreshPlaybackTools();
+        return new AutomationReply
+        {
+            Ok = true,
+            Text = string.Join("|", _player.Bookmarks.Select(bookmark => bookmark.Name)),
+            Position = _player.Position.TotalSeconds,
+        };
     }
 }

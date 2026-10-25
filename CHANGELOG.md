@@ -5,6 +5,23 @@ pipeline the moment its number reaches `main`.
 
 ## Unreleased
 
+## 0.31.0 - 2026-10-25
+### Added
+- **Native macOS playback and library parity (#555).** Expanded AppKit controls for media information, bookmarks, the queue and named playlists, library folders and backup/restore, context commands, configurable shortcuts, precise audio and subtitle sync, overlays, video sizing, local pictures and first-run guidance.
+- **Mac music presentation.** Cover art and source-timed lyrics, real sound-reactive visualisation scenes with a native mode picker and effect controls, and playback speeds from 0.25× to 4× with pitch-preserving WSOLA or an optional pitch-shifting mode.
+- **Offline Mac speech and captions.** Download verified speech models on request, transcribe played or library media locally, export timed captions, and animate source-timed words with selectable subtitle/transcript sources, layouts, palettes and accents.
+- **Mac snapshots and playback tools.** Export source-resolution PNG, JPEG or BMP stills with configurable filenames and collision-safe sequence numbers; use nonblocking UI for file actions, captions, timings and confirmations.
+
+### Improved
+- **VideoToolbox decoding preferences.** Global and per-codec H.264/HEVC hardware decoding choices; display the configured policy and decoder source in playback statistics.
+- **Subtitle styling and accessibility.** Honor ASS/SSA font and style settings when requested, improve bidi shaping and cue placement, and give native controls automation identifiers, accessible labels and help text.
+- **Safer updates and recovery.** Check and verify universal Mac archives with resume support; defer or skip offered versions; preserve playback state across unexpected interruptions; improve native keyboard traversal and system media controls.
+- **Repository contracts.** Update the macOS capability ledger and its generated matrix without treating implemented-but-untested work as verified. Correct the cross-platform Speech project graph and the Mac smoke-test formatter.
+
+### Known limitations
+- Some macOS capabilities remain only **built**, not verified against native Mac integration and accessibility tests. The native Opus decoder, camera visualisations, complete updater installation handoff, and decoder fallback behavior still require work. See `docs/parity.md`.
+- Packaging and publication require passing CI; infrastructure failures downloading the pinned .NET SDK can prevent the release workflow from finishing.
+
 ## 0.30.9 - 2026-10-25
 ### Added
 - **Lyrics on request.** Find lyrics for the current song from LRCLIB when no local lyrics are present. Match title, artist and duration before showing them; keep local `.lrc` files and embedded lyrics first. The lookup sends song details only when Find lyrics online is pressed.

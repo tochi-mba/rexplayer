@@ -11,7 +11,6 @@ using Rex.Media.Diagnostics;
 using Rex.Media.Engine;
 using Rex.Media.IO;
 using Rex.Media.Library;
-using Rex.Media.Primitives;
 using Rex.Media.Settings;
 using Rex.Media.Video;
 using Rex.Media.Video.Metal;
@@ -35,7 +34,7 @@ public sealed partial class MainWindow : IDisposable
     private readonly RexLog _log;
     private readonly NSWindow _window;
     private readonly PlayerController _player;
-    private readonly Keymap _keymap;
+    private Keymap _keymap;
     private readonly NSTextField _title = NSTextField.CreateLabel("Drop media here, or press Cmd+O to open a file.");
     private readonly NSTextField _artist = NSTextField.CreateLabel("");
     private readonly NSTextField _time = NSTextField.CreateLabel("0:00");
@@ -44,10 +43,17 @@ public sealed partial class MainWindow : IDisposable
     private readonly NSSlider _seek;
     private readonly NSSlider _volume;
     private readonly List<(NSMenuItem Item, string Command)> _checks = [];
+    private NSStackView? _chrome;
+    private NSMenu? _pictureMenu;
+    private bool _minimalInterface;
     private PlayerSettings _settings;
     private NSTimer? _clearMessage;
     private PictureView? _picture;
     private NSStackView? _welcome;
+    private NSStackView? _resumeBanner;
+    private NSTextField? _resumeNotice;
+    private NSButton? _resumeAccept;
+    private NSButton? _resumeStartOver;
     private bool _moving;
 
     public MainWindow(DataRoots roots, RexLog log)
@@ -60,6 +66,11 @@ public sealed partial class MainWindow : IDisposable
         _player.Changed += (_, _) => ShowState();
         _player.PositionChanged += (_, _) => ShowPosition();
         _player.Message += (_, text) => Say(text);
+        _player.SubtitlesChanged += (_, _) => OnWindowThread(() =>
+        {
+            RefreshTrackTools();
+            UpdateSubtitleOverlays();
+        });
 
         _window = new NSWindow(new CGRect(0, 0, 960, 560), NSWindowStyle.Titled | NSWindowStyle.Closable | NSWindowStyle.Miniaturizable | NSWindowStyle.Resizable, NSBackingStore.Buffered, false)
         {
@@ -71,11 +82,17 @@ public sealed partial class MainWindow : IDisposable
         _seek = NSSlider.FromValue(0, 0, 1, () => SeekToSlider());
         _volume = NSSlider.FromValue(_player.Volume, 0, _settings.MaxVolumePercent / 100.0, () => _player.SetVolume(_volume!.DoubleValue));
         _window.ContentView = Layout();
+        _window.InitialFirstResponder = _playPause;
+        StartMacKeyboardTraversal();
         InitializeLibrary();
         InitializeQueue();
-        InitializeLibrary();
         NSApplication.SharedApplication.MainMenu = BuildMenus();
-        NSTimer.CreateRepeatingScheduledTimer(TimeSpan.FromSeconds(1), _ => _player.SleepTick());
+        ApplyMacTheme();
+        NSTimer.CreateRepeatingScheduledTimer(TimeSpan.FromSeconds(1), _ =>
+        {
+            _player.SleepTick();
+            NameMacControls();
+        });
     }
 
     /// <summary>Shows the window, opening what Finder handed over, or the queue the last run left.</summary>
@@ -83,6 +100,7 @@ public sealed partial class MainWindow : IDisposable
     {
         _window.Center();
         _window.MakeKeyAndOrderFront(null);
+        NameMacControls();
         if (files.Count > 0)
         {
             OpenHandedOver(files);
@@ -93,6 +111,11 @@ public sealed partial class MainWindow : IDisposable
         }
 
         ShowState();
+        ShowStartupGuidance();
+        BeginCrashRecovery();
+        StartMediaControls();
+        BeginMacUpdateChecks();
+        StartMacSpeech();
     }
 
     public void OpenHandedOver(IReadOnlyList<string> files) => _player.OpenHandedOver(files, _settings.EnqueueFromSecondLaunch, DateTimeOffset.Now);
@@ -111,7 +134,28 @@ public sealed partial class MainWindow : IDisposable
 
         CloseLibrary();
         CloseQueue();
+        DisposeDiagnostics();
+        DisposePreferences();
         DisposePlaybackTools();
+        DisposeShortcuts();
+        DisposeSavedPlaylists();
+        DisposeEffects();
+        DisposeTrackTools();
+        DisposeHistory();
+        DisposeStartupGuidance();
+        DisposeStats();
+        DisposeMusicPresentation();
+        DisposeMusicVisualizers();
+        EndCrashRecovery();
+        DisposePlaybackActivity();
+        StopMediaControls();
+        DisposeSubtitleStyle();
+        DisposeMacUpdates();
+        DisposeMacSpeech();
+        DisposeMacKinetic();
+        DisposeMediaInformation();
+        DisposeQueueTiming();
+        StopMacKeyboardTraversal();
         _player.Dispose();
         _picture?.Presenter?.Dispose();
         _window.Dispose();
@@ -146,6 +190,12 @@ public sealed partial class MainWindow : IDisposable
                 case "run":
                     answered.SetResult(AutomationReply.Failed($"There is no command \"{request.Id}\"."));
                     return;
+                case "seek" when request.To is { } seconds && double.IsFinite(seconds) && seconds >= 0:
+                    _player.Seek(TimeSpan.FromSeconds(seconds));
+                    break;
+                case "seek":
+                    answered.SetResult(AutomationReply.Failed("seek needs a non-negative time in seconds."));
+                    return;
                 case "mac-queue":
                     if (!QueueSmokeAction(request.Id))
                     {
@@ -162,6 +212,85 @@ public sealed partial class MainWindow : IDisposable
                     }
 
                     break;
+                case "mac-library-backup":
+                    answered.SetResult(LibraryBackupSmokeAction(request.Id, request.Path));
+                    return;
+                case "mac-playlists":
+                    if (!SavedPlaylistSmokeAction(request.Id, request.Path))
+                    {
+                        answered.SetResult(AutomationReply.Failed("Mac playlist action failed: " + request.Id));
+                        return;
+                    }
+
+                    break;
+                case "mac-shortcuts":
+                    if (!ShortcutSmokeAction(request.Id))
+                    {
+                        answered.SetResult(AutomationReply.Failed("Mac shortcut action failed: " + request.Id));
+                        return;
+                    }
+
+                    break;
+                case "mac-keyboard":
+                    answered.SetResult(ProbeMacKeyboardTraversal());
+                    return;
+                case "mac-accessibility":
+                    var (controls, missing) = NameMacControls();
+                    answered.SetResult(new AutomationReply
+                    {
+                        Ok = missing == 0,
+                        Text = $"controls={controls};missing-labels={missing}",
+                    });
+                    return;
+                case "mac-bookmarks":
+                    answered.SetResult(BookmarkSmokeAction(request.Id));
+                    return;
+                case "mac-resume":
+                    answered.SetResult(ResumeSmokeAction(request.Id));
+                    return;
+                case "mac-quick-slots":
+                    answered.SetResult(QuickSlotSmokeAction(request.Id));
+                    return;
+                case "mac-startup-guidance":
+                    answered.SetResult(StartupGuidanceSmokeAction(request.Id));
+                    return;
+                case "mac-diagnostics":
+                    answered.SetResult(DiagnosticsSmokeAction(request.Id, request.Path));
+                    return;
+                case "mac-window":
+                    answered.SetResult(new AutomationReply
+                    {
+                        Ok = true,
+                        Text = $"fullscreen={IsFullScreen};floating={_window.Level == NSWindowLevel.Floating};minimal={_minimalInterface};context={ContextCommandCount};title={_window.Title}",
+                    });
+                    return;
+                case "mac-drop":
+                    _player.Drop(request.Paths ?? []);
+                    answered.SetResult(new AutomationReply { Ok = true });
+                    return;
+                case "mac-subtitles":
+                    answered.SetResult(new AutomationReply
+                    {
+                        Ok = true,
+                        Text = $"tracks={_player.SubtitleTracks.Count};selected={_player.Subtitles?.Name ?? "off"}",
+                    });
+                    return;
+                case "mac-audio":
+                    answered.SetResult(new AutomationReply
+                    {
+                        Ok = true,
+                        Text = $"muted={_player.Muted};volume={_player.Volume.ToString("0.###", CultureInfo.InvariantCulture)}",
+                    });
+                    return;
+                case "mac-music":
+                    RefreshMusicPresentation();
+                    RefreshMusicPosition();
+                    answered.SetResult(new AutomationReply
+                    {
+                        Ok = true,
+                        Text = $"visible={_musicPresentation?.Hidden == false};art={_musicArtwork?.Hidden == false};heading={_musicHeading?.StringValue};lyrics={_musicLyrics?.Hidden == false};visualizer={_settings.Visualizer};meter={_musicSpectrum?.StringValue.Length ?? 0};text={_musicLyrics?.StringValue}",
+                    });
+                    return;
                 case "status":
                     break;
                 case "ui.add-folder":
@@ -236,7 +365,7 @@ public sealed partial class MainWindow : IDisposable
                 Ok = true,
                 State = _player.State.ToString(),
                 Title = request.Command == "mac-queue"
-                    ? (_queueSummary?.StringValue ?? "") + " | " + (_queueShuffle?.Title ?? "")
+                    ? (_queueSummary?.StringValue ?? "") + " | " + (_queueShuffle?.Title ?? "") + " | " + (_queueRepeat?.Title ?? "")
                     : request.Command == "mac-library"
                         ? LibrarySmokeTitle()
                         : _player.Item is null ? null : _player.Title,
@@ -262,7 +391,10 @@ public sealed partial class MainWindow : IDisposable
         new EngineOptions
         {
             Demuxers = MediaRegistries.Demuxers(TimeSpan.FromSeconds(_settings.PictureSeconds)),
-            Decoders = MediaRegistries.Decoders(new AppleDecoderFactory()),
+            Decoders = MediaRegistries.Decoders(new AppleDecoderFactory(
+                _settings.HardwareVideoDecoding, _settings.HardwareH264Decoding,
+                _settings.HardwareHevcDecoding)),
+            GraphicsCardDecoding = _settings.HardwareVideoDecoding,
             AudioSinkFactory = NewAudioSink,
             VideoPresenterFactory = _picture?.Presenter is { } presenter ? () => new BorrowedPresenter(presenter) : null,
             Log = _log,
@@ -312,20 +444,53 @@ public sealed partial class MainWindow : IDisposable
         controls.Spacing = 8;
         _volume.WidthAnchor.ConstraintEqualTo(100).Active = true;
         _seek.SetContentHuggingPriorityForOrientation(1, NSLayoutConstraintOrientation.Horizontal);
+        // Keep a deterministic keyboard path around every primary transport control.
+        previous.NextKeyView = _playPause;
+        _playPause.NextKeyView = stop;
+        stop.NextKeyView = next;
+        next.NextKeyView = open;
+        open.NextKeyView = library;
+        library.NextKeyView = queue;
+        queue.NextKeyView = _volume;
+        _volume.NextKeyView = _seek;
+        _seek.NextKeyView = previous;
+        SetMainKeyViews(previous, _playPause, stop, next, open, library, queue, _volume, _seek);
+        ((NSView)_seek).AccessibilityLabel = "Playback position";
+        ((NSView)_volume).AccessibilityLabel = "Playback volume";
+        ((NSView)_playPause).AccessibilityLabel = "Play or pause playback";
 
         var timeline = NSStackView.FromViews([_seek, _time]);
         timeline.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
         timeline.Spacing = 12;
-        var stack = NSStackView.FromViews([_title, _artist, _message, timeline, controls]);
+        _resumeNotice = NSTextField.CreateLabel("Continue where you stopped?");
+        _resumeNotice.TextColor = NSColor.SecondaryLabel;
+        var acceptResume = NSButton.CreateButton("Resume", () => _player.AcceptResume());
+        _resumeAccept = acceptResume;
+        var restartResume = NSButton.CreateButton("Start over", () =>
+        {
+            _player.DismissPendingResume();
+            _player.StartOver();
+        });
+        _resumeStartOver = restartResume;
+        _resumeBanner = NSStackView.FromViews([_resumeNotice, acceptResume, restartResume]);
+        _resumeBanner.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
+        _resumeBanner.Spacing = 8;
+        _resumeBanner.Hidden = true;
+        var stack = NSStackView.FromViews([_title, _artist, _message, _resumeBanner, timeline, controls]);
+        _chrome = stack;
         stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
         stack.Alignment = NSLayoutAttribute.Leading;
         stack.Spacing = 12;
         stack.EdgeInsets = new NSEdgeInsets(20, 20, 20, 20);
+        AddCrashRecoveryBanner(stack);
+        AddConfirmationBanner(stack);
         stack.TranslatesAutoresizingMaskIntoConstraints = false;
         controls.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
         timeline.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
 
-        var content = new DropView(paths => _player.Open(paths));
+        var content = new DropView(paths => _player.Drop(paths), HandlePictureWheel, HandlePictureClick, HandlePictureOtherClick);
+        _pictureMenu = BuildPictureMenu();
+        content.Menu = _pictureMenu;
         _picture = new PictureView(_log) { TranslatesAutoresizingMaskIntoConstraints = false };
         content.AddSubview(_picture);
         content.AddSubview(stack);
@@ -347,6 +512,10 @@ public sealed partial class MainWindow : IDisposable
         _welcome.Spacing = 18;
         _welcome.TranslatesAutoresizingMaskIntoConstraints = false;
         content.AddSubview(_welcome);
+        AddSubtitleOverlays(content);
+        AddStatsOverlay(content);
+        AddMusicPresentation(content);
+        AddMacKineticLayer(content);
         _welcome.CenterXAnchor.ConstraintEqualTo(_picture.CenterXAnchor).Active = true;
         _welcome.CenterYAnchor.ConstraintEqualTo(_picture.CenterYAnchor).Active = true;
         _picture.TopAnchor.ConstraintEqualTo(content.TopAnchor).Active = true;
@@ -369,6 +538,16 @@ public sealed partial class MainWindow : IDisposable
         app.AddItem(NSMenuItem.SeparatorItem);
         app.AddItem(Entry(CommandCatalog.Preferences, "Settings…"));
         app.AddItem(new NSMenuItem("Playback tools…", (_, _) => ShowPlaybackTools()));
+        app.AddItem(Entry(CommandCatalog.KeyboardAndMouse, "Keyboard shortcuts…"));
+        app.AddItem(new NSMenuItem("Named playlists…", (_, _) => ShowSavedPlaylists()));
+        app.AddItem(Entry(CommandCatalog.Effects, "Effects & filters…"));
+        app.AddItem(new NSMenuItem("Audio visualisations…", (_, _) => ShowMusicVisualizers()));
+        app.AddItem(new NSMenuItem("Tracks & subtitle sync…", (_, _) => ShowTrackTools()));
+        app.AddItem(new NSMenuItem("Subtitle appearance…", (_, _) => ShowSubtitleStyle()));
+        app.AddItem(new NSMenuItem("Software updates…", (_, _) => ShowMacUpdates()));
+        app.AddItem(new NSMenuItem("Offline transcription…", (_, _) => ShowMacSpeech()));
+        app.AddItem(new NSMenuItem("Kinetic captions…", (_, _) => ShowMacKineticSettings()));
+        app.AddItem(new NSMenuItem("Recent media & quick slots…", (_, _) => ShowHistory()));
         app.AddItem(new NSMenuItem("Your library…", (_, _) => Run(CommandCatalog.ToggleLibrary)));
         app.AddItem(new NSMenuItem("Up Next…", (_, _) => ShowQueue()));
         // Reuse the shared command and its customizable keyboard equivalent.
@@ -384,6 +563,40 @@ public sealed partial class MainWindow : IDisposable
 
         return bar;
     }
+
+    /// <summary>
+    /// The picture menu uses the shared context layout, so every command stays available when
+    /// the ordinary controls are hidden or the window is full screen (UI-03/UI-05).
+    /// </summary>
+    private NSMenu BuildPictureMenu()
+    {
+        var menu = new NSMenu("Playback");
+        foreach (var (title, commands) in ContextMenuLayout.Groups)
+        {
+            if (title.Length == 0)
+            {
+                FillContextGroup(menu, commands);
+            }
+            else
+            {
+                var group = new NSMenu(title);
+                FillContextGroup(group, commands);
+                menu.AddItem(new NSMenuItem(title) { Submenu = group });
+            }
+        }
+
+        return menu;
+    }
+
+    private void FillContextGroup(NSMenu menu, IEnumerable<string?> commands)
+    {
+        foreach (var command in commands)
+        {
+            menu.AddItem(command is null ? NSMenuItem.SeparatorItem : Entry(command, null));
+        }
+    }
+
+    private static int ContextCommandCount => ContextMenuLayout.Groups.Sum(group => group.Commands.Count(command => command is not null));
 
     private NSMenu Fill(NSMenu menu, string?[] entries)
     {
@@ -440,149 +653,6 @@ public sealed partial class MainWindow : IDisposable
         ShowChecks();
     }
 
-    private bool RunWindowCommand(string command)
-    {
-        switch (command)
-        {
-            case CommandCatalog.OpenFile or CommandCatalog.OpenFolder:
-                OpenWithPanel(folders: command == CommandCatalog.OpenFolder);
-                return true;
-            case CommandCatalog.Quit:
-                NSApplication.SharedApplication.Terminate(null);
-                return true;
-            case CommandCatalog.ToggleLibrary:
-                if (_libraryWindow?.IsVisible == true)
-                {
-                    HideLibrary();
-                }
-                else
-                {
-                    ShowLibrary();
-                }
-
-                return true;
-            case CommandCatalog.ToggleFullScreen:
-                _window.ToggleFullScreen(null);
-                return true;
-            case CommandCatalog.LeaveFullScreen:
-                if (IsFullScreen)
-                {
-                    _window.ToggleFullScreen(null);
-                }
-
-                return true;
-            case CommandCatalog.ToggleAlwaysOnTop:
-                _window.Level = _window.Level == NSWindowLevel.Floating ? NSWindowLevel.Normal : NSWindowLevel.Floating;
-                return true;
-            case CommandCatalog.GoToTime:
-                GoToTime();
-                return true;
-            case CommandCatalog.MediaInformation:
-                ShowMediaInformation();
-                return true;
-            case CommandCatalog.Help:
-                NSWorkspace.SharedWorkspace.OpenUrl(new NSUrl(HelpUrl));
-                return true;
-            case CommandCatalog.ShowLog or CommandCatalog.OpenLogFolder:
-                Directory.CreateDirectory(_roots.LogFolder);
-                NSWorkspace.SharedWorkspace.OpenUrl(NSUrl.FromFilename(_roots.LogFolder));
-                return true;
-            case CommandCatalog.About:
-                NSApplication.SharedApplication.OrderFrontStandardAboutPanel(null);
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private bool IsFullScreen => (_window.StyleMask & NSWindowStyle.FullScreenWindow) != 0;
-
-    private void GoToTime()
-    {
-        if (!_player.CanSeek)
-        {
-            if (_player.Item is not null)
-            {
-                Say(PlayerController.CannotSeekNotice);
-            }
-
-            return;
-        }
-
-        using var box = new NSTextField(new CGRect(0, 0, 240, 24))
-        {
-            StringValue = TimeText.Format(_player.Position, _player.Duration),
-        };
-        using var dialog = new NSAlert
-        {
-            MessageText = "Go to a time",
-            InformativeText = "Enter seconds, mm:ss or h:mm:ss.",
-            AccessoryView = box,
-        };
-        dialog.AddButton("Go");
-        dialog.AddButton("Cancel");
-        _window.MakeFirstResponder(box);
-        box.SelectText(null);
-        if (dialog.RunModal() != 1000)
-        {
-            return;
-        }
-
-        if (TimeText.TryParse(box.StringValue) is { } time)
-        {
-            _player.Seek(time);
-        }
-        else
-        {
-            Say($"\"{box.StringValue}\" is not a time. Try 1:23 or 1:02:03.");
-        }
-    }
-
-    private void ShowMediaInformation()
-    {
-        if (_player.Info is not { } info)
-        {
-            Say("Open something to see its media information.");
-            return;
-        }
-
-        var lines = new List<string>
-        {
-            $"Title: {_player.Title}",
-            $"Location: {_player.Item?.Location}",
-            $"Format: {info.FormatName}",
-            $"Length: {(_player.Duration > TimeSpan.Zero ? TimeText.Format(_player.Duration) : "unknown")}",
-        };
-        foreach (var track in info.Tracks)
-        {
-            var detail = track.Video is { } video ? $"{video.Width}×{video.Height}"
-                : track.Audio is { } audio ? $"{audio.SampleRate} Hz, {audio.Channels} channel(s)"
-                : "";
-            lines.Add($"Track {track.Id}: {track.Kind} {track.Codec.DisplayName()} {detail}".TrimEnd());
-        }
-
-        lines.AddRange(info.Metadata.Select(metadata => $"{metadata.Key}: {metadata.Value}"));
-        using var dialog = new NSAlert
-        {
-            MessageText = "Media information",
-            InformativeText = string.Join(Environment.NewLine, lines),
-        };
-        dialog.AddButton("OK");
-        dialog.RunModal();
-    }
-
-    private void OpenWithPanel(bool folders)
-    {
-        var panel = NSOpenPanel.OpenPanel;
-        panel.AllowsMultipleSelection = true;
-        panel.CanChooseFiles = !folders;
-        panel.CanChooseDirectories = folders;
-        if (panel.RunModal() == 1)
-        {
-            _player.Open(panel.Urls.Select(url => url.Path!).ToList());
-        }
-    }
-
     /// <summary>Whether what an on-and-off command switches is on now, for its tick.</summary>
     private bool IsOn(string command) => command switch
     {
@@ -595,6 +665,8 @@ public sealed partial class MainWindow : IDisposable
         CommandCatalog.SleepAtEndOfItem => _player.SleepAtEndOfItem,
         CommandCatalog.ToggleFullScreen => IsFullScreen,
         CommandCatalog.ToggleAlwaysOnTop => _window.Level == NSWindowLevel.Floating,
+        CommandCatalog.ToggleStats => _statsVisible,
+        CommandCatalog.MinimalInterface => _minimalInterface,
         _ => false,
     };
 
@@ -615,12 +687,78 @@ public sealed partial class MainWindow : IDisposable
         _title.StringValue = _player.Item is null ? "Drop media here, or press Cmd+O to open a file." : _player.Title;
         _artist.StringValue = _player.Item is null ? "Private, local playback" : _player.Artist ?? _player.State.ToString();
         _window.Title = _player.Item is null ? "rexplayer" : _player.Title + " - rexplayer";
+        ShowTitleOnPlaybackStart();
         _playPause.Title = _player.IsPlaying ? "Pause" : "Play";
         _seek.Enabled = _player.CanSeek;
+        if (_resumeBanner is not null && _resumeNotice is not null)
+        {
+            _resumeBanner.Hidden = _player.PendingResumeAt is not { } at || !_player.CanSeek;
+            if (_player.PendingResumeAt is { } offered)
+            {
+                _resumeNotice.StringValue = "Resume from " + TimeText.Format(offered, _player.Duration) + "?";
+            }
+        }
+
         _volume.DoubleValue = _player.Volume;
         ShowPosition();
+        UpdateDockTile();
+        UpdateSystemNowPlaying();
+        UpdatePlaybackActivity();
+        UpdateSubtitleOverlays();
         ShowChecks();
         RefreshPlaybackTools();
+        RefreshTrackTools();
+        RefreshHistory();
+        RefreshMusicPresentation();
+    }
+
+    /// <summary>Exercise the native, nonmodal resume offer and its two real buttons.</summary>
+    private AutomationReply ResumeSmokeAction(string? action)
+    {
+        if (_player.Item is not { } item)
+        {
+            return AutomationReply.Failed("Open media before checking resume behavior.");
+        }
+
+        switch (action)
+        {
+            case "offer":
+                _settings = _settings with { ResumeMode = ResumeBehavior.Ask };
+                _player.Settings = _settings;
+                _player.Memory.Left(item.Location, TimeSpan.FromSeconds(15), TimeSpan.Zero);
+                _player.Open([item.Location]);
+                break;
+            case "accept":
+                _resumeAccept?.PerformClick(_resumeAccept);
+                break;
+            case "start-over":
+                _resumeStartOver?.PerformClick(_resumeStartOver);
+                break;
+            case "always":
+                _settings = _settings with { ResumeMode = ResumeBehavior.Always };
+                _player.Settings = _settings;
+                _player.Memory.Left(item.Location, TimeSpan.FromSeconds(15), TimeSpan.Zero);
+                _player.Open([item.Location]);
+                break;
+            case "never":
+                _settings = _settings with { ResumeMode = ResumeBehavior.Never };
+                _player.Settings = _settings;
+                _player.Memory.Left(item.Location, TimeSpan.FromSeconds(15), TimeSpan.Zero);
+                _player.Open([item.Location]);
+                break;
+            case "status":
+                break;
+            default:
+                return AutomationReply.Failed("Unknown resume action: " + action);
+        }
+
+        ShowState();
+        return new AutomationReply
+        {
+            Ok = true,
+            Text = $"mode={_settings.ResumeMode};pending={_player.PendingResumeAt?.TotalSeconds.ToString(CultureInfo.InvariantCulture) ?? "none"};visible={_resumeBanner?.Hidden == false};remembered={_player.Memory.ResumePoint(item.Location)?.TotalSeconds.ToString(CultureInfo.InvariantCulture) ?? "none"}",
+            Position = _player.Position.TotalSeconds,
+        };
     }
 
     private void ShowPosition()
@@ -633,6 +771,9 @@ public sealed partial class MainWindow : IDisposable
         var duration = _player.Duration;
         _seek.DoubleValue = duration > TimeSpan.Zero ? Math.Clamp(_player.Position / duration, 0, 1) : 0;
         _time.StringValue = duration > TimeSpan.Zero ? $"{Clock(_player.Position)} / {Clock(duration)}" : Clock(_player.Position);
+        UpdateSubtitleOverlays();
+        UpdateSystemNowPlaying();
+        RefreshMusicPosition();
     }
 
     private void SeekToSlider()
@@ -658,8 +799,13 @@ public sealed partial class MainWindow : IDisposable
     private void Say(string text)
     {
         _message.StringValue = text;
+        SetVideoOSD(text);
         _clearMessage?.Invalidate();
-        _clearMessage = NSTimer.CreateScheduledTimer(TimeSpan.FromSeconds(3), _ => _message.StringValue = "");
+        _clearMessage = NSTimer.CreateScheduledTimer(TimeSpan.FromSeconds(3), _ =>
+        {
+            _message.StringValue = "";
+            SetVideoOSD("");
+        });
     }
 
     /// <summary>
@@ -706,11 +852,32 @@ public sealed partial class MainWindow : IDisposable
     private sealed class DropView : NSView
     {
         private readonly Action<IReadOnlyList<string>> _open;
+        private readonly Action<NSEvent> _wheel;
+        private readonly Action<NSEvent> _click;
+        private readonly Action<NSEvent> _otherClick;
 
-        public DropView(Action<IReadOnlyList<string>> open)
+        public DropView(Action<IReadOnlyList<string>> open, Action<NSEvent> wheel,
+            Action<NSEvent> click, Action<NSEvent> otherClick)
         {
             _open = open;
+            _wheel = wheel;
+            _click = click;
+            _otherClick = otherClick;
             RegisterForDraggedTypes([NSPasteboardType.FileUrl.GetConstant()!]);
+        }
+
+        public override void ScrollWheel(NSEvent theEvent) => _wheel(theEvent);
+
+        public override void MouseDown(NSEvent theEvent)
+        {
+            _click(theEvent);
+            base.MouseDown(theEvent);
+        }
+
+        public override void OtherMouseDown(NSEvent theEvent)
+        {
+            _otherClick(theEvent);
+            base.OtherMouseDown(theEvent);
         }
 
         public override NSDragOperation DraggingEntered(INSDraggingInfo sender) => NSDragOperation.Copy;

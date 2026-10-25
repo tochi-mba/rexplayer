@@ -113,11 +113,11 @@ public sealed class SubtitleFileTests
         var runs = Assert.Single(document.Cues).Lines[0].Runs;
         Assert.Equal(
             [
-                new SubtitleRun("Lone", At: TimeSpan.Zero),
-                new SubtitleRun("ly ", At: S(0.5)),
-                new SubtitleRun("at ", At: S(0.75)),
-                new SubtitleRun("the ", At: S(1.75)),
-                new SubtitleRun("top!", Bold: true, At: S(2.05)),
+                new SubtitleRun("Lone", At: TimeSpan.Zero, Font: "Arial", FontSize: 20),
+                new SubtitleRun("ly ", At: S(0.5), Font: "Arial", FontSize: 20),
+                new SubtitleRun("at ", At: S(0.75), Font: "Arial", FontSize: 20),
+                new SubtitleRun("the ", At: S(1.75), Font: "Arial", FontSize: 20),
+                new SubtitleRun("top!", Bold: true, At: S(2.05), Font: "Arial", FontSize: 20),
             ],
             runs);
     }
@@ -150,10 +150,10 @@ public sealed class SubtitleFileTests
         Assert.Equal(SubtitleFormat.Ass, document.Format);
         Assert.Equal(["Line one\nLine two, with a comma", "Shop sign", "Moved up", "In the middle"], document.Cues.Select(cue => cue.Text));
         Assert.Equal(SubtitlePlacement.Middle, document.Cues[3].Placement);
-        Assert.Equal([new SubtitleRun("Shop", Bold: true, Italic: true, Color: 0xFF0000), new SubtitleRun(" sign", Bold: true, Color: 0xFF0000)], document.Cues[1].Lines[0].Runs);
+        Assert.Equal([new SubtitleRun("Shop", Bold: true, Italic: true, Color: 0xFF0000, Font: "Arial", FontSize: 20), new SubtitleRun(" sign", Bold: true, Color: 0xFF0000, Font: "Arial", FontSize: 20)], document.Cues[1].Lines[0].Runs);
         Assert.Equal(SubtitlePlacement.Top, document.Cues[1].Placement);
         Assert.Equal(SubtitlePlacement.Top, document.Cues[2].Placement);
-        Assert.Equal([new SubtitleRun("Moved"), new SubtitleRun(" up", Bold: true)], document.Cues[2].Lines[0].Runs);
+        Assert.Equal([new SubtitleRun("Moved", Font: "Arial", FontSize: 20), new SubtitleRun(" up", Bold: true, Font: "Arial", FontSize: 20)], document.Cues[2].Lines[0].Runs);
     }
 
     [Fact]

@@ -1,8 +1,10 @@
 using System.Diagnostics;
+using System.IO.Compression;
 using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Platform;
 using Rex.Media.Library;
+using Rex.Media.Settings;
 using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.AppCore;
@@ -25,10 +27,39 @@ public sealed class MacAppSmokeTests
 
     [Fact(Skip = MacAppRequired, SkipUnless = nameof(CanDriveMacApp))]
     [Capability("TOOL-03", CapabilityPlatform.MacOS)]
+    [Capability("TOOL-06", CapabilityPlatform.MacOS)]
+    [Capability("TOOL-10", CapabilityPlatform.MacOS)]
+    [Capability("UI-09", CapabilityPlatform.MacOS)]
+    [Capability("UI-05", CapabilityPlatform.MacOS)]
+    [Capability("SUB-16", CapabilityPlatform.MacOS)]
+    [Capability("A11Y-02", CapabilityPlatform.MacOS)]
+    [Capability("PB-05", CapabilityPlatform.MacOS)]
+    [Capability("PB-10", CapabilityPlatform.MacOS)]
+    [Capability("PB-11", CapabilityPlatform.MacOS)]
+    [Capability("AU-06", CapabilityPlatform.MacOS)]
+    [Capability("LIB-04", CapabilityPlatform.MacOS)]
+    [Capability("LIB-08", CapabilityPlatform.MacOS)]
+    [Capability("UI-15", CapabilityPlatform.MacOS)]
+    [Capability("META-09", CapabilityPlatform.MacOS)]
+    [Capability("AU-19", CapabilityPlatform.MacOS)]
+    [Capability("UI-11", CapabilityPlatform.MacOS)]
+    [Capability("LIB-03", CapabilityPlatform.MacOS)]
+    [Capability("LIB-10", CapabilityPlatform.MacOS)]
+    [Capability("LIB-04", CapabilityPlatform.MacOS)]
+    [Capability("PB-12", CapabilityPlatform.MacOS)]
+    [Capability("VID-03", CapabilityPlatform.MacOS)]
+    [Capability("VID-27", CapabilityPlatform.MacOS)]
+    [Capability("UI-16", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
         var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
         var root = Path.Combine(Path.GetTempPath(), "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8]);
+        var startupRoots = new DataRoots(root);
+        SettingsStore.Save(startupRoots.SettingsPath, new PlayerSettings
+        {
+            FirstRunDone = true,
+            LastSeenVersion = "0.0.0",
+        });
         var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
         var screenshots = RepoPaths.Combine("artifacts", "mac-queue-screenshots");
         Directory.CreateDirectory(screenshots);
@@ -38,6 +69,10 @@ public sealed class MacAppSmokeTests
         Directory.CreateDirectory(libraryFixture);
         File.Copy(RepoPaths.Combine("tests", "fixtures", "mp3", "stereo-44k-128k-cbr.mp3"),
             Path.Combine(libraryFixture, "Sample Song.mp3"));
+        File.Copy(RepoPaths.Combine("tests", "fixtures", "picture", "still.png"),
+            Path.Combine(libraryFixture, "cover.png"));
+        File.WriteAllText(Path.Combine(libraryFixture, "Sample Song.lrc"),
+            "[00:00.00]First local lyric\n[00:01.00]Second local lyric\n");
         File.Copy(RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4"),
             Path.Combine(libraryFixture, "Sample Film.mp4"));
         var start = new ProcessStartInfo(Path.Combine(bundle!, "Contents", "MacOS", "rexplayer"))
@@ -50,6 +85,8 @@ public sealed class MacAppSmokeTests
         start.Environment["REXPLAYER_FAKE_AUDIO"] = "1";
         start.Environment["REXPLAYER_PIPE_NAME"] = pipe;
         start.Environment["REXPLAYER_MAC_QUEUE_TESTS"] = "1";
+        start.Environment["REXPLAYER_MAC_SHORTCUT_TESTS"] = "1";
+        start.Environment["REXPLAYER_MAC_PLAYLIST_TESTS"] = "1";
         start.Environment["REXPLAYER_MAC_QUEUE_SCREENSHOTS"] = screenshots;
         start.Environment["REXPLAYER_MAC_LIBRARY_TESTS"] = "1";
         start.Environment["REXPLAYER_MAC_LIBRARY_SCREENSHOTS"] = libraryScreenshots;
@@ -62,6 +99,82 @@ public sealed class MacAppSmokeTests
         {
             var up = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Ok: true }, app, root);
             Assert.Equal("Idle", up.State);
+            var whatsNew = await Ask(pipe, new AutomationRequest { Command = "mac-startup-guidance", Id = "status" });
+            Assert.Contains("first=False;whats=True;seen=0.0.0", whatsNew?.Text, StringComparison.Ordinal);
+            var dismissedWhatsNew = await Ask(pipe, new AutomationRequest { Command = "mac-startup-guidance", Id = "done-whats-new" });
+            Assert.Contains("whats=False", dismissedWhatsNew?.Text, StringComparison.Ordinal);
+            Assert.DoesNotContain("seen=0.0.0", dismissedWhatsNew?.Text, StringComparison.Ordinal);
+            var notShownTwice = await Ask(pipe, new AutomationRequest { Command = "mac-startup-guidance", Id = "check-again" });
+            Assert.Contains("whats=False", notShownTwice?.Text, StringComparison.Ordinal);
+            var handedOverVideo = RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4");
+            var secondStart = new ProcessStartInfo(Path.Combine(bundle!, "Contents", "MacOS", "rexplayer"))
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            secondStart.Environment["REXPLAYER_ROOT"] = root;
+            secondStart.Environment["REXPLAYER_FAKE_AUDIO"] = "1";
+            secondStart.Environment["REXPLAYER_PIPE_NAME"] = pipe;
+            secondStart.ArgumentList.Add(handedOverVideo);
+            using (var second = Process.Start(secondStart)!)
+            {
+                await second.WaitForExitAsync(TestContext.Current.CancellationToken).WaitAsync(Patience, TestContext.Current.CancellationToken);
+                Assert.Equal(0, second.ExitCode);
+            }
+
+            var handedOver = await Until(
+                () => Ask(pipe, new AutomationRequest { Command = "status" }),
+                reply => reply is { Ok: true, Title: not null }, app, root);
+            Assert.Contains("h264-aac", handedOver.Title, StringComparison.OrdinalIgnoreCase);
+            Assert.False(app.HasExited, "The original player exited when the later launch handed over its file.");
+            var mainKeyboard = await Ask(pipe, new AutomationRequest { Command = "mac-keyboard" });
+            Assert.True(mainKeyboard?.Ok == true, "The Mac main-window keyboard loop failed: " +
+                (mainKeyboard?.Error ?? "no reply") + LogTail(root));
+            Assert.Equal("tab=9;regions=3", mainKeyboard!.Text);
+            var logShown = await Ask(pipe, new AutomationRequest { Command = "mac-diagnostics", Id = "show" });
+            Assert.True(logShown?.Ok == true, "The Mac log console did not open.");
+            var logControls = await Ask(pipe, new AutomationRequest { Command = "mac-diagnostics", Id = "verify-controls" });
+            Assert.True(logControls?.Ok == true, "The Mac log console controls are incomplete.");
+            var diagnosticsPath = Path.Combine(root, "diagnostics.zip");
+            var diagnostics = await Ask(pipe, new AutomationRequest { Command = "mac-diagnostics", Id = "bundle", Path = diagnosticsPath });
+            Assert.True(diagnostics?.Ok == true && File.Exists(diagnosticsPath), "The Mac diagnostics bundle was not saved.");
+            using (var archive = ZipFile.OpenRead(diagnosticsPath))
+            {
+                Assert.Contains(archive.Entries, entry => entry.FullName == "settings.json");
+                Assert.Contains(archive.Entries, entry => entry.FullName == "system.txt");
+            }
+
+            var logCleared = await Ask(pipe, new AutomationRequest { Command = "mac-diagnostics", Id = "clear" });
+            Assert.True(logCleared?.Ok == true, "The Mac log console did not clear its view.");
+            // Bind and restore a Mac menu shortcut through the real native editor.
+            foreach (var action in new[] { "show", "bind", "reset" })
+            {
+                var shortcut = await Ask(pipe, new AutomationRequest { Command = "mac-shortcuts", Id = action });
+                Assert.True(shortcut?.Ok == true, "Mac shortcut editor failed to " + action + LogTail(root));
+            }
+
+            // Native file and named-playlist surfaces use the same persisted model as the engine.
+            var savedPlaylists = await Ask(pipe, new AutomationRequest { Command = "mac-playlists", Id = "show" });
+            Assert.True(savedPlaylists?.Ok == true, "Native saved-playlist window did not open.");
+            var playlistFile = Path.Combine(root, "exported-playlist.m3u8");
+            var saveFile = await Ask(pipe, new AutomationRequest
+            {
+                Command = "mac-playlists",
+                Id = "save-file",
+                Path = playlistFile,
+            });
+            Assert.True(saveFile?.Ok == true && File.Exists(playlistFile),
+                "Mac playlist export did not create a readable file.");
+            Assert.Contains("h264-aac.mp4", File.ReadAllText(playlistFile), StringComparison.OrdinalIgnoreCase);
+            var createNamed = await Ask(pipe, new AutomationRequest { Command = "mac-playlists", Id = "create" });
+            Assert.True(createNamed?.Ok == true, "Native named-playlist creation failed.");
+            foreach (var action in new[] { "rename", "duplicate", "append", "play", "delete" })
+            {
+                var changed = await Ask(pipe, new AutomationRequest { Command = "mac-playlists", Id = action });
+                Assert.True(changed?.Ok == true, "Native named-playlist action failed: " + action);
+            }
+
             var emptyLibrary = await Library(pipe, "show");
             Assert.Contains("0 items", emptyLibrary.Title, StringComparison.Ordinal);
             await Library(pipe, "capture-empty");
@@ -121,6 +234,84 @@ public sealed class MacAppSmokeTests
             Assert.True(opened?.Ok == true, "The app did not acknowledge the open request: " + (opened?.Error ?? "no reply") + ". Its log ends:" + LogTail(root));
             var playing = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Title: not null, State: "Playing" or "Ended" or "Paused" }, app, root);
             Assert.False(string.IsNullOrWhiteSpace(playing.Title), "The app opened the video but reports no title.");
+            await Ask(pipe, new AutomationRequest { Command = "mac-resume", Id = "offer" });
+            var resumeOffer = await Until(
+                () => Ask(pipe, new AutomationRequest { Command = "mac-resume", Id = "status" }),
+                reply => reply?.Text?.Contains("mode=Ask;pending=15;visible=True", StringComparison.Ordinal) == true,
+                app, root);
+            Assert.Contains("remembered=15", resumeOffer.Text, StringComparison.Ordinal);
+            var resumed = await Ask(pipe, new AutomationRequest { Command = "mac-resume", Id = "accept" });
+            Assert.Contains("pending=none;visible=False", resumed?.Text, StringComparison.Ordinal);
+            await Ask(pipe, new AutomationRequest { Command = "mac-resume", Id = "offer" });
+            await Until(
+                () => Ask(pipe, new AutomationRequest { Command = "mac-resume", Id = "status" }),
+                reply => reply?.Text?.Contains("visible=True", StringComparison.Ordinal) == true,
+                app, root);
+            var startedOver = await Ask(pipe, new AutomationRequest { Command = "mac-resume", Id = "start-over" });
+            Assert.Contains("pending=none;visible=False;remembered=none", startedOver?.Text, StringComparison.Ordinal);
+            var neverResume = await Ask(pipe, new AutomationRequest { Command = "mac-resume", Id = "never" });
+            Assert.Contains("mode=Never;pending=none;visible=False", neverResume?.Text, StringComparison.Ordinal);
+            var alwaysResume = await Ask(pipe, new AutomationRequest { Command = "mac-resume", Id = "always" });
+            Assert.Contains("mode=Always;pending=none;visible=False", alwaysResume?.Text, StringComparison.Ordinal);
+            var audioBeforeMute = await Ask(pipe, new AutomationRequest { Command = "mac-audio" });
+            var mute = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Mute });
+            Assert.True(mute?.Ok == true, "The Mac mute command was not handled.");
+            var audioMuted = await Ask(pipe, new AutomationRequest { Command = "mac-audio" });
+            Assert.Contains("muted=True", audioMuted?.Text, StringComparison.Ordinal);
+            Assert.Equal(audioBeforeMute?.Text?.Replace("muted=False", "muted=True", StringComparison.Ordinal), audioMuted?.Text);
+            await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Mute });
+            var audioRestored = await Ask(pipe, new AutomationRequest { Command = "mac-audio" });
+            Assert.Equal(audioBeforeMute?.Text, audioRestored?.Text);
+            var sought = await Ask(pipe, new AutomationRequest { Command = "seek", To = 0.25 });
+            Assert.True(sought?.Ok == true && sought.Position is >= 0.2 and <= 0.5,
+                "The Mac did not seek to the requested playback time: " +
+                (sought?.Error ?? "unexpected position"));
+            var slotSaved = await Ask(pipe, new AutomationRequest { Command = "mac-quick-slots", Id = "save-one" });
+            Assert.Contains("h264-aac", slotSaved?.Text, StringComparison.OrdinalIgnoreCase);
+            await Ask(pipe, new AutomationRequest { Command = "seek", To = 0 });
+            var slotOpened = await Ask(pipe, new AutomationRequest { Command = "mac-quick-slots", Id = "open-one" });
+            Assert.True(slotOpened?.Position is >= 0.2 and <= 0.5,
+                "The native quick slot did not reopen its saved playback position.");
+            var bookmarkAdded = await Ask(pipe, new AutomationRequest { Command = "mac-bookmarks", Id = "add" });
+            Assert.Equal("Mac moment", bookmarkAdded?.Text);
+            var bookmarkRenamed = await Ask(pipe, new AutomationRequest { Command = "mac-bookmarks", Id = "rename" });
+            Assert.Equal("Mac renamed moment", bookmarkRenamed?.Text);
+            await Ask(pipe, new AutomationRequest { Command = "seek", To = 0 });
+            var bookmarkJumped = await Ask(pipe, new AutomationRequest { Command = "mac-bookmarks", Id = "jump" });
+            Assert.True(bookmarkJumped?.Position is >= 0.2 and <= 0.5,
+                "The native bookmark did not seek back to its saved position.");
+            var bookmarkRemoved = await Ask(pipe, new AutomationRequest { Command = "mac-bookmarks", Id = "remove" });
+            Assert.Equal("", bookmarkRemoved?.Text);
+            var droppedSubtitles = Path.Combine(root, "drop-test.srt");
+            await File.WriteAllTextAsync(droppedSubtitles,
+                "1\n00:00:00,000 --> 00:00:02,000\nDropped subtitle\n",
+                TestContext.Current.CancellationToken);
+            var dropped = await Ask(pipe, new AutomationRequest { Command = "mac-drop", Paths = [video, droppedSubtitles] });
+            Assert.True(dropped?.Ok == true, "The Mac did not accept a media and subtitle drop.");
+            var subtitleState = await Ask(pipe, new AutomationRequest { Command = "mac-subtitles" });
+            Assert.Contains("tracks=1", subtitleState?.Text, StringComparison.Ordinal);
+            Assert.Contains("selected=drop-test.srt", subtitleState?.Text, StringComparison.Ordinal);
+            var titled = await Ask(pipe, new AutomationRequest { Command = "mac-window" });
+            Assert.Contains(playing.Title, titled?.Text, StringComparison.Ordinal);
+            Assert.Contains("minimal=False", titled?.Text, StringComparison.Ordinal);
+            Assert.Contains("context=33", titled?.Text, StringComparison.Ordinal);
+            var minimal = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.MinimalInterface });
+            Assert.True(minimal?.Ok == true, "The Mac minimal-interface command was not handled.");
+            var hiddenChrome = await Ask(pipe, new AutomationRequest { Command = "mac-window" });
+            Assert.Contains("minimal=True", hiddenChrome?.Text, StringComparison.Ordinal);
+            Assert.Contains("context=33", hiddenChrome?.Text, StringComparison.Ordinal);
+            await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.MinimalInterface });
+            await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleAlwaysOnTop });
+            var floating = await Ask(pipe, new AutomationRequest { Command = "mac-window" });
+            Assert.Contains("floating=True", floating?.Text, StringComparison.Ordinal);
+            await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleAlwaysOnTop });
+            await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleFullScreen });
+            await Until(
+                () => Ask(pipe, new AutomationRequest { Command = "mac-window" }),
+                reply => reply?.Text?.Contains("fullscreen=True", StringComparison.Ordinal) == true &&
+                    reply.Text.Contains("context=33", StringComparison.Ordinal),
+                app, root);
+            await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.LeaveFullScreen });
             await Queue(pipe, "capture-current");
             // The short video fixture can finish before the queue interactions start.
             // Stop its session so synthetic (intentionally nonexistent) queue entries
@@ -138,6 +329,8 @@ public sealed class MacAppSmokeTests
             Assert.Contains("Next: Queue sample 074", promoted.Title, StringComparison.Ordinal);
             var shuffled = await Queue(pipe, "shuffle");
             Assert.Contains("Shuffle: On", shuffled.Title, StringComparison.Ordinal);
+            var repeated = await Queue(pipe, "repeat");
+            Assert.Contains("Repeat: All", repeated.Title, StringComparison.Ordinal);
             await Queue(pipe, "capture-shuffled");
             await Queue(pipe, "verify-accessibility");
             await Queue(pipe, "minimum");
@@ -161,11 +354,34 @@ public sealed class MacAppSmokeTests
                 reply => reply is { Title: not null, State: "Playing" or "Paused" or "Ended" }, app, root);
             Assert.False(string.IsNullOrWhiteSpace(fromLibrary.Title),
                 "The native library row should have started actual local playback.");
+            var lyricsShown = await Until(
+                () => Ask(pipe, new AutomationRequest { Command = "mac-music" }),
+                reply => reply?.Text?.Contains("visible=True;art=True;heading=Sample Song;lyrics=True", StringComparison.Ordinal) == true &&
+                    reply.Text.Contains("local lyric", StringComparison.Ordinal),
+                app, root);
+            Assert.Contains("local lyric", lyricsShown.Text, StringComparison.Ordinal);
+            await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLyrics });
+            var lyricsHidden = await Ask(pipe, new AutomationRequest { Command = "mac-music" });
+            Assert.Contains("visible=True;art=True;heading=Sample Song;lyrics=False", lyricsHidden?.Text, StringComparison.Ordinal);
+            await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLyrics });
+            await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.CycleVisualizer });
+            var visualizerShown = await Ask(pipe, new AutomationRequest { Command = "mac-music" });
+            Assert.Contains("visualizer=Meters", visualizerShown?.Text, StringComparison.Ordinal);
 
             await Library(pipe, "show");
             var folders = await Library(pipe, "folders");
             Assert.Contains("1 item", folders.Title, StringComparison.Ordinal);
             await Library(pipe, "capture-folders");
+            var backupRoot = Path.Combine(root, "backups");
+            Directory.CreateDirectory(backupRoot);
+            var backup = await Ask(pipe, new AutomationRequest
+            {
+                Command = "mac-library-backup",
+                Id = "export",
+                Path = backupRoot,
+            });
+            Assert.True(backup?.Ok == true && File.Exists(backup.Text),
+                "The native Mac app did not export a readable library backup: " + (backup?.Error ?? "no reply"));
             var cleared = await Library(pipe, "remove-folder");
             Assert.Contains("0 items", cleared.Title, StringComparison.Ordinal);
             Assert.Contains("0 folders", cleared.Title, StringComparison.Ordinal);
@@ -174,6 +390,17 @@ public sealed class MacAppSmokeTests
                 "Removing a watched folder must never delete an audio file.");
             Assert.True(File.Exists(Path.Combine(libraryFixture, "Sample Film.mp4")),
                 "Removing a watched folder must never delete a video file.");
+            var libraryRestored = await Ask(pipe, new AutomationRequest
+            {
+                Command = "mac-library-backup",
+                Id = "restore",
+                Path = backup!.Text,
+            });
+            Assert.True(libraryRestored?.Ok == true, "The native Mac app did not restore its library backup: " +
+                (libraryRestored?.Error ?? "no reply"));
+            Assert.Contains("folders=1", libraryRestored!.Text, StringComparison.Ordinal);
+            var restoredFolders = await Library(pipe, "folders");
+            Assert.Contains("1 item", restoredFolders.Title, StringComparison.Ordinal);
             foreach (var name in new[] { "folders", "cleared" })
             {
                 var file = new FileInfo(Path.Combine(libraryScreenshots, name + ".png"));

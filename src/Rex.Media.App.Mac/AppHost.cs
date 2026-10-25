@@ -16,6 +16,8 @@ public sealed class AppHost : NSApplicationDelegate
     private readonly CancellationTokenSource _closing = new();
     private readonly List<string> _early = [];
     private MainWindow? _window;
+    private NSObject? _sleepSubscription;
+    private NSObject? _wakeSubscription;
 
     public static DataRoots Roots { get; } = DataRoots.ForCurrentProcess();
 
@@ -32,6 +34,8 @@ public sealed class AppHost : NSApplicationDelegate
         };
 
         _window = new MainWindow(Roots, Log);
+        _sleepSubscription = NSWorkspace.Notifications.ObserveWillSleep((_, _) => _window?.OnMacWillSleep());
+        _wakeSubscription = NSWorkspace.Notifications.ObserveDidWake((_, _) => _window?.OnMacDidWake());
         _window.Show(_early);
         _early.Clear();
         try
@@ -59,11 +63,49 @@ public sealed class AppHost : NSApplicationDelegate
         sender.ReplyToOpenOrPrint(NSApplicationDelegateReply.Success);
     }
 
+    public override NSMenu ApplicationDockMenu(NSApplication sender)
+    {
+        // Build on demand so the Dock always sees the latest list and transport state.
+        var menu = new NSMenu("rexplayer");
+        if (_window is not { } window)
+        {
+            return menu;
+        }
+
+        menu.AddItem(new NSMenuItem("Play / pause", (_, _) => window.ExecuteDockCommand(
+            Rex.Media.AppCore.Commands.CommandCatalog.PlayPause)));
+        menu.AddItem(new NSMenuItem("Previous", (_, _) => window.ExecuteDockCommand(
+            Rex.Media.AppCore.Commands.CommandCatalog.Previous)));
+        menu.AddItem(new NSMenuItem("Next", (_, _) => window.ExecuteDockCommand(
+            Rex.Media.AppCore.Commands.CommandCatalog.Next)));
+        menu.AddItem(NSMenuItem.SeparatorItem);
+        menu.AddItem(new NSMenuItem("Open file…", (_, _) => window.ExecuteDockCommand(
+            Rex.Media.AppCore.Commands.CommandCatalog.OpenFile)));
+        menu.AddItem(new NSMenuItem("Open location…", (_, _) => window.ExecuteDockCommand(
+            Rex.Media.AppCore.Commands.CommandCatalog.OpenLocation)));
+        var recent = window.DockRecentMedia.Take(10).ToArray();
+        if (recent.Length > 0)
+        {
+            var sub = new NSMenu("Recent media");
+            foreach (var path in recent)
+            {
+                var location = path;
+                sub.AddItem(new NSMenuItem(Path.GetFileName(location), (_, _) => window.OpenDockRecent(location)));
+            }
+
+            menu.AddItem(new NSMenuItem("Recent media") { Submenu = sub });
+        }
+
+        return menu;
+    }
+
     public override bool ApplicationShouldTerminateAfterLastWindowClosed(NSApplication sender) => true;
 
     public override void WillTerminate(NSNotification notification)
     {
         _closing.Cancel();
+        _sleepSubscription?.Dispose();
+        _wakeSubscription?.Dispose();
         _window?.Dispose();
         Log.Info("app", "rexplayer closed.");
     }

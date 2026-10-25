@@ -9,6 +9,16 @@ public sealed partial class PlayerController
     private TimeSpan? _restoredAt;
     private PlaylistItem? _restoredItem;
 
+    /// <summary>Last position offered by Ask mode; null outside the unobtrusive resume choice.</summary>
+    public TimeSpan? PendingResumeAt { get; private set; }
+
+    /// <summary>Keep playing from the beginning without discarding this file's saved progress.</summary>
+    public void DismissPendingResume()
+    {
+        PendingResumeAt = null;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
     /// <summary>What the player remembers between runs.</summary>
     public PlayerMemory Memory { get; }
 
@@ -26,6 +36,7 @@ public sealed partial class PlayerController
             return false;
         }
 
+        PendingResumeAt = null;
         Seek(at);
         Say("Resumed at " + TimeText.Format(at, Duration));
         Changed?.Invoke(this, EventArgs.Empty);
@@ -35,6 +46,7 @@ public sealed partial class PlayerController
     /// <summary>Starts this item from the beginning and forgets its previous resume point.</summary>
     public void StartOver()
     {
+        PendingResumeAt = null;
         if (!CanSeek || Item is not { } item)
         {
             return;
@@ -290,6 +302,7 @@ public sealed partial class PlayerController
     private TimeSpan BeforeStart(PlaylistItem item, TimeSpan startAt, int? audioTrack, bool exactPosition = false)
     {
         RememberPosition();
+        PendingResumeAt = null;
         if (_restoredAt is { } restored && _restoredItem == item && startAt == TimeSpan.Zero)
         {
             _restoredAt = null;
@@ -301,6 +314,17 @@ public sealed partial class PlayerController
         _restoredItem = null;
         if (exactPosition || startAt > TimeSpan.Zero || audioTrack is not null || Memory.ResumePoint(MemoryKey(item)) is not { } at)
         {
+            return startAt;
+        }
+
+        if (Settings.ResumeMode == Rex.Media.Settings.ResumeBehavior.Never)
+        {
+            return startAt;
+        }
+
+        if (Settings.ResumeMode == Rex.Media.Settings.ResumeBehavior.Ask)
+        {
+            PendingResumeAt = at;
             return startAt;
         }
 

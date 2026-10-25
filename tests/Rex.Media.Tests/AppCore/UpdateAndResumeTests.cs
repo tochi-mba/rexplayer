@@ -67,6 +67,37 @@ public sealed class UpdateAndResumeTests : IDisposable
     }
 
     [Fact]
+    [Capability("SEC-05")]
+    public void AUniversalMacReleaseMustHaveBothPinnedAssets()
+    {
+        const string json = """
+            {
+              "tag_name": "v0.40.0",
+              "assets": [
+                { "name": "rexplayer-mac-universal.zip",
+                  "browser_download_url": "https://github.com/tochi-mba/rexplayer/releases/download/v0.40.0/rexplayer-mac-universal.zip",
+                  "size": 98765 },
+                { "name": "rexplayer-mac-universal.zip.sha256",
+                  "browser_download_url": "https://github.com/tochi-mba/rexplayer/releases/download/v0.40.0/rexplayer-mac-universal.zip.sha256" }
+              ]
+            }
+            """;
+        var offer = UpdateCheck.Offer(json, "0.39.0", "rexplayer-mac-universal.zip");
+        Assert.NotNull(offer);
+        Assert.Equal(98765, offer.Size);
+        Assert.Equal("rexplayer-mac-universal.zip", offer.InstallerName);
+        Assert.Equal(new Version(0, 40, 0), offer.Version);
+        Assert.Null(UpdateCheck.Offer(json.Replace(
+            "github.com/tochi-mba/rexplayer/releases/download",
+            "untrusted.example/tochi-mba/rexplayer/releases/download", StringComparison.Ordinal),
+            "0.39.0", "rexplayer-mac-universal.zip"));
+        Assert.Null(UpdateCheck.Offer(json.Replace(
+            "rexplayer-mac-universal.zip.sha256", "unrelated.sha256", StringComparison.Ordinal),
+            "0.39.0", "rexplayer-mac-universal.zip"));
+        Assert.Null(UpdateCheck.Offer(json, "0.40.0", "rexplayer-mac-universal.zip"));
+    }
+
+    [Fact]
     public void AnOfferCarriesTheInstallersSizeAndTheReleaseNotes()
     {
         var release = Release("v0.4.0")

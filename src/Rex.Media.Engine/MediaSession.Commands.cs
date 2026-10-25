@@ -54,6 +54,7 @@ public sealed partial class MediaSession
             _playback.ApplyVolume(_volume, _muted);
             _playback.ApplySound(_sound);
             _playback.SetAudioDelay(_audioDelay);
+            if (!_preservePitch) _playback.SetPitchPreserving(false);
             if (_speed != 1)
             {
                 _playback.SetSpeed(_speed);

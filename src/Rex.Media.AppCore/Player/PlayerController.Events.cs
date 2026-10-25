@@ -178,6 +178,19 @@ public sealed partial class PlayerController
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Switches between pitch-preserving speed and deliberate pitch shifting.</summary>
+    public void SetPreservePitch(bool preserve)
+    {
+        Settings = Settings with { PreservePitch = preserve };
+        if (_session is not null)
+        {
+            _ = Observe(_session.SetPitchPreservingAsync(preserve));
+        }
+
+        Say(preserve ? "Pitch-preserving speed" : "Speed changes pitch");
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
     /// <summary>Hears the sound <paramref name="delay"/> after the pictures (negative: before), within ten seconds either way.</summary>
     public void SetAudioDelay(TimeSpan delay)
     {
@@ -203,13 +216,38 @@ public sealed partial class PlayerController
         var tracks = Info is null && _audioSwitch is { } switching ? switching.Tracks : AudioTracks;
         if (tracks.Count < 2 || Item is null)
         {
-            Say(tracks.Count == 1 ? "There is only one audio track." : "There are no audio tracks to choose from.");
+            Say(tracks.Count == 1 ? "There is only one audio track."
+                : "There are no audio tracks to choose from.");
             return;
         }
 
         var chosen = AudioTrack ?? _audioSwitch?.Chosen;
         var current = tracks.ToList().FindIndex(track => track.Id == chosen);
-        var next = tracks[(current + 1) % tracks.Count];
+        SelectAudioTrack(tracks[(current + 1) % tracks.Count].Id);
+    }
+
+    /// <summary>Chooses a specific audio track without cycling through intervening decoders.</summary>
+    public void SelectAudioTrack(int trackId)
+    {
+        var tracks = Info is null && _audioSwitch is { } switching ? switching.Tracks : AudioTracks;
+        if (Item is null || tracks.Count == 0)
+        {
+            Say("There are no audio tracks to choose from.");
+            return;
+        }
+
+        var next = tracks.FirstOrDefault(track => track.Id == trackId);
+        if (next is null)
+        {
+            Say("That audio track is not part of this file.");
+            return;
+        }
+
+        if ((AudioTrack ?? _audioSwitch?.Chosen) == trackId)
+        {
+            return;
+        }
+
         var position = Position;
         Start(Item, position, next.Id);
         _audioSwitch = (tracks, next.Id);

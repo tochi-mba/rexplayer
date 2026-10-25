@@ -169,8 +169,6 @@ public sealed partial class MainWindow
             stack.Spacing = 14;
             stack.EdgeInsets = new NSEdgeInsets(22, 24, 22, 24);
             stack.TranslatesAutoresizingMaskIntoConstraints = false;
-            stack.WantsLayer = true;
-            stack.Layer!.BackgroundColor = NSColor.WindowBackground.CGColor;
             _libraryWindow.ContentView = stack;
             _libraryScroll.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
             _librarySummary.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
@@ -195,16 +193,15 @@ public sealed partial class MainWindow
         panel.AllowsMultipleSelection = true;
         panel.CanChooseFiles = false;
         panel.CanChooseDirectories = true;
-        if (panel.RunModal() != 1)
+        panel.Begin(response =>
         {
-            return;
-        }
-
-        var reply = AddLibraryFolders(panel.Urls.Select(url => url.Path!).ToList());
-        if (!reply.Ok)
-        {
-            Say(reply.Error ?? "Could not add a library folder.");
-        }
+            if (response != 1) return;
+            var reply = AddLibraryFolders(panel.Urls.Select(url => url.Path!).ToList());
+            if (!reply.Ok)
+            {
+                Say(reply.Error ?? "Could not add a library folder.");
+            }
+        });
     }
 
     /// <summary>

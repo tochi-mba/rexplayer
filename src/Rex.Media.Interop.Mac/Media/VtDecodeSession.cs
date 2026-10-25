@@ -88,7 +88,7 @@ public sealed unsafe class VtDecodeSession : IDisposable
     /// sample range (<paramref name="fullRange"/>): asked for the other, VideoToolbox would convert every
     /// sample, and the picture would no longer be the one the stream holds.
     /// </summary>
-    public static VtDecodeSession Open(VtCodec codec, IReadOnlyList<byte[]> parameterSets, int lengthSize, bool tenBit, bool fullRange, VtPictureHandler handler)
+    public static VtDecodeSession Open(VtCodec codec, IReadOnlyList<byte[]> parameterSets, int lengthSize, bool tenBit, bool fullRange, VtPictureHandler handler, bool allowHardware = true)
     {
         ArgumentNullException.ThrowIfNull(parameterSets);
         ArgumentNullException.ThrowIfNull(handler);
@@ -103,14 +103,17 @@ public sealed unsafe class VtDecodeSession : IDisposable
                 (false, true) => PixelFormatNv12Full,
                 (false, false) => PixelFormatNv12,
             });
+            var specification = HardwareAttributes(allowHardware);
             try
             {
                 session._self = GCHandle.Alloc(session);
                 var record = new OutputCallbackRecord { Callback = &Decoded, Reference = GCHandle.ToIntPtr(session._self) };
-                Check(VTDecompressionSessionCreate(0, session._format, 0, attributes, &record, out session._session), "Opening the VideoToolbox decoder");
+                Check(VTDecompressionSessionCreate(0, session._format, specification, attributes,
+                    &record, out session._session), "Opening the VideoToolbox decoder");
             }
             finally
             {
+                CFRelease(specification);
                 CFRelease(attributes);
             }
 
@@ -238,6 +241,14 @@ public sealed unsafe class VtDecodeSession : IDisposable
         {
             CFRelease(number);
         }
+    }
+
+    /// <summary>Apple's VideoToolbox policy: prefer hardware when allowed, force software when off.</summary>
+    private static nint HardwareAttributes(bool allowHardware)
+    {
+        var key = AllowHardwareDecodeKey;
+        var value = allowHardware ? True : False;
+        return CFDictionaryCreate(0, &key, &value, 1, KeyCallBacks, ValueCallBacks);
     }
 
     private void Rethrow()

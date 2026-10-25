@@ -186,6 +186,18 @@ public sealed partial class MediaSession : IDisposable
 
     private double _speed = 1;
 
+    private bool _preservePitch = true;
+
+    /// <summary>Whether speed changes keep the original pitch, including later media.</summary>
+    public bool PreservePitch => _preservePitch;
+
+    /// <summary>Choose chipmunk mode (false), or the default pitch-preserving WSOLA (true).</summary>
+    public Task SetPitchPreservingAsync(bool preserve) => Post(() =>
+    {
+        _preservePitch = preserve;
+        _playback?.SetPitchPreserving(preserve);
+    });
+
     /// <summary>Plays at <paramref name="speed"/> from the current position, or from the start of the next media opened.</summary>
     public Task SetSpeedAsync(double speed)
     {

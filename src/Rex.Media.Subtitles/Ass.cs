@@ -112,6 +112,13 @@ internal sealed record AssStyle(string Name, string Prefix, SubtitlePlacement Pl
     {
         string Field(string name) => Array.IndexOf(format, name) is >= 0 and var at && at < values.Length ? values[at].Trim() : "";
         var prefix = (Field("bold") is "-1" or "1" ? "{\\b1}" : "") + (Field("italic") is "-1" or "1" ? "{\\i1}" : "");
+        // Carry the script's own font and point size into the portable styled runs.
+        var family = Field("fontname");
+        if (family.Length is > 0 and <= 120 && !family.Contains('\\') && !family.Contains('}'))
+            prefix += "{\\fn" + family + "}";
+        if (double.TryParse(Field("fontsize"), NumberStyles.Float, CultureInfo.InvariantCulture,
+                out var fontSize) && fontSize is > 0 and <= 300)
+            prefix += "{\\fs" + fontSize.ToString(CultureInfo.InvariantCulture) + "}";
         if (Field("primarycolour") is { Length: > 0 } colour && SubtitleMarkup.AssColor(colour) is { } rgb and not 0xFFFFFF)
         {
             // Written back as ASS writes colours: blue, green, red.

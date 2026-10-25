@@ -20,6 +20,7 @@ public sealed class VtVideoDecoder : IVideoDecoder
     private const int ReorderDepth = 4;
 
     private readonly VtCodec _codec;
+    private readonly bool _allowHardware;
     private readonly IReadOnlyList<byte[]> _parameterSets;
     private readonly int _lengthSize;
     private readonly PixelFormat _format;
@@ -30,9 +31,10 @@ public sealed class VtVideoDecoder : IVideoDecoder
     private readonly PresentationOrder<VideoFrame> _order = new(ReorderDepth, frame => frame.Pts.IsKnown ? frame.Pts.Ticks : long.MinValue);
     private VtDecodeSession _session;
 
-    public VtVideoDecoder(TrackInfo track)
+    public VtVideoDecoder(TrackInfo track, bool allowHardware = true)
     {
         ArgumentNullException.ThrowIfNull(track);
+        _allowHardware = allowHardware;
         var video = track.Video ?? throw new MediaFormatException("The track is not video.");
         SequenceInfo? sequence;
         switch (track.Codec)
@@ -95,7 +97,8 @@ public sealed class VtVideoDecoder : IVideoDecoder
     {
         try
         {
-            return VtDecodeSession.Open(_codec, _parameterSets, _lengthSize, _format == PixelFormat.P010, _color.FullRange, Take);
+            return VtDecodeSession.Open(_codec, _parameterSets, _lengthSize,
+                _format == PixelFormat.P010, _color.FullRange, Take, _allowHardware);
         }
         catch (IOException ex)
         {

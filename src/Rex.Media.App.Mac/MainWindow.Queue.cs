@@ -47,16 +47,20 @@ public sealed partial class MainWindow
             hint.TextColor = NSColor.SecondaryLabel;
             _queueShuffle = NSButton.CreateButton("Shuffle: Off", () => Run(Rex.Media.AppCore.Commands.CommandCatalog.ToggleShuffle));
             _queueRepeat = NSButton.CreateButton("Repeat: Off", () => Run(Rex.Media.AppCore.Commands.CommandCatalog.CycleRepeat));
+            var relink = NSButton.CreateButton("Find missing in folder…", RelinkMissingQueueFiles);
             var open = NSButton.CreateButton("Add files…", () =>
             {
                 var panel = NSOpenPanel.OpenPanel;
                 panel.AllowsMultipleSelection = true;
                 panel.CanChooseFiles = true;
                 panel.CanChooseDirectories = false;
-                if (panel.RunModal() == 1)
+                panel.Begin(response =>
                 {
-                    _player.Open(panel.Urls.Select(url => url.Path!).ToList(), enqueue: true);
-                }
+                    if (response == 1)
+                    {
+                        _player.Open(panel.Urls.Select(url => url.Path!).ToList(), enqueue: true);
+                    }
+                });
             });
             _previousQueuePage = NSButton.CreateButton("Previous page", () =>
             {
@@ -68,7 +72,7 @@ public sealed partial class MainWindow
                 _queuePage++;
                 RefreshQueue();
             });
-            var tools = NSStackView.FromViews([_queueShuffle, _queueRepeat, open]);
+            var tools = NSStackView.FromViews([_queueShuffle, _queueRepeat, open, relink]);
             tools.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             tools.Spacing = 8;
             _queueToolbar = tools;
@@ -150,6 +154,7 @@ public sealed partial class MainWindow
             var index = i;
             var item = queue[i];
             var playing = i == _player.Playlist.CurrentIndex;
+            var missing = _player.IsMissing(item);
             var play = NSButton.CreateButton((playing ? "Now playing: " : "Play: ") + item.Title, () =>
             {
                 var at = _player.Playlist.IndexOf(item);
@@ -160,10 +165,13 @@ public sealed partial class MainWindow
                 }
             });
             play.Alignment = NSTextAlignment.Left;
-            play.ToolTip = item.Location;
+            play.Enabled = !missing;
+            play.ToolTip = missing ? "Missing file: " + item.Location : item.Location;
             ((NSView)play).AccessibilityLabel = playing ? "Now playing: " + item.Title : "Play: " + item.Title;
             play.WidthAnchor.ConstraintGreaterThanOrEqualTo(300).Active = true;
-            var source = NSTextField.CreateLabel(item.Artist ?? Rex.Media.AppCore.Player.PlaylistItem.SourceOf(item.Location) ?? "Local media");
+            var source = NSTextField.CreateLabel(missing
+                ? "Missing file - choose Locate to point at its new location."
+                : item.Artist ?? Rex.Media.AppCore.Player.PlaylistItem.SourceOf(item.Location) ?? "Local media");
             source.TextColor = NSColor.SecondaryLabel;
             source.Font = NSFont.SystemFontOfSize(11, NSFontWeight.Regular)!;
             source.LineBreakMode = NSLineBreakMode.TruncatingTail;
@@ -179,7 +187,7 @@ public sealed partial class MainWindow
                     _player.Playlist.QueueNext(at);
                 }
             });
-            next.Enabled = _player.Playlist.Current is not null && !playing;
+            next.Enabled = _player.Playlist.Current is not null && !playing && !missing;
             next.ToolTip = "Make this entry play next, including when shuffle is enabled";
             ((NSView)next).AccessibilityLabel = "Play " + item.Title + " next";
             var up = NSButton.CreateButton("Earlier", () =>
@@ -214,7 +222,16 @@ public sealed partial class MainWindow
             ((NSView)down).AccessibilityLabel = "Move " + item.Title + " later";
             remove.ToolTip = "Remove from Up Next";
             ((NSView)remove).AccessibilityLabel = "Remove " + item.Title + " from Up Next";
-            var actions = NSStackView.FromViews([next, up, down, remove]);
+            var timing = NSButton.CreateButton("Timing…", () => EditQueueTiming(item));
+            timing.ToolTip = "Set start, stop or maximum run time for this entry";
+            var actions = NSStackView.FromViews([next, up, down, timing, remove]);
+            if (missing)
+            {
+                var locate = NSButton.CreateButton("Locate…", () => LocateMissingQueueItem(item));
+                locate.ToolTip = "Point this playlist entry at its new file path";
+                actions.AddArrangedSubview(locate);
+            }
+
             actions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             actions.Spacing = 8;
             var row = NSStackView.FromViews([media, actions]);
@@ -239,6 +256,41 @@ public sealed partial class MainWindow
         _queueSummary.StringValue = (queue.Count == 1 ? "1 item" : $"{queue.Count} items")
             + (queue.Count > QueuePageSize ? $" • viewing {start + 1}–{end}" : "")
             + (_player.Playlist.PeekNext(automatic: false) is { } nextItem ? $" • Next: {nextItem.Title}" : "");
+    }
+
+    private void LocateMissingQueueItem(PlaylistItem item)
+    {
+        var panel = NSOpenPanel.OpenPanel;
+        panel.Title = "Locate " + item.Title;
+        panel.CanChooseFiles = true;
+        panel.CanChooseDirectories = false;
+        panel.AllowsMultipleSelection = false;
+        panel.Begin(response =>
+        {
+            if (response != 1 || panel.Url?.Path is not { } path) return;
+            var index = _player.Playlist.IndexOf(item);
+            if (index >= 0)
+            {
+                _player.Relocate(index, path);
+                RefreshQueue();
+            }
+        });
+    }
+
+    private void RelinkMissingQueueFiles()
+    {
+        var panel = NSOpenPanel.OpenPanel;
+        panel.Title = "Choose a folder containing moved media";
+        panel.CanChooseDirectories = true;
+        panel.CanChooseFiles = false;
+        panel.AllowsMultipleSelection = false;
+        panel.Begin(response =>
+        {
+            if (response != 1 || panel.Url?.Path is not { } folder) return;
+            // The controller intentionally relinks only unique file-name matches.
+            _player.RelinkMissing(folder);
+            RefreshQueue();
+        });
     }
 
     /// <summary>
@@ -331,7 +383,7 @@ public sealed partial class MainWindow
         }
 
         if (action == "next-page" || action == "previous-page"
-            || action == "shuffle" || action == "last-play-next")
+            || action == "shuffle" || action == "repeat" || action == "last-play-next")
         {
             // Use the actual controls. Direct references keep pagination tests fast when
             // the document view contains the maximum 75 visible entries.
@@ -340,6 +392,7 @@ public sealed partial class MainWindow
                 "next-page" => _nextQueuePage,
                 "previous-page" => _previousQueuePage,
                 "shuffle" => _queueShuffle,
+                "repeat" => _queueRepeat,
                 _ => FindQueueSmokeButton("Play next", last: true),
             };
             if (button is not { Enabled: true })
@@ -348,7 +401,7 @@ public sealed partial class MainWindow
             }
 
             button.PerformClick(button);
-            if (action is "shuffle" or "last-play-next")
+            if (action is "shuffle" or "repeat" or "last-play-next")
             {
                 // Playlist.Changed schedules a refresh on the UI thread; update the result
                 // synchronously so the automation reply reports the new mode / next item.

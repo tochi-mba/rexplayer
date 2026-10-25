@@ -45,7 +45,7 @@ public static class UpdateCheck
     /// <paramref name="current"/> and carries an installer with its checksum; null otherwise, and
     /// for anything that is not such a description.
     /// </summary>
-    public static UpdateOffer? Offer(string releaseJson, string current)
+    public static UpdateOffer? Offer(string releaseJson, string current, string? assetName = null)
     {
         ArgumentNullException.ThrowIfNull(releaseJson);
         if (!TryVersion(current, out var running))
@@ -66,13 +66,15 @@ public static class UpdateCheck
                 return null;
             }
 
-            var installerName = $"rexplayer-Setup-{latest}.exe";
+            var installerName = assetName ?? $"rexplayer-Setup-{latest}.exe";
             Uri? installer = null, checksum = null;
             long size = 0;
             foreach (var asset in assets.EnumerateArray())
             {
                 if (asset.TryGetProperty("name", out var name) && asset.TryGetProperty("browser_download_url", out var url)
-                    && Uri.TryCreate(url.GetString(), UriKind.Absolute, out var link) && link.Scheme == Uri.UriSchemeHttps)
+                    && Uri.TryCreate(url.GetString(), UriKind.Absolute, out var link) && link.Scheme == Uri.UriSchemeHttps
+                    && (assetName is null || link.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase)
+                        && link.AbsolutePath.StartsWith("/tochi-mba/rexplayer/releases/download/", StringComparison.OrdinalIgnoreCase)))
                 {
                     if (name.GetString() == installerName)
                     {

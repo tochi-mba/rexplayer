@@ -186,6 +186,14 @@ public sealed partial class MediaSession
         }
 
         private double _speed = 1;
+        private bool _preservePitch = true;
+
+        /// <summary>Changes between pitch-preserving WSOLA and straightforward rate shifting.</summary>
+        public void SetPitchPreserving(bool preserve)
+        {
+            Volatile.Write(ref _preservePitch, preserve);
+            RequestSeek(Position, SeekMode.Precise);
+        }
 
         /// <summary>The speed the media plays at; the wall clock after the sound ends follows it too.</summary>
         public double Speed => Volatile.Read(ref _speed);
@@ -578,6 +586,7 @@ public sealed partial class MediaSession
             _sink.Flush();
             _session.Scope.Clear();
             _pipeline.Speed = Volatile.Read(ref _speed);
+            _pipeline.PreservePitch = Volatile.Read(ref _preservePitch);
             _clock.Rebase(_currentSeek.Target, _sinkFormat.SampleRate, _pipeline.Speed);
             state.AwaitingFirstFrame = true;
             state.Continuing = false;

@@ -125,6 +125,23 @@ public sealed class SnapshotTests : IDisposable
         Assert.Throws<ArgumentNullException>(() => Snapshot.Take(empty, null!, MediaTime.Zero, CancellationToken.None));
     }
 
+    [Fact]
+    public void CustomSnapshotNamingCanNumberCollisionsWithoutChangingTheDefault()
+    {
+        var at = TimeSpan.FromSeconds(85);
+        var defaultName = Snapshot.FileFor(_directory, "Song", at);
+        Assert.Equal(Path.Combine(_directory, "Song 0-01-25.png"), defaultName);
+
+        var chosen = Snapshot.FileFor(_directory, "A:B", at,
+            path => path.EndsWith("-1.png", StringComparison.Ordinal),
+            "{title}-{time}-{n}");
+        Assert.Equal(Path.Combine(_directory, "A_B-0-01-25-2.png"), chosen);
+
+        var withoutNumbering = Snapshot.FileFor(_directory, "A:B", at,
+            _ => true, "{title}-{time}", sequential: false);
+        Assert.Equal(Path.Combine(_directory, "A_B-0-01-25.png"), withoutNumbering);
+    }
+
     private static (int Exit, string Out) Run(params string[] args)
     {
         using var output = new StringWriter();
