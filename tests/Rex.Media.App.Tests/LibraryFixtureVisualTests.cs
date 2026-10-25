@@ -22,6 +22,45 @@ public sealed partial class LibraryFixtureVisualTests
             $"the {width}x{height} window viewport");
     }
 
+    // A toggle's accessibility name changes before WinUI has measured and
+    // re-templated the ListView items. Capture only a realized rail at its
+    // intended width, rather than a stable frame from an unfinished resize.
+    private static bool NavigationRendered(AppProcess app, bool compact)
+    {
+        var sources = app.Window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty, "LibrarySources"));
+        var toggle = app.Window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty, "LibraryNavigationToggle"));
+        if (sources is null || toggle is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            var width = sources.Current.BoundingRectangle.Width;
+            if (width < (compact ? 55 : 175) || width > (compact ? 75 : 215)
+                || toggle.Current.Name != (compact ? "Expand library navigation" : "Collapse library navigation"))
+            {
+                return false;
+            }
+
+            var items = sources.FindAll(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem))
+                .Cast<AutomationElement>().Where(item => !item.Current.IsOffscreen)
+                .Select(item => item.Current.Name).ToHashSet(StringComparer.Ordinal);
+            return items.Contains("Home") && items.Contains("Songs");
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
     [Fact]
     [Capability("LIB-05")]
     public void EmptyWatchedLibraryShowsARealEmptyState()
@@ -104,7 +143,10 @@ public sealed partial class LibraryFixtureVisualTests
             "the compact navigation to replace the wide rail");
         Wait.For(() => app.Find("LibrarySources").Current.BoundingRectangle.Width is >= 55 and <= 75,
             "the 64-pixel icon rail");
-        Screenshots.Match(app, "library-home-mixed-compact", "LibraryPane");
+        Wait.For(() => NavigationRendered(app, compact: true),
+            "the compact navigation entries to finish re-templating");
+        Screenshots.Match(app, "library-home-mixed-compact", "LibraryPane",
+            extraReadiness: () => NavigationRendered(app, compact: true));
         Assert.Equal(0, app.Close());
     }
 
@@ -123,7 +165,10 @@ public sealed partial class LibraryFixtureVisualTests
         app.Press("LibraryNavigationToggle");
         Wait.For(() => app.Find("LibraryNavigationToggle").Current.Name == "Collapse library navigation",
             "the temporary sidebar labels to appear");
-        Screenshots.Match(app, "library-compact-temporary-navigation", "LibraryPane");
+        Wait.For(() => NavigationRendered(app, compact: false),
+            "the temporary 200-pixel rail and its visible navigation entries");
+        Screenshots.Match(app, "library-compact-temporary-navigation", "LibraryPane",
+            extraReadiness: () => NavigationRendered(app, compact: false));
 
         app.Visit("Songs");
         Wait.For(() => app.Text("LibraryTitle") == "Songs" &&
