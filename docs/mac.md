@@ -187,8 +187,12 @@ second subtitle stream stays at the top by default to avoid overlapping the prim
 OSD-03 is **built**. OSD-01 now also has native attributed text styling for font,
 size, color, embedded bold/underline, outline, shadow, and background; complex-script and
 right-to-left rendering use AppKit's natural writing direction and font shaping (OSD-09).
-These rows are **built**, not verified. Rich embedded subtitle formats, full ASS style policy
-and visual verification remain separate work.
+These rows are **built**, not verified. ASS/SSA header and inline font family/point-size
+choices now survive the portable parser and are honoured by the Mac when embedded styles
+are respected, scaled by the user's chosen subtitle size. Mac style override suppresses
+the file's font and size as well as its colours. OSD-05 is also **built**, pending
+verification of platform font fallback, native text shaping and the full ASS effects
+surface (positioning, transforms and animations).
 
 ## Playback keyboard and decoder policy implementation
 
