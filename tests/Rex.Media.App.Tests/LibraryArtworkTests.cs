@@ -26,17 +26,18 @@ public sealed class LibraryArtworkTests : IDisposable
             _scene.Video(Path.Combine("Harbour Lights", "Season 1", $"Harbour.Lights.S01E{episode:00}.mp4"));
         }
 
-        // Many more files for library transcription to hear (songs long enough to be heard, their
-        // details read), one piece taking minutes: the queue stays long and busy for the whole
-        // test, as it does on a large library.
-        for (var song = 1; song <= 40; song++)
+        // A large backlog of speech-eligible audiobooks, not songs (which transcription
+        // intentionally skips). One fake-speech piece takes minutes, keeping the queue
+        // busy while the collage artwork finishes loading.
+        for (var chapter = 1; chapter <= 40; chapter++)
         {
-            _scene.Song($"Sungba {song:00}", "Mr. Money with the Vibe", 2022, "Amapiano");
+            _scene.Audio(Path.Combine("Audiobooks", $"Chapter {chapter:00}.wav"),
+                TimeSpan.FromSeconds(20), genre: "Audiobook");
         }
 
         using var app = _scene.Ready(settings => settings with
         {
-            Transcription = new TranscriptionSettings { Library = true, OnBattery = true, WhilePlaying = true },
+            Transcription = new TranscriptionSettings { Library = true, IncludeAudiobooks = true, OnBattery = true, WhilePlaying = true },
 
             // The layouts picked before: shows as cards, a show's page as a collage. The queue's pill
             // takes the toolbar's room, so the layout menu is not reached for.
