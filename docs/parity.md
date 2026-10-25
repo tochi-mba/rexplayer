@@ -6,7 +6,7 @@ platform while the other catches up; under *locked* every must row is verified o
 applicable with a reason, and CI blocks a release otherwise (ADR-0020). A **gap** is a difference someone has
 accepted for now: its note says why and its issue says who closes it.
 
-Totals: 101 rows differ (75 must), 2 not applicable, 0 gaps.
+Totals: 87 rows differ (63 must), 2 not applicable, 0 gaps.
 
 ## Playback core
 
@@ -22,31 +22,16 @@ Totals: 101 rows differ (75 must), 2 not applicable, 0 gaps.
 | PB-23 | Start/stop/run time per item | should | built | planned |  |
 | PB-27 | Media key / external control | must | built | planned |  |
 
-## Formats: Containers / demuxers
-
-| ID | Capability | Priority | Windows | macOS | Note |
-|---|---|---|---|---|---|
-| FMT-C09 | Ogg (+OGM Could) | must | built | planned |  |
-| FMT-C19 | Image files as media | should | verified | planned |  |
-
 ## Formats: Audio decoders
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| FMT-A05 | AAC-LC / HE-AAC v1/v2 (/xHE-AAC if MF supports it) | must | verified | planned |  |
 | FMT-A10 | Opus (SILK/CELT/hybrid, multistream for surround) | must | built | planned |  |
 
 ## Formats: Subtitles & captions
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| SUB-01 | SubRip (SRT) | must | verified | planned |  |
-| SUB-02 | WebVTT | must | built | planned |  |
-| SUB-03 | ASS / SSA | must | built | planned |  |
-| SUB-04 | MP4 timed text (tx3g / mov_text) | must | built | planned |  |
-| SUB-05 | SAMI, MicroDVD (frame-based with fps), SubViewer 1/2, MPL2, VPlayer | should | built | planned |  |
-| SUB-14 | Sidecar autoload | must | verified | planned |  |
-| SUB-15 | Character encoding | must | built | planned |  |
 | SUB-16 | Drop a subtitle file on the video | must | verified | planned |  |
 | SUB-18 | Word timing | should | verified | planned |  |
 | SUB-19 | Local transcription | should | verified | planned |  |
@@ -57,15 +42,13 @@ Totals: 101 rows differ (75 must), 2 not applicable, 0 gaps.
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| META-06 | Folder art discovery | must | verified | planned |  |
 | META-09 | Lyrics display | could | verified | planned |  |
 
 ## Audio
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| AU-01 | Default-device output | must | verified-hardware | planned |  |
-| AU-05 | Volume | must | verified | planned |  |
+| AU-01 | Default-device output | must | verified-hardware | built |  |
 | AU-06 | Mute | must | verified | built |  |
 | AU-07 | 10-band graphic equaliser | must | verified | planned |  |
 | AU-11 | Stereo mode | must | verified | planned |  |
@@ -74,8 +57,6 @@ Totals: 101 rows differ (75 must), 2 not applicable, 0 gaps.
 | AU-15 | Pitch-preserving speed | must | verified | planned |  |
 | AU-18 | Visualisations | should | verified | planned |  |
 | AU-19 | Audio-only presentation | must | verified | planned |  |
-| AU-20 | Resampler quality | must | built | planned |  |
-| AU-21 | Language preferences | must | verified | planned |  |
 
 ## Video & rendering
 
@@ -83,7 +64,7 @@ Totals: 101 rows differ (75 must), 2 not applicable, 0 gaps.
 |---|---|---|---|---|---|
 | VID-01 | Hardware decoding policy | must | verified | planned |  |
 | VID-02 | Frame pacing | must | built | planned |  |
-| VID-03 | Fullscreen | must | verified | planned |  |
+| VID-03 | Fullscreen | must | verified | built |  |
 | VID-04 | Window sizing | must | verified | planned |  |
 | VID-05 | Aspect ratio | must | verified | planned |  |
 | VID-06 | Crop | must | built | planned |  |
@@ -91,7 +72,7 @@ Totals: 101 rows differ (75 must), 2 not applicable, 0 gaps.
 | VID-23 | Colour pipeline correctness | must | verified | planned |  |
 | VID-25 | Late-frame policy | must | verified | planned |  |
 | VID-26 | Title on start | should | verified | planned |  |
-| VID-27 | Always on top | must | verified | planned |  |
+| VID-27 | Always on top | must | verified | built |  |
 | VID-29 | Power management | must | built | planned |  |
 | VID-31 | Stats overlay | should | verified | planned |  |
 
@@ -139,7 +120,7 @@ Totals: 101 rows differ (75 must), 2 not applicable, 0 gaps.
 | UI-13 | Themes | must | built | planned |  |
 | UI-14 | First run | must | verified | planned |  |
 | UI-15 | What's new | should | verified | planned |  |
-| UI-16 | Window title | should | verified | planned |  |
+| UI-16 | Window title | should | verified | built |  |
 | UI-17 | In-window confirmations | must | built | planned |  |
 | UI-18 | Mouse & touch | must/should | built | planned |  |
 

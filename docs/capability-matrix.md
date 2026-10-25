@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 241 planned, 17 built, 35 verified, 27 post-1.0, 2 not-applicable.
+macOS: 223 planned, 28 built, 42 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -51,7 +51,7 @@ macOS: 241 planned, 17 built, 35 verified, 27 post-1.0, 2 not-applicable.
 | FMT-C06 | Matroska / WebM | EBML lacing (Xiph/EBML/fixed), Cues, Chapters (incl. nested/ordered: ordered only as linear in 1.0), Tags, Attachments (fonts for ASS), BlockAdditions, CodecPrivate, live/unknown-size clusters | M3 | must | verified | verified |
 | FMT-C07 | MPEG-TS / M2TS (BDAV) | PAT/PMT/SDT/EIT, PCR clock recovery, multi-program, discontinuity handling, 188/192/204-byte packets, PES reassembly | M7 | must | planned | planned |
 | FMT-C08 | MPEG-PS / VOB / MPG | Pack/system headers, private streams (AC-3/DTS/LPCM/SPU), SCR | M7 | must | planned | planned |
-| FMT-C09 | Ogg (+OGM Could) | Vorbis, Opus, FLAC-in-Ogg, Theora, Speex; chained streams (internet radio); granule-position seek bisection | M7 | must | built | planned |
+| FMT-C09 | Ogg (+OGM Could) | Vorbis, Opus, FLAC-in-Ogg, Theora, Speex; chained streams (internet radio); granule-position seek bisection | M7 | must | built | built |
 | FMT-C10 | AVI / OpenDML | idx1 + indx super-index, broken-index rebuild, VBR MP3, DV type-1/2 | M7 | must | planned | planned |
 | FMT-C11 | ASF / WMV / WMA | Via MF's in-box ASF media source as a demux adapter (spec-licence checkpoint, §8.2); DRM-protected files refused with a message | M7 | should | planned | planned |
 | FMT-C12 | FLV | AMF0 metadata, H.264/AAC/MP3 tags (VP6/Sorenson payloads: Won't) | M7 | should | planned | planned |
@@ -61,7 +61,7 @@ macOS: 241 planned, 17 built, 35 verified, 27 post-1.0, 2 not-applicable.
 | FMT-C16 | WavPack, TTA, Musepack, APE native | With their codecs (§6.2.3) | post | could/wont | post-1.0 | post-1.0 |
 | FMT-C17 | MXF (OP1a) | Broadcast exchange | post | could | post-1.0 | post-1.0 |
 | FMT-C18 | DV raw | DIF stream | post | could | post-1.0 | post-1.0 |
-| FMT-C19 | Image files as media | JPEG/PNG/BMP/GIF/TIFF/WebP/HEIC (via WIC, so OS codecs); a display duration for slideshows in playlists | M6 | should | verified | planned |
+| FMT-C19 | Image files as media | JPEG/PNG/BMP/GIF/TIFF/WebP/HEIC (via WIC, so OS codecs); a display duration for slideshows in playlists | M6 | should | verified | verified |
 | FMT-C20 | Real/NSV/NUT/PVA/SMF-as-container | Legacy | - | wont | post-1.0 | post-1.0 |
 
 ## Formats: Video decoders
@@ -93,7 +93,7 @@ macOS: 241 planned, 17 built, 35 verified, 27 post-1.0, 2 not-applicable.
 | FMT-A02 | MP3 (incl. MPEG-2.5, free-format) | Own | M2 | must | verified | verified |
 | FMT-A03 | MP1 / MP2 | Own | M7 | must | planned | planned |
 | FMT-A04 | FLAC (incl. 24/32-bit, up to 8 ch) | Own | M2 | must | verified | verified |
-| FMT-A05 | AAC-LC / HE-AAC v1/v2 (/xHE-AAC if MF supports it) | MF | M3 | must | verified | planned |
+| FMT-A05 | AAC-LC / HE-AAC v1/v2 (/xHE-AAC if MF supports it) | MF | M3 | must | verified | verified |
 | FMT-A06 | AC-3 | Own (dialnorm, DRC modes, downmix coefficients) | M7 | must | planned | planned |
 | FMT-A07 | E-AC-3 | MF ext → own after legal checkpoint | M11/M12 | should | planned | planned |
 | FMT-A08 | DTS core (+ core extraction from DTS-HD) | Own | M12 | should | planned | planned |
@@ -115,11 +115,11 @@ macOS: 241 planned, 17 built, 35 verified, 27 post-1.0, 2 not-applicable.
 
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
-| SUB-01 | SubRip (SRT) | Basic tags `<b><i><u><font color>`; tolerant timestamps | M5 | must | verified | planned |
-| SUB-02 | WebVTT | Cue settings (line/position/align/size), regions basic, `::cue` styling basic, voice spans | M5 | must | built | planned |
-| SUB-03 | ASS / SSA | v1 subset (§7.6), embedded fonts from MKV attachments, collisions, PlayRes scaling | M5 | must | built | planned |
-| SUB-04 | MP4 timed text (tx3g / mov_text) | Styles, karaoke Could | M5 | must | built | planned |
-| SUB-05 | SAMI, MicroDVD (frame-based with fps), SubViewer 1/2, MPL2, VPlayer | Text formats | M5 | should | built | planned |
+| SUB-01 | SubRip (SRT) | Basic tags `<b><i><u><font color>`; tolerant timestamps | M5 | must | verified | verified |
+| SUB-02 | WebVTT | Cue settings (line/position/align/size), regions basic, `::cue` styling basic, voice spans | M5 | must | built | built |
+| SUB-03 | ASS / SSA | v1 subset (§7.6), embedded fonts from MKV attachments, collisions, PlayRes scaling | M5 | must | built | built |
+| SUB-04 | MP4 timed text (tx3g / mov_text) | Styles, karaoke Could | M5 | must | built | built |
+| SUB-05 | SAMI, MicroDVD (frame-based with fps), SubViewer 1/2, MPL2, VPlayer | Text formats | M5 | should | built | built |
 | SUB-06 | VobSub (idx/sub) & DVD SPU in VOB | Palette, forced subtitles flag | M7/M13 | must | planned | planned |
 | SUB-07 | PGS (HDMV .sup / in M2TS/MKV) | Composition, cropping, forced | M7 | must | planned | planned |
 | SUB-08 | DVB subtitles | Region/CLUT/object segments | M7 | should | planned | planned |
@@ -128,8 +128,8 @@ macOS: 241 planned, 17 built, 35 verified, 27 post-1.0, 2 not-applicable.
 | SUB-11 | TTML / DFXP / SMPTE-TT (text) | - | M15 | could | planned | planned |
 | SUB-12 | Teletext subtitles (DVB) | - | post | could | post-1.0 | post-1.0 |
 | SUB-13 | JACOsub, PJS, MPSub, USF, SCC, RealText, Kate | - | post | could/wont | post-1.0 | post-1.0 |
-| SUB-14 | Sidecar autoload | Same folder plus `Subs/`, `subs/`, `Subtitles/`, `subtitles/`; match levels exact / starts-with / contains / any; language codes in the filename (`movie.en.srt`, `movie.fr.forced.srt`) | M5 | must | verified | planned |
-| SUB-15 | Character encoding | BOM/UTF-8 detection, heuristic detector, fallback setting (system ANSI default) with an explicit list (Windows-125x, ISO-8859-x, Shift-JIS, EUC-KR, GB18030, Big5, KOI8-R/U, UTF-16) | M5 | must | built | planned |
+| SUB-14 | Sidecar autoload | Same folder plus `Subs/`, `subs/`, `Subtitles/`, `subtitles/`; match levels exact / starts-with / contains / any; language codes in the filename (`movie.en.srt`, `movie.fr.forced.srt`) | M5 | must | verified | verified |
+| SUB-15 | Character encoding | BOM/UTF-8 detection, heuristic detector, fallback setting (system ANSI default) with an explicit list (Windows-125x, ISO-8859-x, Shift-JIS, EUC-KR, GB18030, Big5, KOI8-R/U, UTF-16) | M5 | must | built | built |
 | SUB-16 | Drop a subtitle file on the video | Loads it as a subtitle track and selects it | M5 | must | verified | planned |
 | SUB-17 | Online subtitle search | Extension point only (§6.12); no service hard-wired in core | M14 | could | planned | planned |
 | SUB-18 | Word timing | WebVTT cue timestamps and ASS karaoke tags (\k, \K, \kf, \ko) time the runs of a cue; a cue splits into words with the time each is spoken | M16 | should | verified | planned |
@@ -160,7 +160,7 @@ macOS: 241 planned, 17 built, 35 verified, 27 post-1.0, 2 not-applicable.
 | META-03 | MP4 `ilst` atoms (incl. `covr`, `----` freeform) |  | M3 | must | verified | verified |
 | META-04 | Matroska tags + attachments |  | M3 | must | verified | verified |
 | META-05 | APEv2, ASF attributes, RIFF INFO, AIFF chunks |  | M7 | should | planned | planned |
-| META-06 | Folder art discovery | `cover`, `folder`, `front`, `albumart*` × `.jpg`/`.png`/`.webp`, case-insensitive; embedded art preferred | M6 | must | verified | planned |
+| META-06 | Folder art discovery | `cover`, `folder`, `front`, `albumart*` × `.jpg`/`.png`/`.webp`, case-insensitive; embedded art preferred | M6 | must | verified | verified |
 | META-07 | Tag editing | Write title/artist/album/genre/track/date/comment/artwork for ID3v2.4, Vorbis comments/FLAC and MP4 atoms, via a safe rewrite (atomic replace, padding reuse) | M6 | should | planned | planned |
 | META-08 | Online metadata/art lookup | Opt-in (privacy prompt); provider extension point; none hard-wired | M14 | could | planned | planned |
 | META-09 | Lyrics display | From USLT / sidecar `.lrc` (synced lines highlighted) | M6 | could | verified | planned |
@@ -169,11 +169,11 @@ macOS: 241 planned, 17 built, 35 verified, 27 post-1.0, 2 not-applicable.
 
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
-| AU-01 | Default-device output | WASAPI shared, event-driven; follows the Windows default device unless pinned | M1 | must | verified-hardware | planned |
+| AU-01 | Default-device output | WASAPI shared, event-driven; follows the Windows default device unless pinned | M1 | must | verified-hardware | built |
 | AU-02 | Device picker | Menu + cycle hotkey (Shift+A); remembers the pinned device by endpoint id; falls back to default with a notice if it disappears | M11 | must | planned | planned |
 | AU-03 | Exclusive mode (bit-perfect) | Opt-in; format negotiation ladder; volume becomes digital-in-graph or locked (setting) | M11 | should | planned | planned |
 | AU-04 | Bitstream passthrough | AC-3, E-AC-3, DTS, DTS-HD, TrueHD as IEC 61937 over HDMI/S/PDIF; per-format toggles; DSP bypass indicated | M11 | should | planned | planned |
-| AU-05 | Volume | 0–200% (slider tops at 125% by default, configurable to 200%); 5% steps (configurable); wheel over the video; soft-clip above 100%; remembered across sessions (setting); OSD feedback | M4 | must | verified | planned |
+| AU-05 | Volume | 0–200% (slider tops at 125% by default, configurable to 200%); 5% steps (configurable); wheel over the video; soft-clip above 100%; remembered across sessions (setting); OSD feedback | M4 | must | verified | verified |
 | AU-06 | Mute | Digital silence; unmute restores the level | M4 | must | verified | built |
 | AU-07 | 10-band graphic equaliser | ISO octave bands 31/62/125/250/500/1k/2k/4k/8k/16k Hz, ±20 dB per band, preamp ±20 dB; 18 built-in presets (Flat, Classical, Club, Dance, Full bass, Full bass & treble, Full treble, Headphones, Large hall, Live, Party, Pop, Reggae, Rock, Ska, Soft, Soft rock, Techno); user presets; double-pass option; remembered | M5 | must | verified | planned |
 | AU-08 | Dynamic range compressor | RMS/peak blend, attack 1.5–400 ms (25), release 2–800 ms (100), threshold −30–0 dB (−11), ratio 1–20 (4), knee 1–10 dB (5), make-up 0–24 dB (7) | M11 | should | planned | planned |
@@ -188,8 +188,8 @@ macOS: 241 planned, 17 built, 35 verified, 27 post-1.0, 2 not-applicable.
 | AU-17 | Vocal reduction (karaoke) | Centre-channel cancellation with a band limit | M11 | could | planned | planned |
 | AU-18 | Visualisations | Spectrum, oscilloscope, meters and spectrogram, plus music-aware vinyl, halo, mirror wave, aurora, embers, resonance, ripples, strobe, camera silhouette, live beat edit and a scrolling groove of the spectrum, beat grid and drum hits, a flight through rings of light that pass on the beat, cymatics, ridgelines, a synthwave drive, fireworks, a lightning storm, a lava lamp, a constellation of the melody, a galaxy, a kaleidoscope, a murmuration, ink in water, a city skyline and a mandala, and from the camera clones of the listener's dance, a time warp, an aura, an LED wall, stardust, a hall of mirrors, light painting, a scanner, a shatter, spotlights, an infinity mirror and water, moving to levels measured against each song's own range, the beat-driven ones (vinyl, halo, embers, ripples, strobe and beat edit) to a beat clock that locks to the kicks at any frame rate; per-effect colours, sensitivity, motion and composition controls, and a beat meter | M5/M11 | should | verified | planned |
 | AU-19 | Audio-only presentation | Large cover art, metadata, lyrics (META-09), optional visualiser | M6 | must | verified | planned |
-| AU-20 | Resampler quality | Fast / normal (default) / high windowed-sinc polyphase | M2 | must | built | planned |
-| AU-21 | Language preferences | Ordered list (e.g. `en, fr`), "original language" option, commentary tracks deprioritised | M5 | must | verified | planned |
+| AU-20 | Resampler quality | Fast / normal (default) / high windowed-sinc polyphase | M2 | must | built | built |
+| AU-21 | Language preferences | Ordered list (e.g. `en, fr`), "original language" option, commentary tracks deprioritised | M5 | must | verified | verified |
 | AU-22 | Latency compensation | Reads endpoint latency (e.g. Bluetooth) and offsets A/V sync automatically; manual override | M11 | should | planned | planned |
 | AU-23 | Device-change resilience | Default device switch, unplug and replug, sleep and resume: playback continues, position kept | M11 | must | planned | planned |
 | AU-24 | Loopback / input recording | Record from a capture endpoint or loopback ("what you hear") through Convert | M12 | could | planned | planned |
@@ -200,7 +200,7 @@ macOS: 241 planned, 17 built, 35 verified, 27 post-1.0, 2 not-applicable.
 |---|---|---|---|---|---|---|
 | VID-01 | Hardware decoding policy | Auto (D3D11VA zero-copy) / off / per-codec; automatic software fallback on failure, with the reason in stats | M3 | must | verified | planned |
 | VID-02 | Frame pacing | Flip-model vsync; cadence-correct 23.976/25/29.97 on 60/120/144 Hz; dropped/late accounting; optional refresh-rate matching in fullscreen | M3/M11 | must | built | planned |
-| VID-03 | Fullscreen | F, double-click, Esc to leave; target monitor setting (current / specific); fullscreen controller auto-hides (1.5 s default) and the cursor hides after 1 s | M4 | must | verified | planned |
+| VID-03 | Fullscreen | F, double-click, Esc to leave; target monitor setting (current / specific); fullscreen controller auto-hides (1.5 s default) and the cursor hides after 1 s | M4 | must | verified | built |
 | VID-04 | Window sizing | ¼, ½, 1:1, 2× (Alt+1..4); fit to screen; "resize window to video" setting; autoscale toggle (O) and scale factor (Alt+O / Alt+Shift+O) | M4 | must | verified | planned |
 | VID-05 | Aspect ratio | Default, 16:9, 4:3, 1:1, 16:10, 2.21:1, 2.35:1, 2.39:1, 5:4, custom W:H; cycle with A | M4 | must | verified | planned |
 | VID-06 | Crop | Presets 16:10, 16:9, 4:3, 1.85:1, 2.21:1, 2.35:1, 2.39:1, 5:3, 5:4, 1:1 (cycle C); per-edge pixel crop keys; automatic black-bar detection | M4/M11 | must | built | planned |
@@ -224,7 +224,7 @@ macOS: 241 planned, 17 built, 35 verified, 27 post-1.0, 2 not-applicable.
 | VID-24 | Scaling quality | Bilinear / Catmull-Rom / Lanczos3; chroma upsampling quality | M11 | should | planned | planned |
 | VID-25 | Late-frame policy | Drop late frames (default on), skip-to-keyframe when far behind, stats | M3 | must | verified | planned |
 | VID-26 | Title on start | OSD shows the title for 3 s (configurable, can be disabled), position setting | M4 | should | verified | planned |
-| VID-27 | Always on top | Never / always / while playing | M4 | must | verified | planned |
+| VID-27 | Always on top | Never / always / while playing | M4 | must | verified | built |
 | VID-28 | Picture-in-picture | Compact always-on-top mini window with minimal controls | M15 | should | planned | planned |
 | VID-29 | Power management | Display stays awake while video plays; audio-only blocks system sleep but not the screen saver; released when paused or stopped | M4 | must | built | planned |
 | VID-30 | Frame export | Export the current frame, or every Nth frame of a range, to images | M11 | could | planned | planned |
@@ -349,7 +349,7 @@ macOS: 241 planned, 17 built, 35 verified, 27 post-1.0, 2 not-applicable.
 | UI-13 | Themes | System / light / dark; accent from the system or the REX signal colour; high contrast; Mica backdrop; theme packages (C) | M4/M15 | must | built | planned |
 | UI-14 | First run | Welcome, privacy choices (metadata lookups off by default, update checks on with an opt-out), file-association offer, short tour (house first-run tour pattern) | M4/M15 | must | verified | planned |
 | UI-15 | What's new | Shown once after an update (house pattern) | M4 | should | verified | planned |
-| UI-16 | Window title | `<title> - rexplayer`; token format configurable | M4 | should | verified | planned |
+| UI-16 | Window title | `<title> - rexplayer`; token format configurable | M4 | should | verified | built |
 | UI-17 | In-window confirmations | No modal pop-ups during playback; system dialogs only before a window exists (house rule) | M4 | must | built | planned |
 | UI-18 | Mouse & touch | Wheel volume (default) or seek; double-click fullscreen; middle-click pause; back/forward buttons = previous/next; touch: tap shows controls, double-tap left/right edge seeks ∓10 s, pinch zoom in zoom/360° modes | M4/M15 | must/should | built | planned |
 

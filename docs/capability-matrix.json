@@ -471,7 +471,7 @@
       "oracles": "",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -601,7 +601,7 @@
       "oracles": "",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "verified"
       }
     },
     {
@@ -887,7 +887,7 @@
       "oracles": "",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "verified"
       }
     },
     {
@@ -1108,7 +1108,7 @@
       "oracles": "",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "verified"
       }
     },
     {
@@ -1121,7 +1121,7 @@
       "oracles": "",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -1134,7 +1134,7 @@
       "oracles": "",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -1147,7 +1147,7 @@
       "oracles": "",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -1160,7 +1160,7 @@
       "oracles": "",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -1277,7 +1277,7 @@
       "oracles": "",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "verified"
       }
     },
     {
@@ -1290,7 +1290,7 @@
       "oracles": "",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -1563,7 +1563,7 @@
       "oracles": "",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "verified"
       }
     },
     {
@@ -1615,7 +1615,7 @@
       "oracles": "PCM HW",
       "status": {
         "windows": "verified-hardware",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -1667,7 +1667,7 @@
       "oracles": "PCM",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "verified"
       }
     },
     {
@@ -1862,7 +1862,7 @@
       "oracles": "SPEC (SNR floors)",
       "status": {
         "windows": "built",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -1875,7 +1875,7 @@
       "oracles": "EVT",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "verified"
       }
     },
     {
@@ -1953,7 +1953,7 @@
       "oracles": "UIA PIX",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -2265,7 +2265,7 @@
       "oracles": "UIA",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
@@ -3500,7 +3500,7 @@
       "oracles": "UIA",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
