@@ -144,6 +144,8 @@ public sealed partial class MainWindow : IDisposable
         DisposeMacUpdates();
         DisposeMacSpeech();
         DisposeMacKinetic();
+        DisposeMediaInformation();
+        DisposeQueueTiming();
         _player.Dispose();
         _picture?.Presenter?.Dispose();
         _window.Dispose();
