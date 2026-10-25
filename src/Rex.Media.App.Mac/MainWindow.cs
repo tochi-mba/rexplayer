@@ -81,6 +81,8 @@ public sealed partial class MainWindow : IDisposable
         _seek = NSSlider.FromValue(0, 0, 1, () => SeekToSlider());
         _volume = NSSlider.FromValue(_player.Volume, 0, _settings.MaxVolumePercent / 100.0, () => _player.SetVolume(_volume!.DoubleValue));
         _window.ContentView = Layout();
+        _window.InitialFirstResponder = _playPause;
+        StartMacKeyboardTraversal();
         InitializeLibrary();
         InitializeQueue();
         NSApplication.SharedApplication.MainMenu = BuildMenus();
@@ -146,6 +148,7 @@ public sealed partial class MainWindow : IDisposable
         DisposeMacKinetic();
         DisposeMediaInformation();
         DisposeQueueTiming();
+        StopMacKeyboardTraversal();
         _player.Dispose();
         _picture?.Presenter?.Dispose();
         _window.Dispose();
@@ -383,6 +386,19 @@ public sealed partial class MainWindow : IDisposable
         controls.Spacing = 8;
         _volume.WidthAnchor.ConstraintEqualTo(100).Active = true;
         _seek.SetContentHuggingPriorityForOrientation(1, NSLayoutConstraintOrientation.Horizontal);
+        // Keep a deterministic keyboard path around every primary transport control.
+        previous.NextKeyView = _playPause;
+        _playPause.NextKeyView = stop;
+        stop.NextKeyView = next;
+        next.NextKeyView = open;
+        open.NextKeyView = library;
+        library.NextKeyView = queue;
+        queue.NextKeyView = _volume;
+        _volume.NextKeyView = _seek;
+        _seek.NextKeyView = previous;
+        ((NSView)_seek).AccessibilityLabel = "Playback position";
+        ((NSView)_volume).AccessibilityLabel = "Playback volume";
+        ((NSView)_playPause).AccessibilityLabel = "Play or pause playback";
 
         var timeline = NSStackView.FromViews([_seek, _time]);
         timeline.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
