@@ -336,7 +336,8 @@ public sealed partial class MainWindow : IDisposable
         new EngineOptions
         {
             Demuxers = MediaRegistries.Demuxers(TimeSpan.FromSeconds(_settings.PictureSeconds)),
-            Decoders = MediaRegistries.Decoders(new AppleDecoderFactory()),
+            Decoders = MediaRegistries.Decoders(new AppleDecoderFactory(_settings.HardwareVideoDecoding)),
+            GraphicsCardDecoding = _settings.HardwareVideoDecoding,
             AudioSinkFactory = NewAudioSink,
             VideoPresenterFactory = _picture?.Presenter is { } presenter ? () => new BorrowedPresenter(presenter) : null,
             Log = _log,
