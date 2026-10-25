@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 157 planned, 80 built, 56 verified, 27 post-1.0, 2 not-applicable.
+macOS: 156 planned, 81 built, 56 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -242,7 +242,7 @@ macOS: 157 planned, 80 built, 56 verified, 27 post-1.0, 2 not-applicable.
 | OSD-06 | System caption settings | Honours Windows Settings → Accessibility → Captions by default | M15 | should | planned | planned |
 | OSD-07 | OSD messages | Volume, position, speed, track names, delays, aspect/crop, A-B; duration and position settings; can be disabled | M4 | must | verified | built |
 | OSD-08 | Forced-only mode | Show only forced subtitles (DVD/BD/PGS/flagged tracks) | M7 | should | planned | planned |
-| OSD-09 | Complex scripts & RTL | DirectWrite shaping for Arabic, Hebrew, Indic and CJK, bidi | M5 | must | built | planned |
+| OSD-09 | Complex scripts & RTL | DirectWrite shaping for Arabic, Hebrew, Indic and CJK, bidi | M5 | must | built | built |
 | OSD-10 | Bitmap subtitle scaling | Scale or recolour PGS/VobSub | M11 | could | planned | planned |
 | OSD-11 | Kinetic captions | Words land one at a time as they are spoken, sized, coloured, placed and moved by how they were said: loudness, pitch, pace and pauses read from the sound; words from the subtitle track, the transcript, or both; energy, accent, palette, layout and glyphs settable | M16 | should | verified | planned |
 
