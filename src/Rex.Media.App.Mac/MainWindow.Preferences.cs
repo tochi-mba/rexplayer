@@ -11,6 +11,7 @@ public sealed partial class MainWindow
     private NSPopUpButton? _preferencesResumeMode;
     private NSPopUpButton? _preferencesTheme;
     private NSButton? _preferencesSingleInstance;
+    private NSButton? _preferencesHardwareDecoding;
     private NSSlider? _preferencesMaxVolume;
     private NSSlider? _preferencesPictureSeconds;
     private NSTextField? _preferencesMaxVolumeValue;
@@ -47,6 +48,10 @@ public sealed partial class MainWindow
         _preferencesRestoreQueue = CheckBox("Restore the queue when rexplayer starts");
         _preferencesSingleInstance = CheckBox("Use one rexplayer window");
         _preferencesEnqueue = CheckBox("Files handed over by another launch join the queue");
+        _preferencesHardwareDecoding = CheckBox(
+            "Allow VideoToolbox hardware decoding (applies to the next opened video)");
+        _preferencesHardwareDecoding.ToolTip =
+            "Turn off to request software decoding for H.264 and HEVC on this Mac.";
         _preferencesResumeMode = EffectChoices(["Ask before resuming", "Always resume", "Start from beginning"]);
         _preferencesTheme = EffectChoices(["Follow system appearance", "Light", "Dark"]);
         var clearHistory = NSButton.CreateButton("Clear playback history", () =>
@@ -84,6 +89,7 @@ public sealed partial class MainWindow
             EffectChoiceRow("Saved position", _preferencesResumeMode),
             volume,
             pictures,
+            _preferencesHardwareDecoding,
             PreferencesHeading("Appearance"),
             EffectChoiceRow("Theme", _preferencesTheme),
             PreferencesHeading("Opening media"),
@@ -142,6 +148,7 @@ public sealed partial class MainWindow
         _preferencesRestoreQueue!.State = State(_settings.RestoreQueue);
         _preferencesSingleInstance!.State = State(_settings.SingleInstance);
         _preferencesEnqueue!.State = State(_settings.EnqueueFromSecondLaunch);
+        _preferencesHardwareDecoding!.State = State(_settings.HardwareVideoDecoding);
         _preferencesResumeMode!.SelectItem((int)_settings.ResumeMode);
         _preferencesTheme!.SelectItem((int)_settings.Theme);
         _preferencesMaxVolume!.DoubleValue = _settings.MaxVolumePercent;
@@ -163,6 +170,7 @@ public sealed partial class MainWindow
             RestoreQueue = IsChecked(_preferencesRestoreQueue),
             SingleInstance = IsChecked(_preferencesSingleInstance),
             EnqueueFromSecondLaunch = IsChecked(_preferencesEnqueue),
+            HardwareVideoDecoding = IsChecked(_preferencesHardwareDecoding),
             ResumeMode = (ResumeBehavior)(int)_preferencesResumeMode!.IndexOfSelectedItem,
             Theme = (ThemeChoice)(int)_preferencesTheme!.IndexOfSelectedItem,
             MaxVolumePercent = (int)Math.Round(_preferencesMaxVolume!.DoubleValue),
