@@ -502,6 +502,9 @@ public sealed record PlayerSettings
     /// <summary>Whether pointing at the timeline decodes and shows the exact video frame there.</summary>
     public bool SeekPreview { get; init; }
 
+    /// <summary>Allow hardware video decoding when the native platform supports it. Reopening a video applies changes.</summary>
+    public bool HardwareVideoDecoding { get; init; } = true;
+
     // Sound
 
     public bool EqualizerEnabled { get; init; }
