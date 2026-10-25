@@ -626,6 +626,12 @@ public sealed partial class MainWindow : IDisposable
             case CommandCatalog.Effects:
                 ShowEffects();
                 return true;
+            case CommandCatalog.BackUpLibrary:
+                BackUpLibrary();
+                return true;
+            case CommandCatalog.RestoreLibrary:
+                RestoreLibraryBackup();
+                return true;
             case CommandCatalog.WhatsNew:
                 ShowWhatsNew();
                 return true;
