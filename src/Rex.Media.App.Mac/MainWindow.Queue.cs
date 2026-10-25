@@ -219,7 +219,9 @@ public sealed partial class MainWindow
             ((NSView)down).AccessibilityLabel = "Move " + item.Title + " later";
             remove.ToolTip = "Remove from Up Next";
             ((NSView)remove).AccessibilityLabel = "Remove " + item.Title + " from Up Next";
-            var actions = NSStackView.FromViews([next, up, down, remove]);
+            var timing = NSButton.CreateButton("Timing…", () => EditQueueTiming(item));
+            timing.ToolTip = "Set start, stop or maximum run time for this entry";
+            var actions = NSStackView.FromViews([next, up, down, timing, remove]);
             if (missing)
             {
                 var locate = NSButton.CreateButton("Locate…", () => LocateMissingQueueItem(item));
