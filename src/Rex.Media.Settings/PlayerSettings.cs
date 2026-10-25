@@ -471,6 +471,9 @@ public sealed record PlayerSettings
 
     public bool Muted { get; init; }
 
+    /// <summary>Keep musical pitch when playback speed changes; off deliberately shifts the pitch too.</summary>
+    public bool PreservePitch { get; init; } = true;
+
     /// <summary>The highest volume the slider offers, in percent (100 to 200).</summary>
     public int MaxVolumePercent { get; init; } = 200;
 
