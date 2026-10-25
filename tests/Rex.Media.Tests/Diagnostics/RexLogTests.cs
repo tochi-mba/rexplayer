@@ -76,6 +76,9 @@ public sealed class RexLogTests : IDisposable
         Assert.True(SpinWait.SpinUntil(() => FileLines() is ["soon"], TimeSpan.FromSeconds(10)), "The entry never reached the file.");
         log.Info("test", "again");
         Assert.True(SpinWait.SpinUntil(() => FileLines() is ["soon", "again"], TimeSpan.FromSeconds(10)), "The second entry never reached the file.");
+        // The checks above deliberately observe writes without a flush. Afterward,
+        // wait for the writer to close its file handle before test cleanup on Windows.
+        log.Flush();
     }
 
     [Fact]
