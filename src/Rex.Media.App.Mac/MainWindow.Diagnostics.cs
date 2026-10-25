@@ -1,5 +1,6 @@
 using System.Reflection;
 using Rex.Media.AppCore;
+using Rex.Media.AppCore.Automation;
 using Rex.Media.Diagnostics;
 
 namespace Rex.Media.App.Mac;
@@ -152,6 +153,14 @@ public sealed partial class MainWindow
             return;
         }
 
+        if (!WriteDiagnostics(path, out var error))
+        {
+            Say("The diagnostics could not be saved: " + error);
+        }
+    }
+
+    private bool WriteDiagnostics(string path, out string? error)
+    {
         try
         {
             _log.Flush();
@@ -160,10 +169,42 @@ public sealed partial class MainWindow
                 [("rexplayer.log", ReadShared(_log.FilePath)), ("settings.json", ReadShared(_roots.SettingsPath)), ("system.txt", DescribeMac())],
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
             Say("Diagnostics saved: " + Path.GetFileName(path));
+            error = null;
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Say("The diagnostics could not be saved: " + ex.Message);
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    private AutomationReply DiagnosticsSmokeAction(string? action, string? path)
+    {
+        switch (action)
+        {
+            case "show":
+                ShowLogConsole();
+                return new AutomationReply { Ok = true, Text = _logText?.Value };
+            case "verify-controls" when _logWindow?.IsVisible == true:
+                _logLevel!.SelectItem("Warning");
+                _logSearch!.StringValue = "player";
+                RefreshLogConsole();
+                return new AutomationReply
+                {
+                    Ok = _logSource!.ItemTitles().Contains("app", StringComparer.Ordinal) && _logText is { Editable: false },
+                    Text = _logText?.Value,
+                };
+            case "clear" when _logWindow?.IsVisible == true:
+                _logCleared = true;
+                RefreshLogConsole();
+                return new AutomationReply { Ok = _logText?.Value.Length == 0 };
+            case "bundle" when path is not null:
+                return WriteDiagnostics(path, out var error)
+                    ? new AutomationReply { Ok = true, Text = path }
+                    : AutomationReply.Failed(error ?? "Diagnostics could not be saved.");
+            default:
+                return AutomationReply.Failed("The diagnostics smoke action is unavailable: " + action);
         }
     }
 

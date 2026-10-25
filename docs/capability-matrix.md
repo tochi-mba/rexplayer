@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 220 planned, 30 built, 43 verified, 27 post-1.0, 2 not-applicable.
+macOS: 220 planned, 28 built, 45 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -342,7 +342,7 @@ macOS: 220 planned, 30 built, 43 verified, 27 post-1.0, 2 not-applicable.
 | UI-06 | Mini player & PiP | Compact audio player and the video PiP window (VID-28) | M15 | should | planned | planned |
 | UI-07 | Effects & filters panel (Ctrl+E) | Audio tab (equaliser, compressor, reverb, widener, pitch & speed, advanced); Video tab (essential, crop, colours, geometry, overlays, advanced); Synchronisation tab (audio delay, subtitle delay/speed, sync marks); presets save/load; per-file "remember these settings" option | M5/M11 | must | built | planned |
 | UI-08 | Media information (Ctrl+I) | General (editable tags + artwork), Metadata (all raw tags), Codec (per stream: codec + decoder used, language, channels, sample rate, bit depth, resolution, fps, pixel format, colour primaries/transfer/matrix/range, rotation, HDR metadata), Statistics (input and demux bitrate, discontinuities, decoded/displayed/late/dropped frames, audio decoded/played/lost buffers, buffer level, network throughput), Location; Ctrl+J opens the Codec tab | M4/M6 | must | built | built |
-| UI-09 | Log console (Ctrl+M) | Verbosity (error/warning/info/debug), source filter, search, copy, save, clear; "Copy diagnostics bundle" | M4 | must | verified | built |
+| UI-09 | Log console (Ctrl+M) | Verbosity (error/warning/info/debug), source filter, search, copy, save, clear; "Copy diagnostics bundle" | M4 | must | verified | verified |
 | UI-10 | Preferences | Simple pages (Interface, Playback, Audio, Video, Subtitles & OSD, Input & codecs incl. a decode-ladder view, Network & privacy, Library, Hotkeys, Extensions, Advanced) + All settings: searchable, generated from the typed schema, "modified only" filter, per-setting reset; reset all; import/export | M4/M6 | must | built | planned |
 | UI-11 | Hotkey editor | Rebind any command; conflict detection; per-binding global toggle; mouse settings (wheel = volume / seek / none, horizontal wheel, middle-click and back/forward buttons); reset; export | M6 | must | verified | planned |
 | UI-12 | Customise interface | Toolbar editor: palette of every transport button (frame step, A-B, record, snapshot, loop, shuffle, speed, playlist, fullscreen, effects, stop, chapter nav, cast), drag to order, save/restore layouts | M14 | should | planned | planned |
@@ -366,7 +366,7 @@ macOS: 220 planned, 30 built, 43 verified, 27 post-1.0, 2 not-applicable.
 | TOOL-07 | Extensions | §7.8 model; extension points: commands/menus, playback observers, metadata/art/lyrics providers, link resolvers, subtitle providers, service-discovery providers, visualisers (C); manager UI (enable/disable/remove, declared capabilities shown at install); install from local `.rexext` packages; sample extensions + SDK docs + template in the repo | M14 | must | planned | planned |
 | TOOL-08 | Program guide | EPG from transport-stream EIT tables | M12 | could | planned | planned |
 | TOOL-09 | Updater | Automatic check (off / daily / weekly), background resumable download + sha256 verify, install automatically, on close, tonight or now with the session restored paused, remind / skip, release notes shown | M4 | should | verified | planned |
-| TOOL-10 | Diagnostics bundle | Logs + redacted settings + system/codec report → zip for issue reports | M4 | should | verified | built |
+| TOOL-10 | Diagnostics bundle | Logs + redacted settings + system/codec report → zip for issue reports | M4 | should | verified | verified |
 | TOOL-11 | System probe | `rexplay probe --system`: MF decoders/encoders present, hardware decode caps per codec/resolution, audio endpoints, displays/HDR state | M3 | must | verified | planned |
 | TOOL-12 | Portable mode | Settings and library beside the exe when `rexplayer.portable` exists | M15 | should | planned | planned |
 | TOOL-13 | Broadcast manager (scheduled multi-channel outputs) | - | post | could | post-1.0 | post-1.0 |

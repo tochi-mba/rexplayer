@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO.Compression;
 using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Platform;
@@ -26,6 +27,8 @@ public sealed class MacAppSmokeTests
     [Fact(Skip = MacAppRequired, SkipUnless = nameof(CanDriveMacApp))]
     [Capability("TOOL-03", CapabilityPlatform.MacOS)]
     [Capability("TOOL-06", CapabilityPlatform.MacOS)]
+    [Capability("TOOL-10", CapabilityPlatform.MacOS)]
+    [Capability("UI-09", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
         var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
@@ -85,6 +88,21 @@ public sealed class MacAppSmokeTests
                 reply => reply is { Ok: true, Title: not null }, app, root);
             Assert.Contains("h264-aac", handedOver.Title, StringComparison.OrdinalIgnoreCase);
             Assert.False(app.HasExited, "The original player exited when the later launch handed over its file.");
+            var logShown = await Ask(pipe, new AutomationRequest { Command = "mac-diagnostics", Id = "show" });
+            Assert.True(logShown?.Ok == true, "The Mac log console did not open.");
+            var logControls = await Ask(pipe, new AutomationRequest { Command = "mac-diagnostics", Id = "verify-controls" });
+            Assert.True(logControls?.Ok == true, "The Mac log console controls are incomplete.");
+            var diagnosticsPath = Path.Combine(root, "diagnostics.zip");
+            var diagnostics = await Ask(pipe, new AutomationRequest { Command = "mac-diagnostics", Id = "bundle", Path = diagnosticsPath });
+            Assert.True(diagnostics?.Ok == true && File.Exists(diagnosticsPath), "The Mac diagnostics bundle was not saved.");
+            using (var archive = ZipFile.OpenRead(diagnosticsPath))
+            {
+                Assert.Contains(archive.Entries, entry => entry.FullName == "settings.json");
+                Assert.Contains(archive.Entries, entry => entry.FullName == "system.txt");
+            }
+
+            var logCleared = await Ask(pipe, new AutomationRequest { Command = "mac-diagnostics", Id = "clear" });
+            Assert.True(logCleared?.Ok == true, "The Mac log console did not clear its view.");
             var emptyLibrary = await Library(pipe, "show");
             Assert.Contains("0 items", emptyLibrary.Title, StringComparison.Ordinal);
             await Library(pipe, "capture-empty");

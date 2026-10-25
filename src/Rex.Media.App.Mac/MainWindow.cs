@@ -163,6 +163,9 @@ public sealed partial class MainWindow : IDisposable
                     }
 
                     break;
+                case "mac-diagnostics":
+                    answered.SetResult(DiagnosticsSmokeAction(request.Id, request.Path));
+                    return;
                 case "status":
                     break;
                 case "ui.add-folder":
