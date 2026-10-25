@@ -10,6 +10,12 @@ public sealed partial class MainWindow
     private NSTextField? _savedPlaylistNamePrompt;
     private NSTextField? _savedPlaylistNameField;
     private Action<string>? _savePlaylistName;
+    private NSButton? _savedPlaylistCreate;
+    private NSButton? _savedPlaylistPlay;
+    private NSButton? _savedPlaylistAppend;
+    private NSButton? _savedPlaylistRename;
+    private NSButton? _savedPlaylistDuplicate;
+    private NSButton? _savedPlaylistRemove;
 
     private void SavePlaylistWithPanel()
     {
@@ -93,10 +99,12 @@ public sealed partial class MainWindow
                     RefreshSavedPlaylists();
                 });
             });
+            _savedPlaylistCreate = create;
             var play = NSButton.CreateButton("Play", () =>
             {
                 if (SelectedSavedPlaylistId() is { } id) _player.PlayPlaylist(id);
             });
+            _savedPlaylistPlay = play;
             var append = NSButton.CreateButton("Add current queue", () =>
             {
                 if (SelectedSavedPlaylistId() is { } id)
@@ -105,6 +113,7 @@ public sealed partial class MainWindow
                     RefreshSavedPlaylists();
                 }
             });
+            _savedPlaylistAppend = append;
             var rename = NSButton.CreateButton("Rename…", () =>
             {
                 if (SelectedSavedPlaylistId() is not { } id) return;
@@ -115,6 +124,7 @@ public sealed partial class MainWindow
                     RefreshSavedPlaylists();
                 });
             });
+            _savedPlaylistRename = rename;
             var duplicate = NSButton.CreateButton("Duplicate", () =>
             {
                 if (SelectedSavedPlaylistId() is { } id)
@@ -123,6 +133,7 @@ public sealed partial class MainWindow
                     RefreshSavedPlaylists();
                 }
             });
+            _savedPlaylistDuplicate = duplicate;
             var remove = NSButton.CreateButton("Delete…", () =>
             {
                 if (SelectedSavedPlaylistId() is not { } id) return;
@@ -132,6 +143,7 @@ public sealed partial class MainWindow
                     RefreshSavedPlaylists();
                 });
             });
+            _savedPlaylistRemove = remove;
             var first = NSStackView.FromViews([create, play, append]);
             first.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             first.Spacing = 8;
@@ -242,9 +254,51 @@ public sealed partial class MainWindow
 
         if (action == "create")
         {
-            _player.CreatePlaylist("Mac smoke playlist");
-            RefreshSavedPlaylists();
+            _savedPlaylistCreate?.PerformClick(_savedPlaylistCreate);
+            _savedPlaylistNameField!.StringValue = "Mac smoke playlist";
+            CommitSavedPlaylistName();
             return _player.NamedPlaylists.Any(p => p.Name == "Mac smoke playlist");
+        }
+
+        if (action == "rename")
+        {
+            _savedPlaylistRename?.PerformClick(_savedPlaylistRename);
+            _savedPlaylistNameField!.StringValue = "Renamed Mac playlist";
+            CommitSavedPlaylistName();
+            return _player.NamedPlaylists.Any(p => p.Name == "Renamed Mac playlist");
+        }
+
+        if (action == "duplicate")
+        {
+            var before = _player.NamedPlaylists.Count;
+            _savedPlaylistDuplicate?.PerformClick(_savedPlaylistDuplicate);
+            return _player.NamedPlaylists.Count == before + 1;
+        }
+
+        if (action == "append")
+        {
+            var before = _player.NamedPlaylists.First().Items.Count;
+            _savedPlaylistPicker!.SelectItem(0);
+            _savedPlaylistAppend?.PerformClick(_savedPlaylistAppend);
+            return _player.NamedPlaylists.First().Items.Count > before;
+        }
+
+        if (action == "play")
+        {
+            _savedPlaylistPicker!.SelectItem(0);
+            _savedPlaylistPlay?.PerformClick(_savedPlaylistPlay);
+            return _player.Playlist.Items.Count > 0;
+        }
+
+        if (action == "delete")
+        {
+            var before = _player.NamedPlaylists.Count;
+            _savedPlaylistPicker!.SelectItem(0);
+            _savedPlaylistRemove?.PerformClick(_savedPlaylistRemove);
+            var accept = _confirmationAccept;
+            HideConfirmation();
+            accept?.Invoke();
+            return _player.NamedPlaylists.Count == before - 1;
         }
 
         return false;

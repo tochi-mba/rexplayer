@@ -36,6 +36,7 @@ public sealed class MacAppSmokeTests
     [Capability("PB-10", CapabilityPlatform.MacOS)]
     [Capability("PB-11", CapabilityPlatform.MacOS)]
     [Capability("AU-06", CapabilityPlatform.MacOS)]
+    [Capability("LIB-04", CapabilityPlatform.MacOS)]
     [Capability("UI-11", CapabilityPlatform.MacOS)]
     [Capability("LIB-03", CapabilityPlatform.MacOS)]
     [Capability("LIB-04", CapabilityPlatform.MacOS)]
@@ -143,6 +144,11 @@ public sealed class MacAppSmokeTests
             Assert.Contains("h264-aac.mp4", File.ReadAllText(playlistFile), StringComparison.OrdinalIgnoreCase);
             var createNamed = await Ask(pipe, new AutomationRequest { Command = "mac-playlists", Id = "create" });
             Assert.True(createNamed?.Ok == true, "Native named-playlist creation failed.");
+            foreach (var action in new[] { "rename", "duplicate", "append", "play", "delete" })
+            {
+                var changed = await Ask(pipe, new AutomationRequest { Command = "mac-playlists", Id = action });
+                Assert.True(changed?.Ok == true, "Native named-playlist action failed: " + action);
+            }
 
             var emptyLibrary = await Library(pipe, "show");
             Assert.Contains("0 items", emptyLibrary.Title, StringComparison.Ordinal);
