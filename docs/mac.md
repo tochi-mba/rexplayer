@@ -182,5 +182,25 @@ accessibility and runtime coverage is complete.
 Subtitle overlays now follow source top/middle/bottom positions when allowed, honor the
 force-bottom choice and calculate margins against the current letterboxed video frame. The
 second subtitle stream stays at the top by default to avoid overlapping the primary stream.
-OSD-03 is **built**, while complete text styling, rich embedded subtitle formats and visual
-verification remain separate work.
+OSD-03 is **built**. OSD-01 now also has native attributed text styling for font,
+size, color, embedded bold/underline, outline, shadow, and background; complex-script and
+right-to-left rendering use AppKit's natural writing direction and font shaping (OSD-09).
+These rows are **built**, not verified. Rich embedded subtitle formats, full ASS style policy
+and visual verification remain separate work.
+
+## Playback keyboard and decoder policy implementation
+
+F6 and Shift+F6 now cycle the main transport, seek bar and volume regions without
+consuming the key in unrelated windows. The Mac transport has an explicit Tab traversal
+sequence and accessible labels on the primary interactive controls. Keyboard completeness
+(A11Y-02) remains **planned** because not every secondary panel has undergone a keyboard audit.
+
+The Mac playback Preferences window now exposes an option to allow or disallow
+hardware-assisted H.264/HEVC decoding for subsequently opened videos. The choice passes
+through the shared settings, decoder factory, and VideoToolbox session configuration. When
+disabled, VideoToolbox receives the documented decoder specification that requests software
+decoding. Automatic hardware selection is otherwise permitted, and the statistics overlay
+reports the *configured policy*, not an unproven claim about which device decoded a frame.
+Per-codec selection, software recovery evidence and detailed hardware-decoder statistics
+are not yet implemented; VID-01 therefore remains **planned** rather than being marked
+complete prematurely.
