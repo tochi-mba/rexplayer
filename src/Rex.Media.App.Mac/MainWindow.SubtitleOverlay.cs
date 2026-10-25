@@ -66,24 +66,25 @@ public sealed partial class MainWindow
             return;
         }
 
-        var fontSize = (nfloat)Math.Clamp(22.0 * _settings.SubtitleSize / 100.0, 11, 96);
-        var font = NSFont.FromFontName(_settings.SubtitleFont == "Segoe UI" ? "Helvetica Neue" : _settings.SubtitleFont, fontSize)
-            ?? NSFont.SystemFontOfSize(fontSize, _settings.SubtitleBold ? NSFontWeight.Semibold : NSFontWeight.Regular)!;
+        var look = SubtitleLook.For(_settings, (double)(_picture?.Bounds.Height ?? 400));
+        var fontSize = (nfloat)Math.Clamp(look.FontSize, 11, 96);
+        var font = NSFont.FromFontName(look.Font == "Segoe UI" ? "Helvetica Neue" : look.Font, fontSize)
+            ?? NSFont.SystemFontOfSize(fontSize, look.Bold ? NSFontWeight.Semibold : NSFontWeight.Regular)!;
         _primarySubtitleOverlay.Font = font;
         _secondarySubtitleOverlay.Font = font;
-        var colour = _settings.SubtitleColor;
-        var rgba = NSColor.FromRgba(
-            (colour >> 16) & 0xff, (colour >> 8) & 0xff, colour & 0xff,
-            (int)Math.Round(_settings.SubtitleOpacity * 255.0 / 100));
-        _primarySubtitleOverlay.TextColor = rgba;
-        _secondarySubtitleOverlay.TextColor = rgba;
+        var styleChanged = !ReferenceEquals(_macRenderedSubtitleSettings, _settings) ||
+            _macRenderedSubtitleFontSize != fontSize;
+        _macRenderedSubtitleSettings = _settings;
+        _macRenderedSubtitleFontSize = fontSize;
         var primary = _player.SubtitlesAt(_player.Position);
         var secondary = _player.SecondarySubtitlesAt(_player.Position);
         PositionMacSubtitles(primary, secondary);
         var visible = _player.Item is not null;
         var regular = visible && (!MacKineticVisible || _settings.KineticCaptions.KeepSubtitles);
-        SetSubtitleLines(_primarySubtitleOverlay, regular ? primary : [], _player.Position);
-        SetSubtitleLines(_secondarySubtitleOverlay, regular ? secondary : [], _player.Position);
+        RenderMacSubtitleLines(_primarySubtitleOverlay, regular ? primary : [],
+            _player.Position, look, font, styleChanged);
+        RenderMacSubtitleLines(_secondarySubtitleOverlay, regular ? secondary : [],
+            _player.Position, look, font, styleChanged);
     }
 
     private void PositionMacSubtitles(IReadOnlyList<SubtitleCue> primary,
@@ -149,24 +150,6 @@ public sealed partial class MainWindow
                 _ => _secondaryTopConstraint,
             }).Active = true;
         }
-    }
-
-    private static void SetSubtitleLines(NSTextField label, IReadOnlyList<SubtitleCue> cues, TimeSpan position)
-    {
-        // SubtitleRun.At is relative to cue start. Only reveal source-timed runs
-        // when they are spoken; untimed captions display in full, without inventing
-        // a per-word clock.
-        var text = string.Join("\n", cues.Select(cue =>
-            string.Join("\n", cue.Lines.Select(line =>
-                string.Concat(line.Runs.Where(run =>
-                    run.At is null || run.At <= position - cue.Start).Select(run => run.Text)))))
-            .Where(value => value.Length > 0));
-        if (label.StringValue != text)
-        {
-            label.StringValue = text;
-        }
-
-        label.Hidden = text.Length == 0;
     }
 
     private void ShowTitleOnPlaybackStart()
