@@ -28,9 +28,9 @@ Totals: 51 rows differ (31 must), 2 not applicable, 0 gaps.
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
 | SUB-18 | Word timing | should | verified | built |  |
-| SUB-19 | Local transcription | should | verified | planned |  |
-| SUB-20 | Library transcription | should | verified | planned |  |
-| SUB-21 | Progressive transcription from the playhead | should | verified | planned |  |
+| SUB-19 | Local transcription | should | verified | built |  |
+| SUB-20 | Library transcription | should | verified | built |  |
+| SUB-21 | Progressive transcription from the playhead | should | verified | built |  |
 
 ## Formats: Metadata & artwork
 

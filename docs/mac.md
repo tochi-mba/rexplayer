@@ -150,3 +150,19 @@ or on demand. Mac universal ZIPs are downloaded with resumable transfers and acc
 matching a companion SHA-256 file. The verified archive can be opened for manual installation.
 Automatic in-place installation, restart-session handoff, deferral and full updater parity
 remain **planned**; neither this UI nor the ledger implies they have been implemented.
+
+## Offline speech and kinetic captions implementation
+
+The macOS project now references the portable Whisper adapter and the shared transcription
+worker. The native panel allows an explicit download of a checksum-pinned model, on-demand
+transcription of a local file, background transcription of watched library videos, pause
+and model-quality preferences, export to SRT/VTT/LRC/JSON, and a progressively filled
+"Transcript" subtitle track from the playhead. The worker and cache also keep partial
+results and retry state. Speech does not leave this device.
+
+The Mac also draws source-timed kinetic words from the portable CaptionDirector and
+accepts the preset, layout, source, and energy commands. This rendering path remains
+partial until all movement, face-avoidance, typography, and per-word effects offered
+by the capability are implemented; therefore the full OSD-11 row remains planned.
+The speech capabilities above are **built**, not verified, until Mac runtime/model
+and UI testing is performed.
