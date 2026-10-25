@@ -22,8 +22,8 @@ public sealed partial class AppWindowTests
     [Capability("SUB-21")]
     public void PlaybackWaitsBehindTheOverlayUntilEnoughCaptionsAreReady()
     {
-        using var app = AppProcess.Start([Music(120)], HoldingRoot(), environment: FakeSpeech(3));
-        Wait.For(() => app.Position > 0, "the song to play");
+        using var app = AppProcess.Start([Music(120, audiobook: true)], HoldingRoot(), environment: FakeSpeech(3));
+        Wait.For(() => app.Position > 0, "the audiobook to play");
 
         app.Run(CommandCatalog.Transcribe);
         Wait.For(() => app.IsShown("CaptionBufferOverlay") && app.Status().State == "Paused", "playback to wait for captions",
@@ -43,8 +43,8 @@ public sealed partial class AppWindowTests
     public void PlayNowEndsTheCaptionWaitAtOnce()
     {
         // Pieces slower than the test's patience: only Play now can end this wait.
-        using var app = AppProcess.Start([Music(120)], HoldingRoot(), environment: FakeSpeech(600));
-        Wait.For(() => app.Position > 0, "the song to play");
+        using var app = AppProcess.Start([Music(120, audiobook: true)], HoldingRoot(), environment: FakeSpeech(600));
+        Wait.For(() => app.Position > 0, "the audiobook to play");
 
         app.Run(CommandCatalog.Transcribe);
         Wait.For(() => app.IsShown("CaptionBufferOverlay") && app.Status().State == "Paused", "playback to wait for captions");
@@ -57,7 +57,7 @@ public sealed partial class AppWindowTests
         Screenshots.Match(app, "caption-buffer-loading");
         app.Press("CaptionBufferPlayNow");
         Wait.For(() => !app.IsShown("CaptionBufferOverlay") && app.Status().State == "Playing", "Play now to start playback");
-        PlayOn(app, 1, "the song to play on without captions");
+        PlayOn(app, 1, "the audiobook to play on without captions");
         Assert.False(app.IsShown("CaptionBufferOverlay"), "Once declined, the wait does not come back for the same media.");
         Assert.Equal(0, app.Close());
     }
@@ -66,15 +66,30 @@ public sealed partial class AppWindowTests
     [Capability("SUB-21")]
     public void MediaWithItsOwnSubtitlesNeverWaitsForGeneratedOnes()
     {
-        var song = Music(120);
-        File.WriteAllText(Path.ChangeExtension(song, ".srt"), "1\n00:00:00,000 --> 00:02:00,000\nTerminator\n");
-        using var app = AppProcess.Start([song], HoldingRoot(), environment: FakeSpeech(600));
-        Wait.For(() => app.Position > 0 && app.IsShown("SubtitleText"), "the song and its own subtitles");
+        var audiobook = Music(120, audiobook: true);
+        File.WriteAllText(Path.ChangeExtension(audiobook, ".srt"), "1\n00:00:00,000 --> 00:02:00,000\nTerminator\n");
+        using var app = AppProcess.Start([audiobook], HoldingRoot(), environment: FakeSpeech(600));
+        Wait.For(() => app.Position > 0 && app.IsShown("SubtitleText"), "the audiobook and its own subtitles");
 
         app.Run(CommandCatalog.Transcribe);
         Wait.For(() => app.LogText.Contains("Transcribing from here", StringComparison.Ordinal), "transcription to start");
-        PlayOn(app, 2, "the song to play on while transcription runs");
+        PlayOn(app, 2, "the audiobook to play on while transcription runs");
         Assert.False(app.IsShown("CaptionBufferOverlay"), "Subtitles already here mean there is nothing to wait for.");
+        Assert.Equal("Playing", app.Status().State);
+        Assert.Equal(0, app.Close());
+    }
+
+    [Fact]
+    [Capability("SUB-21")]
+    public void SongsOfferLyricsInsteadOfStartingSpeechTranscription()
+    {
+        using var app = AppProcess.Start([Music(20)], HoldingRoot(), environment: FakeSpeech(600));
+        Wait.For(() => app.Position > 0, "the song to play");
+
+        app.Run(CommandCatalog.Transcribe);
+        Wait.For(() => app.LogText.Contains("Songs are not transcribed", StringComparison.Ordinal),
+            "the song to be directed to lyrics");
+        Assert.False(app.IsShown("CaptionBufferOverlay"), "Songs do not wait for generated speech captions.");
         Assert.Equal("Playing", app.Status().State);
         Assert.Equal(0, app.Close());
     }
