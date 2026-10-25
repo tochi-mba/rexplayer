@@ -35,7 +35,7 @@ public sealed partial class MainWindow : IDisposable
     private readonly RexLog _log;
     private readonly NSWindow _window;
     private readonly PlayerController _player;
-    private readonly Keymap _keymap;
+    private Keymap _keymap;
     private readonly NSTextField _title = NSTextField.CreateLabel("Drop media here, or press Cmd+O to open a file.");
     private readonly NSTextField _artist = NSTextField.CreateLabel("");
     private readonly NSTextField _time = NSTextField.CreateLabel("0:00");
@@ -116,6 +116,7 @@ public sealed partial class MainWindow : IDisposable
         DisposeDiagnostics();
         DisposePreferences();
         DisposePlaybackTools();
+        DisposeShortcuts();
         _player.Dispose();
         _picture?.Presenter?.Dispose();
         _window.Dispose();
@@ -162,6 +163,14 @@ public sealed partial class MainWindow : IDisposable
                     if (!LibrarySmokeAction(request.Id, request.Paths))
                     {
                         answered.SetResult(AutomationReply.Failed("The native library smoke action is unavailable: " + request.Id));
+                        return;
+                    }
+
+                    break;
+                case "mac-shortcuts":
+                    if (!ShortcutSmokeAction(request.Id))
+                    {
+                        answered.SetResult(AutomationReply.Failed("Mac shortcut action failed: " + request.Id));
                         return;
                     }
 
@@ -397,6 +406,7 @@ public sealed partial class MainWindow : IDisposable
         app.AddItem(NSMenuItem.SeparatorItem);
         app.AddItem(Entry(CommandCatalog.Preferences, "Settings…"));
         app.AddItem(new NSMenuItem("Playback tools…", (_, _) => ShowPlaybackTools()));
+        app.AddItem(Entry(CommandCatalog.KeyboardAndMouse, "Keyboard shortcuts…"));
         app.AddItem(new NSMenuItem("Your library…", (_, _) => Run(CommandCatalog.ToggleLibrary)));
         app.AddItem(new NSMenuItem("Up Next…", (_, _) => ShowQueue()));
         // Reuse the shared command and its customizable keyboard equivalent.
@@ -552,6 +562,9 @@ public sealed partial class MainWindow : IDisposable
                 return true;
             case CommandCatalog.Preferences:
                 ShowPreferences();
+                return true;
+            case CommandCatalog.KeyboardAndMouse:
+                ShowShortcutEditor();
                 return true;
             case CommandCatalog.MediaInformation:
                 ShowMediaInformation();
