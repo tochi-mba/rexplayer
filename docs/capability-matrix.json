@@ -1797,7 +1797,7 @@
       "oracles": "SPEC",
       "status": {
         "windows": "verified",
-        "macos": "planned"
+        "macos": "built"
       }
     },
     {
