@@ -1680,7 +1680,7 @@
       "oracles": "PCM",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {

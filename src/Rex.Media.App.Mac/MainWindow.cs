@@ -252,6 +252,13 @@ public sealed partial class MainWindow : IDisposable
                         Text = $"tracks={_player.SubtitleTracks.Count};selected={_player.Subtitles?.Name ?? "off"}",
                     });
                     return;
+                case "mac-audio":
+                    answered.SetResult(new AutomationReply
+                    {
+                        Ok = true,
+                        Text = $"muted={_player.Muted};volume={_player.Volume.ToString("0.###", CultureInfo.InvariantCulture)}",
+                    });
+                    return;
                 case "status":
                     break;
                 case "ui.add-folder":

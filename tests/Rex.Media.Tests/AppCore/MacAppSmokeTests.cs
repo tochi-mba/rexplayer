@@ -35,6 +35,7 @@ public sealed class MacAppSmokeTests
     [Capability("PB-05", CapabilityPlatform.MacOS)]
     [Capability("PB-10", CapabilityPlatform.MacOS)]
     [Capability("PB-11", CapabilityPlatform.MacOS)]
+    [Capability("AU-06", CapabilityPlatform.MacOS)]
     [Capability("UI-11", CapabilityPlatform.MacOS)]
     [Capability("LIB-03", CapabilityPlatform.MacOS)]
     [Capability("LIB-04", CapabilityPlatform.MacOS)]
@@ -221,6 +222,15 @@ public sealed class MacAppSmokeTests
             Assert.Contains("mode=Never;pending=none;visible=False", neverResume?.Text, StringComparison.Ordinal);
             var alwaysResume = await Ask(pipe, new AutomationRequest { Command = "mac-resume", Id = "always" });
             Assert.Contains("mode=Always;pending=none;visible=False", alwaysResume?.Text, StringComparison.Ordinal);
+            var audioBeforeMute = await Ask(pipe, new AutomationRequest { Command = "mac-audio" });
+            var mute = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Mute });
+            Assert.True(mute?.Ok == true, "The Mac mute command was not handled.");
+            var audioMuted = await Ask(pipe, new AutomationRequest { Command = "mac-audio" });
+            Assert.Contains("muted=True", audioMuted?.Text, StringComparison.Ordinal);
+            Assert.Equal(audioBeforeMute?.Text?.Replace("muted=False", "muted=True", StringComparison.Ordinal), audioMuted?.Text);
+            await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Mute });
+            var audioRestored = await Ask(pipe, new AutomationRequest { Command = "mac-audio" });
+            Assert.Equal(audioBeforeMute?.Text, audioRestored?.Text);
             var sought = await Ask(pipe, new AutomationRequest { Command = "seek", To = 0.25 });
             Assert.True(sought?.Ok == true && sought.Position is >= 0.2 and <= 0.5,
                 "The Mac did not seek to the requested playback time: " +

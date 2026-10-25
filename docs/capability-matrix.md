@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 155 planned, 79 built, 59 verified, 27 post-1.0, 2 not-applicable.
+macOS: 155 planned, 78 built, 60 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -174,7 +174,7 @@ macOS: 155 planned, 79 built, 59 verified, 27 post-1.0, 2 not-applicable.
 | AU-03 | Exclusive mode (bit-perfect) | Opt-in; format negotiation ladder; volume becomes digital-in-graph or locked (setting) | M11 | should | planned | planned |
 | AU-04 | Bitstream passthrough | AC-3, E-AC-3, DTS, DTS-HD, TrueHD as IEC 61937 over HDMI/S/PDIF; per-format toggles; DSP bypass indicated | M11 | should | planned | planned |
 | AU-05 | Volume | 0–200% (slider tops at 125% by default, configurable to 200%); 5% steps (configurable); wheel over the video; soft-clip above 100%; remembered across sessions (setting); OSD feedback | M4 | must | verified | verified |
-| AU-06 | Mute | Digital silence; unmute restores the level | M4 | must | verified | built |
+| AU-06 | Mute | Digital silence; unmute restores the level | M4 | must | verified | verified |
 | AU-07 | 10-band graphic equaliser | ISO octave bands 31/62/125/250/500/1k/2k/4k/8k/16k Hz, ±20 dB per band, preamp ±20 dB; 18 built-in presets (Flat, Classical, Club, Dance, Full bass, Full bass & treble, Full treble, Headphones, Large hall, Live, Party, Pop, Reggae, Rock, Ska, Soft, Soft rock, Techno); user presets; double-pass option; remembered | M5 | must | verified | built |
 | AU-08 | Dynamic range compressor | RMS/peak blend, attack 1.5–400 ms (25), release 2–800 ms (100), threshold −30–0 dB (−11), ratio 1–20 (4), knee 1–10 dB (5), make-up 0–24 dB (7) | M11 | should | planned | planned |
 | AU-09 | Room reverb / spatialiser | Room size, width, wet, dry, damping | M11 | could | planned | planned |
