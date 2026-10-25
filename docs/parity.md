@@ -6,7 +6,7 @@ platform while the other catches up; under *locked* every must row is verified o
 applicable with a reason, and CI blocks a release otherwise (ADR-0020). A **gap** is a difference someone has
 accepted for now: its note says why and its issue says who closes it.
 
-Totals: 41 rows differ (24 must), 2 not applicable, 0 gaps.
+Totals: 40 rows differ (24 must), 2 not applicable, 0 gaps.
 
 ## Playback core
 
@@ -28,12 +28,6 @@ Totals: 41 rows differ (24 must), 2 not applicable, 0 gaps.
 | SUB-19 | Local transcription | should | verified | built |  |
 | SUB-20 | Library transcription | should | verified | built |  |
 | SUB-21 | Progressive transcription from the playhead | should | verified | built |  |
-
-## Formats: Metadata & artwork
-
-| ID | Capability | Priority | Windows | macOS | Note |
-|---|---|---|---|---|---|
-| META-09 | Lyrics display | could | verified | built |  |
 
 ## Audio
 

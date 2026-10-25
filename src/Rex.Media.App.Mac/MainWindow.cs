@@ -265,6 +265,15 @@ public sealed partial class MainWindow : IDisposable
                         Text = $"muted={_player.Muted};volume={_player.Volume.ToString("0.###", CultureInfo.InvariantCulture)}",
                     });
                     return;
+                case "mac-music":
+                    RefreshMusicPresentation();
+                    RefreshMusicPosition();
+                    answered.SetResult(new AutomationReply
+                    {
+                        Ok = true,
+                        Text = $"visible={_musicPresentation?.Hidden == false};lyrics={_musicLyrics?.Hidden == false};text={_musicLyrics?.StringValue}",
+                    });
+                    return;
                 case "status":
                     break;
                 case "ui.add-folder":

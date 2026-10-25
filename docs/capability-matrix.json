@@ -1602,7 +1602,7 @@
       "oracles": "",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {

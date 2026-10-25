@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 155 planned, 75 built, 63 verified, 27 post-1.0, 2 not-applicable.
+macOS: 155 planned, 74 built, 64 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -163,7 +163,7 @@ macOS: 155 planned, 75 built, 63 verified, 27 post-1.0, 2 not-applicable.
 | META-06 | Folder art discovery | `cover`, `folder`, `front`, `albumart*` × `.jpg`/`.png`/`.webp`, case-insensitive; embedded art preferred | M6 | must | verified | verified |
 | META-07 | Tag editing | Write title/artist/album/genre/track/date/comment/artwork for ID3v2.4, Vorbis comments/FLAC and MP4 atoms, via a safe rewrite (atomic replace, padding reuse) | M6 | should | planned | planned |
 | META-08 | Online metadata/art lookup | Opt-in (privacy prompt); provider extension point; none hard-wired | M14 | could | planned | planned |
-| META-09 | Lyrics display | From USLT / sidecar `.lrc` (synced lines highlighted) | M6 | could | verified | built |
+| META-09 | Lyrics display | From USLT / sidecar `.lrc` (synced lines highlighted) | M6 | could | verified | verified |
 
 ## Audio
 
