@@ -98,4 +98,4 @@ Totals: 37 rows differ (22 must), 2 not applicable, 0 gaps.
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| A11Y-01 | Named, automatable controls | must | verified | planned |  |
+| A11Y-01 | Named, automatable controls | must | verified | built |  |
