@@ -10,6 +10,12 @@ public sealed partial class MainWindow
     private NSPopUpButton? _shortcutCommand;
     private NSTextField? _shortcutChord;
     private NSTextField? _shortcutStatus;
+    private NSPopUpButton? _shortcutWheel;
+    private NSPopUpButton? _shortcutSidewaysWheel;
+    private NSPopUpButton? _shortcutMiddle;
+    private NSPopUpButton? _shortcutSideButtons;
+    private NSPopUpButton? _shortcutCtrlWheel;
+    private NSButton? _shortcutPanWhenZoomed;
     private readonly IReadOnlyList<Command> _shortcutCommands = CommandCatalog.All
         .OrderBy(command => command.Group, StringComparer.Ordinal)
         .ThenBy(command => command.Title, StringComparer.Ordinal).ToArray();
@@ -18,12 +24,12 @@ public sealed partial class MainWindow
     {
         if (_shortcutsWindow is null)
         {
-            _shortcutsWindow = new NSWindow(new CGRect(0, 0, 650, 390),
+            _shortcutsWindow = new NSWindow(new CGRect(0, 0, 650, 580),
                 NSWindowStyle.Titled | NSWindowStyle.Closable | NSWindowStyle.Resizable,
                 NSBackingStore.Buffered, false)
             {
                 Title = "Keyboard shortcuts - rexplayer",
-                MinSize = new CGSize(540, 360),
+                MinSize = new CGSize(540, 480),
             };
             _shortcutsWindow.ReleaseWhenClosed(false);
             var heading = NSTextField.CreateLabel("Keyboard shortcuts");
@@ -56,18 +62,38 @@ public sealed partial class MainWindow
             var actions = NSStackView.FromViews([apply, clear, reset]);
             actions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             actions.Spacing = 8;
+            _shortcutWheel = EffectChoices(ShortcutEditing.WheelChoiceTitles(_settings));
+            _shortcutSidewaysWheel = EffectChoices(ShortcutEditing.WheelChoiceTitles(_settings));
+            _shortcutMiddle = EffectChoices(["Play / pause", "Fullscreen", "Mute", "Do nothing"]);
+            _shortcutSideButtons = EffectChoices(ShortcutEditing.SideButtonChoiceTitles(_settings));
+            _shortcutCtrlWheel = EffectChoices(["Zoom", "Subtitle size"]);
+            _shortcutPanWhenZoomed = NSButton.CreateCheckbox(
+                "Wheel pans instead of seeking when zoomed", ApplyMouseSettings);
+            foreach (var menu in new[] { _shortcutWheel, _shortcutSidewaysWheel, _shortcutMiddle,
+                _shortcutSideButtons, _shortcutCtrlWheel })
+            {
+                menu.Activated += (_, _) => ApplyMouseSettings();
+            }
+
             var files = NSStackView.FromViews([import, export]);
             files.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             files.Spacing = 8;
             var stack = NSStackView.FromViews([
                 heading, explanation, _shortcutCommand, _shortcutChord, actions, _shortcutStatus, files,
+                EffectsHeading("Mouse & trackpad"),
+                EffectChoiceRow("Vertical wheel", _shortcutWheel),
+                EffectChoiceRow("Sideways wheel", _shortcutSidewaysWheel),
+                EffectChoiceRow("Middle-click", _shortcutMiddle),
+                EffectChoiceRow("Back / forward", _shortcutSideButtons),
+                EffectChoiceRow("Cmd + wheel", _shortcutCtrlWheel),
+                _shortcutPanWhenZoomed,
             ]);
             stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
             stack.Alignment = NSLayoutAttribute.Leading;
             stack.Spacing = 12;
             stack.EdgeInsets = new NSEdgeInsets(20, 24, 20, 24);
             stack.TranslatesAutoresizingMaskIntoConstraints = false;
-            var container = new NSView(new CGRect(0, 0, 650, 390));
+            var container = new NSView(new CGRect(0, 0, 650, 580));
             container.AddSubview(stack);
             stack.TopAnchor.ConstraintEqualTo(container.TopAnchor).Active = true;
             stack.BottomAnchor.ConstraintEqualTo(container.BottomAnchor).Active = true;
@@ -81,8 +107,37 @@ public sealed partial class MainWindow
             _shortcutsWindow.Center();
         }
 
+        LoadMouseSettings();
         ShowSelectedShortcut();
         _shortcutsWindow.MakeKeyAndOrderFront(null);
+    }
+
+    private void LoadMouseSettings()
+    {
+        if (_shortcutWheel is null) return;
+        _shortcutWheel.SelectItem((int)_settings.Wheel);
+        _shortcutSidewaysWheel!.SelectItem((int)_settings.SidewaysWheel);
+        _shortcutMiddle!.SelectItem((int)_settings.MiddleButton);
+        _shortcutSideButtons!.SelectItem((int)_settings.SideButtons);
+        _shortcutCtrlWheel!.SelectItem((int)_settings.CtrlWheel);
+        _shortcutPanWhenZoomed!.State = State(_settings.WheelPansWhenZoomed);
+    }
+
+    private void ApplyMouseSettings()
+    {
+        if (_shortcutWheel is null || _shortcutSidewaysWheel is null ||
+            _shortcutMiddle is null || _shortcutSideButtons is null ||
+            _shortcutCtrlWheel is null || _shortcutPanWhenZoomed is null) return;
+        var settings = (_settings with
+        {
+            Wheel = (WheelChoice)(int)_shortcutWheel.IndexOfSelectedItem,
+            SidewaysWheel = (WheelChoice)(int)_shortcutSidewaysWheel.IndexOfSelectedItem,
+            MiddleButton = (MiddleButtonChoice)(int)_shortcutMiddle.IndexOfSelectedItem,
+            SideButtons = (SideButtonChoice)(int)_shortcutSideButtons.IndexOfSelectedItem,
+            CtrlWheel = (CtrlWheelChoice)(int)_shortcutCtrlWheel.IndexOfSelectedItem,
+            WheelPansWhenZoomed = _shortcutPanWhenZoomed.State == NSCellStateValue.On,
+        }).Normalize();
+        SaveShortcutSettings(settings, "Mouse preferences saved.");
     }
 
     private string SelectedShortcutId()

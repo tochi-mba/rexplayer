@@ -396,7 +396,7 @@ public sealed partial class MainWindow : IDisposable
         controls.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
         timeline.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
 
-        var content = new DropView(paths => _player.Drop(paths));
+        var content = new DropView(paths => _player.Drop(paths), HandlePictureWheel, HandlePictureClick, HandlePictureOtherClick);
         _pictureMenu = BuildPictureMenu();
         content.Menu = _pictureMenu;
         _picture = new PictureView(_log) { TranslatesAutoresizingMaskIntoConstraints = false };
@@ -1020,11 +1020,32 @@ public sealed partial class MainWindow : IDisposable
     private sealed class DropView : NSView
     {
         private readonly Action<IReadOnlyList<string>> _open;
+        private readonly Action<NSEvent> _wheel;
+        private readonly Action<NSEvent> _click;
+        private readonly Action<NSEvent> _otherClick;
 
-        public DropView(Action<IReadOnlyList<string>> open)
+        public DropView(Action<IReadOnlyList<string>> open, Action<NSEvent> wheel,
+            Action<NSEvent> click, Action<NSEvent> otherClick)
         {
             _open = open;
+            _wheel = wheel;
+            _click = click;
+            _otherClick = otherClick;
             RegisterForDraggedTypes([NSPasteboardType.FileUrl.GetConstant()!]);
+        }
+
+        public override void ScrollWheel(NSEvent theEvent) => _wheel(theEvent);
+
+        public override void MouseDown(NSEvent theEvent)
+        {
+            _click(theEvent);
+            base.MouseDown(theEvent);
+        }
+
+        public override void OtherMouseDown(NSEvent theEvent)
+        {
+            _otherClick(theEvent);
+            base.OtherMouseDown(theEvent);
         }
 
         public override NSDragOperation DraggingEntered(INSDraggingInfo sender) => NSDragOperation.Copy;
