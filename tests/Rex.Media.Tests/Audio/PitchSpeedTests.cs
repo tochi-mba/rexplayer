@@ -63,6 +63,15 @@ public sealed class PitchSpeedTests
         Assert.Equal(MediaTime.FromSeconds(30), after.Pts);
     }
 
+    [Fact]
+    public void EmptyFrameDoesNotProduceSamples()
+    {
+        var processor = new PitchSpeed(Rate, 1, 0.5);
+        using var empty = AudioFrame.Rent(Rate, 1, 0);
+        Assert.Null(processor.Process(empty));
+        Assert.True(processor.Fits(Rate, 1));
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(double.NaN)]
