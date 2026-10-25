@@ -2,6 +2,8 @@ using Rex.Media.AppCore.Captions;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
+using Rex.Media.Subtitles;
+using System.Globalization;
 
 namespace Rex.Media.App.Mac;
 
@@ -18,6 +20,14 @@ public sealed partial class MainWindow
     private NSPopUpButton? _macCaptionPreset;
     private NSSlider? _macCaptionEnergy;
     private NSButton? _macCaptionSubtitles;
+    private NSPopUpButton? _macCaptionSource;
+    private NSPopUpButton? _macCaptionLayout;
+    private NSPopUpButton? _macCaptionPalette;
+    private NSButton? _macCaptionGlyphs;
+    private NSTextField? _macCaptionAccent;
+    private SubtitleTrack? _macCaptionTimedTrack;
+    private SubtitleTrack? _macCaptionTimedFrom;
+    private Transcript? _macCaptionTimedBy;
     private NSView? _macCaptionStage;
     private DateTimeOffset _macCaptionFrameAt;
     private TimeSpan _macCaptionPlayhead;
@@ -40,6 +50,9 @@ public sealed partial class MainWindow
         _macCaptionReported = TimeSpan.Zero;
         _macCaptionPlayhead = TimeSpan.Zero;
         _macCaptionFrameAt = default;
+        _macCaptionTimedTrack = null;
+        _macCaptionTimedFrom = null;
+        _macCaptionTimedBy = null;
         ClearMacCaptionWords();
     }
 
@@ -87,7 +100,7 @@ public sealed partial class MainWindow
         var size = Math.Max(13, area.Height * 0.055 * _settings.SubtitleSize / 100.0);
         var words = _macCaptionDirector.Frame(_macCaptionPlayhead,
             heard ? _macCaptionMono : [], _player.SoundSampleRate,
-            elapsed, _player.SubtitlesAt(_macCaptionPlayhead), area, size);
+            elapsed, MacKineticCues(_macCaptionPlayhead), area, size);
         var visible = new HashSet<int>();
         foreach (var word in words)
         {
@@ -125,6 +138,35 @@ public sealed partial class MainWindow
             _macCaptionWords[id].Dispose();
             _macCaptionWords.Remove(id);
         }
+    }
+
+    private IReadOnlyList<SubtitleCue> MacKineticCues(TimeSpan at)
+    {
+        var subtitles = _player.SubtitlesAt(at);
+        var transcript = _macTrack?.At(at) ?? [];
+        return _settings.KineticCaptions.Words switch
+        {
+            CaptionWordSource.Subtitles => subtitles,
+            CaptionWordSource.Transcript => transcript,
+            CaptionWordSource.SubtitlesTimedByTranscript => TimedMacCaptionCues(at, subtitles),
+            _ => subtitles.Count > 0 ? subtitles : transcript,
+        };
+    }
+
+    private IReadOnlyList<SubtitleCue> TimedMacCaptionCues(TimeSpan at,
+        IReadOnlyList<SubtitleCue> fallback)
+    {
+        if (_player.Subtitles is not { } source || _macTranscript is not { } spoken)
+            return fallback;
+        if (!ReferenceEquals(source, _macCaptionTimedFrom) ||
+            !ReferenceEquals(spoken, _macCaptionTimedBy))
+        {
+            _macCaptionTimedFrom = source;
+            _macCaptionTimedBy = spoken;
+            _macCaptionTimedTrack = TranscriptAlignment.Time(source, spoken);
+        }
+
+        return _macCaptionTimedTrack?.At(at) ?? fallback;
     }
 
     private void ClearMacCaptionWords()
@@ -193,7 +235,7 @@ public sealed partial class MainWindow
     {
         if (_macCaptionSettings is null)
         {
-            _macCaptionSettings = new NSWindow(new CGRect(0, 0, 560, 320),
+            _macCaptionSettings = new NSWindow(new CGRect(0, 0, 590, 480),
                 NSWindowStyle.Titled | NSWindowStyle.Closable,
                 NSBackingStore.Buffered, false)
             {
@@ -212,37 +254,62 @@ public sealed partial class MainWindow
                 KineticCaptionSettings.MostEnergy, ApplyMacCaptionSettings);
             _macCaptionSubtitles = NSButton.CreateCheckbox(
                 "Keep ordinary subtitles below kinetic words", ApplyMacCaptionSettings);
+            _macCaptionSource = EffectChoices(Enum.GetNames<CaptionWordSource>());
+            _macCaptionLayout = EffectChoices(Enum.GetNames<CaptionLayoutChoice>());
+            _macCaptionPalette = EffectChoices(Enum.GetNames<CaptionColors>());
+            foreach (var control in new[] { _macCaptionSource, _macCaptionLayout, _macCaptionPalette })
+                control.Activated += (_, _) => ApplyMacCaptionSettings();
+            _macCaptionGlyphs = NSButton.CreateCheckbox("Show glyphs beside supported words", ApplyMacCaptionSettings);
+            _macCaptionAccent = new NSTextField(new CGRect(0, 0, 180, 24))
+            {
+                PlaceholderString = "FFB400",
+            };
+            ((NSView)_macCaptionAccent).AccessibilityLabel = "Kinetic captions accent colour in hex";
             var toggle = NSButton.CreateButton("Toggle captions", ToggleMacKinetic);
             var stack = NSStackView.FromViews([
                 title, hint, EffectChoiceRow("Style preset", _macCaptionPreset),
-                StyleSliderRow("Energy", _macCaptionEnergy), _macCaptionSubtitles, toggle,
+                EffectChoiceRow("Word source", _macCaptionSource),
+                EffectChoiceRow("Layout", _macCaptionLayout),
+                EffectChoiceRow("Palette", _macCaptionPalette),
+                TimingRow("Accent (#RRGGBB)", _macCaptionAccent),
+                StyleSliderRow("Energy", _macCaptionEnergy),
+                _macCaptionGlyphs, _macCaptionSubtitles, toggle,
             ]);
             stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
             stack.Alignment = NSLayoutAttribute.Leading;
             stack.Spacing = 15;
             stack.EdgeInsets = new NSEdgeInsets(20, 24, 20, 24);
-            stack.TranslatesAutoresizingMaskIntoConstraints = false;
-            var root = new NSView(new CGRect(0, 0, 560, 320));
-            root.AddSubview(stack);
-            stack.TopAnchor.ConstraintEqualTo(root.TopAnchor).Active = true;
-            stack.BottomAnchor.ConstraintEqualTo(root.BottomAnchor).Active = true;
-            stack.LeadingAnchor.ConstraintEqualTo(root.LeadingAnchor).Active = true;
-            stack.TrailingAnchor.ConstraintEqualTo(root.TrailingAnchor).Active = true;
-            hint.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            _macCaptionSettings.ContentView = root;
+            stack.Frame = new CGRect(0, 0, 560, 680);
+            var scroll = new NSScrollView(new CGRect(0, 0, 590, 480))
+            {
+                HasVerticalScroller = true,
+                AutohidesScrollers = true,
+                DocumentView = stack,
+            };
+            _macCaptionSettings.ContentView = scroll;
             _macCaptionSettings.Center();
         }
 
         _macCaptionPreset!.SelectItem((int)_settings.KineticCaptions.Preset);
         _macCaptionEnergy!.DoubleValue = _settings.KineticCaptions.Energy;
         _macCaptionSubtitles!.State = State(_settings.KineticCaptions.KeepSubtitles);
+        _macCaptionSource!.SelectItem((int)_settings.KineticCaptions.Words);
+        _macCaptionLayout!.SelectItem((int)_settings.KineticCaptions.Layout);
+        _macCaptionPalette!.SelectItem((int)_settings.KineticCaptions.Colors);
+        _macCaptionGlyphs!.State = State(_settings.KineticCaptions.Glyphs);
+        _macCaptionAccent!.StringValue = _settings.KineticCaptions.Accent.ToString("X6", CultureInfo.InvariantCulture);
         _macCaptionSettings.MakeKeyAndOrderFront(null);
     }
 
     private void ApplyMacCaptionSettings()
     {
         if (_macCaptionPreset is null || _macCaptionEnergy is null ||
-            _macCaptionSubtitles is null) return;
+            _macCaptionSubtitles is null || _macCaptionSource is null ||
+            _macCaptionLayout is null || _macCaptionPalette is null ||
+            _macCaptionGlyphs is null || _macCaptionAccent is null) return;
+        var hex = _macCaptionAccent.StringValue.Trim().TrimStart('#');
+        var accent = hex.Length == 6 && int.TryParse(hex, NumberStyles.HexNumber,
+            CultureInfo.InvariantCulture, out var parsed) ? parsed : _settings.KineticCaptions.Accent;
         SaveMacCaptionSettings(_settings with
         {
             KineticCaptions = _settings.KineticCaptions with
@@ -250,6 +317,11 @@ public sealed partial class MainWindow
                 Preset = (CaptionPreset)(int)_macCaptionPreset.IndexOfSelectedItem,
                 Energy = (int)Math.Round(_macCaptionEnergy.DoubleValue),
                 KeepSubtitles = IsChecked(_macCaptionSubtitles),
+                Words = (CaptionWordSource)(int)_macCaptionSource.IndexOfSelectedItem,
+                Layout = (CaptionLayoutChoice)(int)_macCaptionLayout.IndexOfSelectedItem,
+                Colors = (CaptionColors)(int)_macCaptionPalette.IndexOfSelectedItem,
+                Accent = accent,
+                Glyphs = IsChecked(_macCaptionGlyphs),
             },
         });
     }
