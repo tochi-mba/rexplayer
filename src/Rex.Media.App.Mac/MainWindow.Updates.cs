@@ -17,7 +17,7 @@ public sealed partial class MainWindow
     private NSButton? _updatesDownload;
     private NSButton? _updatesOpenFolder;
     private CancellationTokenSource? _updateCancellation;
-    private readonly HttpClient _updateHttp = new() { Timeout = TimeSpan.FromSeconds(30) };
+    private readonly HttpClient _updateHttp = new() { Timeout = TimeSpan.FromMinutes(60) };
     private UpdateOffer? _macUpdateOffer;
     private bool _updateChecking;
 
@@ -133,7 +133,8 @@ public sealed partial class MainWindow
         try
         {
             _updateHttp.DefaultRequestHeaders.UserAgent.ParseAdd("rexplayer-mac/1");
-            var json = await _updateHttp.GetStringAsync(UpdateCheck.LatestRelease);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var json = await _updateHttp.GetStringAsync(UpdateCheck.LatestRelease, deadline.Token);
             var offer = UpdateCheck.Offer(json, RunningVersion, MacUpdateAsset);
             OnWindowThread(() =>
             {
@@ -233,8 +234,7 @@ public sealed partial class MainWindow
 
         _updatesDownload.Enabled = _macUpdateOffer is not null && _updateCancellation is null;
         _updatesOpenFolder.Enabled = _macUpdateOffer is { } offer &&
-            UpdateDownloader.IsReady(_roots.UpdateFolder,
-                UpdateFlow.Found(offer, UpdateMode.DownloadAndAsk, metered: false, asked: true));
+            File.Exists(Path.Combine(_roots.UpdateFolder, offer.InstallerName));
     }
 
     private void DisposeMacUpdates()

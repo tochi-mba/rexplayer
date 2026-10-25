@@ -153,6 +153,10 @@ public sealed partial class MainWindow
             case CommandCatalog.RestoreLibrary:
                 RestoreLibraryBackup();
                 return true;
+            case CommandCatalog.CheckForUpdates:
+                ShowMacUpdates();
+                CheckForMacUpdates();
+                return true;
             case CommandCatalog.WhatsNew:
                 ShowWhatsNew();
                 return true;
