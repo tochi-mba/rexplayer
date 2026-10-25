@@ -4,6 +4,23 @@ using System.Text.RegularExpressions;
 
 namespace Rex.Media.AppCore.Player;
 
+/// <summary>A lyric lookup result supplied by a remote catalogue.</summary>
+public sealed record OnlineLyricsResult(string? TrackName, string? ArtistName, double Duration, bool Instrumental, string? SyncedLyrics, string? PlainLyrics)
+{
+    /// <summary>Accept only a matching song, favouring real line timestamps when available.</summary>
+    public Lyrics? Match(string title, string artist, TimeSpan duration)
+    {
+        if (Instrumental || !string.Equals(TrackName?.Trim(), title.Trim(), StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(ArtistName?.Trim(), artist.Trim(), StringComparison.OrdinalIgnoreCase)
+            || !double.IsFinite(Duration) || Math.Abs(Duration - duration.TotalSeconds) > 2)
+        {
+            return null;
+        }
+
+        return Lyrics.Parse(SyncedLyrics) ?? Lyrics.Parse(PlainLyrics);
+    }
+}
+
 /// <summary>A piece of lyric text with an explicit enhanced LRC timestamp.</summary>
 public sealed record LyricWord(TimeSpan At, string Text);
 

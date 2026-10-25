@@ -11,6 +11,44 @@ namespace Rex.Media.Tests.AppCore;
 public sealed class PresentationTests
 {
     [Fact]
+    public void OnlineLyricsMustMatchTheSongAndKeepRealTiming()
+    {
+        var answer = new OnlineLyricsResult(" Sungba ", "Asake", 120, false,
+            "[00:03.00]Sungba", "Plain words");
+        Assert.True(answer.Match("Sungba", "asake", TimeSpan.FromSeconds(121))!.IsTimed);
+        Assert.Null(answer.Match("Another song", "Asake", TimeSpan.FromSeconds(120)));
+        Assert.Null(answer.Match("Sungba", "Another artist", TimeSpan.FromSeconds(120)));
+        Assert.Null(answer.Match("Sungba", "Asake", TimeSpan.FromSeconds(124)));
+        Assert.Null((answer with { Instrumental = true }).Match("Sungba", "Asake", TimeSpan.FromSeconds(120)));
+        Assert.Null((answer with { Duration = double.NaN }).Match("Sungba", "Asake", TimeSpan.FromSeconds(120)));
+        Assert.False((answer with { SyncedLyrics = null }).Match("Sungba", "Asake", TimeSpan.FromSeconds(120))!.IsTimed);
+        Assert.Null((answer with { SyncedLyrics = null, PlainLyrics = null }).Match("Sungba", "Asake", TimeSpan.FromSeconds(120)));
+    }
+
+    [Fact]
+    public void OnlineLyricsDoNotReplaceLocalLyricsOrAChangedSong()
+    {
+        using var harness = new ControllerHarness(autoPlay: false, settings: new PlayerSettings { TitleSeconds = 0 });
+        harness.Files["song.wav"] = Count(0, 400);
+        harness.Files["local.wav"] = Count(0, 400);
+        harness.Files["local.lrc"] = Encoding.UTF8.GetBytes("[00:00.00]Local words");
+        var controller = harness.Controller;
+        var online = Lyrics.Parse("[00:00.00]Online words")!;
+        controller.Open(["song.wav"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready);
+        var first = controller.Item!;
+        Assert.True(controller.UseOnlineLyrics(first, online));
+        Assert.Same(online, controller.Lyrics);
+        Assert.False(controller.UseOnlineLyrics(first, Lyrics.Parse("Other")!));
+
+        controller.Open(["local.wav"]);
+        harness.PumpUntil(c => c.State == SessionState.Ready && c.Item?.Location == "local.wav");
+        Assert.False(controller.UseOnlineLyrics(first, online));
+        Assert.False(controller.UseOnlineLyrics(controller.Item!, online));
+        Assert.Equal("Local words", controller.Lyrics!.Lines[0].Text);
+    }
+
+    [Fact]
     [Capability("META-09")]
     public void TimedLyricsAreReadFromLrc()
     {

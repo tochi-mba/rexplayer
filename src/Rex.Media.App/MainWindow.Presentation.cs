@@ -193,6 +193,14 @@ public sealed partial class MainWindow
     private void ShowPresentation()
     {
         var item = _player.Item;
+        if (_onlineLyricsItem is not null && !ReferenceEquals(_onlineLyricsItem, item))
+        {
+            _onlineLyricsCancellation?.Cancel();
+            _onlineLyricsItem = null;
+            _onlineLyricsStatus = null;
+            _findingLyrics = false;
+        }
+
         var info = _player.Info;
         var entry = item?.Location is { } location ? _library?.Entry(location) : null;
         var episode = entry is null ? null : LibraryViews.EpisodeOf(entry);
@@ -291,7 +299,7 @@ public sealed partial class MainWindow
                 LyricsDisplayMode.LineTimed => "Timed lyrics; only line starts were supplied.",
                 LyricsDisplayMode.WordTimed => "Word-timed lyrics; highlights follow exact source timestamps.",
                 LyricsDisplayMode.MixedTimed => "Partly word-timed lyrics; untimed words are shown without invented timing.",
-                _ => _player.LyricsProblem ?? "No lyrics found in this song or beside it.",
+                _ => _onlineLyricsStatus ?? _player.LyricsProblem ?? "No lyrics found in this song or beside it.",
             };
         if (LyricsStatus.Text != lyricStatus)
         {
@@ -299,6 +307,11 @@ public sealed partial class MainWindow
         }
 
         LyricsStatus.Visibility = lyricStatus is null ? Visibility.Collapsed : Visibility.Visible;
+        FindLyricsButton.Visibility = music && _settings.ShowLyrics && _player.Info is not null
+            && _player.Lyrics is null && !string.IsNullOrWhiteSpace(_player.Artist)
+            && _player.Duration is { TotalSeconds: >= 1 and <= 3600 }
+            ? Visibility.Visible : Visibility.Collapsed;
+        FindLyricsButton.IsEnabled = !_findingLyrics;
         // Growing media can report a slightly longer duration on each refresh.
         // Rebuilding timed controls every time would repeatedly steal keyboard
         // focus; only rebuild when some lyric becomes (un)seekable.
