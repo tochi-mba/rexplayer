@@ -74,6 +74,7 @@ public sealed class MacAppSmokeTests
     [Capability("LIB-09", CapabilityPlatform.MacOS)]
     [Capability("LIB-05", CapabilityPlatform.MacOS)]
     [Capability("LIB-02", CapabilityPlatform.MacOS)]
+    [Capability("UI-04", CapabilityPlatform.MacOS)]
     [Capability("UI-16", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
@@ -167,7 +168,7 @@ public sealed class MacAppSmokeTests
             var mainKeyboard = await Ask(pipe, new AutomationRequest { Command = "mac-keyboard" });
             Assert.True(mainKeyboard?.Ok == true, "The Mac main-window keyboard loop failed: " +
                 (mainKeyboard?.Error ?? "no reply") + LogTail(root));
-            Assert.Equal("tab=9;regions=3", mainKeyboard!.Text);
+            Assert.Equal("tab=12;regions=3", mainKeyboard!.Text);
             var logShown = await Ask(pipe, new AutomationRequest { Command = "mac-diagnostics", Id = "show" });
             Assert.True(logShown?.Ok == true, "The Mac log console did not open.");
             var logControls = await Ask(pipe, new AutomationRequest { Command = "mac-diagnostics", Id = "verify-controls" });
@@ -512,6 +513,10 @@ public sealed class MacAppSmokeTests
                 reply => reply?.Text?.Contains("fullscreen=True", StringComparison.Ordinal) == true &&
                     reply.Text.Contains("context=33", StringComparison.Ordinal),
                 app, root);
+            var fullScreenController = await Ask(pipe, new AutomationRequest { Command = "mac-fullscreen-controller" });
+            Assert.True(fullScreenController?.Ok == true &&
+                fullScreenController.Text?.Contains("hide=1.5", StringComparison.Ordinal) == true,
+                "The Mac full-screen controller is incomplete: " + (fullScreenController?.Error ?? "no reply"));
             await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.LeaveFullScreen });
             await Queue(pipe, "capture-current");
             // The short video fixture can finish before the queue interactions start.
