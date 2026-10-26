@@ -46,11 +46,13 @@ public sealed partial class MainWindow
                 return true;
             case CommandCatalog.ToggleFullScreen:
                 _window.ToggleFullScreen(null);
+                _ = NSTimer.CreateScheduledTimer(TimeSpan.FromMilliseconds(500), _ => RevealFullScreenController());
                 return true;
             case CommandCatalog.LeaveFullScreen:
                 if (IsFullScreen)
                 {
                     _window.ToggleFullScreen(null);
+                    if (_chrome is not null) _chrome.Hidden = false;
                 }
 
                 return true;
