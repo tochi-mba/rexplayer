@@ -214,6 +214,22 @@ public sealed partial class PlayerController : IDisposable
         OpenItems([.. locations.SelectMany(_expand).SelectMany(location => ItemsFor(location, depth: 0))], enqueue);
     }
 
+    /// <summary>
+    /// Expands files, folders and playlist files exactly as <see cref="Open"/> does, then inserts
+    /// them at a visible queue position without changing what is playing. This is the list-drop
+    /// form of adding media (LIB-02).
+    /// </summary>
+    public int Insert(IEnumerable<string> locations, int index)
+    {
+        ArgumentNullException.ThrowIfNull(locations);
+        var items = locations.SelectMany(_expand).SelectMany(location => ItemsFor(location, depth: 0)).ToList();
+        if (items.Count > 0)
+        {
+            Playlist.Insert(index, items);
+        }
+        return items.Count;
+    }
+
     /// <summary>Plays <paramref name="items"/> as <see cref="Open"/> plays what locations stand for.</summary>
     private void OpenItems(List<PlaylistItem> items, bool enqueue)
     {

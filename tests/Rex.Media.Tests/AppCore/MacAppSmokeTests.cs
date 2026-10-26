@@ -73,6 +73,7 @@ public sealed class MacAppSmokeTests
     [Capability("VID-31", CapabilityPlatform.MacOS)]
     [Capability("LIB-09", CapabilityPlatform.MacOS)]
     [Capability("LIB-05", CapabilityPlatform.MacOS)]
+    [Capability("LIB-02", CapabilityPlatform.MacOS)]
     [Capability("UI-16", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
@@ -261,6 +262,7 @@ public sealed class MacAppSmokeTests
             var empty = await Queue(pipe, "show");
             Assert.Contains("0 items", empty.Title, StringComparison.Ordinal);
             await Queue(pipe, "verify-missing");
+            await Queue(pipe, "verify-list-drop");
             await Queue(pipe, "capture-empty");
 
             // Exercise closing and reopening the real AppKit library through the
