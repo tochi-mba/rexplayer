@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 148 planned, 70 built, 75 verified, 27 post-1.0, 2 not-applicable.
+macOS: 148 planned, 69 built, 75 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -169,7 +169,7 @@ macOS: 148 planned, 70 built, 75 verified, 27 post-1.0, 2 not-applicable.
 
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
-| AU-01 | Default-device output | WASAPI shared, event-driven; follows the Windows default device unless pinned | M1 | must | verified-hardware | built |
+| AU-01 | Default-device output | WASAPI shared, event-driven; follows the Windows default device unless pinned | M1 | must | verified-hardware | verified-hardware |
 | AU-02 | Device picker | Menu + cycle hotkey (Shift+A); remembers the pinned device by endpoint id; falls back to default with a notice if it disappears | M11 | must | planned | planned |
 | AU-03 | Exclusive mode (bit-perfect) | Opt-in; format negotiation ladder; volume becomes digital-in-graph or locked (setting) | M11 | should | planned | planned |
 | AU-04 | Bitstream passthrough | AC-3, E-AC-3, DTS, DTS-HD, TrueHD as IEC 61937 over HDMI/S/PDIF; per-format toggles; DSP bypass indicated | M11 | should | planned | planned |
