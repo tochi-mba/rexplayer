@@ -1,3 +1,4 @@
+using Rex.Media.AppCore.Automation;
 using Rex.Media.Primitives;
 
 namespace Rex.Media.App.Mac;
@@ -67,6 +68,30 @@ public sealed partial class MainWindow
     private void ApplyVideoGeometry() => _picture?.Presenter?.SetViewGeometry(
         MacAspectRatios[_aspectIndex].Value, MacCropRatios[_cropIndex].Value,
         _videoZoom, _videoPanX, _videoPanY);
+
+    private AutomationReply VideoGeometrySmokeAction(string? action)
+    {
+        switch (action)
+        {
+            case "magnify-and-pan":
+                ChangeVideoZoom(2);
+                PanVideo(0.25, -0.5);
+                break;
+            case "reset":
+                ResetVideoZoom();
+                break;
+            case "status":
+                break;
+            default:
+                return new AutomationReply { Ok = false, Error = "Unknown video geometry action." };
+        }
+
+        return new AutomationReply
+        {
+            Ok = true,
+            Text = $"zoom={_videoZoom:0.00};pan={_videoPanX:0.00},{_videoPanY:0.00}",
+        };
+    }
 
     private void SizeWindowToVideo(double scale)
     {

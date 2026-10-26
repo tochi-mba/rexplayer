@@ -267,6 +267,9 @@ public sealed partial class MainWindow : IDisposable
                         Text = $"fullscreen={IsFullScreen};floating={_window.Level == NSWindowLevel.Floating};minimal={_minimalInterface};context={ContextCommandCount};title={_window.Title}",
                     });
                     return;
+                case "mac-video-geometry":
+                    answered.SetResult(VideoGeometrySmokeAction(request.Id));
+                    return;
                 case "mac-drop":
                     _player.Drop(request.Paths ?? []);
                     answered.SetResult(new AutomationReply { Ok = true });
@@ -493,7 +496,8 @@ public sealed partial class MainWindow : IDisposable
         controls.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
         timeline.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
 
-        var content = new DropView(paths => _player.Drop(paths), HandlePictureWheel, HandlePictureClick, HandlePictureOtherClick);
+        var content = new DropView(paths => _player.Drop(paths), HandlePictureWheel,
+            HandlePictureDrag, HandlePictureClick, HandlePictureOtherClick);
         _pictureMenu = BuildPictureMenu();
         content.Menu = _pictureMenu;
         _picture = new PictureView(_log) { TranslatesAutoresizingMaskIntoConstraints = false };
@@ -858,20 +862,24 @@ public sealed partial class MainWindow : IDisposable
     {
         private readonly Action<IReadOnlyList<string>> _open;
         private readonly Action<NSEvent> _wheel;
+        private readonly Action<NSEvent> _drag;
         private readonly Action<NSEvent> _click;
         private readonly Action<NSEvent> _otherClick;
 
         public DropView(Action<IReadOnlyList<string>> open, Action<NSEvent> wheel,
-            Action<NSEvent> click, Action<NSEvent> otherClick)
+            Action<NSEvent> drag, Action<NSEvent> click, Action<NSEvent> otherClick)
         {
             _open = open;
             _wheel = wheel;
+            _drag = drag;
             _click = click;
             _otherClick = otherClick;
             RegisterForDraggedTypes([NSPasteboardType.FileUrl.GetConstant()!]);
         }
 
         public override void ScrollWheel(NSEvent theEvent) => _wheel(theEvent);
+
+        public override void MouseDragged(NSEvent theEvent) => _drag(theEvent);
 
         public override void MouseDown(NSEvent theEvent)
         {
