@@ -60,6 +60,10 @@ public sealed class MacAppSmokeTests
     [Capability("OSD-11", CapabilityPlatform.MacOS)]
     [Capability("OSD-07", CapabilityPlatform.MacOS)]
     [Capability("VID-26", CapabilityPlatform.MacOS)]
+    [Capability("SUB-18", CapabilityPlatform.MacOS)]
+    [Capability("SUB-19", CapabilityPlatform.MacOS)]
+    [Capability("SUB-20", CapabilityPlatform.MacOS)]
+    [Capability("SUB-21", CapabilityPlatform.MacOS)]
     [Capability("UI-16", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
@@ -411,6 +415,15 @@ public sealed class MacAppSmokeTests
             var disabledOsd = await Ask(pipe, new AutomationRequest { Command = "mac-osd", Id = "disable" });
             Assert.Contains("enabled=False", disabledOsd?.Text, StringComparison.Ordinal);
             Assert.EndsWith("overlay=", disabledOsd?.Text, StringComparison.Ordinal);
+            var speech = await Ask(pipe, new AutomationRequest { Command = "mac-speech", Id = "configure" });
+            Assert.Contains("visible=True;model=base;library=True;playing=True;paused=True", speech?.Text,
+                StringComparison.Ordinal);
+            var savedSpeech = SettingsStore.Load(startupRoots.SettingsPath);
+            Assert.Equal((TranscriptModelChoice.Base, true, true, true),
+                (savedSpeech.KineticCaptions.TranscriptModel, savedSpeech.Transcription.Library,
+                    savedSpeech.Transcription.WhatPlays, savedSpeech.Transcription.Paused));
+            var resumedSpeech = await Ask(pipe, new AutomationRequest { Command = "mac-speech", Id = "resume" });
+            Assert.Contains("paused=False", resumedSpeech?.Text, StringComparison.Ordinal);
             var minimal = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.MinimalInterface });
             Assert.True(minimal?.Ok == true, "The Mac minimal-interface command was not handled.");
             var hiddenChrome = await Ask(pipe, new AutomationRequest { Command = "mac-window" });
