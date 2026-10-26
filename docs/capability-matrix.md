@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 148 planned, 60 built, 84 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
+macOS: 148 planned, 59 built, 85 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -181,7 +181,7 @@ macOS: 148 planned, 60 built, 84 verified, 1 verified-hardware, 27 post-1.0, 2 n
 | AU-10 | Stereo widener | Delay 1–100 ms, feedback, cross-feed, dry mix | M11 | could | planned | planned |
 | AU-11 | Stereo mode | Stereo / mono / left only / right only / reverse; headphone cross-feed (S); matrix-surround decode (C) | M5 | must | verified | built |
 | AU-12 | Channel layouts & downmix | Mono→7.1 input; standard-coefficient 5.1/7.1→stereo downmix, LFE policy, centre/surround levels; honours the Windows speaker configuration; upmix off by default | M5 | must | verified | verified |
-| AU-13 | ReplayGain / R128 | Off / track / album; preamp; fallback gain for untagged files; peak protection; reads ID3 TXXX, Vorbis, APE and Opus R128 tags | M5 | should | verified | built |
+| AU-13 | ReplayGain / R128 | Off / track / album; preamp; fallback gain for untagged files; peak protection; reads ID3 TXXX, Vorbis, APE and Opus R128 tags | M5 | should | verified | verified |
 | AU-14 | Loudness normaliser (real-time) | Target level, window; off by default | M11 | should | planned | planned |
 | AU-15 | Pitch-preserving speed | WSOLA time-stretch across 0.25–4×; toggle to "chipmunk" mode | M5 | must | verified | verified |
 | AU-16 | Pitch shift | ±12 semitones (fine cents) independent of speed | M11 | should | planned | planned |
