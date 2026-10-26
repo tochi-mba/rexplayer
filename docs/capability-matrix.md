@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 148 planned, 48 built, 96 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
+macOS: 148 planned, 47 built, 97 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -334,7 +334,7 @@ macOS: 148 planned, 48 built, 96 verified, 1 verified-hardware, 27 post-1.0, 2 n
 
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
-| UI-01 | Main window | Video surface; seek bar (elapsed/remaining toggle on click, chapter ticks, buffered ranges, hover thumbnails); transport (play/pause, stop, previous, next, fullscreen, playlist, effects, loop, shuffle); volume + mute; status chips (hardware decode, cast target, recording, speed) | M4 | must | verified | built |
+| UI-01 | Main window | Video surface; seek bar (elapsed/remaining toggle on click, chapter ticks, buffered ranges, hover thumbnails); transport (play/pause, stop, previous, next, fullscreen, playlist, effects, loop, shuffle); volume + mute; status chips (hardware decode, cast target, recording, speed) | M4 | must | verified | verified |
 | UI-02 | Menu system | Classic menu bar (toggle) + command bar. Media: open file/multiple/folder/disc/network/capture, open location from clipboard, recent media, save playlist, convert/save, stream, quit at end of playlist, quit. Playback: title, chapter, program, bookmarks, play on (renderer), speed, jump forward/back, go to time, play/stop/previous/next, record, A-B loop, frame step, sleep timer. Audio: track, device, stereo mode, visualisation, volume up/down, mute. Video: track, fullscreen, fit window, zoom, aspect, crop, deinterlace + mode, snapshot, always on top, transform, 360°, stats overlay. Subtitle: add file, track, secondary track, text scale, delay and sync. Tools: effects and filters, track synchronisation, media information, codec information, program guide, log console, extensions, customise interface, preferences, keyboard shortcuts. View: playlist, dock playlist, library, minimal interface, fullscreen interface, picture-in-picture, always on top, status strip. Help: help, shortcuts, what's new, check for updates, report a problem, about | M4–M15 | must | built | built |
 | UI-03 | Video context menu | The same tree in context form (play/pause, stop, previous/next, record, jumps, speed, audio, video, subtitle, playback, tools, view, open media, play on, quit), reachable in minimal and fullscreen modes | M4 | must | built | built |
 | UI-04 | Fullscreen controller | Seek bar, transport, volume, tracks, effects, leave fullscreen; auto-hide (1.5 s), opacity, keyboard-focusable, touch-friendly | M4 | must | verified | verified |
