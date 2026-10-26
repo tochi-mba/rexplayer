@@ -1693,7 +1693,7 @@
       "oracles": "SPEC",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {

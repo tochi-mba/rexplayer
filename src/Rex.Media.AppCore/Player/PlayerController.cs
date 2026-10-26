@@ -137,7 +137,8 @@ public sealed partial class PlayerController : IDisposable
     public SoundSettings Sound { get; private set; } = SoundSettings.Plain;
 
     private static SoundSettings SoundFor(PlayerSettings settings) => new(
-        new EqualizerSettings(settings.EqualizerEnabled, settings.EqualizerPreamp, settings.EqualizerGains),
+        new EqualizerSettings(settings.EqualizerEnabled, settings.EqualizerPreamp,
+            settings.EqualizerGains, settings.EqualizerDoublePass),
         (StereoMode)settings.Stereo,
         new ReplayGainSettings((ReplayGainMode)settings.Loudness, settings.LoudnessPreamp,
             settings.LoudnessUntaggedGain, settings.LoudnessPreventClipping));
