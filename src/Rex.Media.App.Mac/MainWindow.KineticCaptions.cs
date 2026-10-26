@@ -1,4 +1,5 @@
 using Rex.Media.AppCore.Captions;
+using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
@@ -341,6 +342,40 @@ public sealed partial class MainWindow
         {
             Say("Could not save kinetic caption preferences: " + ex.Message);
         }
+    }
+
+    private AutomationReply MacKineticSmokeAction(string? action)
+    {
+        if (action == "configure")
+        {
+            SaveMacCaptionSettings(_settings with
+            {
+                KineticCaptions = _settings.KineticCaptions with
+                {
+                    On = true,
+                    Preset = CaptionPreset.Custom,
+                    Energy = 175,
+                    Words = CaptionWordSource.SubtitlesTimedByTranscript,
+                    Layout = CaptionLayoutChoice.Stairs,
+                    Colors = CaptionColors.Ocean,
+                    Accent = 0x12A4E0,
+                    Glyphs = true,
+                },
+            });
+        }
+        else if (action != "status")
+        {
+            return new AutomationReply { Ok = false, Error = "Unknown kinetic-caption action." };
+        }
+
+        var captions = _settings.KineticCaptions;
+        return new AutomationReply
+        {
+            Ok = true,
+            Text = $"on={captions.On};preset={captions.Preset};energy={captions.Energy};" +
+                $"words={captions.Words};layout={captions.Layout};palette={captions.Colors};" +
+                $"accent={captions.Accent:X6};glyphs={captions.Glyphs}",
+        };
     }
 
     private void DisposeMacKinetic()

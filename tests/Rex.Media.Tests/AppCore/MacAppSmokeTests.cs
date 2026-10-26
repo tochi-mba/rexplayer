@@ -57,6 +57,7 @@ public sealed class MacAppSmokeTests
     [Capability("VID-03", CapabilityPlatform.MacOS)]
     [Capability("VID-27", CapabilityPlatform.MacOS)]
     [Capability("VID-07", CapabilityPlatform.MacOS)]
+    [Capability("OSD-11", CapabilityPlatform.MacOS)]
     [Capability("UI-16", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
@@ -378,6 +379,18 @@ public sealed class MacAppSmokeTests
                 Id = "reset",
             });
             Assert.Equal("zoom=1.00;pan=0.00,0.00", resetGeometry?.Text);
+            var kinetic = await Ask(pipe, new AutomationRequest
+            {
+                Command = "mac-kinetic-captions",
+                Id = "configure",
+            });
+            Assert.Equal("on=True;preset=Custom;energy=175;words=SubtitlesTimedByTranscript;" +
+                "layout=Stairs;palette=Ocean;accent=12A4E0;glyphs=True", kinetic?.Text);
+            var savedKinetic = SettingsStore.Load(startupRoots.SettingsPath).KineticCaptions;
+            Assert.Equal((true, CaptionPreset.Custom, 175, CaptionWordSource.SubtitlesTimedByTranscript,
+                CaptionLayoutChoice.Stairs, CaptionColors.Ocean, 0x12A4E0, true),
+                (savedKinetic.On, savedKinetic.Preset, savedKinetic.Energy, savedKinetic.Words,
+                    savedKinetic.Layout, savedKinetic.Colors, savedKinetic.Accent, savedKinetic.Glyphs));
             var minimal = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.MinimalInterface });
             Assert.True(minimal?.Ok == true, "The Mac minimal-interface command was not handled.");
             var hiddenChrome = await Ask(pipe, new AutomationRequest { Command = "mac-window" });
