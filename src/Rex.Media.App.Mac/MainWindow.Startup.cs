@@ -8,6 +8,9 @@ namespace Rex.Media.App.Mac;
 public sealed partial class MainWindow
 {
     private NSWindow? _firstRunWindow;
+    private NSButton? _firstRunMetadata;
+    private NSButton? _firstRunUpdates;
+    private NSTextField? _firstRunAssociations;
     private NSWindow? _whatsNewWindow;
     private NSButton? _whatsNewDone;
 
@@ -30,7 +33,7 @@ public sealed partial class MainWindow
     {
         if (_firstRunWindow is null)
         {
-            _firstRunWindow = new NSWindow(new CGRect(0, 0, 550, 380),
+            _firstRunWindow = new NSWindow(new CGRect(0, 0, 620, 520),
                 NSWindowStyle.Titled | NSWindowStyle.Closable,
                 NSBackingStore.Buffered, false)
             {
@@ -44,10 +47,20 @@ public sealed partial class MainWindow
                 "Your media stays on your Mac. Watching folders is opt-in; playback history " +
                 "and resume points can be cleared or switched off in Preferences.");
             privacy.TextColor = NSColor.SecondaryLabel;
+            _firstRunMetadata = NSButton.CreateCheckbox(
+                "Look up posters, episode details and album art online", () => { });
+            _firstRunMetadata.State = NSCellStateValue.Off;
+            _firstRunUpdates = NSButton.CreateCheckbox(
+                "Check daily for rexplayer updates", () => { });
+            _firstRunUpdates.State = NSCellStateValue.On;
+            _firstRunAssociations = NSTextField.CreateWrappingLabel(
+                "File associations: rexplayer is offered in Finder's Open With menu for supported " +
+                "media and playlists. Choose Always Open there if you want it as the default.");
+            _firstRunAssociations.TextColor = NSColor.SecondaryLabel;
             var guidance = NSTextField.CreateWrappingLabel(
-                "Drop a file into the player, press Cmd+O to open media, or add a watched " +
-                "folder from Library. Playback tools, subtitles, effects and shortcuts " +
-                "are available in the rexplayer menu.");
+                "Quick tour\n1. Drop a file here or press Cmd+O.\n" +
+                "2. Open Library to add an optional watched folder.\n" +
+                "3. Use the rexplayer menu for subtitles, effects, playback tools and shortcuts.");
             guidance.TextColor = NSColor.SecondaryLabel;
             var start = NSButton.CreateButton("Start using rexplayer", FinishFirstRun);
             var open = NSButton.CreateButton("Choose a file…", () =>
@@ -63,7 +76,10 @@ public sealed partial class MainWindow
             var actions = NSStackView.FromViews([start, open, browse]);
             actions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             actions.Spacing = 8;
-            var stack = NSStackView.FromViews([title, privacy, guidance, actions]);
+            var stack = NSStackView.FromViews([
+                title, privacy, _firstRunMetadata, _firstRunUpdates,
+                _firstRunAssociations, guidance, actions,
+            ]);
             stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
             stack.Alignment = NSLayoutAttribute.Leading;
             stack.Spacing = 20;
@@ -76,6 +92,7 @@ public sealed partial class MainWindow
             stack.LeadingAnchor.ConstraintEqualTo(root.LeadingAnchor).Active = true;
             stack.TrailingAnchor.ConstraintEqualTo(root.TrailingAnchor).Active = true;
             privacy.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -56).Active = true;
+            _firstRunAssociations.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -56).Active = true;
             guidance.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -56).Active = true;
             _firstRunWindow.ContentView = root;
             _firstRunWindow.Center();
@@ -86,7 +103,18 @@ public sealed partial class MainWindow
 
     private void FinishFirstRun()
     {
-        SaveSeenVersion(firstRun: true);
+        var metadata = IsChecked(_firstRunMetadata);
+        var candidate = _settings with
+        {
+            Metadata = _settings.Metadata with
+            {
+                TvShows = metadata,
+                Movies = metadata,
+                Music = metadata,
+            },
+            UpdateChecks = IsChecked(_firstRunUpdates) ? UpdateCadence.Daily : UpdateCadence.Off,
+        };
+        SaveSeenVersion(candidate, firstRun: true);
         _firstRunWindow?.OrderOut(null);
     }
 
@@ -121,7 +149,7 @@ public sealed partial class MainWindow
                 NSWorkspace.SharedWorkspace.OpenUrl(new NSUrl(HelpUrl)));
             var done = NSButton.CreateButton("Done", () =>
             {
-                SaveSeenVersion(firstRun: false);
+                SaveSeenVersion(_settings, firstRun: false);
                 _whatsNewWindow?.OrderOut(null);
             });
             _whatsNewDone = done;
@@ -161,9 +189,9 @@ public sealed partial class MainWindow
         return "Release notes were not included in this app bundle.";
     }
 
-    private void SaveSeenVersion(bool firstRun)
+    private void SaveSeenVersion(PlayerSettings settings, bool firstRun)
     {
-        var candidate = _settings with
+        var candidate = settings with
         {
             FirstRunDone = firstRun || _settings.FirstRunDone,
             LastSeenVersion = RunningVersion,
@@ -195,6 +223,18 @@ public sealed partial class MainWindow
     {
         switch (action)
         {
+            case "show-first-run":
+                ShowFirstRun();
+                break;
+            case "enable-metadata":
+                _firstRunMetadata!.State = NSCellStateValue.On;
+                break;
+            case "disable-updates":
+                _firstRunUpdates!.State = NSCellStateValue.Off;
+                break;
+            case "finish-first-run":
+                FinishFirstRun();
+                break;
             case "done-whats-new":
                 _whatsNewDone?.PerformClick(_whatsNewDone);
                 break;
@@ -210,7 +250,11 @@ public sealed partial class MainWindow
         return new AutomationReply
         {
             Ok = true,
-            Text = $"first={_firstRunWindow?.IsVisible == true};whats={_whatsNewWindow?.IsVisible == true};seen={_settings.LastSeenVersion}",
+            Text = $"first={_firstRunWindow?.IsVisible == true};whats={_whatsNewWindow?.IsVisible == true};" +
+                $"metadata={_settings.Metadata.TvShows || _settings.Metadata.Movies || _settings.Metadata.Music};" +
+                $"metadataChoice={IsChecked(_firstRunMetadata)};updates={_settings.UpdateChecks};" +
+                $"updateChoice={IsChecked(_firstRunUpdates)};associations={_firstRunAssociations is not null};" +
+                $"seen={_settings.LastSeenVersion}",
         };
     }
 }
