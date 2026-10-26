@@ -533,6 +533,10 @@ public sealed record PlayerSettings
     /// <summary>Allow hardware HEVC decoding when hardware video decoding is enabled.</summary>
     public bool HardwareHevcDecoding { get; init; } = true;
 
+    public bool ResizeWindowToVideo { get; init; }
+
+    public double VideoWindowScale { get; init; } = 1;
+
     // Sound
 
     public bool EqualizerEnabled { get; init; }
@@ -879,6 +883,8 @@ public sealed record PlayerSettings
             MediumJumpSeconds = Math.Clamp(MediumJumpSeconds, 1, 3600),
             LongJumpSeconds = Math.Clamp(LongJumpSeconds, 1, 3600),
             Window = Window is { Width: >= 200, Height: >= 150 } ? Window : null,
+            VideoWindowScale = double.IsFinite(VideoWindowScale)
+                ? Math.Clamp(VideoWindowScale, 0.25, 2) : 1,
             AlwaysOnTop = Enum.IsDefined(AlwaysOnTop) ? AlwaysOnTop : AlwaysOnTop.Never,
             ControlsHideSeconds = double.IsFinite(ControlsHideSeconds) ? Math.Clamp(ControlsHideSeconds, 0.5, 10) : 1.5,
             TitleSeconds = double.IsFinite(TitleSeconds) ? Math.Clamp(TitleSeconds, 0, 30) : 3,

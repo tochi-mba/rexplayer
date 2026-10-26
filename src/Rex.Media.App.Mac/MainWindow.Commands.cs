@@ -99,6 +99,15 @@ public sealed partial class MainWindow
             case CommandCatalog.ScaleDouble:
                 SizeWindowToVideo(2);
                 return true;
+            case CommandCatalog.ToggleAutoScale:
+                ToggleAutomaticWindowSize();
+                return true;
+            case CommandCatalog.IncreaseAutoScale:
+                ChangeAutomaticWindowScale(+1);
+                return true;
+            case CommandCatalog.DecreaseAutoScale:
+                ChangeAutomaticWindowScale(-1);
+                return true;
             case CommandCatalog.MinimalInterface:
                 _minimalInterface = !_minimalInterface;
                 if (_chrome is not null)

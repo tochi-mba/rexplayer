@@ -1966,7 +1966,7 @@
       "oracles": "UIA FRM",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {

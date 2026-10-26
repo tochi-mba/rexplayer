@@ -1,5 +1,6 @@
 using Rex.Media.AppCore.Automation;
 using Rex.Media.Primitives;
+using Rex.Media.Settings;
 
 namespace Rex.Media.App.Mac;
 
@@ -26,6 +27,7 @@ public sealed partial class MainWindow
     private double _videoPanX;
     private double _videoPanY;
     private double _customAspect = 16.0 / 9;
+    private string? _autoSizedLocation;
 
     private void CycleVideoAspect()
     {
@@ -150,5 +152,56 @@ public sealed partial class MainWindow
             Math.Max((double)visible.Y, (double)(visible.Y + visible.Height) - height));
         _window.SetFrame(new CGRect((nfloat)x, (nfloat)y, (nfloat)width, (nfloat)height), true);
         _picture?.Presenter?.Redraw();
+    }
+
+    private void ApplyAutomaticWindowSize()
+    {
+        var location = _player.Item?.Location;
+        if (!_settings.ResizeWindowToVideo || location is null || location == _autoSizedLocation ||
+            _player.Info?.FirstTrack(MediaKind.Video)?.Video is null) return;
+        _autoSizedLocation = location;
+        SizeWindowToVideo(_settings.VideoWindowScale);
+    }
+
+    private void ToggleAutomaticWindowSize()
+    {
+        SaveAutomaticWindowSize(!_settings.ResizeWindowToVideo, _settings.VideoWindowScale);
+    }
+
+    private void ChangeAutomaticWindowScale(int direction)
+    {
+        double[] scales = [0.25, 0.5, 1, 2];
+        var index = Array.FindIndex(scales, scale => scale >= _settings.VideoWindowScale - 0.001);
+        index = Math.Clamp((index < 0 ? 2 : index) + direction, 0, scales.Length - 1);
+        SaveAutomaticWindowSize(_settings.ResizeWindowToVideo, scales[index]);
+        SizeWindowToVideo(scales[index]);
+    }
+
+    private void SaveAutomaticWindowSize(bool enabled, double scale)
+    {
+        _settings = (_settings with { ResizeWindowToVideo = enabled, VideoWindowScale = scale }).Normalize();
+        _player.Settings = _settings;
+        SettingsStore.Save(_roots.SettingsPath, _settings);
+        _autoSizedLocation = null;
+        ApplyAutomaticWindowSize();
+        Say($"Automatic window sizing {(enabled ? "on" : "off")} at {scale:0.##}×");
+    }
+
+    private AutomationReply MacWindowSizingSmokeAction(string? action)
+    {
+        switch (action)
+        {
+            case "configure": SaveAutomaticWindowSize(true, 0.5); break;
+            case "larger": ChangeAutomaticWindowScale(+1); break;
+            case "smaller": ChangeAutomaticWindowScale(-1); break;
+            case "status": break;
+            default: return AutomationReply.Failed("Unknown window-sizing action.");
+        }
+
+        return new AutomationReply
+        {
+            Ok = true,
+            Text = $"automatic={_settings.ResizeWindowToVideo};scale={_settings.VideoWindowScale:0.00}",
+        };
     }
 }
