@@ -16,6 +16,7 @@ public sealed partial class MainWindow
     private NSStackView? _queueLayout;
     private NSButton? _queueShuffle;
     private NSButton? _queueRepeat;
+    private NSButton? _queueRelink;
     private NSButton? _previousQueuePage;
     private NSButton? _nextQueuePage;
     private const int QueuePageSize = 75;
@@ -48,6 +49,8 @@ public sealed partial class MainWindow
             _queueShuffle = NSButton.CreateButton("Shuffle: Off", () => Run(Rex.Media.AppCore.Commands.CommandCatalog.ToggleShuffle));
             _queueRepeat = NSButton.CreateButton("Repeat: Off", () => Run(Rex.Media.AppCore.Commands.CommandCatalog.CycleRepeat));
             var relink = NSButton.CreateButton("Find missing in folder…", RelinkMissingQueueFiles);
+            _queueRelink = relink;
+            ((NSView)relink).AccessibilityLabel = "Find every missing queue file in a folder";
             var open = NSButton.CreateButton("Add files…", () =>
             {
                 var panel = NSOpenPanel.OpenPanel;
@@ -335,6 +338,28 @@ public sealed partial class MainWindow
                 && _queueShuffle is not null && _queueRepeat is not null;
         }
 
+        if (action == "verify-missing")
+        {
+            var missing = new PlaylistItem(Path.Combine(Path.GetTempPath(),
+                "rexplayer-missing-" + Guid.NewGuid().ToString("N") + ".wav"))
+            {
+                Title = "Moved recording",
+            };
+            _player.Playlist.Add([missing]);
+            RefreshQueue();
+            var play = QueueSmokeButtons().FirstOrDefault(button => button.Title == "Play: Moved recording");
+            var locate = QueueSmokeButtons().FirstOrDefault(button => button.Title == "Locate…");
+            var proved = play is { Enabled: false }
+                && play.ToolTip?.StartsWith("Missing file: ", StringComparison.Ordinal) == true
+                && locate is { Enabled: true }
+                && _queueRelink is { Enabled: true }
+                && _queueRelink.AccessibilityLabel == "Find every missing queue file in a folder";
+            var index = _player.Playlist.IndexOf(missing);
+            if (index >= 0) _player.Playlist.RemoveAt(index);
+            RefreshQueue();
+            return proved;
+        }
+
         if (action == "fill-long")
         {
             _player.Playlist.Add(Enumerable.Range(1, 90).Select(index =>
@@ -470,6 +495,17 @@ public sealed partial class MainWindow
             return null;
         }
 
+        var matches = QueueSmokeButtons().Where(button => button.Enabled && button.Title == label);
+        return last ? matches.LastOrDefault() : matches.FirstOrDefault();
+    }
+
+    private IEnumerable<NSButton> QueueSmokeButtons()
+    {
+        if (_queueScroll?.DocumentView is not { } root)
+        {
+            return [];
+        }
+
         static IEnumerable<NSButton> Buttons(NSView view)
         {
             if (view is NSButton button)
@@ -486,8 +522,7 @@ public sealed partial class MainWindow
             }
         }
 
-        var matches = Buttons(root).Where(button => button.Enabled && button.Title == label);
-        return last ? matches.LastOrDefault() : matches.FirstOrDefault();
+        return Buttons(root);
     }
 
     private void CloseQueue()

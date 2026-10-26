@@ -3253,7 +3253,7 @@
       "oracles": "UIA STORE",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
