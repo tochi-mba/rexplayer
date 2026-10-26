@@ -64,6 +64,7 @@ public sealed class MacAppSmokeTests
     [Capability("SUB-19", CapabilityPlatform.MacOS)]
     [Capability("SUB-20", CapabilityPlatform.MacOS)]
     [Capability("SUB-21", CapabilityPlatform.MacOS)]
+    [Capability("AU-13", CapabilityPlatform.MacOS)]
     [Capability("UI-16", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
@@ -424,6 +425,12 @@ public sealed class MacAppSmokeTests
                     savedSpeech.Transcription.WhatPlays, savedSpeech.Transcription.Paused));
             var resumedSpeech = await Ask(pipe, new AutomationRequest { Command = "mac-speech", Id = "resume" });
             Assert.Contains("paused=False", resumedSpeech?.Text, StringComparison.Ordinal);
+            var loudness = await Ask(pipe, new AutomationRequest { Command = "mac-loudness", Id = "configure" });
+            Assert.Equal("mode=Album;preamp=3.5;fallback=-7.0;protect=True", loudness?.Text);
+            var savedLoudness = SettingsStore.Load(startupRoots.SettingsPath);
+            Assert.Equal((LoudnessChoice.Album, 3.5, -7.0, true),
+                (savedLoudness.Loudness, savedLoudness.LoudnessPreamp,
+                    savedLoudness.LoudnessUntaggedGain, savedLoudness.LoudnessPreventClipping));
             var minimal = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.MinimalInterface });
             Assert.True(minimal?.Ok == true, "The Mac minimal-interface command was not handled.");
             var hiddenChrome = await Ask(pipe, new AutomationRequest { Command = "mac-window" });
