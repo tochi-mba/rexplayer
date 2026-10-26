@@ -1,4 +1,6 @@
 using Rex.Media.AppCore.Player;
+using Rex.Media.AppCore.Automation;
+using Rex.Media.Settings;
 
 namespace Rex.Media.App.Mac;
 
@@ -119,5 +121,30 @@ public sealed partial class MainWindow
         {
             _log.Warning(LogSource, "Could not remove the crash checkpoint: " + ex.Message);
         }
+    }
+
+    private AutomationReply MacCrashRecoverySmokeAction(string? action)
+    {
+        if (action == "enable-dumps")
+        {
+            _settings = _settings with { LocalCrashDumps = true };
+            _player.Settings = _settings;
+            SettingsStore.Save(_roots.SettingsPath, _settings);
+            AppHost.ConfigureCrashDumps(true);
+            WriteCrashCheckpoint();
+        }
+        else if (action != "status")
+        {
+            return AutomationReply.Failed("Unknown crash-recovery action.");
+        }
+
+        var dumpName = Environment.GetEnvironmentVariable("DOTNET_DbgMiniDumpName");
+        return new AutomationReply
+        {
+            Ok = true,
+            Text = $"handlers=True;resumeMarker={File.Exists(_roots.ResumePath)};" +
+                $"dumps={_settings.LocalCrashDumps};runtime={Environment.GetEnvironmentVariable("DOTNET_DbgEnableMiniDump")};" +
+                $"local={dumpName?.StartsWith(_roots.Root, StringComparison.Ordinal) == true}",
+        };
     }
 }

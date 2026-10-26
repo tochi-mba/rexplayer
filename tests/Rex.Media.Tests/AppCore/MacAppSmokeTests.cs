@@ -69,6 +69,7 @@ public sealed class MacAppSmokeTests
     [Capability("AU-11", CapabilityPlatform.MacOS)]
     [Capability("VID-05", CapabilityPlatform.MacOS)]
     [Capability("VID-04", CapabilityPlatform.MacOS)]
+    [Capability("WIN-14", CapabilityPlatform.MacOS)]
     [Capability("UI-16", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
@@ -419,6 +420,14 @@ public sealed class MacAppSmokeTests
             var savedWindowSize = SettingsStore.Load(startupRoots.SettingsPath);
             Assert.True(savedWindowSize.ResizeWindowToVideo);
             Assert.Equal(1, savedWindowSize.VideoWindowScale);
+            var crashRecovery = await Ask(pipe, new AutomationRequest
+            {
+                Command = "mac-crash-recovery",
+                Id = "enable-dumps",
+            });
+            Assert.Contains("handlers=True;resumeMarker=True;dumps=True;runtime=1;local=True",
+                crashRecovery?.Text, StringComparison.Ordinal);
+            Assert.True(SettingsStore.Load(startupRoots.SettingsPath).LocalCrashDumps);
             var kinetic = await Ask(pipe, new AutomationRequest
             {
                 Command = "mac-kinetic-captions",

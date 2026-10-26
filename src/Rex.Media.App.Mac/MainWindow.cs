@@ -291,6 +291,9 @@ public sealed partial class MainWindow : IDisposable
                 case "mac-window-sizing":
                     answered.SetResult(MacWindowSizingSmokeAction(request.Id));
                     return;
+                case "mac-crash-recovery":
+                    answered.SetResult(MacCrashRecoverySmokeAction(request.Id));
+                    return;
                 case "mac-drop":
                     _player.Drop(request.Paths ?? []);
                     answered.SetResult(new AutomationReply { Ok = true });

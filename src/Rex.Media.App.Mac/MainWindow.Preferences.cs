@@ -26,6 +26,7 @@ public sealed partial class MainWindow
     private NSSlider? _preferencesTitleSeconds;
     private NSTextField? _preferencesTitleSecondsValue;
     private NSPopUpButton? _preferencesOsdPosition;
+    private NSButton? _preferencesCrashDumps;
 
     /// <summary>Shows the native Mac surface for the shared settings used by this shell.</summary>
     private void ShowPreferences()
@@ -58,6 +59,8 @@ public sealed partial class MainWindow
         _preferencesRestoreQueue = CheckBox("Restore the queue when rexplayer starts");
         _preferencesSingleInstance = CheckBox("Use one rexplayer window");
         _preferencesEnqueue = CheckBox("Files handed over by another launch join the queue");
+        _preferencesCrashDumps = CheckBox("Keep local diagnostic dumps after a crash");
+        _preferencesCrashDumps.ToolTip = "Saved only on this Mac in rexplayer's data folder; never uploaded.";
         _preferencesHardwareDecoding = CheckBox(
             "Allow VideoToolbox hardware decoding (applies to the next opened video)");
         _preferencesHardwareDecoding.ToolTip =
@@ -131,6 +134,7 @@ public sealed partial class MainWindow
             PreferencesHeading("Opening media"),
             _preferencesSingleInstance,
             _preferencesEnqueue,
+            _preferencesCrashDumps,
             actions,
         ]);
         stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
@@ -184,6 +188,7 @@ public sealed partial class MainWindow
         _preferencesRestoreQueue!.State = State(_settings.RestoreQueue);
         _preferencesSingleInstance!.State = State(_settings.SingleInstance);
         _preferencesEnqueue!.State = State(_settings.EnqueueFromSecondLaunch);
+        _preferencesCrashDumps!.State = State(_settings.LocalCrashDumps);
         _preferencesHardwareDecoding!.State = State(_settings.HardwareVideoDecoding);
         _preferencesH264Hardware!.State = State(_settings.HardwareH264Decoding);
         _preferencesHevcHardware!.State = State(_settings.HardwareHevcDecoding);
@@ -216,6 +221,7 @@ public sealed partial class MainWindow
             RestoreQueue = IsChecked(_preferencesRestoreQueue),
             SingleInstance = IsChecked(_preferencesSingleInstance),
             EnqueueFromSecondLaunch = IsChecked(_preferencesEnqueue),
+            LocalCrashDumps = IsChecked(_preferencesCrashDumps),
             HardwareVideoDecoding = IsChecked(_preferencesHardwareDecoding),
             HardwareH264Decoding = IsChecked(_preferencesH264Hardware),
             HardwareHevcDecoding = IsChecked(_preferencesHevcHardware),
@@ -231,6 +237,7 @@ public sealed partial class MainWindow
             TitleSeconds = _preferencesTitleSeconds!.DoubleValue,
         }).Normalize();
         _player.Settings = _settings;
+        AppHost.ConfigureCrashDumps(_settings.LocalCrashDumps);
         ApplyMacTheme();
         ApplyMacMessagePosition();
         _volume.MaxValue = _settings.MaxVolumePercent / 100.0;
