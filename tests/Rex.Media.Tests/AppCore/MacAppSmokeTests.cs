@@ -40,6 +40,7 @@ public sealed class MacAppSmokeTests
     [Capability("LIB-04", CapabilityPlatform.MacOS)]
     [Capability("LIB-08", CapabilityPlatform.MacOS)]
     [Capability("UI-15", CapabilityPlatform.MacOS)]
+    [Capability("UI-14", CapabilityPlatform.MacOS)]
     [Capability("META-09", CapabilityPlatform.MacOS)]
     [Capability("AU-19", CapabilityPlatform.MacOS)]
     [Capability("UI-11", CapabilityPlatform.MacOS)]
@@ -106,6 +107,17 @@ public sealed class MacAppSmokeTests
             Assert.DoesNotContain("seen=0.0.0", dismissedWhatsNew?.Text, StringComparison.Ordinal);
             var notShownTwice = await Ask(pipe, new AutomationRequest { Command = "mac-startup-guidance", Id = "check-again" });
             Assert.Contains("whats=False", notShownTwice?.Text, StringComparison.Ordinal);
+            var firstRun = await Ask(pipe, new AutomationRequest { Command = "mac-startup-guidance", Id = "show-first-run" });
+            Assert.Contains("first=True", firstRun?.Text, StringComparison.Ordinal);
+            Assert.Contains("metadataChoice=False", firstRun?.Text, StringComparison.Ordinal);
+            Assert.Contains("updateChoice=True", firstRun?.Text, StringComparison.Ordinal);
+            Assert.Contains("associations=True", firstRun?.Text, StringComparison.Ordinal);
+            await Ask(pipe, new AutomationRequest { Command = "mac-startup-guidance", Id = "enable-metadata" });
+            await Ask(pipe, new AutomationRequest { Command = "mac-startup-guidance", Id = "disable-updates" });
+            var firstRunDone = await Ask(pipe, new AutomationRequest { Command = "mac-startup-guidance", Id = "finish-first-run" });
+            Assert.Contains("first=False", firstRunDone?.Text, StringComparison.Ordinal);
+            Assert.Contains("metadata=True", firstRunDone?.Text, StringComparison.Ordinal);
+            Assert.Contains("updates=Off", firstRunDone?.Text, StringComparison.Ordinal);
             var handedOverVideo = RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4");
             var secondStart = new ProcessStartInfo(Path.Combine(bundle!, "Contents", "MacOS", "rexplayer"))
             {
