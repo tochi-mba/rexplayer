@@ -1,4 +1,5 @@
 using System.Globalization;
+using Rex.Media.AppCore.Automation;
 using Rex.Media.Settings;
 
 namespace Rex.Media.App.Mac;
@@ -6,6 +7,47 @@ namespace Rex.Media.App.Mac;
 /// <summary>Editable Mac subtitle appearance, shared through PlayerSettings with other shells.</summary>
 public sealed partial class MainWindow
 {
+    private AutomationReply SubtitleStyleSmokeAction(string? action)
+    {
+        ShowSubtitleStyle();
+        if (action == "configure")
+        {
+            _styleFont!.StringValue = "Helvetica Neue";
+            _styleColour!.StringValue = "F0E0D0";
+            _styleSize!.DoubleValue = 150;
+            _styleOpacity!.DoubleValue = 80;
+            _styleMargin!.DoubleValue = 12;
+            _styleBold!.State = NSCellStateValue.On;
+            _styleInBars!.State = NSCellStateValue.On;
+            _styleForceBottom!.State = NSCellStateValue.Off;
+            _styleOutline!.SelectItem((int)OutlineChoice.Thick);
+            _styleOutlineColour!.StringValue = "102030";
+            _styleShadowColour!.StringValue = "203040";
+            _styleShadowOpacity!.DoubleValue = 55;
+            _styleShadowOffset!.DoubleValue = 4;
+            _styleBoxColour!.StringValue = "304050";
+            _styleBoxOpacity!.DoubleValue = 35;
+            ApplySubtitleStyle();
+        }
+        else if (action is not null and not "status")
+        {
+            return AutomationReply.Failed("Unknown Mac subtitle-style action: " + action);
+        }
+
+        return new AutomationReply
+        {
+            Ok = true,
+            Text = $"font={_settings.SubtitleFont};size={_settings.SubtitleSize};" +
+                $"colour={_settings.SubtitleColor:X6};opacity={_settings.SubtitleOpacity};" +
+                $"bold={_settings.SubtitleBold};outline={_settings.SubtitleOutline};" +
+                $"outlineColour={_settings.SubtitleOutlineColor:X6};" +
+                $"shadow={_settings.SubtitleShadowColor:X6}/{_settings.SubtitleShadowOpacity}/{_settings.SubtitleShadowOffset};" +
+                $"box={_settings.SubtitleBoxColor:X6}/{_settings.SubtitleBoxOpacity};" +
+                $"margin={_settings.SubtitleMargin};bars={_settings.SubtitlesInBars};" +
+                $"forceBottom={_settings.SubtitlesAtBottom}",
+        };
+    }
+
     private NSWindow? _subtitleStyleWindow;
     private NSTextField? _styleFont;
     private NSTextField? _styleColour;

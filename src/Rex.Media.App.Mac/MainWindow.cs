@@ -274,6 +274,9 @@ public sealed partial class MainWindow : IDisposable
                 case "mac-subtitles":
                     answered.SetResult(SubtitleSmokeAction(request.Id));
                     return;
+                case "mac-subtitle-style":
+                    answered.SetResult(SubtitleStyleSmokeAction(request.Id));
+                    return;
                 case "mac-audio":
                     answered.SetResult(new AutomationReply
                     {

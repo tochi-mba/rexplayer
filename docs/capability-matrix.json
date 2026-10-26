@@ -2330,7 +2330,7 @@
       "oracles": "PIX",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
@@ -2356,7 +2356,7 @@
       "oracles": "PIX",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
