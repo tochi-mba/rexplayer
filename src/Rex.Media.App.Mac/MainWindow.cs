@@ -270,6 +270,9 @@ public sealed partial class MainWindow : IDisposable
                 case "mac-video-geometry":
                     answered.SetResult(VideoGeometrySmokeAction(request.Id));
                     return;
+                case "mac-kinetic-captions":
+                    answered.SetResult(MacKineticSmokeAction(request.Id));
+                    return;
                 case "mac-drop":
                     _player.Drop(request.Paths ?? []);
                     answered.SetResult(new AutomationReply { Ok = true });
