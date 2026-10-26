@@ -551,6 +551,10 @@ public sealed record PlayerSettings
     /// <summary>Extra gain on top of the loudness tags, in decibels from -20 to +20.</summary>
     public double LoudnessPreamp { get; init; }
 
+    public double LoudnessUntaggedGain { get; init; }
+
+    public bool LoudnessPreventClipping { get; init; } = true;
+
     public VisualizerChoice Visualizer { get; init; } = VisualizerChoice.Spectrum;
 
     /// <summary>The visualisation used for recognised audiobooks, independently of other audio.</summary>
@@ -893,6 +897,7 @@ public sealed record PlayerSettings
             Stereo = Enum.IsDefined(Stereo) ? Stereo : StereoChoice.Stereo,
             Loudness = Enum.IsDefined(Loudness) ? Loudness : LoudnessChoice.Off,
             LoudnessPreamp = Decibels(LoudnessPreamp),
+            LoudnessUntaggedGain = Decibels(LoudnessUntaggedGain),
             SleepAction = Enum.IsDefined(SleepAction) ? SleepAction : SleepChoice.Pause,
             Visualizer = Enum.IsDefined(Visualizer) ? Visualizer : VisualizerChoice.Spectrum,
             AudiobookVisualizer = Enum.IsDefined(AudiobookVisualizer) ? AudiobookVisualizer : VisualizerChoice.Spectrum,

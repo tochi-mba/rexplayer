@@ -139,7 +139,8 @@ public sealed partial class PlayerController : IDisposable
     private static SoundSettings SoundFor(PlayerSettings settings) => new(
         new EqualizerSettings(settings.EqualizerEnabled, settings.EqualizerPreamp, settings.EqualizerGains),
         (StereoMode)settings.Stereo,
-        new ReplayGainSettings((ReplayGainMode)settings.Loudness, settings.LoudnessPreamp));
+        new ReplayGainSettings((ReplayGainMode)settings.Loudness, settings.LoudnessPreamp,
+            settings.LoudnessUntaggedGain, settings.LoudnessPreventClipping));
 
     /// <summary>Idle before anything plays and after Stop; otherwise the current session's state.</summary>
     public SessionState State { get; private set; } = SessionState.Idle;

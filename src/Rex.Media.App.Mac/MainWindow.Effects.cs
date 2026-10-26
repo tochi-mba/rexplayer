@@ -1,5 +1,6 @@
 using System.Globalization;
 using Rex.Media.Audio;
+using Rex.Media.AppCore.Automation;
 using Rex.Media.Settings;
 
 namespace Rex.Media.App.Mac;
@@ -15,6 +16,8 @@ public sealed partial class MainWindow
     private NSPopUpButton? _effectsLoudness;
     private NSSlider? _effectsPreamp;
     private NSSlider? _effectsLoudnessPreamp;
+    private NSSlider? _effectsLoudnessUntagged;
+    private NSButton? _effectsLoudnessPeak;
     private readonly List<NSSlider> _effectsBands = [];
     private bool _effectsLoading;
 
@@ -48,6 +51,8 @@ public sealed partial class MainWindow
             _effectsPreset.Activated += (_, _) => ApplyEffectPreset();
             _effectsPreamp = EffectSlider(0);
             _effectsLoudnessPreamp = EffectSlider(0);
+            _effectsLoudnessUntagged = EffectSlider(0);
+            _effectsLoudnessPeak = NSButton.CreateCheckbox("Prevent clipping at tagged peak", ApplyEffects);
             var rows = new List<NSView>
             {
                 heading, hint, _effectsEnabled,
@@ -69,6 +74,8 @@ public sealed partial class MainWindow
             rows.Add(EffectsHeading("ReplayGain / R128"));
             rows.Add(EffectChoiceRow("Loudness tags", _effectsLoudness));
             rows.Add(EffectGainRow("Loudness preamp", _effectsLoudnessPreamp));
+            rows.Add(EffectGainRow("Untagged fallback gain", _effectsLoudnessUntagged));
+            rows.Add(_effectsLoudnessPeak);
             var reset = NSButton.CreateButton("Reset equalizer to flat", () =>
             {
                 _effectsLoading = true;
@@ -172,6 +179,8 @@ public sealed partial class MainWindow
         _effectsStereo!.SelectItem((int)_settings.Stereo);
         _effectsLoudness!.SelectItem((int)_settings.Loudness);
         _effectsLoudnessPreamp!.DoubleValue = _settings.LoudnessPreamp;
+        _effectsLoudnessUntagged!.DoubleValue = _settings.LoudnessUntaggedGain;
+        _effectsLoudnessPeak!.State = State(_settings.LoudnessPreventClipping);
         _effectsLoading = false;
     }
 
@@ -219,6 +228,8 @@ public sealed partial class MainWindow
             Stereo = (StereoChoice)(int)_effectsStereo!.IndexOfSelectedItem,
             Loudness = (LoudnessChoice)(int)_effectsLoudness!.IndexOfSelectedItem,
             LoudnessPreamp = _effectsLoudnessPreamp!.DoubleValue,
+            LoudnessUntaggedGain = _effectsLoudnessUntagged!.DoubleValue,
+            LoudnessPreventClipping = IsChecked(_effectsLoudnessPeak),
         }).Normalize();
         _settings = settings;
         _player.Settings = settings;
@@ -231,6 +242,31 @@ public sealed partial class MainWindow
             _log.Warning(LogSource, "Sound settings could not be saved: " + ex.Message);
             Say("Sound settings could not be saved.");
         }
+    }
+
+    private AutomationReply MacLoudnessSmokeAction(string? action)
+    {
+        if (action == "configure")
+        {
+            ShowEffects();
+            _effectsLoudness!.SelectItem((int)LoudnessChoice.Album);
+            _effectsLoudnessPreamp!.DoubleValue = 3.5;
+            _effectsLoudnessUntagged!.DoubleValue = -7.0;
+            _effectsLoudnessPeak!.State = NSCellStateValue.On;
+            ApplyEffects();
+        }
+        else if (action != "status")
+        {
+            return new AutomationReply { Ok = false, Error = "Unknown loudness action." };
+        }
+
+        var replay = _player.Sound.ReplayGain;
+        return new AutomationReply
+        {
+            Ok = true,
+            Text = $"mode={replay.Mode};preamp={replay.Preamp:0.0};fallback={replay.UntaggedGain:0.0};" +
+                $"protect={replay.PreventClipping}",
+        };
     }
 
     private void DisposeEffects()
