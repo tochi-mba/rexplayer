@@ -134,6 +134,12 @@ public sealed partial class MainWindow
             case CommandCatalog.Effects:
                 ShowEffects();
                 return true;
+            case CommandCatalog.ToggleHeadphoneCrossfeed:
+                ToggleMacStereoMode(Rex.Media.Settings.StereoChoice.Headphones);
+                return true;
+            case CommandCatalog.ToggleMatrixSurround:
+                ToggleMacStereoMode(Rex.Media.Settings.StereoChoice.MatrixSurround);
+                return true;
             case CommandCatalog.Snapshot:
                 SaveVideoSnapshot();
                 return true;

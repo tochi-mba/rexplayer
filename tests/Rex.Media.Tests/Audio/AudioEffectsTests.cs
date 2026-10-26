@@ -127,6 +127,8 @@ public sealed class AudioEffectsTests
     [InlineData(StereoMode.Left, 0.2f, 0.2f)]
     [InlineData(StereoMode.Right, 0.6f, 0.6f)]
     [InlineData(StereoMode.Reverse, 0.6f, 0.2f)]
+    [InlineData(StereoMode.Headphones, 0.26f, 0.54f)]
+    [InlineData(StereoMode.MatrixSurround, 0.0f, 0.8f)]
     [Capability("AU-11")]
     public void StereoModesMixTheFrontChannels(StereoMode mode, float left, float right)
     {

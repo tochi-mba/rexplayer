@@ -82,7 +82,8 @@ public sealed partial class MainWindow
                 rows.Add(EffectGainRow(MacBandNames[i] + " Hz", band));
             }
 
-            _effectsStereo = EffectChoices(["Stereo", "Mono", "Left only", "Right only", "Reversed"]);
+            _effectsStereo = EffectChoices(["Stereo", "Mono", "Left only", "Right only", "Reversed",
+                "Headphone cross-feed", "Matrix-surround decode"]);
             _effectsLoudness = EffectChoices(["Off", "Per track", "Per album"]);
             rows.Add(EffectsHeading("Channel mixing"));
             rows.Add(EffectChoiceRow("Stereo mode", _effectsStereo));
@@ -345,6 +346,38 @@ public sealed partial class MainWindow
                 $"double={equalizer.DoublePass};bands={string.Join(',', equalizer.Gains)};" +
                 $"users={_settings.EqualizerUserPresets.Count}",
         };
+    }
+
+    private void ToggleMacStereoMode(StereoChoice mode)
+    {
+        var chosen = _settings.Stereo == mode ? StereoChoice.Stereo : mode;
+        _settings = (_settings with { Stereo = chosen }).Normalize();
+        _player.Settings = _settings;
+        SettingsStore.Save(_roots.SettingsPath, _settings);
+        if (_effectsWindow is not null) LoadEffects();
+        Say(chosen switch
+        {
+            StereoChoice.Headphones => "Headphone cross-feed on",
+            StereoChoice.MatrixSurround => "Matrix-surround decode on",
+            _ => "Stereo output",
+        });
+    }
+
+    private AutomationReply MacStereoSmokeAction(string? action)
+    {
+        switch (action)
+        {
+            case "headphones": ToggleMacStereoMode(StereoChoice.Headphones); break;
+            case "matrix": ToggleMacStereoMode(StereoChoice.MatrixSurround); break;
+            case "stereo":
+                _settings = _settings with { Stereo = StereoChoice.Stereo };
+                _player.Settings = _settings;
+                break;
+            case "status": break;
+            default: return new AutomationReply { Ok = false, Error = "Unknown stereo action." };
+        }
+
+        return new AutomationReply { Ok = true, Text = $"mode={_player.Sound.StereoMode}" };
     }
 
     private void DisposeEffects()
