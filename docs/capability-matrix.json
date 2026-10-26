@@ -3175,7 +3175,7 @@
       "oracles": "FILE STORE",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
