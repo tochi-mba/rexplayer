@@ -32,6 +32,14 @@ public enum ThemeChoice
     Dark,
 }
 
+/// <summary>Where short playback messages are placed over the picture.</summary>
+public enum OnScreenMessagePosition
+{
+    Top,
+    Centre,
+    Bottom,
+}
+
 /// <summary>How often rexplayer looks for a new version (only ever with the user's consent, §6.15).</summary>
 public enum UpdateCadence
 {
@@ -740,6 +748,11 @@ public sealed record PlayerSettings
     /// <summary>Short messages over the picture (volume, position, speed) when something changes.</summary>
     public bool OnScreenMessages { get; init; } = true;
 
+    /// <summary>Seconds a short playback message remains over the picture; 0 disables messages.</summary>
+    public double OnScreenMessageSeconds { get; init; } = 3;
+
+    public OnScreenMessagePosition OnScreenMessagePosition { get; init; }
+
     /// <summary>Seconds the title shows over the picture when an item starts; 0 turns it off.</summary>
     public double TitleSeconds { get; init; } = 3;
 
@@ -858,6 +871,10 @@ public sealed record PlayerSettings
             AlwaysOnTop = Enum.IsDefined(AlwaysOnTop) ? AlwaysOnTop : AlwaysOnTop.Never,
             ControlsHideSeconds = double.IsFinite(ControlsHideSeconds) ? Math.Clamp(ControlsHideSeconds, 0.5, 10) : 1.5,
             TitleSeconds = double.IsFinite(TitleSeconds) ? Math.Clamp(TitleSeconds, 0, 30) : 3,
+            OnScreenMessageSeconds = double.IsFinite(OnScreenMessageSeconds)
+                ? Math.Clamp(OnScreenMessageSeconds, 0, 30) : 3,
+            OnScreenMessagePosition = Enum.IsDefined(OnScreenMessagePosition)
+                ? OnScreenMessagePosition : OnScreenMessagePosition.Top,
             Theme = Enum.IsDefined(Theme) ? Theme : ThemeChoice.System,
             // Before schema 3 the default was weekly; a user who never changed it gets the new daily default.
             UpdateChecks = !Enum.IsDefined(UpdateChecks) ? UpdateCadence.Daily

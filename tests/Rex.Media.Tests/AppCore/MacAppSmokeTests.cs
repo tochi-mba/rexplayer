@@ -58,6 +58,8 @@ public sealed class MacAppSmokeTests
     [Capability("VID-27", CapabilityPlatform.MacOS)]
     [Capability("VID-07", CapabilityPlatform.MacOS)]
     [Capability("OSD-11", CapabilityPlatform.MacOS)]
+    [Capability("OSD-07", CapabilityPlatform.MacOS)]
+    [Capability("VID-26", CapabilityPlatform.MacOS)]
     [Capability("UI-16", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
@@ -391,6 +393,16 @@ public sealed class MacAppSmokeTests
                 CaptionLayoutChoice.Stairs, CaptionColors.Ocean, 0x12A4E0, true),
                 (savedKinetic.On, savedKinetic.Preset, savedKinetic.Energy, savedKinetic.Words,
                     savedKinetic.Layout, savedKinetic.Colors, savedKinetic.Accent, savedKinetic.Glyphs));
+            var osd = await Ask(pipe, new AutomationRequest { Command = "mac-osd", Id = "configure" });
+            Assert.Equal("enabled=True;duration=4.5;position=Bottom;title=6.0;" +
+                "overlay=Playback message proof", osd?.Text);
+            var savedOsd = SettingsStore.Load(startupRoots.SettingsPath);
+            Assert.Equal((true, 4.5, OnScreenMessagePosition.Bottom, 6.0),
+                (savedOsd.OnScreenMessages, savedOsd.OnScreenMessageSeconds,
+                    savedOsd.OnScreenMessagePosition, savedOsd.TitleSeconds));
+            var disabledOsd = await Ask(pipe, new AutomationRequest { Command = "mac-osd", Id = "disable" });
+            Assert.Contains("enabled=False", disabledOsd?.Text, StringComparison.Ordinal);
+            Assert.EndsWith("overlay=", disabledOsd?.Text, StringComparison.Ordinal);
             var minimal = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.MinimalInterface });
             Assert.True(minimal?.Ok == true, "The Mac minimal-interface command was not handled.");
             var hiddenChrome = await Ask(pipe, new AutomationRequest { Command = "mac-window" });
