@@ -67,6 +67,7 @@ public sealed class MacAppSmokeTests
     [Capability("AU-13", CapabilityPlatform.MacOS)]
     [Capability("AU-07", CapabilityPlatform.MacOS)]
     [Capability("AU-11", CapabilityPlatform.MacOS)]
+    [Capability("VID-05", CapabilityPlatform.MacOS)]
     [Capability("UI-16", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
@@ -389,13 +390,19 @@ public sealed class MacAppSmokeTests
                 Command = "mac-video-geometry",
                 Id = "magnify-and-pan",
             });
-            Assert.Equal("zoom=2.00;pan=0.25,-0.50", magnified?.Text);
+            Assert.Contains("zoom=2.00;pan=0.25,-0.50", magnified?.Text, StringComparison.Ordinal);
             var resetGeometry = await Ask(pipe, new AutomationRequest
             {
                 Command = "mac-video-geometry",
                 Id = "reset",
             });
-            Assert.Equal("zoom=1.00;pan=0.00,0.00", resetGeometry?.Text);
+            Assert.Contains("zoom=1.00;pan=0.00,0.00", resetGeometry?.Text, StringComparison.Ordinal);
+            var customAspect = await Ask(pipe, new AutomationRequest
+            {
+                Command = "mac-video-geometry",
+                Id = "custom",
+            });
+            Assert.Contains("aspect=2.333", customAspect?.Text, StringComparison.Ordinal);
             var kinetic = await Ask(pipe, new AutomationRequest
             {
                 Command = "mac-kinetic-captions",

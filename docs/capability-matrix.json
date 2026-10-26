@@ -1979,7 +1979,7 @@
       "oracles": "PIX (geometry)",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {

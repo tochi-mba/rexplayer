@@ -11,6 +11,7 @@ public sealed partial class MainWindow
         ("Source", null), ("16:9", 16.0 / 9), ("4:3", 4.0 / 3),
         ("1:1", 1), ("16:10", 16.0 / 10), ("2.21:1", 2.21),
         ("2.35:1", 2.35), ("2.39:1", 2.39), ("5:4", 5.0 / 4),
+        ("Custom", null),
     ];
     private static readonly (string Name, double? Value)[] MacCropRatios =
     [
@@ -24,6 +25,7 @@ public sealed partial class MainWindow
     private double _videoZoom = 1;
     private double _videoPanX;
     private double _videoPanY;
+    private double _customAspect = 16.0 / 9;
 
     private void CycleVideoAspect()
     {
@@ -66,8 +68,37 @@ public sealed partial class MainWindow
     }
 
     private void ApplyVideoGeometry() => _picture?.Presenter?.SetViewGeometry(
-        MacAspectRatios[_aspectIndex].Value, MacCropRatios[_cropIndex].Value,
+        _aspectIndex == MacAspectRatios.Length - 1 ? _customAspect : MacAspectRatios[_aspectIndex].Value,
+        MacCropRatios[_cropIndex].Value,
         _videoZoom, _videoPanX, _videoPanY);
+
+    private void ShowCustomAspectRatio()
+    {
+        var across = new NSTextField(new CGRect(0, 28, 100, 24)) { StringValue = "16" };
+        var down = new NSTextField(new CGRect(120, 28, 100, 24)) { StringValue = "9" };
+        var accessory = new NSView(new CGRect(0, 0, 230, 58));
+        accessory.AddSubview(across);
+        accessory.AddSubview(down);
+        var alert = new NSAlert { MessageText = "Custom picture aspect", InformativeText = "Enter width and height." };
+        alert.AddButton("Apply");
+        alert.AddButton("Cancel");
+        alert.AccessoryView = accessory;
+        if (alert.RunModal() == 1000 && double.TryParse(across.StringValue,
+            System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var width) &&
+            double.TryParse(down.StringValue, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var height) && width > 0 && height > 0)
+        {
+            SetCustomAspectRatio(width, height);
+        }
+    }
+
+    private void SetCustomAspectRatio(double width, double height)
+    {
+        _customAspect = Math.Clamp(width / height, 0.1, 10);
+        _aspectIndex = MacAspectRatios.Length - 1;
+        ApplyVideoGeometry();
+        Say($"Aspect ratio: {width:0.##}:{height:0.##}");
+    }
 
     private AutomationReply VideoGeometrySmokeAction(string? action)
     {
@@ -82,6 +113,9 @@ public sealed partial class MainWindow
                 break;
             case "status":
                 break;
+            case "custom":
+                SetCustomAspectRatio(21, 9);
+                break;
             default:
                 return new AutomationReply { Ok = false, Error = "Unknown video geometry action." };
         }
@@ -89,7 +123,8 @@ public sealed partial class MainWindow
         return new AutomationReply
         {
             Ok = true,
-            Text = $"zoom={_videoZoom:0.00};pan={_videoPanX:0.00},{_videoPanY:0.00}",
+            Text = $"zoom={_videoZoom:0.00};pan={_videoPanX:0.00},{_videoPanY:0.00};" +
+                $"aspect={(_aspectIndex == MacAspectRatios.Length - 1 ? _customAspect : MacAspectRatios[_aspectIndex].Value):0.000}",
         };
     }
 

@@ -60,6 +60,9 @@ public sealed partial class MainWindow
             case CommandCatalog.CycleAspectRatio:
                 CycleVideoAspect();
                 return true;
+            case CommandCatalog.CustomAspectRatio:
+                ShowCustomAspectRatio();
+                return true;
             case CommandCatalog.CycleCrop:
                 CycleVideoCrop();
                 return true;
