@@ -1,6 +1,7 @@
 using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Platform;
 using Rex.Media.Diagnostics;
+using Rex.Media.Settings;
 
 namespace Rex.Media.App.Mac;
 
@@ -25,6 +26,7 @@ public sealed class AppHost : NSApplicationDelegate
 
     public override void DidFinishLaunching(NSNotification notification)
     {
+        ConfigureCrashDumps(SettingsStore.Load(Roots.SettingsPath).LocalCrashDumps);
         Log.Info("app", $"rexplayer starting on {System.Runtime.InteropServices.RuntimeInformation.OSDescription} ({System.Runtime.InteropServices.RuntimeInformation.OSArchitecture}), .NET {Environment.Version}, data in {Roots.Root}.");
         AppDomain.CurrentDomain.UnhandledException += (_, e) => Log.Critical("app", e.ExceptionObject is Exception ex ? ex.ToString() : "An unknown failure.");
         TaskScheduler.UnobservedTaskException += (_, e) =>
@@ -45,6 +47,25 @@ public sealed class AppHost : NSApplicationDelegate
         catch (IOException ex)
         {
             Log.Info("app", "Another player answers the automation pipe: " + ex.Message);
+        }
+    }
+
+    internal static void ConfigureCrashDumps(bool enabled)
+    {
+        if (enabled)
+        {
+            var folder = Path.Combine(Roots.Root, "Crash Dumps");
+            Directory.CreateDirectory(folder);
+            Environment.SetEnvironmentVariable("DOTNET_DbgEnableMiniDump", "1");
+            Environment.SetEnvironmentVariable("DOTNET_DbgMiniDumpType", "2");
+            Environment.SetEnvironmentVariable("DOTNET_DbgMiniDumpName",
+                Path.Combine(folder, "rexplayer.%p.dmp"));
+        }
+        else
+        {
+            Environment.SetEnvironmentVariable("DOTNET_DbgEnableMiniDump", null);
+            Environment.SetEnvironmentVariable("DOTNET_DbgMiniDumpType", null);
+            Environment.SetEnvironmentVariable("DOTNET_DbgMiniDumpName", null);
         }
     }
 

@@ -773,6 +773,9 @@ public sealed record PlayerSettings
 
     public bool StatsOverlay { get; init; }
 
+    /// <summary>Keep a local runtime dump after a fatal failure; never uploaded.</summary>
+    public bool LocalCrashDumps { get; init; }
+
     public ThemeChoice Theme { get; init; } = ThemeChoice.System;
 
     // Memory
