@@ -52,7 +52,8 @@ public static class MenuBarLayout
         [SubMenuPrefix + "subtitle-size"] = ("Subtitle size", [CommandCatalog.SubtitlesBigger, CommandCatalog.SubtitlesSmaller, CommandCatalog.ResetSubtitleSize]),
         [SubMenuPrefix + "kinetic-captions"] = ("Kinetic caption style", [CommandCatalog.CycleCaptionStyle, CommandCatalog.CycleCaptionWords, CommandCatalog.CycleCaptionLayout, null,
             CommandCatalog.KineticCaptionsLivelier, CommandCatalog.KineticCaptionsCalmer, null, CommandCatalog.KineticCaptionSettings]),
-        [SubMenuPrefix + "window-size"] = ("Window size", [CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble]),
+        [SubMenuPrefix + "window-size"] = ("Window size", [CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble, null,
+            CommandCatalog.ToggleAutoScale, CommandCatalog.IncreaseAutoScale, CommandCatalog.DecreaseAutoScale]),
         [SubMenuPrefix + "library-backup"] = ("Library backup", [CommandCatalog.BackUpLibrary, CommandCatalog.RestoreLibrary]),
     };
 

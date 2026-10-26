@@ -288,6 +288,9 @@ public sealed partial class MainWindow : IDisposable
                 case "mac-stereo":
                     answered.SetResult(MacStereoSmokeAction(request.Id));
                     return;
+                case "mac-window-sizing":
+                    answered.SetResult(MacWindowSizingSmokeAction(request.Id));
+                    return;
                 case "mac-drop":
                     _player.Drop(request.Paths ?? []);
                     answered.SetResult(new AutomationReply { Ok = true });
@@ -732,6 +735,7 @@ public sealed partial class MainWindow : IDisposable
         UpdateSystemNowPlaying();
         UpdatePlaybackActivity();
         UpdateSubtitleOverlays();
+        ApplyAutomaticWindowSize();
         ShowChecks();
         RefreshPlaybackTools();
         RefreshTrackTools();

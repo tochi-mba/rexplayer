@@ -95,6 +95,9 @@ public static class CommandCatalog
     public const string ScaleHalf = "scale-half";
     public const string ScaleOriginal = "scale-original";
     public const string ScaleDouble = "scale-double";
+    public const string ToggleAutoScale = "toggle-auto-scale";
+    public const string IncreaseAutoScale = "increase-auto-scale";
+    public const string DecreaseAutoScale = "decrease-auto-scale";
     public const string ToggleAlwaysOnTop = "toggle-always-on-top";
     public const string Snapshot = "snapshot";
     public const string ToggleStats = "toggle-stats";
@@ -195,6 +198,9 @@ public static class CommandCatalog
         New(ScaleHalf, "Window at half size", Video, "Alt+2"),
         New(ScaleOriginal, "Window at the video's size", Video, "Alt+3"),
         New(ScaleDouble, "Window at double size", Video, "Alt+4"),
+        New(ToggleAutoScale, "Resize window to each video", Video, "O"),
+        New(IncreaseAutoScale, "Increase automatic window scale", Video, "Alt+O"),
+        New(DecreaseAutoScale, "Decrease automatic window scale", Video, "Alt+Shift+O"),
         New(ToggleAlwaysOnTop, "Always on top", Video),
         New(ZoomIn, "Zoom in", Video, "Alt+Plus", "Alt+Equals"),
         New(ZoomOut, "Zoom out", Video, "Alt+Minus"),
