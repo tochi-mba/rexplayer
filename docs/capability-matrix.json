@@ -3201,7 +3201,7 @@
       "oracles": "STORE UIA",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {

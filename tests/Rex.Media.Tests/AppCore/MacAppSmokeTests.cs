@@ -72,6 +72,7 @@ public sealed class MacAppSmokeTests
     [Capability("WIN-14", CapabilityPlatform.MacOS)]
     [Capability("VID-31", CapabilityPlatform.MacOS)]
     [Capability("LIB-09", CapabilityPlatform.MacOS)]
+    [Capability("LIB-05", CapabilityPlatform.MacOS)]
     [Capability("UI-16", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
@@ -242,6 +243,8 @@ public sealed class MacAppSmokeTests
             Assert.Contains("1 item", songs.Title, StringComparison.Ordinal);
             var onlyVideos = await Library(pipe, "videos");
             Assert.Contains("1 item", onlyVideos.Title, StringComparison.Ordinal);
+            var continueWatching = await Library(pipe, "continue");
+            Assert.Contains("1 item", continueWatching.Title, StringComparison.Ordinal);
             await Library(pipe, "capture-videos");
             await Library(pipe, "verify-accessibility");
             await Library(pipe, "minimum");
