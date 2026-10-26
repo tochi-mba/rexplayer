@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Rex.Media.AppCore;
+using Rex.Media.Codecs;
 using Rex.Media.Codecs.Apple;
 using Rex.Media.Containers;
 using Rex.Media.IO;
@@ -87,6 +88,57 @@ public sealed class VtVideoDecoderTests
         var result = (frames.Select(Hash).ToList(), frames.Select(frame => frame.Pts).ToList(), frames[0].Format);
         frames.ForEach(frame => frame.Dispose());
         return result;
+    }
+
+    [Fact]
+    [Capability("VID-01", CapabilityPlatform.MacOS)]
+    public void HardwarePolicyCanDisableEverythingOrOneCodecAndTheDecoderReportsWhatItGot()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "VideoToolbox exists only on a Mac.");
+
+        Assert.Equal(DecoderSource.OsSoftware, DecodeSource(
+            new AppleDecoderFactory(allowHardware: false), "mp4/h264-aac.mp4"));
+        Assert.Equal(DecoderSource.OsSoftware, DecodeSource(
+            new AppleDecoderFactory(allowHardware: true, allowH264Hardware: false),
+            "mp4/h264-aac.mp4"));
+        Assert.Equal(DecoderSource.OsSoftware, DecodeSource(
+            new AppleDecoderFactory(allowHardware: true, allowH264Hardware: true,
+                allowHevcHardware: false), "video/hevc-in-mp4.mp4"));
+
+        // With hardware permitted, VideoToolbox may use it or transparently fall back to its
+        // software decoder. The source and name must report the result rather than the request.
+        using var demuxer = Open("mp4/h264-aac.mp4");
+        var track = demuxer.Info.FirstTrack(MediaKind.Video)!;
+        using var decoder = Factory.CreateVideo(track);
+        using var packet = NextVideoPacket(demuxer, track.Id);
+        var frames = new List<VideoFrame>();
+        decoder.Decode(packet, frames);
+        Assert.Contains(decoder.Source, new[] { DecoderSource.OsHardware, DecoderSource.OsSoftware });
+        Assert.Contains("VideoToolbox", decoder.Name, StringComparison.Ordinal);
+        frames.ForEach(frame => frame.Dispose());
+    }
+
+    private static DecoderSource DecodeSource(AppleDecoderFactory factory, string fixture)
+    {
+        using var demuxer = Open(fixture);
+        var track = demuxer.Info.FirstTrack(MediaKind.Video)!;
+        using var decoder = factory.CreateVideo(track);
+        using var packet = NextVideoPacket(demuxer, track.Id);
+        var frames = new List<VideoFrame>();
+        decoder.Decode(packet, frames);
+        frames.ForEach(frame => frame.Dispose());
+        return decoder.Source;
+    }
+
+    private static Packet NextVideoPacket(IDemuxer demuxer, int trackId)
+    {
+        while (demuxer.ReadPacket(CancellationToken.None) is { } packet)
+        {
+            if (packet.TrackId == trackId) return packet;
+            packet.Dispose();
+        }
+
+        throw new InvalidOperationException("The fixture has no video packet.");
     }
 
     [Theory]
