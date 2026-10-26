@@ -181,7 +181,7 @@ public sealed class MacAppSmokeTests
             var logCleared = await Ask(pipe, new AutomationRequest { Command = "mac-diagnostics", Id = "clear" });
             Assert.True(logCleared?.Ok == true, "The Mac log console did not clear its view.");
             // Bind and restore a Mac menu shortcut through the real native editor.
-            foreach (var action in new[] { "show", "bind", "reset" })
+            foreach (var action in new[] { "show", "bind", "global", "reset" })
             {
                 var shortcut = await Ask(pipe, new AutomationRequest { Command = "mac-shortcuts", Id = action });
                 Assert.True(shortcut?.Ok == true, "Mac shortcut editor failed to " + action + LogTail(root));
