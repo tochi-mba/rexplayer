@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 148 planned, 67 built, 77 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
+macOS: 148 planned, 65 built, 79 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -223,7 +223,7 @@ macOS: 148 planned, 67 built, 77 verified, 1 verified-hardware, 27 post-1.0, 2 n
 | VID-23 | Colour pipeline correctness | BT.601/709/2020 matrices, limited/full range, chroma siting, flagged-vs-guessed colorimetry | M3 | must | verified | verified |
 | VID-24 | Scaling quality | Bilinear / Catmull-Rom / Lanczos3; chroma upsampling quality | M11 | should | planned | planned |
 | VID-25 | Late-frame policy | Drop late frames (default on), skip-to-keyframe when far behind, stats | M3 | must | verified | verified |
-| VID-26 | Title on start | OSD shows the title for 3 s (configurable, can be disabled), position setting | M4 | should | verified | built |
+| VID-26 | Title on start | OSD shows the title for 3 s (configurable, can be disabled), position setting | M4 | should | verified | verified |
 | VID-27 | Always on top | Never / always / while playing | M4 | must | verified | verified |
 | VID-28 | Picture-in-picture | Compact always-on-top mini window with minimal controls | M15 | should | planned | planned |
 | VID-29 | Power management | Display stays awake while video plays; audio-only blocks system sleep but not the screen saver; released when paused or stopped | M4 | must | built | built |
@@ -240,7 +240,7 @@ macOS: 148 planned, 67 built, 77 verified, 1 verified-hardware, 27 post-1.0, 2 n
 | OSD-04 | Dual subtitles | Secondary track shown at the same time (top or bottom) | M5 | should | verified | verified |
 | OSD-05 | ASS style policy | Respect / scale / override styles; embedded fonts honoured | M5 | must | built | built |
 | OSD-06 | System caption settings | Honours Windows Settings → Accessibility → Captions by default | M15 | should | planned | planned |
-| OSD-07 | OSD messages | Volume, position, speed, track names, delays, aspect/crop, A-B; duration and position settings; can be disabled | M4 | must | verified | built |
+| OSD-07 | OSD messages | Volume, position, speed, track names, delays, aspect/crop, A-B; duration and position settings; can be disabled | M4 | must | verified | verified |
 | OSD-08 | Forced-only mode | Show only forced subtitles (DVD/BD/PGS/flagged tracks) | M7 | should | planned | planned |
 | OSD-09 | Complex scripts & RTL | DirectWrite shaping for Arabic, Hebrew, Indic and CJK, bidi | M5 | must | built | built |
 | OSD-10 | Bitmap subtitle scaling | Scale or recolour PGS/VobSub | M11 | could | planned | planned |

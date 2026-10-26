@@ -2252,7 +2252,7 @@
       "oracles": "PIX EVT",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
@@ -2408,7 +2408,7 @@
       "oracles": "PIX EVT",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
