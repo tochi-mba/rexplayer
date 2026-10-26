@@ -1,5 +1,6 @@
 using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Library;
+using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
 
 namespace Rex.Media.App.Mac;
@@ -40,6 +41,9 @@ public sealed partial class MainWindow
     private bool _closingLibrary;
     private bool _libraryTemporaryStore;
     private RexStore? _libraryStore;
+    private readonly Dictionary<string, NSImage> _libraryThumbnails = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Queue<string> _libraryThumbnailOrder = new();
+    private const int LibraryThumbnailLimit = 160;
 
     private void InitializeLibrary()
     {
@@ -99,6 +103,14 @@ public sealed partial class MainWindow
             var actions = NSStackView.FromViews([add, rescan, close]);
             actions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             actions.Spacing = 10;
+            var suggestions = NSStackView.FromViews(
+            [
+                SuggestedLibraryFolder("Add Music", Environment.SpecialFolder.MyMusic),
+                SuggestedLibraryFolder("Add Videos", Environment.SpecialFolder.MyVideos),
+                SuggestedLibraryFolder("Add Pictures", Environment.SpecialFolder.MyPictures),
+            ]);
+            suggestions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
+            suggestions.Spacing = 8;
 
             _librarySearch = new NSSearchField(new CGRect(0, 0, 400, 30))
             {
@@ -110,7 +122,7 @@ public sealed partial class MainWindow
             _librarySearch.AccessibilityLabel = "Search library";
 
             _libraryCategory = new NSPopUpButton(new CGRect(0, 0, 220, 30), false);
-            foreach (var name in new[] { "All media", "Music", "Videos", "Pictures", "Recently added", "Recently played", "Folders" })
+            foreach (var name in new[] { "All media", "Music", "Videos", "Pictures", "Recently added", "Recently played", "Continue watching", "Folders" })
             {
                 _libraryCategory.AddItem(name);
             }
@@ -163,7 +175,7 @@ public sealed partial class MainWindow
             _libraryScroll.HeightAnchor.ConstraintGreaterThanOrEqualTo(170).Active = true;
             _libraryScroll.AccessibilityLabel = "Library results";
 
-            var stack = NSStackView.FromViews([headline, description, actions, filters, _librarySummary, pages, _libraryScroll]);
+            var stack = NSStackView.FromViews([headline, description, actions, suggestions, filters, _librarySummary, pages, _libraryScroll]);
             stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
             stack.Alignment = NSLayoutAttribute.Leading;
             stack.Spacing = 14;
@@ -180,6 +192,23 @@ public sealed partial class MainWindow
         WireLibraryKeyViews();
         _libraryWindow.MakeFirstResponder(_librarySearch);
         ShowChecks();
+    }
+
+    private NSButton SuggestedLibraryFolder(string title, Environment.SpecialFolder specialFolder)
+    {
+        var path = Environment.GetFolderPath(specialFolder);
+        var button = NSButton.CreateButton(title, () =>
+        {
+            if (!string.IsNullOrWhiteSpace(path))
+            {
+                var answer = AddLibraryFolders([path]);
+                Say(answer.Ok ? title[4..] + " is now watched." : answer.Error ?? "That folder could not be added.");
+            }
+        });
+        button.Enabled = !string.IsNullOrWhiteSpace(path) && Directory.Exists(path);
+        button.ToolTip = button.Enabled ? "Watch " + path : "This standard folder is not available";
+        ((NSView)button).AccessibilityLabel = title + " folder suggestion";
+        return button;
     }
 
     private void AddLibraryFolder()
@@ -298,7 +327,7 @@ public sealed partial class MainWindow
             ? all
             : LibraryViews.Search(all, query, entry => [Path.GetFileName(Path.GetDirectoryName(entry.Path))]);
         var category = (int)(_libraryCategory?.IndexOfSelectedItem ?? 0);
-        var watchedFolders = category == 6
+        var watchedFolders = category == 7
             ? _mediaLibrary.Folders.OrderBy(folder => folder, StringComparer.CurrentCultureIgnoreCase).ToArray()
             : Array.Empty<string>();
         IReadOnlyList<LibraryEntry> entries = category switch
@@ -308,7 +337,8 @@ public sealed partial class MainWindow
             3 => LibraryViews.Pictures(candidates),
             4 => LibraryViews.RecentlyAdded(candidates),
             5 => LibraryViews.RecentlyPlayed(candidates),
-            6 => Array.Empty<LibraryEntry>(),
+            6 => LibraryViews.ContinueWatching(candidates, _player.Memory.ResumePoint),
+            7 => Array.Empty<LibraryEntry>(),
             _ => candidates.OrderBy(entry => entry.Title, StringComparer.CurrentCultureIgnoreCase).ToList(),
         };
 
@@ -323,7 +353,7 @@ public sealed partial class MainWindow
             _libraryPageSummary.AccessibilityLabel = "Library results " + _libraryPageSummary.StringValue;
         }
         _libraryCurrentSelection = entries;
-        var emptyLabel = category == 6
+        var emptyLabel = category == 7
             ? watchedFolders.Length == 0 ? "No watched folders. Add a folder to get started." : null
             : shown.Count == 0
                 ? all.Count == 0 ? "No media yet. Add a music, video or picture folder to get started."
@@ -375,7 +405,7 @@ public sealed partial class MainWindow
             foreach (var entry in shown)
             {
                 var title = entry.Title;
-                var secondary = entry.Artist ?? entry.Album ?? Path.GetFileName(Path.GetDirectoryName(entry.Path)) ?? "";
+                var secondary = LibraryEntryDescription(entry);
                 var play = NSButton.CreateButton(title, () => PlayLibraryEntry(entry, _libraryCurrentSelection));
                 _libraryFirstPlay ??= play;
                 _libraryResultKeyViews.Add(play);
@@ -397,6 +427,19 @@ public sealed partial class MainWindow
                 words.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
                 words.Alignment = NSLayoutAttribute.Leading;
                 words.Spacing = 2;
+                var thumbnail = new NSImageView(new CGRect(0, 0, 48, 48))
+                {
+                    Image = LibraryThumbnail(entry),
+                    ImageScaling = NSImageScale.ProportionallyUpOrDown,
+                };
+                ((NSView)thumbnail).AccessibilityLabel = entry.Kind switch
+                {
+                    LibraryKind.Music => "Artwork for " + entry.Title,
+                    LibraryKind.Picture => "Thumbnail of " + entry.Title,
+                    _ => "Preview of " + entry.Title,
+                };
+                thumbnail.WidthAnchor.ConstraintEqualTo(48).Active = true;
+                thumbnail.HeightAnchor.ConstraintEqualTo(48).Active = true;
                 var queue = NSButton.CreateButton("Queue", () =>
                 {
                     if (!File.Exists(entry.Path))
@@ -413,7 +456,7 @@ public sealed partial class MainWindow
                 _libraryResultKeyViews.Add(queue);
                 queue.ToolTip = "Add to Up Next without replacing what is playing";
                 ((NSView)queue).AccessibilityLabel = "Add " + entry.Title + " to Up Next";
-                var row = NSStackView.FromViews([words, queue]);
+                var row = NSStackView.FromViews([thumbnail, words, queue]);
                 row.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
                 row.Spacing = 14;
                 row.WidthAnchor.ConstraintGreaterThanOrEqualTo(490).Active = true;
@@ -438,11 +481,46 @@ public sealed partial class MainWindow
             _libraryScroll.DocumentView = document;
             WireLibraryKeyViews();
         }
-        _libraryMatchingCount = category == 6 ? watchedFolders.Length : entries.Count;
+        _libraryMatchingCount = category == 7 ? watchedFolders.Length : entries.Count;
         _libraryTotalCount = all.Count;
         _libraryFolderCount = _mediaLibrary.Folders.Count;
         _libraryVisibleResultCount = shown.Count;
         UpdateLibraryStatus();
+    }
+
+    private string LibraryEntryDescription(LibraryEntry entry)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(entry.Artist)) parts.Add(entry.Artist);
+        if (!string.IsNullOrWhiteSpace(entry.Album) && entry.Album != entry.Artist) parts.Add(entry.Album);
+        if (entry.Kind == LibraryKind.Music && entry.Track is { } track) parts.Add("Track " + track);
+        var width = entry.VideoWidth ?? entry.PictureWidth;
+        var height = entry.VideoHeight ?? entry.PictureHeight;
+        if (entry.Kind is LibraryKind.Video or LibraryKind.Picture && width is not null && height is not null)
+        {
+            parts.Add($"{width}×{height}");
+        }
+        if (entry.Plays > 0) parts.Add(entry.Plays == 1 ? "Played once" : $"Played {entry.Plays} times");
+        if (_player.Memory.ResumePoint(entry.Path) is { } resume) parts.Add("Continue at " + TimeText.Format(resume));
+        if (parts.Count == 0) parts.Add(Path.GetFileName(Path.GetDirectoryName(entry.Path)) ?? "Local media");
+        return string.Join(" • ", parts);
+    }
+
+    private NSImage LibraryThumbnail(LibraryEntry entry)
+    {
+        if (_libraryThumbnails.TryGetValue(entry.Path, out var cached)) return cached;
+        // AppKit supplies a decoded preview or embedded artwork where the system has one,
+        // and a file-type image otherwise. Only visible pages enter this bounded cache.
+        var image = NSWorkspace.SharedWorkspace.IconForFile(entry.Path);
+        image.Size = new CGSize(48, 48);
+        _libraryThumbnails[entry.Path] = image;
+        _libraryThumbnailOrder.Enqueue(entry.Path);
+        while (_libraryThumbnailOrder.Count > LibraryThumbnailLimit)
+        {
+            var old = _libraryThumbnailOrder.Dequeue();
+            if (_libraryThumbnails.Remove(old, out var removed)) removed.Dispose();
+        }
+        return image;
     }
 
     /// <summary>
@@ -683,7 +761,7 @@ public sealed partial class MainWindow
     private AutomationReply ChangeLibraryCategory(double? value)
     {
         if (_libraryWindow?.IsVisible != true || _libraryCategory is null || value is not { } index ||
-            !double.IsFinite(index) || index != Math.Truncate(index) || index < 0 || index >= 6)
+            !double.IsFinite(index) || index != Math.Truncate(index) || index < 0 || index >= 8)
         {
             return AutomationReply.Failed("Choose a valid library category index.");
         }
@@ -767,9 +845,20 @@ public sealed partial class MainWindow
         if (action is "songs" or "videos" or "folders")
         {
             _librarySearch.StringValue = "";
-            _libraryCategory.SelectItem(action switch { "songs" => 1, "videos" => 2, _ => 6 });
+            _libraryCategory.SelectItem(action switch { "songs" => 1, "videos" => 2, _ => 7 });
             ChangeLibraryView();
             return true;
+        }
+
+        if (action == "continue" && _mediaLibrary?.Entries.FirstOrDefault(entry =>
+                entry.Kind == LibraryKind.Video) is { } unfinished)
+        {
+            _player.Memory.Left(unfinished.Path, TimeSpan.FromSeconds(15), TimeSpan.FromMinutes(2));
+            _librarySearch.StringValue = "";
+            _libraryCategory.SelectItem(6);
+            ChangeLibraryView();
+            return _libraryMatchingCount == 1 &&
+                LibraryEntryDescription(unfinished).Contains("Continue at 0:15", StringComparison.Ordinal);
         }
 
         if (action is "search-song" or "search-missing")
@@ -860,5 +949,8 @@ public sealed partial class MainWindow
         _libraryWindow?.Close();
         _libraryWindow?.Dispose();
         _libraryWindow = null;
+        foreach (var image in _libraryThumbnails.Values) image.Dispose();
+        _libraryThumbnails.Clear();
+        _libraryThumbnailOrder.Clear();
     }
 }
