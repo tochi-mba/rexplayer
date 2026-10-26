@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 148 planned, 71 built, 74 verified, 27 post-1.0, 2 not-applicable.
+macOS: 148 planned, 70 built, 75 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -198,7 +198,7 @@ macOS: 148 planned, 71 built, 74 verified, 27 post-1.0, 2 not-applicable.
 
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
-| VID-01 | Hardware decoding policy | Auto (D3D11VA zero-copy) / off / per-codec; automatic software fallback on failure, with the reason in stats | M3 | must | verified | built |
+| VID-01 | Hardware decoding policy | Auto (D3D11VA zero-copy) / off / per-codec; automatic software fallback on failure, with the reason in stats | M3 | must | verified | verified |
 | VID-02 | Frame pacing | Flip-model vsync; cadence-correct 23.976/25/29.97 on 60/120/144 Hz; dropped/late accounting; optional refresh-rate matching in fullscreen | M3/M11 | must | built | built |
 | VID-03 | Fullscreen | F, double-click, Esc to leave; target monitor setting (current / specific); fullscreen controller auto-hides (1.5 s default) and the cursor hides after 1 s | M4 | must | verified | verified |
 | VID-04 | Window sizing | ¼, ½, 1:1, 2× (Alt+1..4); fit to screen; "resize window to video" setting; autoscale toggle (O) and scale factor (Alt+O / Alt+Shift+O) | M4 | must | verified | built |
