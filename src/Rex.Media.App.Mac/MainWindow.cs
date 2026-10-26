@@ -84,6 +84,7 @@ public sealed partial class MainWindow : IDisposable
         _window.ContentView = Layout();
         _window.InitialFirstResponder = _playPause;
         StartMacKeyboardTraversal();
+        RestartGlobalShortcutMonitor();
         InitializeLibrary();
         InitializeQueue();
         NSApplication.SharedApplication.MainMenu = BuildMenus();

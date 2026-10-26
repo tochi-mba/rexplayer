@@ -10,6 +10,8 @@ public sealed partial class MainWindow
     private NSPopUpButton? _shortcutCommand;
     private NSTextField? _shortcutChord;
     private NSTextField? _shortcutStatus;
+    private NSButton? _shortcutGlobal;
+    private NSObject? _globalShortcutMonitor;
     private NSPopUpButton? _shortcutWheel;
     private NSPopUpButton? _shortcutSidewaysWheel;
     private NSPopUpButton? _shortcutMiddle;
@@ -52,6 +54,8 @@ public sealed partial class MainWindow
             };
             _shortcutStatus = NSTextField.CreateWrappingLabel("");
             _shortcutStatus.TextColor = NSColor.SecondaryLabel;
+            _shortcutGlobal = NSButton.CreateCheckbox(
+                "Works while another app is active", ToggleSelectedGlobalShortcut);
             var apply = NSButton.CreateButton("Apply binding", ApplyShortcut);
             var clear = NSButton.CreateButton("Remove binding", () => ChangeShortcut(
                 ShortcutEditing.Clear(_settings.Shortcuts, SelectedShortcutId()), "Binding removed."));
@@ -79,7 +83,8 @@ public sealed partial class MainWindow
             files.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             files.Spacing = 8;
             var stack = NSStackView.FromViews([
-                heading, explanation, _shortcutCommand, _shortcutChord, actions, _shortcutStatus, files,
+                heading, explanation, _shortcutCommand, _shortcutChord, _shortcutGlobal, actions,
+                _shortcutStatus, files,
                 EffectsHeading("Mouse & trackpad"),
                 EffectChoiceRow("Vertical wheel", _shortcutWheel),
                 EffectChoiceRow("Sideways wheel", _shortcutSidewaysWheel),
@@ -155,8 +160,29 @@ public sealed partial class MainWindow
 
         var id = SelectedShortcutId();
         _shortcutChord.StringValue = _keymap.Label(id, ShortcutStyle.Mac);
+        if (_shortcutGlobal is not null)
+        {
+            _shortcutGlobal.State = State(_settings.GlobalShortcuts.Contains(id, StringComparer.Ordinal));
+            _shortcutGlobal.Enabled = _keymap.ShortcutsFor(id).Count > 0;
+        }
         _shortcutStatus.StringValue = ShortcutEditing.IsChanged(_settings.Shortcuts, id)
             ? "Custom binding; changes save immediately." : "Default binding; changes save immediately.";
+    }
+
+    private void ToggleSelectedGlobalShortcut()
+    {
+        if (_shortcutGlobal is null) return;
+        var id = SelectedShortcutId();
+        var globals = _settings.GlobalShortcuts.Where(command => command != id).ToList();
+        if (_shortcutGlobal.State == NSCellStateValue.On)
+        {
+            globals.Add(id);
+        }
+
+        SaveShortcutSettings((_settings with { GlobalShortcuts = globals }).Normalize(),
+            _shortcutGlobal.State == NSCellStateValue.On
+                ? "Global shortcut enabled. macOS may ask to allow keyboard monitoring."
+                : "Global shortcut disabled.");
     }
 
     private void ApplyShortcut()
@@ -194,6 +220,7 @@ public sealed partial class MainWindow
         _settings = candidate;
         _player.Settings = candidate;
         _keymap = new Keymap(candidate.Shortcuts);
+        RestartGlobalShortcutMonitor();
         NSApplication.SharedApplication.MainMenu = BuildMenus();
         _pictureMenu = BuildPictureMenu();
         if (_window.ContentView is { } content)
@@ -285,13 +312,62 @@ public sealed partial class MainWindow
             return !ShortcutEditing.IsChanged(_settings.Shortcuts, CommandCatalog.GoToTime);
         }
 
+        if (action == "global")
+        {
+            _shortcutGlobal!.State = NSCellStateValue.On;
+            ToggleSelectedGlobalShortcut();
+            return _settings.GlobalShortcuts.Contains(CommandCatalog.GoToTime, StringComparer.Ordinal)
+                && _globalShortcutMonitor is not null;
+        }
+
         return false;
     }
 
     private void DisposeShortcuts()
     {
+        StopGlobalShortcutMonitor();
         _shortcutsWindow?.Close();
         _shortcutsWindow?.Dispose();
         _shortcutsWindow = null;
+    }
+
+    private void RestartGlobalShortcutMonitor()
+    {
+        StopGlobalShortcutMonitor();
+        if (_settings.GlobalShortcuts.Count == 0) return;
+        _globalShortcutMonitor = NSEvent.AddGlobalMonitorForEventsMatchingMask(NSEventMask.KeyDown,
+            e => OnWindowThread(() => RunGlobalShortcut(e)));
+    }
+
+    private void RunGlobalShortcut(NSEvent keyEvent)
+    {
+        var key = keyEvent.CharactersIgnoringModifiers;
+        if (string.IsNullOrEmpty(key)) return;
+        const NSEventModifierMask relevant = NSEventModifierMask.CommandKeyMask
+            | NSEventModifierMask.AlternateKeyMask | NSEventModifierMask.ShiftKeyMask;
+        var actual = keyEvent.ModifierFlags & relevant;
+        foreach (var command in _settings.GlobalShortcuts)
+        {
+            foreach (var chord in _keymap.ShortcutsFor(command))
+            {
+                if (MacKeyEquivalents.For(chord) is not { } expected) continue;
+                var modifiers = (expected.Command ? NSEventModifierMask.CommandKeyMask : 0)
+                    | (expected.Option ? NSEventModifierMask.AlternateKeyMask : 0)
+                    | (expected.Shift ? NSEventModifierMask.ShiftKeyMask : 0);
+                if (actual == modifiers && string.Equals(key, expected.Key, StringComparison.OrdinalIgnoreCase))
+                {
+                    Run(command);
+                    return;
+                }
+            }
+        }
+    }
+
+    private void StopGlobalShortcutMonitor()
+    {
+        if (_globalShortcutMonitor is null) return;
+        NSEvent.RemoveMonitor(_globalShortcutMonitor);
+        _globalShortcutMonitor.Dispose();
+        _globalShortcutMonitor = null;
     }
 }
