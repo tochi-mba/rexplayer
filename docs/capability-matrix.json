@@ -2317,7 +2317,7 @@
       "oracles": "PIX UIA",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {

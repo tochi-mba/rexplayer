@@ -224,8 +224,11 @@ public sealed partial class MediaSession
             _demuxWake.Set();
         }
 
-        public SessionStats Stats() => new()
+        public SessionStats Stats()
         {
+            var videoTicks = Interlocked.Read(ref _lastVideoPtsTicks);
+            return new()
+            {
             PacketsRead = Interlocked.Read(ref _packetsRead),
             BytesRead = Interlocked.Read(ref _bytesRead),
             AudioFramesDecoded = Interlocked.Read(ref _framesDecoded),
@@ -240,7 +243,12 @@ public sealed partial class MediaSession
             VideoDecoder = Volatile.Read(ref _videoItem).VideoDecoder?.Name,
             VideoDecoderSource = Volatile.Read(ref _videoItem).VideoDecoder?.Source,
             Cadence = _cadence.Snapshot(),
-        };
+            AudioPacketsBuffered = _audioQueue.Count,
+            VideoPacketsBuffered = _videoQueue?.Count ?? 0,
+            AudioVideoOffsetMilliseconds = videoTicks == long.MinValue ? null
+                : TimeSpan.FromTicks(videoTicks - VideoNow.Ticks).TotalMilliseconds,
+            };
+        }
 
         public void Dispose()
         {
