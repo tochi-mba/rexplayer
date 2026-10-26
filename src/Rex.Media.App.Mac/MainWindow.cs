@@ -276,6 +276,9 @@ public sealed partial class MainWindow : IDisposable
                 case "mac-osd":
                     answered.SetResult(MacOsdSmokeAction(request.Id));
                     return;
+                case "mac-speech":
+                    answered.SetResult(MacSpeechSmokeAction(request.Id));
+                    return;
                 case "mac-drop":
                     _player.Drop(request.Paths ?? []);
                     answered.SetResult(new AutomationReply { Ok = true });

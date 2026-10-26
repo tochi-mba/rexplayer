@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 148 planned, 64 built, 80 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
+macOS: 148 planned, 60 built, 84 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -132,10 +132,10 @@ macOS: 148 planned, 64 built, 80 verified, 1 verified-hardware, 27 post-1.0, 2 n
 | SUB-15 | Character encoding | BOM/UTF-8 detection, heuristic detector, fallback setting (system ANSI default) with an explicit list (Windows-125x, ISO-8859-x, Shift-JIS, EUC-KR, GB18030, Big5, KOI8-R/U, UTF-16) | M5 | must | built | built |
 | SUB-16 | Drop a subtitle file on the video | Loads it as a subtitle track and selects it | M5 | must | verified | verified |
 | SUB-17 | Online subtitle search | Extension point only (§6.12); no service hard-wired in core | M14 | could | planned | planned |
-| SUB-18 | Word timing | WebVTT cue timestamps and ASS karaoke tags (\k, \K, \kf, \ko) time the runs of a cue; a cue splits into words with the time each is spoken | M16 | should | verified | built |
-| SUB-19 | Local transcription | A transcript of the speech with word timestamps, made on this computer by a downloaded speech model (never bundled, permissive licence only); joins the track list as "Transcript", cached per file, exportable as SRT/VTT | M16 | should | verified | built |
-| SUB-20 | Library transcription | Transcribes eligible library files ahead of time at low priority, with pause, retry and per-file progress | M16 | should | verified | built |
-| SUB-21 | Progressive transcription from the playhead | Hears the part being played first, fills the subtitle buffer piece by piece and then completes the rest | M16 | should | verified | built |
+| SUB-18 | Word timing | WebVTT cue timestamps and ASS karaoke tags (\k, \K, \kf, \ko) time the runs of a cue; a cue splits into words with the time each is spoken | M16 | should | verified | verified |
+| SUB-19 | Local transcription | A transcript of the speech with word timestamps, made on this computer by a downloaded speech model (never bundled, permissive licence only); joins the track list as "Transcript", cached per file, exportable as SRT/VTT | M16 | should | verified | verified |
+| SUB-20 | Library transcription | Transcribes eligible library files ahead of time at low priority, with pause, retry and per-file progress | M16 | should | verified | verified |
+| SUB-21 | Progressive transcription from the playhead | Hears the part being played first, fills the subtitle buffer piece by piece and then completes the rest | M16 | should | verified | verified |
 
 ## Formats: Playlists
 
