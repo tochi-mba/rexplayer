@@ -285,6 +285,9 @@ public sealed partial class MainWindow : IDisposable
                 case "mac-equalizer":
                     answered.SetResult(MacEqualizerSmokeAction(request.Id));
                     return;
+                case "mac-stereo":
+                    answered.SetResult(MacStereoSmokeAction(request.Id));
+                    return;
                 case "mac-drop":
                     _player.Drop(request.Paths ?? []);
                     answered.SetResult(new AutomationReply { Ok = true });
