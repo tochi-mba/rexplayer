@@ -65,6 +65,7 @@ public sealed class MacAppSmokeTests
     [Capability("SUB-20", CapabilityPlatform.MacOS)]
     [Capability("SUB-21", CapabilityPlatform.MacOS)]
     [Capability("AU-13", CapabilityPlatform.MacOS)]
+    [Capability("AU-07", CapabilityPlatform.MacOS)]
     [Capability("UI-16", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
@@ -431,6 +432,14 @@ public sealed class MacAppSmokeTests
             Assert.Equal((LoudnessChoice.Album, 3.5, -7.0, true),
                 (savedLoudness.Loudness, savedLoudness.LoudnessPreamp,
                     savedLoudness.LoudnessUntaggedGain, savedLoudness.LoudnessPreventClipping));
+            var equalizer = await Ask(pipe, new AutomationRequest { Command = "mac-equalizer", Id = "configure" });
+            Assert.Equal("enabled=True;preamp=2.0;double=True;bands=-5,-4,-3,-2,-1,0,1,2,3,4;users=1",
+                equalizer?.Text);
+            var savedEqualizer = SettingsStore.Load(startupRoots.SettingsPath);
+            Assert.True(savedEqualizer.EqualizerDoublePass);
+            Assert.Equal("Mac listening room", savedEqualizer.EqualizerPreset);
+            Assert.Equal([-5d, -4, -3, -2, -1, 0, 1, 2, 3, 4],
+                savedEqualizer.EqualizerUserPresets["Mac listening room"]);
             var minimal = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.MinimalInterface });
             Assert.True(minimal?.Ok == true, "The Mac minimal-interface command was not handled.");
             var hiddenChrome = await Ask(pipe, new AutomationRequest { Command = "mac-window" });

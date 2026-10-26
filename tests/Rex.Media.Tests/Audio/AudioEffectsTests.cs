@@ -61,6 +61,15 @@ public sealed class AudioEffectsTests
     }
 
     [Fact]
+    [Capability("AU-07")]
+    public void DoublePassAppliesTheCurveTwice()
+    {
+        var once = Band(5, 6);
+        Assert.InRange(GainAt(once, 1000), 5.5, 6.5);
+        Assert.InRange(GainAt(once with { DoublePass = true }, 1000), 11.0, 13.0);
+    }
+
+    [Fact]
     public void FlatOffOrUnshapeableTheSoundIsUntouched()
     {
         var tone = Signals.Sine(1000, Rate, 4800);
