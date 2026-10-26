@@ -1615,7 +1615,7 @@
       "oracles": "PCM HW",
       "status": {
         "windows": "verified-hardware",
-        "macos": "built"
+        "macos": "verified-hardware"
       }
     },
     {
