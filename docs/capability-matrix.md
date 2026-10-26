@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 148 planned, 69 built, 75 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
+macOS: 148 planned, 68 built, 76 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -204,7 +204,7 @@ macOS: 148 planned, 69 built, 75 verified, 1 verified-hardware, 27 post-1.0, 2 n
 | VID-04 | Window sizing | ¼, ½, 1:1, 2× (Alt+1..4); fit to screen; "resize window to video" setting; autoscale toggle (O) and scale factor (Alt+O / Alt+Shift+O) | M4 | must | verified | built |
 | VID-05 | Aspect ratio | Default, 16:9, 4:3, 1:1, 16:10, 2.21:1, 2.35:1, 2.39:1, 5:4, custom W:H; cycle with A | M4 | must | verified | built |
 | VID-06 | Crop | Presets 16:10, 16:9, 4:3, 1.85:1, 2.21:1, 2.35:1, 2.39:1, 5:3, 5:4, 1:1 (cycle C); per-edge pixel crop keys; automatic black-bar detection | M4/M11 | must | built | built |
-| VID-07 | Zoom & pan | Zoom presets (Z cycles, Shift+Z resets); interactive magnifier (wheel zoom, drag pan) | M11 | should | verified | built |
+| VID-07 | Zoom & pan | Zoom presets (Z cycles, Shift+Z resets); interactive magnifier (wheel zoom, drag pan) | M11 | should | verified | verified |
 | VID-08 | Deinterlacing | Off / Auto (stream flags) / On; discard, blend, bob, linear, motion-adaptive, motion-adaptive double-rate, inverse telecine; cycle with Shift+D, toggle with D | M3 (bob), M11 | must | planned | planned |
 | VID-09 | Colour adjustments | Hue −180..180, brightness 0..2, contrast 0..2, saturation 0..3, gamma 0.01..10; reset | M11 | must | planned | planned |
 | VID-10 | Sharpen | Strength 0..2 | M11 | should | planned | planned |

@@ -56,6 +56,7 @@ public sealed class MacAppSmokeTests
     [Capability("PB-12", CapabilityPlatform.MacOS)]
     [Capability("VID-03", CapabilityPlatform.MacOS)]
     [Capability("VID-27", CapabilityPlatform.MacOS)]
+    [Capability("VID-07", CapabilityPlatform.MacOS)]
     [Capability("UI-16", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
@@ -365,6 +366,18 @@ public sealed class MacAppSmokeTests
             Assert.Contains(playing.Title, titled?.Text, StringComparison.Ordinal);
             Assert.Contains("minimal=False", titled?.Text, StringComparison.Ordinal);
             Assert.Contains("context=33", titled?.Text, StringComparison.Ordinal);
+            var magnified = await Ask(pipe, new AutomationRequest
+            {
+                Command = "mac-video-geometry",
+                Id = "magnify-and-pan",
+            });
+            Assert.Equal("zoom=2.00;pan=0.25,-0.50", magnified?.Text);
+            var resetGeometry = await Ask(pipe, new AutomationRequest
+            {
+                Command = "mac-video-geometry",
+                Id = "reset",
+            });
+            Assert.Equal("zoom=1.00;pan=0.00,0.00", resetGeometry?.Text);
             var minimal = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.MinimalInterface });
             Assert.True(minimal?.Ok == true, "The Mac minimal-interface command was not handled.");
             var hiddenChrome = await Ask(pipe, new AutomationRequest { Command = "mac-window" });
