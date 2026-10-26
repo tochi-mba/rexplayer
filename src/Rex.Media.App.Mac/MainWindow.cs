@@ -55,6 +55,10 @@ public sealed partial class MainWindow : IDisposable
     private NSButton? _resumeAccept;
     private NSButton? _resumeStartOver;
     private bool _moving;
+    private NSButton? _fullScreenTracks;
+    private NSButton? _fullScreenEffects;
+    private NSButton? _fullScreenLeave;
+    private NSTimer? _fullScreenHideTimer;
 
     public MainWindow(DataRoots roots, RexLog log)
     {
@@ -78,6 +82,7 @@ public sealed partial class MainWindow : IDisposable
             MinSize = new CGSize(640, 420),
         };
         _window.ReleaseWhenClosed(false);
+        _window.AcceptsMouseMovedEvents = true;
         _playPause = NSButton.CreateButton("Play", () => Run(CommandCatalog.PlayPause));
         _seek = NSSlider.FromValue(0, 0, 1, () => SeekToSlider());
         _volume = NSSlider.FromValue(_player.Volume, 0, _settings.MaxVolumePercent / 100.0, () => _player.SetVolume(_volume!.DoubleValue));
@@ -145,6 +150,7 @@ public sealed partial class MainWindow : IDisposable
         DisposeHistory();
         DisposeStartupGuidance();
         DisposeStats();
+        DisposeFullScreenController();
         DisposeMusicPresentation();
         DisposeMusicVisualizers();
         EndCrashRecovery();
@@ -267,6 +273,9 @@ public sealed partial class MainWindow : IDisposable
                         Ok = true,
                         Text = $"fullscreen={IsFullScreen};floating={_window.Level == NSWindowLevel.Floating};minimal={_minimalInterface};context={ContextCommandCount};title={_window.Title}",
                     });
+                    return;
+                case "mac-fullscreen-controller":
+                    answered.SetResult(ProbeFullScreenController());
                     return;
                 case "mac-video-geometry":
                     answered.SetResult(VideoGeometrySmokeAction(request.Id));
@@ -466,6 +475,9 @@ public sealed partial class MainWindow : IDisposable
         var open = NSButton.CreateButton("Open file", () => Run(CommandCatalog.OpenFile));
         var queue = NSButton.CreateButton("Up Next", ShowQueue);
         var library = NSButton.CreateButton("Library", ShowLibrary);
+        _fullScreenTracks = NSButton.CreateButton("Tracks", ShowTrackTools);
+        _fullScreenEffects = NSButton.CreateButton("Effects", ShowEffects);
+        _fullScreenLeave = NSButton.CreateButton("Exit full screen", () => Run(CommandCatalog.LeaveFullScreen));
         library.ToolTip = "Browse your own local library and watched folders";
         queue.ToolTip = "View, reorder, and manage what plays next";
         open.ToolTip = "Open a file (Cmd+O)";
@@ -475,7 +487,8 @@ public sealed partial class MainWindow : IDisposable
         _playPause.ToolTip = "Play or pause (Space)";
         _seek.ToolTip = "Seek through the current file";
         _volume.ToolTip = "Volume";
-        var controls = NSStackView.FromViews([previous, _playPause, stop, next, open, library, queue, _volume]);
+        var controls = NSStackView.FromViews([previous, _playPause, stop, next, open, library, queue,
+            _fullScreenTracks, _fullScreenEffects, _fullScreenLeave, _volume]);
         controls.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
         controls.Spacing = 8;
         _volume.WidthAnchor.ConstraintEqualTo(100).Active = true;
@@ -487,10 +500,14 @@ public sealed partial class MainWindow : IDisposable
         next.NextKeyView = open;
         open.NextKeyView = library;
         library.NextKeyView = queue;
-        queue.NextKeyView = _volume;
+        queue.NextKeyView = _fullScreenTracks;
+        _fullScreenTracks.NextKeyView = _fullScreenEffects;
+        _fullScreenEffects.NextKeyView = _fullScreenLeave;
+        _fullScreenLeave.NextKeyView = _volume;
         _volume.NextKeyView = _seek;
         _seek.NextKeyView = previous;
-        SetMainKeyViews(previous, _playPause, stop, next, open, library, queue, _volume, _seek);
+        SetMainKeyViews(previous, _playPause, stop, next, open, library, queue, _fullScreenTracks,
+            _fullScreenEffects, _fullScreenLeave, _volume, _seek);
         ((NSView)_seek).AccessibilityLabel = "Playback position";
         ((NSView)_volume).AccessibilityLabel = "Playback volume";
         ((NSView)_playPause).AccessibilityLabel = "Play or pause playback";
@@ -518,6 +535,8 @@ public sealed partial class MainWindow : IDisposable
         stack.Alignment = NSLayoutAttribute.Leading;
         stack.Spacing = 12;
         stack.EdgeInsets = new NSEdgeInsets(20, 20, 20, 20);
+        stack.WantsLayer = true;
+        stack.Layer!.BackgroundColor = NSColor.WindowBackground.ColorWithAlphaComponent((System.Runtime.InteropServices.NFloat)0.88).CGColor;
         AddCrashRecoveryBanner(stack);
         AddConfirmationBanner(stack);
         stack.TranslatesAutoresizingMaskIntoConstraints = false;
@@ -525,7 +544,7 @@ public sealed partial class MainWindow : IDisposable
         timeline.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
 
         var content = new DropView((paths, enqueue) => _player.Drop(paths, enqueue), HandlePictureWheel,
-            HandlePictureDrag, HandlePictureClick, HandlePictureOtherClick);
+            HandlePictureDrag, HandlePictureClick, HandlePictureOtherClick, RevealFullScreenController);
         _pictureMenu = BuildPictureMenu();
         content.Menu = _pictureMenu;
         _picture = new PictureView(_log) { TranslatesAutoresizingMaskIntoConstraints = false };
@@ -896,15 +915,17 @@ public sealed partial class MainWindow : IDisposable
         private readonly Action<NSEvent> _drag;
         private readonly Action<NSEvent> _click;
         private readonly Action<NSEvent> _otherClick;
+        private readonly Action _mouseMoved;
 
         public DropView(Action<IReadOnlyList<string>, bool> open, Action<NSEvent> wheel,
-            Action<NSEvent> drag, Action<NSEvent> click, Action<NSEvent> otherClick)
+            Action<NSEvent> drag, Action<NSEvent> click, Action<NSEvent> otherClick, Action mouseMoved)
         {
             _open = open;
             _wheel = wheel;
             _drag = drag;
             _click = click;
             _otherClick = otherClick;
+            _mouseMoved = mouseMoved;
             RegisterForDraggedTypes([NSPasteboardType.FileUrl.GetConstant()!]);
         }
 
@@ -922,6 +943,12 @@ public sealed partial class MainWindow : IDisposable
         {
             _otherClick(theEvent);
             base.OtherMouseDown(theEvent);
+        }
+
+        public override void MouseMoved(NSEvent theEvent)
+        {
+            _mouseMoved();
+            base.MouseMoved(theEvent);
         }
 
         public override NSDragOperation DraggingEntered(INSDraggingInfo sender) => NSDragOperation.Copy;
