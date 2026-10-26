@@ -544,6 +544,11 @@ public sealed record PlayerSettings
     /// <summary>The name of the preset the gains came from, or null once they were changed by hand.</summary>
     public string? EqualizerPreset { get; init; }
 
+    public bool EqualizerDoublePass { get; init; }
+
+    public IReadOnlyDictionary<string, IReadOnlyList<double>> EqualizerUserPresets { get; init; } =
+        new Dictionary<string, IReadOnlyList<double>>(StringComparer.Ordinal);
+
     public StereoChoice Stereo { get; init; } = StereoChoice.Stereo;
 
     public LoudnessChoice Loudness { get; init; } = LoudnessChoice.Off;
@@ -894,6 +899,12 @@ public sealed record PlayerSettings
             SideButtons = Enum.IsDefined(SideButtons) ? SideButtons : SideButtonChoice.PreviousNext,
             EqualizerPreamp = Decibels(EqualizerPreamp),
             EqualizerGains = [.. Enumerable.Range(0, 10).Select(i => Decibels(EqualizerGains is { } gains && i < gains.Count ? gains[i] : 0))],
+            EqualizerUserPresets = (EqualizerUserPresets ??
+                new Dictionary<string, IReadOnlyList<double>>(StringComparer.Ordinal))
+                .Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value is not null)
+                .ToDictionary(pair => pair.Key.Trim(), pair => (IReadOnlyList<double>)[..
+                    Enumerable.Range(0, 10).Select(i => Decibels(i < pair.Value.Count ? pair.Value[i] : 0))],
+                    StringComparer.Ordinal),
             Stereo = Enum.IsDefined(Stereo) ? Stereo : StereoChoice.Stereo,
             Loudness = Enum.IsDefined(Loudness) ? Loudness : LoudnessChoice.Off,
             LoudnessPreamp = Decibels(LoudnessPreamp),

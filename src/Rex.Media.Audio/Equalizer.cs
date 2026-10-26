@@ -7,7 +7,7 @@ namespace Rex.Media.Audio;
 /// decibels from -20 to +20. Immutable, so the window can hand a new one to the audio thread at any
 /// moment without a lock.
 /// </summary>
-public sealed record EqualizerSettings(bool Enabled, double Preamp, IReadOnlyList<double> Gains)
+public sealed record EqualizerSettings(bool Enabled, double Preamp, IReadOnlyList<double> Gains, bool DoublePass = false)
 {
     /// <summary>The ten bands' centre frequencies, in hertz.</summary>
     public static IReadOnlyList<double> Bands { get; } = [31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
@@ -85,7 +85,7 @@ public sealed class Equalizer
                 .Where(entry => entry.Gain != 0 && EqualizerSettings.Bands[entry.Band] < sampleRate * 0.45)
                 .Select(entry => Design(entry.Band, entry.Gain)),
         ];
-        _state = new double[_filters.Length * channels * 4];
+        _state = new double[_filters.Length * channels * 4 * (Settings.DoublePass ? 2 : 1)];
     }
 
     public EqualizerSettings Settings { get; }
@@ -108,14 +108,20 @@ public sealed class Equalizer
             for (var i = 0; i < samples.Length; i++)
             {
                 double x = samples[i] * _preamp;
-                for (var f = 0; f < _filters.Length; f++)
+                var passes = Settings.DoublePass ? 2 : 1;
+                for (var pass = 0; pass < passes; pass++)
                 {
-                    // Direct form I: the last two inputs and outputs of this filter on this channel.
-                    var (b0, b1, b2, a1, a2) = _filters[f];
-                    var s = ((f * _channels) + channel) * 4;
-                    var y = (b0 * x) + (b1 * _state[s]) + (b2 * _state[s + 1]) - (a1 * _state[s + 2]) - (a2 * _state[s + 3]);
-                    (_state[s + 1], _state[s], _state[s + 3], _state[s + 2]) = (_state[s], x, _state[s + 2], y);
-                    x = y;
+                    for (var f = 0; f < _filters.Length; f++)
+                    {
+                        // Direct form I: each pass owns the last two inputs and outputs of its filter.
+                        var (b0, b1, b2, a1, a2) = _filters[f];
+                        var s = ((((pass * _filters.Length) + f) * _channels) + channel) * 4;
+                        var y = (b0 * x) + (b1 * _state[s]) + (b2 * _state[s + 1]) -
+                            (a1 * _state[s + 2]) - (a2 * _state[s + 3]);
+                        (_state[s + 1], _state[s], _state[s + 3], _state[s + 2]) =
+                            (_state[s], x, _state[s + 2], y);
+                        x = y;
+                    }
                 }
 
                 samples[i] = (float)x;

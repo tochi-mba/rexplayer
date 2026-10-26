@@ -76,6 +76,11 @@ public sealed class SettingsStoreTests : IDisposable
             LastSeenVersion = "0.4.0",
             Shortcuts = new Dictionary<string, string> { ["play-pause"] = "Ctrl+P", ["stop"] = "" },
             SeekPreview = true,
+            EqualizerDoublePass = true,
+            EqualizerUserPresets = new Dictionary<string, IReadOnlyList<double>>
+            {
+                ["Listening room"] = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4],
+            },
             OpenLibraryAtPlayingItem = true,
             LibraryPlaces = new Dictionary<string, LibraryPlace>
             {
@@ -96,9 +101,15 @@ public sealed class SettingsStoreTests : IDisposable
         var loaded = SettingsStore.Load(File);
 
         // Lists compare by reference in a record, so they are compared by content apart.
-        Assert.Equal(saved with { Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains, GlobalShortcuts = loaded.GlobalShortcuts, VisualOptions = loaded.VisualOptions, LibraryViews = loaded.LibraryViews, LibraryPlaces = loaded.LibraryPlaces, PinnedAlbumPaths = loaded.PinnedAlbumPaths, VideoStyleValues = loaded.VideoStyleValues }, loaded);
+        Assert.Equal(saved with { Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains,
+            EqualizerUserPresets = loaded.EqualizerUserPresets, GlobalShortcuts = loaded.GlobalShortcuts,
+            VisualOptions = loaded.VisualOptions, LibraryViews = loaded.LibraryViews,
+            LibraryPlaces = loaded.LibraryPlaces, PinnedAlbumPaths = loaded.PinnedAlbumPaths,
+            VideoStyleValues = loaded.VideoStyleValues }, loaded);
         Assert.Equal(saved.Shortcuts, loaded.Shortcuts);
         Assert.Equal(saved.EqualizerGains, loaded.EqualizerGains);
+        Assert.Equal(saved.EqualizerUserPresets["Listening room"],
+            loaded.EqualizerUserPresets["Listening room"]);
         Assert.Equal(saved.LibraryViews, loaded.LibraryViews);
 
         // Places that say nothing (the top, nothing chosen) are not kept; the rest come back whole.
@@ -435,7 +446,12 @@ public sealed class SettingsStoreTests : IDisposable
 
         var loaded = SettingsStore.Load(File);
 
-        Assert.Equal(new PlayerSettings { FirstRunDone = true, Volume = 0.5, Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains, GlobalShortcuts = loaded.GlobalShortcuts, VisualOptions = loaded.VisualOptions, LibraryViews = loaded.LibraryViews, LibraryPlaces = loaded.LibraryPlaces, PinnedAlbumPaths = loaded.PinnedAlbumPaths, VideoStyleValues = loaded.VideoStyleValues }, loaded);
+        Assert.Equal(new PlayerSettings { FirstRunDone = true, Volume = 0.5,
+            Shortcuts = loaded.Shortcuts, EqualizerGains = loaded.EqualizerGains,
+            EqualizerUserPresets = loaded.EqualizerUserPresets, GlobalShortcuts = loaded.GlobalShortcuts,
+            VisualOptions = loaded.VisualOptions, LibraryViews = loaded.LibraryViews,
+            LibraryPlaces = loaded.LibraryPlaces, PinnedAlbumPaths = loaded.PinnedAlbumPaths,
+            VideoStyleValues = loaded.VideoStyleValues }, loaded);
         Assert.Equal(new double[10], loaded.EqualizerGains);
         Assert.True(loaded.SingleInstance);
         Assert.Equal(10, loaded.ShortJumpSeconds);

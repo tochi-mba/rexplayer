@@ -18,6 +18,8 @@ public sealed partial class MainWindow
     private NSSlider? _effectsLoudnessPreamp;
     private NSSlider? _effectsLoudnessUntagged;
     private NSButton? _effectsLoudnessPeak;
+    private NSButton? _effectsDoublePass;
+    private NSTextField? _effectsPresetName;
     private readonly List<NSSlider> _effectsBands = [];
     private bool _effectsLoading;
 
@@ -47,9 +49,20 @@ public sealed partial class MainWindow
             {
                 _effectsPreset.AddItem(preset.Name);
             }
+            foreach (var name in MacUserPresetNames) _effectsPreset.AddItem(name);
 
             _effectsPreset.Activated += (_, _) => ApplyEffectPreset();
             _effectsPreamp = EffectSlider(0);
+            _effectsDoublePass = NSButton.CreateCheckbox("Double-pass equalizer", ApplyEffects);
+            _effectsPresetName = new NSTextField(new CGRect(0, 0, 220, 24))
+            {
+                PlaceholderString = "My preset",
+            };
+            ((NSView)_effectsPresetName).AccessibilityLabel = "Equalizer preset name";
+            var savePreset = NSButton.CreateButton("Save user preset", SaveMacEqualizerPreset);
+            var presetEditor = NSStackView.FromViews([_effectsPresetName, savePreset]);
+            presetEditor.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
+            presetEditor.Spacing = 8;
             _effectsLoudnessPreamp = EffectSlider(0);
             _effectsLoudnessUntagged = EffectSlider(0);
             _effectsLoudnessPeak = NSButton.CreateCheckbox("Prevent clipping at tagged peak", ApplyEffects);
@@ -59,6 +72,8 @@ public sealed partial class MainWindow
                 EffectChoiceRow("Equalizer preset", _effectsPreset),
                 EffectsHeading("10-band graphic equalizer"),
                 EffectGainRow("Preamp", _effectsPreamp),
+                _effectsDoublePass,
+                presetEditor,
             };
             for (var i = 0; i < MacBandNames.Length; i++)
             {
@@ -166,11 +181,18 @@ public sealed partial class MainWindow
     private void LoadEffects()
     {
         _effectsLoading = true;
+        var selectedName = _settings.EqualizerPreset;
+        _effectsPreset!.RemoveAllItems();
+        _effectsPreset.AddItem("Custom");
+        foreach (var preset in EqualizerSettings.Presets) _effectsPreset.AddItem(preset.Name);
+        foreach (var name in MacUserPresetNames) _effectsPreset.AddItem(name);
         _effectsEnabled!.State = State(_settings.EqualizerEnabled);
-        var index = _settings.EqualizerPreset is { } name
-            ? EqualizerSettings.Presets.ToList().FindIndex(p => p.Name == name) + 1 : 0;
+        var presetNames = EqualizerSettings.Presets.Select(preset => preset.Name).Prepend("Custom")
+            .Concat(MacUserPresetNames).ToArray();
+        var index = selectedName is null ? 0 : Math.Max(0, Array.IndexOf(presetNames, selectedName));
         _effectsPreset!.SelectItem(Math.Max(0, index));
         _effectsPreamp!.DoubleValue = _settings.EqualizerPreamp;
+        _effectsDoublePass!.State = State(_settings.EqualizerDoublePass);
         for (var i = 0; i < _effectsBands.Count; i++)
         {
             _effectsBands[i].DoubleValue = _settings.EqualizerGains[i];
@@ -192,15 +214,18 @@ public sealed partial class MainWindow
         }
 
         var index = (int)_effectsPreset!.IndexOfSelectedItem;
-        if (index > 0 && index <= EqualizerSettings.Presets.Count)
+        IReadOnlyList<double>? gains = index > 0 && index <= EqualizerSettings.Presets.Count
+            ? EqualizerSettings.Presets[index - 1].Gains
+            : _effectsPreset.TitleOfSelectedItem is { } name && _settings.EqualizerUserPresets.TryGetValue(name, out var user)
+                ? user : null;
+        if (gains is not null)
         {
             _effectsLoading = true;
-            var preset = EqualizerSettings.Presets[index - 1];
             _effectsEnabled!.State = NSCellStateValue.On;
             _effectsPreamp!.DoubleValue = 0;
             for (var i = 0; i < _effectsBands.Count; i++)
             {
-                _effectsBands[i].DoubleValue = preset.Gains[i];
+                _effectsBands[i].DoubleValue = gains[i];
             }
 
             _effectsLoading = false;
@@ -217,14 +242,18 @@ public sealed partial class MainWindow
         }
 
         var index = (int)_effectsPreset!.IndexOfSelectedItem;
-        var chosen = index > 0 && index <= EqualizerSettings.Presets.Count &&
-            _effectsBands.Select(b => b.DoubleValue).SequenceEqual(EqualizerSettings.Presets[index - 1].Gains);
+        var selected = _effectsPreset.TitleOfSelectedItem;
+        var chosenGains = index > 0 && index <= EqualizerSettings.Presets.Count
+            ? EqualizerSettings.Presets[index - 1].Gains
+            : selected is not null && _settings.EqualizerUserPresets.TryGetValue(selected, out var user) ? user : null;
+        var chosen = chosenGains is not null && _effectsBands.Select(b => b.DoubleValue).SequenceEqual(chosenGains);
         var settings = (_settings with
         {
             EqualizerEnabled = _effectsEnabled!.State == NSCellStateValue.On,
             EqualizerPreamp = _effectsPreamp!.DoubleValue,
             EqualizerGains = [.. _effectsBands.Select(b => b.DoubleValue)],
-            EqualizerPreset = chosen ? EqualizerSettings.Presets[index - 1].Name : null,
+            EqualizerPreset = chosen ? selected : null,
+            EqualizerDoublePass = IsChecked(_effectsDoublePass),
             Stereo = (StereoChoice)(int)_effectsStereo!.IndexOfSelectedItem,
             Loudness = (LoudnessChoice)(int)_effectsLoudness!.IndexOfSelectedItem,
             LoudnessPreamp = _effectsLoudnessPreamp!.DoubleValue,
@@ -242,6 +271,28 @@ public sealed partial class MainWindow
             _log.Warning(LogSource, "Sound settings could not be saved: " + ex.Message);
             Say("Sound settings could not be saved.");
         }
+    }
+
+    private string[] MacUserPresetNames => [.. _settings.EqualizerUserPresets.Keys.Order(StringComparer.Ordinal)];
+
+    private void SaveMacEqualizerPreset()
+    {
+        var name = _effectsPresetName?.StringValue.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            Say("Name the equalizer preset first.");
+            return;
+        }
+
+        var existed = _settings.EqualizerUserPresets.ContainsKey(name);
+        var presets = _settings.EqualizerUserPresets.ToDictionary(pair => pair.Key, pair => pair.Value,
+            StringComparer.Ordinal);
+        presets[name] = [.. _effectsBands.Select(band => band.DoubleValue)];
+        _settings = _settings with { EqualizerUserPresets = presets, EqualizerPreset = name };
+        if (!existed) _effectsPreset!.AddItem(name);
+        _effectsPreset!.SelectItem(name);
+        ApplyEffects();
+        LoadEffects();
     }
 
     private AutomationReply MacLoudnessSmokeAction(string? action)
@@ -266,6 +317,33 @@ public sealed partial class MainWindow
             Ok = true,
             Text = $"mode={replay.Mode};preamp={replay.Preamp:0.0};fallback={replay.UntaggedGain:0.0};" +
                 $"protect={replay.PreventClipping}",
+        };
+    }
+
+    private AutomationReply MacEqualizerSmokeAction(string? action)
+    {
+        if (action == "configure")
+        {
+            ShowEffects();
+            _effectsEnabled!.State = NSCellStateValue.On;
+            _effectsDoublePass!.State = NSCellStateValue.On;
+            _effectsPreamp!.DoubleValue = 2;
+            for (var i = 0; i < _effectsBands.Count; i++) _effectsBands[i].DoubleValue = i - 5;
+            _effectsPresetName!.StringValue = "Mac listening room";
+            SaveMacEqualizerPreset();
+        }
+        else if (action != "status")
+        {
+            return new AutomationReply { Ok = false, Error = "Unknown equalizer action." };
+        }
+
+        var equalizer = _player.Sound.Equalizer;
+        return new AutomationReply
+        {
+            Ok = true,
+            Text = $"enabled={equalizer.Enabled};preamp={equalizer.Preamp:0.0};" +
+                $"double={equalizer.DoublePass};bands={string.Join(',', equalizer.Gains)};" +
+                $"users={_settings.EqualizerUserPresets.Count}",
         };
     }
 
