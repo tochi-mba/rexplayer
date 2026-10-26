@@ -46,6 +46,19 @@ public sealed partial class MainWindow
         }
     }
 
+    private void HandlePictureDrag(NSEvent drag)
+    {
+        var picture = _picture;
+        if (_videoZoom <= 1 || picture is null)
+        {
+            return;
+        }
+
+        var width = Math.Max(1, (double)picture.Bounds.Width);
+        var height = Math.Max(1, (double)picture.Bounds.Height);
+        PanVideo((double)drag.DeltaX / width * 2, (double)drag.DeltaY / height * 2);
+    }
+
     private void HandlePictureClick(NSEvent click)
     {
         if (click.ClickCount >= 2)
