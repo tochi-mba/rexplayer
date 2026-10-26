@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 148 planned, 52 built, 92 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
+macOS: 148 planned, 51 built, 93 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -325,7 +325,7 @@ macOS: 148 planned, 52 built, 92 verified, 1 verified-hardware, 27 post-1.0, 2 n
 | LIB-06 | Sidebar sources | Playlist, Library, Discs, Local network (DLNA servers, Windows shares, SAP), Internet (podcasts, provider extensions) | M6/M10 | must | planned | planned |
 | LIB-07 | Recent media | Menu + jump list; clear; "do not keep history" privacy switch | M6 | must | built | built |
 | LIB-08 | Playlist quick slots | Ctrl+Shift+1..9 sets, Ctrl+1..9 plays a remembered playlist position | M6 | could | verified | verified |
-| LIB-09 | Missing files | Greyed-out entries with "Locate…", and relink by folder | M6 | should | verified | built |
+| LIB-09 | Missing files | Greyed-out entries with "Locate…", and relink by folder | M6 | should | verified | verified |
 | LIB-10 | Library backup / export | Export or import the library and playlists (JSON + M3U8) | M6 | should | verified | verified |
 | LIB-11 | Crash-safe store | RexStore (§7.7): torn writes never lose more than the last record | M6 | must | verified | verified |
 | LIB-12 | Ratings, duplicates finder | - | post | could | post-1.0 | post-1.0 |
