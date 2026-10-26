@@ -25,15 +25,15 @@ public sealed partial class MainWindow
     {
         var controls = 0;
         var missing = 0;
-        // Not all .NET/AppKit bindings expose NSApplication.Windows. Inspect the
-        // windows owned by this player instance instead, including native panels.
-        NSWindow?[] windows =
-        [
-            _window, _libraryWindow, _queueWindow, _playbackTools,
-            _preferencesWindow, _musicVisualizerWindow, _updatesWindow,
-            _macCaptionSettings, _macSpeechWindow,
+        NSWindow?[] windows = [
+            _window, _libraryWindow, _playbackTools, _preferencesWindow,
+            _mediaInformationWindow, _musicVisualizerWindow, _macCaptionSettings,
+            _logWindow, _savedPlaylistsWindow, _shortcutsWindow, _firstRunWindow,
+            _whatsNewWindow, _queueWindow, _queueTimingWindow, _effectsWindow,
+            _historyWindow, _subtitleStyleWindow, _tracksWindow, _macSpeechWindow,
+            _updatesWindow,
         ];
-        foreach (var window in windows)
+        foreach (var window in windows.OfType<NSWindow>())
         {
             if (window is null || window.ContentView is not { } root) continue;
             var identifier = new string(window.Title.Select(c =>

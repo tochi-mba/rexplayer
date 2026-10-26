@@ -33,10 +33,12 @@ public sealed class MacAppSmokeTests
     [Capability("UI-05", CapabilityPlatform.MacOS)]
     [Capability("SUB-16", CapabilityPlatform.MacOS)]
     [Capability("A11Y-02", CapabilityPlatform.MacOS)]
+    [Capability("A11Y-01", CapabilityPlatform.MacOS)]
     [Capability("PB-05", CapabilityPlatform.MacOS)]
     [Capability("PB-10", CapabilityPlatform.MacOS)]
     [Capability("PB-11", CapabilityPlatform.MacOS)]
     [Capability("AU-06", CapabilityPlatform.MacOS)]
+    [Capability("AU-15", CapabilityPlatform.MacOS)]
     [Capability("LIB-04", CapabilityPlatform.MacOS)]
     [Capability("LIB-08", CapabilityPlatform.MacOS)]
     [Capability("UI-15", CapabilityPlatform.MacOS)]
@@ -294,6 +296,13 @@ public sealed class MacAppSmokeTests
                 "The native bookmark did not seek back to its saved position.");
             var bookmarkRemoved = await Ask(pipe, new AutomationRequest { Command = "mac-bookmarks", Id = "remove" });
             Assert.Equal("", bookmarkRemoved?.Text);
+            var slow = await Ask(pipe, new AutomationRequest { Command = "mac-pitch-speed", Id = "minimum" });
+            Assert.Contains("speed=0.25;preserve=True", slow?.Text, StringComparison.Ordinal);
+            var chipmunk = await Ask(pipe, new AutomationRequest { Command = "mac-pitch-speed", Id = "toggle-pitch" });
+            Assert.Contains("speed=0.25;preserve=False", chipmunk?.Text, StringComparison.Ordinal);
+            var fast = await Ask(pipe, new AutomationRequest { Command = "mac-pitch-speed", Id = "maximum" });
+            Assert.Contains("speed=4;preserve=False", fast?.Text, StringComparison.Ordinal);
+            await Ask(pipe, new AutomationRequest { Command = "mac-pitch-speed", Id = "toggle-pitch" });
             var droppedSubtitles = Path.Combine(root, "drop-test.srt");
             await File.WriteAllTextAsync(droppedSubtitles,
                 "1\n00:00:00,000 --> 00:00:02,000\nDropped subtitle\n",
@@ -419,6 +428,11 @@ public sealed class MacAppSmokeTests
                 Assert.True(file.Exists && file.Length > 1024,
                     "No usable native watched-folder screenshot: " + file.FullName);
             }
+
+            var accessible = await Ask(pipe, new AutomationRequest { Command = "mac-accessibility" });
+            Assert.True(accessible?.Ok == true, "A reachable native Mac control has no accessible name: " +
+                (accessible?.Text ?? accessible?.Error ?? "no reply"));
+            Assert.Contains("missing-labels=0", accessible!.Text, StringComparison.Ordinal);
 
             var quitting = await Ask(pipe, new AutomationRequest { Command = "run", Id = "quit" });
             // The app may exit before the transport can deliver its reply. A clean exit
