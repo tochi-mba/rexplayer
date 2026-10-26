@@ -1,5 +1,6 @@
 using Rex.Media.Audio.CoreAudio;
 using Rex.Media.Primitives;
+using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.Audio;
 
@@ -36,6 +37,7 @@ public sealed class CoreAudioSinkTests
     }
 
     [Fact]
+    [Capability("AU-01", CapabilityPlatform.MacOS)]
     public void TheDeviceTakesFloatsAtTheAskedRateAndAtMostTwoChannels()
     {
         using var sink = OpenOrSkip(channels: 6, out var format);
