@@ -3162,7 +3162,7 @@
       "oracles": "UIA EVT",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {

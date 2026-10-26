@@ -429,6 +429,20 @@ public sealed class PlayerControllerTests
     }
 
     [Fact]
+    [Capability("LIB-02")]
+    public void AListDropInsertsMediaAtItsVisiblePosition()
+    {
+        using var harness = new ControllerHarness(autoPlay: false);
+        harness.Controller.Playlist.Add([new PlaylistItem("first.wav"), new PlaylistItem("last.wav")]);
+
+        Assert.Equal(2, harness.Controller.Insert(["10.wav", "2.wav"], 1));
+        Assert.Equal(["first.wav", "10.wav", "2.wav", "last.wav"],
+            harness.Controller.Playlist.Items.Select(item => item.Location));
+        Assert.Equal(0, harness.Controller.Insert([], 2));
+        Assert.Throws<ArgumentNullException>(() => harness.Controller.Insert(null!, 0));
+    }
+
+    [Fact]
     public void FoldersOpenAsTheMediaInsideThem()
     {
         var folder = Path.Combine(Path.GetTempPath(), "rexplayer-controller-" + Guid.NewGuid().ToString("N"));

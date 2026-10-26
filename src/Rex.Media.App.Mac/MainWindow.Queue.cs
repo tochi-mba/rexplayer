@@ -85,7 +85,7 @@ public sealed partial class MainWindow
             _queueSummary = NSTextField.CreateLabel("");
             _queueSummary.TextColor = NSColor.SecondaryLabel;
             _queueSummary.LineBreakMode = NSLineBreakMode.TruncatingTail;
-            _queueScroll = new NSScrollView(new CGRect(0, 0, 600, 380))
+            _queueScroll = new QueueDropScrollView(new CGRect(0, 0, 600, 380), DropIntoQueue)
             {
                 HasVerticalScroller = true,
             };
@@ -261,6 +261,21 @@ public sealed partial class MainWindow
             + (_player.Playlist.PeekNext(automatic: false) is { } nextItem ? $" • Next: {nextItem.Title}" : "");
     }
 
+    private void DropIntoQueue(IReadOnlyList<string> paths, CGPoint windowPoint)
+    {
+        if (_queueScroll?.DocumentView is not { } document || paths.Count == 0) return;
+        var inScroll = _queueScroll.ConvertPointFromView(windowPoint, null);
+        var visible = _queueScroll.DocumentVisibleRect;
+        var documentY = visible.Y + inScroll.Y;
+        var visibleRows = Math.Max(1, Math.Min(QueuePageSize,
+            _player.Playlist.Items.Count - _queuePage * QueuePageSize));
+        var fromTop = Math.Clamp((document.Frame.Height - documentY) / Math.Max(1, document.Frame.Height), 0, 1);
+        var index = _queuePage * QueuePageSize + (int)Math.Round(fromTop * visibleRows);
+        var added = _player.Insert(paths, index);
+        Say(added == 1 ? "Inserted 1 item in Up Next." : $"Inserted {added} items in Up Next.");
+        RefreshQueue();
+    }
+
     private void LocateMissingQueueItem(PlaylistItem item)
     {
         var panel = NSOpenPanel.OpenPanel;
@@ -358,6 +373,19 @@ public sealed partial class MainWindow
             if (index >= 0) _player.Playlist.RemoveAt(index);
             RefreshQueue();
             return proved;
+        }
+
+        if (action == "verify-list-drop")
+        {
+            var before = _player.Playlist.Items.Count;
+            DropIntoQueue(["queue-drop-1.wav", "queue-drop-2.wav"], CGPoint.Empty);
+            var inserted = _player.Playlist.Items.Skip(before).Select(item => item.Location).ToArray();
+            for (var index = _player.Playlist.Items.Count - 1; index >= before; index--)
+            {
+                _player.Playlist.RemoveAt(index);
+            }
+            RefreshQueue();
+            return inserted.SequenceEqual(["queue-drop-1.wav", "queue-drop-2.wav"]);
         }
 
         if (action == "fill-long")
@@ -497,6 +525,29 @@ public sealed partial class MainWindow
 
         var matches = QueueSmokeButtons().Where(button => button.Enabled && button.Title == label);
         return last ? matches.LastOrDefault() : matches.FirstOrDefault();
+    }
+
+    private sealed class QueueDropScrollView : NSScrollView
+    {
+        private readonly Action<IReadOnlyList<string>, CGPoint> _drop;
+
+        public QueueDropScrollView(CGRect frame, Action<IReadOnlyList<string>, CGPoint> drop) : base(frame)
+        {
+            _drop = drop;
+            RegisterForDraggedTypes([NSPasteboardType.FileUrl.GetConstant()!]);
+        }
+
+        public override NSDragOperation DraggingEntered(INSDraggingInfo sender) => NSDragOperation.Copy;
+
+        public override bool PerformDragOperation(INSDraggingInfo sender)
+        {
+            var urls = sender.DraggingPasteboard
+                .ReadObjectsForClasses([new ObjCRuntime.Class(typeof(NSUrl))], null)?
+                .OfType<NSUrl>().Select(url => url.Path!).ToList();
+            if (urls is not { Count: > 0 }) return false;
+            _drop(urls, sender.DraggingLocation);
+            return true;
+        }
     }
 
     private IEnumerable<NSButton> QueueSmokeButtons()
