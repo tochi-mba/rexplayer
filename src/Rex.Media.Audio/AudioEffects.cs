@@ -19,6 +19,12 @@ public enum StereoMode
 
     /// <summary>Left and right swap.</summary>
     Reverse,
+
+    /// <summary>Blend a little of each side into the other for headphone listening.</summary>
+    Headphones,
+
+    /// <summary>Recover and widen the difference channel carried by matrix-surround material.</summary>
+    MatrixSurround,
 }
 
 /// <summary>Which loudness tags evens out loudness (AU-13).</summary>
@@ -72,7 +78,11 @@ public static class StereoModes
                 StereoMode.Mono => ((left[i] + right[i]) / 2, (left[i] + right[i]) / 2),
                 StereoMode.Left => (left[i], left[i]),
                 StereoMode.Right => (right[i], right[i]),
-                _ => (right[i], left[i]),
+                StereoMode.Reverse => (right[i], left[i]),
+                StereoMode.Headphones => ((0.85f * left[i]) + (0.15f * right[i]),
+                    (0.15f * left[i]) + (0.85f * right[i])),
+                _ => ((1.5f * left[i]) - (0.5f * right[i]),
+                    (1.5f * right[i]) - (0.5f * left[i])),
             };
         }
     }

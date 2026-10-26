@@ -43,6 +43,8 @@ public static class CommandCatalog
     public const string VolumeDown = "volume-down";
     public const string Mute = "mute";
     public const string CycleAudioTrack = "cycle-audio-track";
+    public const string ToggleHeadphoneCrossfeed = "toggle-headphone-crossfeed";
+    public const string ToggleMatrixSurround = "toggle-matrix-surround";
     public const string CycleSubtitles = "cycle-subtitles";
     public const string ToggleSubtitles = "toggle-subtitles";
     public const string SubtitlesEarlier = "subtitles-earlier";
@@ -159,6 +161,8 @@ public static class CommandCatalog
         New(VolumeDown, "Volume down", Audio, "Down", "Ctrl+Down"),
         New(Mute, "Mute", Audio, "M"),
         New(CycleAudioTrack, "Next audio track", Audio, "B"),
+        New(ToggleHeadphoneCrossfeed, "Headphone cross-feed", Audio, "Alt+S"),
+        New(ToggleMatrixSurround, "Matrix-surround decode", Audio, "Alt+C"),
         New(CycleVisualizer, "Next visualisation", Audio, "Z"),
         New(VisualizerSettings, "Visualisation settings", Audio, "Shift+Z"),
         New(ToggleLyrics, "Lyrics on or off", Audio, "Shift+L"),

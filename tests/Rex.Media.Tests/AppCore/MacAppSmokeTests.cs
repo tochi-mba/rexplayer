@@ -66,6 +66,7 @@ public sealed class MacAppSmokeTests
     [Capability("SUB-21", CapabilityPlatform.MacOS)]
     [Capability("AU-13", CapabilityPlatform.MacOS)]
     [Capability("AU-07", CapabilityPlatform.MacOS)]
+    [Capability("AU-11", CapabilityPlatform.MacOS)]
     [Capability("UI-16", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
@@ -440,6 +441,12 @@ public sealed class MacAppSmokeTests
             Assert.Equal("Mac listening room", savedEqualizer.EqualizerPreset);
             Assert.Equal([-5d, -4, -3, -2, -1, 0, 1, 2, 3, 4],
                 savedEqualizer.EqualizerUserPresets["Mac listening room"]);
+            var headphones = await Ask(pipe, new AutomationRequest { Command = "mac-stereo", Id = "headphones" });
+            Assert.Equal("mode=Headphones", headphones?.Text);
+            var matrix = await Ask(pipe, new AutomationRequest { Command = "mac-stereo", Id = "matrix" });
+            Assert.Equal("mode=MatrixSurround", matrix?.Text);
+            Assert.Equal(StereoChoice.MatrixSurround,
+                SettingsStore.Load(startupRoots.SettingsPath).Stereo);
             var minimal = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.MinimalInterface });
             Assert.True(minimal?.Ok == true, "The Mac minimal-interface command was not handled.");
             var hiddenChrome = await Ask(pipe, new AutomationRequest { Command = "mac-window" });

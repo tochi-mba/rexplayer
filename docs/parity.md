@@ -6,7 +6,7 @@ platform while the other catches up; under *locked* every must row is verified o
 applicable with a reason, and CI blocks a release otherwise (ADR-0020). A **gap** is a difference someone has
 accepted for now: its note says why and its issue says who closes it.
 
-Totals: 16 rows differ (11 must), 2 not applicable, 0 gaps.
+Totals: 15 rows differ (10 must), 2 not applicable, 0 gaps.
 
 ## Formats: Audio decoders
 
@@ -18,7 +18,6 @@ Totals: 16 rows differ (11 must), 2 not applicable, 0 gaps.
 
 | ID | Capability | Priority | Windows | macOS | Note |
 |---|---|---|---|---|---|
-| AU-11 | Stereo mode | must | verified | built |  |
 | AU-18 | Visualisations | should | verified | built |  |
 
 ## Video & rendering

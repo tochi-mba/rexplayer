@@ -80,6 +80,8 @@ public enum StereoChoice
     Left,
     Right,
     Reverse,
+    Headphones,
+    MatrixSurround,
 }
 
 /// <summary>Which loudness tags even out loudness.</summary>
