@@ -126,6 +126,7 @@ public sealed class SnapshotTests : IDisposable
     }
 
     [Fact]
+    [Capability("PB-16")]
     public void CustomSnapshotNamingCanNumberCollisionsWithoutChangingTheDefault()
     {
         var at = TimeSpan.FromSeconds(85);
