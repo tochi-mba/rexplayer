@@ -1797,7 +1797,7 @@
       "oracles": "SPEC",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
@@ -3918,7 +3918,7 @@
       "oracles": "UIA",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
