@@ -37,10 +37,11 @@ public sealed partial class MainWindow : IDisposable
     private Keymap _keymap;
     private readonly NSTextField _title = NSTextField.CreateLabel("Drop media here, or press Cmd+O to open a file.");
     private readonly NSTextField _artist = NSTextField.CreateLabel("");
-    private readonly NSTextField _time = NSTextField.CreateLabel("0:00");
+    private readonly NSButton _time;
+    private readonly NSTextField _statusChips = NSTextField.CreateLabel("");
     private readonly NSTextField _message = NSTextField.CreateLabel("");
     private readonly NSButton _playPause;
-    private readonly NSSlider _seek;
+    private readonly TimelineSlider _seek;
     private readonly NSSlider _volume;
     private readonly List<(NSMenuItem Item, string Command)> _checks = [];
     private NSStackView? _chrome;
@@ -55,9 +56,14 @@ public sealed partial class MainWindow : IDisposable
     private NSButton? _resumeAccept;
     private NSButton? _resumeStartOver;
     private bool _moving;
+    private bool _remainingTime;
     private NSButton? _fullScreenTracks;
     private NSButton? _fullScreenEffects;
     private NSButton? _fullScreenLeave;
+    private NSButton? _mainFullScreen;
+    private NSButton? _mainRepeat;
+    private NSButton? _mainShuffle;
+    private NSButton? _mainMute;
     private NSTimer? _fullScreenHideTimer;
 
     public MainWindow(DataRoots roots, RexLog log)
@@ -83,8 +89,14 @@ public sealed partial class MainWindow : IDisposable
         };
         _window.ReleaseWhenClosed(false);
         _window.AcceptsMouseMovedEvents = true;
+        _time = NSButton.CreateButton("0:00", ToggleTimeDisplay);
         _playPause = NSButton.CreateButton("Play", () => Run(CommandCatalog.PlayPause));
-        _seek = NSSlider.FromValue(0, 0, 1, () => SeekToSlider());
+        _seek = new TimelineSlider(new CGRect(0, 0, 400, 24), ShowSeekPreview, HideSeekPreview)
+        {
+            MinValue = 0,
+            MaxValue = 1,
+        };
+        _seek.Activated += (_, _) => SeekToSlider();
         _volume = NSSlider.FromValue(_player.Volume, 0, _settings.MaxVolumePercent / 100.0, () => _player.SetVolume(_volume!.DoubleValue));
         _window.ContentView = Layout();
         _window.InitialFirstResponder = _playPause;
@@ -151,6 +163,7 @@ public sealed partial class MainWindow : IDisposable
         DisposeStartupGuidance();
         DisposeStats();
         DisposeFullScreenController();
+        DisposeTimelinePreview();
         DisposeMusicPresentation();
         DisposeMusicVisualizers();
         EndCrashRecovery();
@@ -276,6 +289,9 @@ public sealed partial class MainWindow : IDisposable
                     return;
                 case "mac-fullscreen-controller":
                     answered.SetResult(ProbeFullScreenController());
+                    return;
+                case "mac-main-window":
+                    answered.SetResult(ProbeMainWindow());
                     return;
                 case "mac-video-geometry":
                     answered.SetResult(VideoGeometrySmokeAction(request.Id));
@@ -469,12 +485,19 @@ public sealed partial class MainWindow : IDisposable
         _message.TextColor = NSColor.SecondaryLabel;
         _seek.Continuous = false;
         _time.Font = NSFont.MonospacedDigitSystemFontOfSize(13, NSFontWeight.Regular)!;
+        _time.BezelStyle = NSBezelStyle.Inline;
+        _time.ToolTip = "Click to switch between elapsed and remaining time";
+        ((NSView)_time).AccessibilityLabel = "Elapsed and remaining playback time";
         var previous = NSButton.CreateButton("Previous", () => Run(CommandCatalog.Previous));
         var stop = NSButton.CreateButton("Stop", () => Run(CommandCatalog.Stop));
         var next = NSButton.CreateButton("Next", () => Run(CommandCatalog.Next));
         var open = NSButton.CreateButton("Open file", () => Run(CommandCatalog.OpenFile));
         var queue = NSButton.CreateButton("Up Next", ShowQueue);
         var library = NSButton.CreateButton("Library", ShowLibrary);
+        var fullScreen = _mainFullScreen = NSButton.CreateButton("Full screen", () => Run(CommandCatalog.ToggleFullScreen));
+        var repeat = _mainRepeat = NSButton.CreateButton("Repeat", () => Run(CommandCatalog.CycleRepeat));
+        var shuffle = _mainShuffle = NSButton.CreateButton("Shuffle", () => Run(CommandCatalog.ToggleShuffle));
+        var mute = _mainMute = NSButton.CreateButton("Mute", () => Run(CommandCatalog.Mute));
         _fullScreenTracks = NSButton.CreateButton("Tracks", ShowTrackTools);
         _fullScreenEffects = NSButton.CreateButton("Effects", ShowEffects);
         _fullScreenLeave = NSButton.CreateButton("Exit full screen", () => Run(CommandCatalog.LeaveFullScreen));
@@ -487,34 +510,45 @@ public sealed partial class MainWindow : IDisposable
         _playPause.ToolTip = "Play or pause (Space)";
         _seek.ToolTip = "Seek through the current file";
         _volume.ToolTip = "Volume";
-        var controls = NSStackView.FromViews([previous, _playPause, stop, next, open, library, queue,
-            _fullScreenTracks, _fullScreenEffects, _fullScreenLeave, _volume]);
+        var controls = NSStackView.FromViews([previous, _playPause, stop, next, fullScreen, open, library, queue,
+            _fullScreenTracks, _fullScreenEffects, repeat, shuffle, mute, _fullScreenLeave, _volume]);
         controls.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
         controls.Spacing = 8;
+        foreach (var button in controls.ArrangedSubviews.OfType<NSButton>())
+        {
+            button.HeightAnchor.ConstraintGreaterThanOrEqualTo(32).Active = true;
+        }
         _volume.WidthAnchor.ConstraintEqualTo(100).Active = true;
         _seek.SetContentHuggingPriorityForOrientation(1, NSLayoutConstraintOrientation.Horizontal);
         // Keep a deterministic keyboard path around every primary transport control.
         previous.NextKeyView = _playPause;
         _playPause.NextKeyView = stop;
         stop.NextKeyView = next;
-        next.NextKeyView = open;
         open.NextKeyView = library;
         library.NextKeyView = queue;
+        next.NextKeyView = fullScreen;
+        fullScreen.NextKeyView = open;
         queue.NextKeyView = _fullScreenTracks;
         _fullScreenTracks.NextKeyView = _fullScreenEffects;
-        _fullScreenEffects.NextKeyView = _fullScreenLeave;
+        _fullScreenEffects.NextKeyView = repeat;
+        repeat.NextKeyView = shuffle;
+        shuffle.NextKeyView = mute;
+        mute.NextKeyView = _fullScreenLeave;
         _fullScreenLeave.NextKeyView = _volume;
         _volume.NextKeyView = _seek;
         _seek.NextKeyView = previous;
-        SetMainKeyViews(previous, _playPause, stop, next, open, library, queue, _fullScreenTracks,
-            _fullScreenEffects, _fullScreenLeave, _volume, _seek);
+        SetMainKeyViews(previous, _playPause, stop, next, fullScreen, open, library, queue, _fullScreenTracks,
+            _fullScreenEffects, repeat, shuffle, mute, _fullScreenLeave, _volume, _seek);
         ((NSView)_seek).AccessibilityLabel = "Playback position";
         ((NSView)_volume).AccessibilityLabel = "Playback volume";
         ((NSView)_playPause).AccessibilityLabel = "Play or pause playback";
 
-        var timeline = NSStackView.FromViews([_seek, _time]);
-        timeline.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-        timeline.Spacing = 12;
+        var timelineLine = NSStackView.FromViews([_seek, _time]);
+        timelineLine.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
+        timelineLine.Spacing = 12;
+        var timeline = NSStackView.FromViews([BuildSeekPreview(), timelineLine]);
+        timeline.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
+        timeline.Spacing = 4;
         _resumeNotice = NSTextField.CreateLabel("Continue where you stopped?");
         _resumeNotice.TextColor = NSColor.SecondaryLabel;
         var acceptResume = NSButton.CreateButton("Resume", () => _player.AcceptResume());
@@ -529,7 +563,9 @@ public sealed partial class MainWindow : IDisposable
         _resumeBanner.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
         _resumeBanner.Spacing = 8;
         _resumeBanner.Hidden = true;
-        var stack = NSStackView.FromViews([_title, _artist, _message, _resumeBanner, timeline, controls]);
+        _statusChips.TextColor = NSColor.SecondaryLabel;
+        _statusChips.Font = NSFont.SystemFontOfSize(11, NSFontWeight.Medium)!;
+        var stack = NSStackView.FromViews([_title, _artist, _statusChips, _message, _resumeBanner, timeline, controls]);
         _chrome = stack;
         stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
         stack.Alignment = NSLayoutAttribute.Leading;
@@ -756,6 +792,15 @@ public sealed partial class MainWindow : IDisposable
         }
 
         _volume.DoubleValue = _player.Volume;
+        if (_mainMute is not null) _mainMute.Title = _player.Muted ? "Unmute" : "Mute";
+        if (_mainShuffle is not null) _mainShuffle.Title = _player.Playlist.Shuffle ? "Shuffle: On" : "Shuffle";
+        if (_mainRepeat is not null) _mainRepeat.Title = "Repeat: " + _player.Playlist.Repeat;
+        if (_mainFullScreen is not null) _mainFullScreen.Title = IsFullScreen ? "Exit full screen" : "Full screen";
+        _statusChips.StringValue = string.Join("  •  ", new[]
+        {
+            _settings.HardwareVideoDecoding ? "Hardware decoding" : null,
+            Math.Abs(_player.Speed - 1) > 0.001 ? $"{_player.Speed:0.##}× speed" : null,
+        }.Where(chip => chip is not null));
         ShowPosition();
         UpdateDockTile();
         UpdateSystemNowPlaying();
@@ -827,10 +872,45 @@ public sealed partial class MainWindow : IDisposable
 
         var duration = _player.Duration;
         _seek.DoubleValue = duration > TimeSpan.Zero ? Math.Clamp(_player.Position / duration, 0, 1) : 0;
-        _time.StringValue = duration > TimeSpan.Zero ? $"{Clock(_player.Position)} / {Clock(duration)}" : Clock(_player.Position);
+        _seek.Buffered = _player.Item?.Location is { } location && File.Exists(location) ? 1 : _seek.DoubleValue;
+        _seek.Chapters = duration > TimeSpan.Zero && _player.Info is { } info
+            ? [.. info.Chapters.Select(chapter => Math.Clamp(chapter.Start.ToTimeSpan() / duration, 0, 1))]
+            : [];
+        _seek.NeedsDisplay = true;
+        _time.Title = duration > TimeSpan.Zero
+            ? _remainingTime ? "−" + Clock(duration - _player.Position) : $"{Clock(_player.Position)} / {Clock(duration)}"
+            : Clock(_player.Position);
         UpdateSubtitleOverlays();
         UpdateSystemNowPlaying();
         RefreshMusicPosition();
+    }
+
+    private void ToggleTimeDisplay()
+    {
+        _remainingTime = !_remainingTime;
+        ShowPosition();
+    }
+
+    private AutomationReply ProbeMainWindow()
+    {
+        var before = _remainingTime;
+        ToggleTimeDisplay();
+        var toggled = _remainingTime != before;
+        ShowSeekPreview(0.5);
+        var preview = _seekPreview?.Hidden == false && !string.IsNullOrWhiteSpace(_seekPreviewTime?.StringValue);
+        HideSeekPreview();
+        var controls = new[] { _mainFullScreen, _mainRepeat, _mainShuffle, _mainMute,
+            _fullScreenTracks, _fullScreenEffects, _fullScreenLeave };
+        var complete = controls.All(button => button is { Enabled: true }) && toggled && preview
+            && _seek.Buffered >= 0 && _seek.Chapters is not null && _mainKeyViews.Count == 16;
+        return complete
+            ? new AutomationReply
+            {
+                Ok = true,
+                Text = $"transport={controls.Length};timeline=elapsed,remaining,chapters,buffer,preview;" +
+                    $"volume=True;chips={_statusChips.StringValue};keys={_mainKeyViews.Count}",
+            }
+            : AutomationReply.Failed("The native main-window controls are incomplete.");
     }
 
     private void SeekToSlider()
