@@ -179,16 +179,24 @@ public sealed class MacAppSmokeTests
             // Native file and named-playlist surfaces use the same persisted model as the engine.
             var savedPlaylists = await Ask(pipe, new AutomationRequest { Command = "mac-playlists", Id = "show" });
             Assert.True(savedPlaylists?.Ok == true, "Native saved-playlist window did not open.");
-            var playlistFile = Path.Combine(root, "exported-playlist.m3u8");
-            var saveFile = await Ask(pipe, new AutomationRequest
+            foreach (var (extension, marker) in new[]
             {
-                Command = "mac-playlists",
-                Id = "save-file",
-                Path = playlistFile,
-            });
-            Assert.True(saveFile?.Ok == true && File.Exists(playlistFile),
-                "Mac playlist export did not create a readable file.");
-            Assert.Contains("h264-aac.mp4", File.ReadAllText(playlistFile), StringComparison.OrdinalIgnoreCase);
+                ("m3u8", "#EXTM3U"), ("xspf", "<playlist"), ("pls", "[playlist]"),
+            })
+            {
+                var playlistFile = Path.Combine(root, "exported-playlist." + extension);
+                var saveFile = await Ask(pipe, new AutomationRequest
+                {
+                    Command = "mac-playlists",
+                    Id = "save-file",
+                    Path = playlistFile,
+                });
+                Assert.True(saveFile?.Ok == true && File.Exists(playlistFile),
+                    $"Mac {extension} playlist export did not create a readable file.");
+                var playlistText = File.ReadAllText(playlistFile);
+                Assert.Contains(marker, playlistText, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("h264-aac.mp4", playlistText, StringComparison.OrdinalIgnoreCase);
+            }
             var createNamed = await Ask(pipe, new AutomationRequest { Command = "mac-playlists", Id = "create" });
             Assert.True(createNamed?.Ok == true, "Native named-playlist creation failed.");
             foreach (var action in new[] { "rename", "duplicate", "append", "play", "delete" })
