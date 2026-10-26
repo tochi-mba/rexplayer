@@ -89,6 +89,7 @@ public static class CommandCatalog
     public const string ToggleFullScreen = "toggle-full-screen";
     public const string LeaveFullScreen = "leave-full-screen";
     public const string CycleAspectRatio = "cycle-aspect-ratio";
+    public const string CustomAspectRatio = "custom-aspect-ratio";
     public const string CycleCrop = "cycle-crop";
     public const string ScaleQuarter = "scale-quarter";
     public const string ScaleHalf = "scale-half";
@@ -188,6 +189,7 @@ public static class CommandCatalog
         New(ToggleFullScreen, "Full screen", Video, "F", "F11"),
         New(LeaveFullScreen, "Leave full screen", Video, "Escape"),
         New(CycleAspectRatio, "Next aspect ratio", Video, "A"),
+        New(CustomAspectRatio, "Custom aspect ratio…", Video),
         New(CycleCrop, "Next crop", Video, "C"),
         New(ScaleQuarter, "Window at a quarter size", Video, "Alt+1"),
         New(ScaleHalf, "Window at half size", Video, "Alt+2"),

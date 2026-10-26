@@ -13,7 +13,7 @@ public static class ContextMenuLayout
         ("", [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, null, CommandCatalog.ToggleFullScreen, CommandCatalog.MinimalInterface]),
         ("Audio", [CommandCatalog.CycleAudioTrack, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, CommandCatalog.CycleVisualizer, CommandCatalog.VisualizerSettings]),
         ("Subtitles", [CommandCatalog.AddSubtitles, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles, CommandCatalog.ToggleKineticCaptions]),
-        ("Video", [CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, CommandCatalog.ZoomIn, CommandCatalog.ZoomOut, CommandCatalog.ResetZoom, CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
+        ("Video", [CommandCatalog.CycleAspectRatio, CommandCatalog.CustomAspectRatio, CommandCatalog.CycleCrop, CommandCatalog.ZoomIn, CommandCatalog.ZoomOut, CommandCatalog.ResetZoom, CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
         ("Media", [CommandCatalog.OpenFile, CommandCatalog.OpenFolder, CommandCatalog.PasteLocation, CommandCatalog.TogglePlaylist, CommandCatalog.MediaInformation]),
         ("", [null, CommandCatalog.Preferences, CommandCatalog.Quit]),
     ];
