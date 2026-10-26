@@ -299,7 +299,7 @@ public sealed partial class MainWindow : IDisposable
                     answered.SetResult(MacStatsSmokeAction(request.Id));
                     return;
                 case "mac-drop":
-                    _player.Drop(request.Paths ?? []);
+                    _player.Drop(request.Paths ?? [], request.Enqueue);
                     answered.SetResult(new AutomationReply { Ok = true });
                     return;
                 case "mac-subtitles":
@@ -524,7 +524,7 @@ public sealed partial class MainWindow : IDisposable
         controls.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
         timeline.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
 
-        var content = new DropView(paths => _player.Drop(paths), HandlePictureWheel,
+        var content = new DropView((paths, enqueue) => _player.Drop(paths, enqueue), HandlePictureWheel,
             HandlePictureDrag, HandlePictureClick, HandlePictureOtherClick);
         _pictureMenu = BuildPictureMenu();
         content.Menu = _pictureMenu;
@@ -891,13 +891,13 @@ public sealed partial class MainWindow : IDisposable
     /// <summary>The window's content: takes files and folders dropped on it.</summary>
     private sealed class DropView : NSView
     {
-        private readonly Action<IReadOnlyList<string>> _open;
+        private readonly Action<IReadOnlyList<string>, bool> _open;
         private readonly Action<NSEvent> _wheel;
         private readonly Action<NSEvent> _drag;
         private readonly Action<NSEvent> _click;
         private readonly Action<NSEvent> _otherClick;
 
-        public DropView(Action<IReadOnlyList<string>> open, Action<NSEvent> wheel,
+        public DropView(Action<IReadOnlyList<string>, bool> open, Action<NSEvent> wheel,
             Action<NSEvent> drag, Action<NSEvent> click, Action<NSEvent> otherClick)
         {
             _open = open;
@@ -934,7 +934,8 @@ public sealed partial class MainWindow : IDisposable
                 return false;
             }
 
-            _open(urls);
+            var modifiers = NSApplication.SharedApplication.CurrentEvent?.ModifierFlags ?? 0;
+            _open(urls, (modifiers & NSEventModifierMask.CommandKeyMask) != 0);
             return true;
         }
     }
