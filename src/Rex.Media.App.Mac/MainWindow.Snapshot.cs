@@ -1,4 +1,5 @@
 using Rex.Media.AppCore;
+using Rex.Media.AppCore.Automation;
 using Rex.Media.Codecs.Apple;
 using Rex.Media.IO;
 using Rex.Media.Primitives;
@@ -9,6 +10,66 @@ namespace Rex.Media.App.Mac;
 /// <summary>Capture the actual decoded source frame, not the window and its subtitle overlays.</summary>
 public sealed partial class MainWindow
 {
+    private AutomationReply SnapshotSmokeAction(string? format, string? output)
+    {
+        if (_player.Item?.Location is not { } location || !File.Exists(location) ||
+            _player.Info?.FirstTrack(MediaKind.Video) is null || string.IsNullOrWhiteSpace(output))
+        {
+            return AutomationReply.Failed("Open a local video and provide a snapshot path.");
+        }
+
+        var type = format switch
+        {
+            "png" => NSBitmapImageFileType.Png,
+            "jpeg" => NSBitmapImageFileType.Jpeg,
+            "bmp" => NSBitmapImageFileType.Bmp,
+            _ => (NSBitmapImageFileType?)null,
+        };
+        if (type is null)
+        {
+            return AutomationReply.Failed("Snapshot format must be png, jpeg or bmp.");
+        }
+
+        var temp = type == NSBitmapImageFileType.Png ? output :
+            Path.Combine(Path.GetTempPath(), "rexplayer-snapshot-" + Guid.NewGuid().ToString("N") + ".png");
+        try
+        {
+            using var source = new FileByteSource(location);
+            var result = Snapshot.SaveAsPng(source, MediaRegistries.Decoders(new AppleDecoderFactory()),
+                MediaTime.FromSeconds(_player.Position.TotalSeconds), temp, CancellationToken.None);
+            if (type != NSBitmapImageFileType.Png)
+            {
+                using var sourcePng = NSData.FromFile(temp);
+                if (sourcePng is null) throw new IOException("The decoded picture is missing.");
+                using var bitmap = NSBitmapImageRep.ImageRepFromData(sourcePng) as NSBitmapImageRep
+                    ?? throw new IOException("macOS could not read the decoded picture.");
+                using var encoded = bitmap.RepresentationUsingTypeProperties(type.Value)
+                    ?? throw new IOException("macOS could not encode the requested picture format.");
+                Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
+                File.WriteAllBytes(output, encoded.ToArray());
+            }
+
+            return new AutomationReply
+            {
+                Ok = true,
+                Text = $"format={format};width={result.Width};height={result.Height};path={output}",
+            };
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException
+            or InvalidOperationException or NotSupportedException)
+        {
+            return AutomationReply.Failed(ex.Message);
+        }
+        finally
+        {
+            if (type != NSBitmapImageFileType.Png)
+            {
+                try { File.Delete(temp); }
+                catch (IOException) { /* Best-effort cleanup of a temporary PNG. */ }
+            }
+        }
+    }
+
     private void SaveVideoSnapshot()
     {
         if (_player.Item?.Location is not { } location || !File.Exists(location) ||
