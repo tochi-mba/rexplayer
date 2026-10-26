@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 148 planned, 73 built, 72 verified, 27 post-1.0, 2 not-applicable.
+macOS: 148 planned, 71 built, 74 verified, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -234,9 +234,9 @@ macOS: 148 planned, 73 built, 72 verified, 27 post-1.0, 2 not-applicable.
 
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
-| OSD-01 | Text subtitle style | Font family with per-script fallback, relative size 50–400% (presets smaller/small/normal/large/larger), colour, opacity, bold, outline none/thin/normal/thick + colour, shadow colour/offset/opacity, background box colour/opacity | M5 | must | verified | built |
+| OSD-01 | Text subtitle style | Font family with per-script fallback, relative size 50–400% (presets smaller/small/normal/large/larger), colour, opacity, bold, outline none/thin/normal/thick + colour, shadow colour/offset/opacity, background box colour/opacity | M5 | must | verified | verified |
 | OSD-02 | Subtitle scaling keys | Ctrl+wheel, Ctrl+0 reset; menu 50/75/100/125/150/200% | M5 | must | built | built |
-| OSD-03 | Placement | Vertical margin; force position; subtitles in the letterbox bars | M5 | should | verified | built |
+| OSD-03 | Placement | Vertical margin; force position; subtitles in the letterbox bars | M5 | should | verified | verified |
 | OSD-04 | Dual subtitles | Secondary track shown at the same time (top or bottom) | M5 | should | verified | verified |
 | OSD-05 | ASS style policy | Respect / scale / override styles; embedded fonts honoured | M5 | must | built | built |
 | OSD-06 | System caption settings | Honours Windows Settings → Accessibility → Captions by default | M15 | should | planned | planned |
