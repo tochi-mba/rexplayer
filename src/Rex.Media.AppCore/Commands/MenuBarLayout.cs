@@ -28,7 +28,7 @@ public static class MenuBarLayout
         ("Subtitles", [CommandCatalog.AddSubtitles, null, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles, null,
             SubMenuPrefix + "subtitle-timing", SubMenuPrefix + "subtitle-size", null,
             CommandCatalog.ToggleKineticCaptions, SubMenuPrefix + "kinetic-captions", null, CommandCatalog.Transcribe, CommandCatalog.SaveTranscript]),
-        ("Video", [CommandCatalog.ToggleFullScreen, null, CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, null,
+        ("Video", [CommandCatalog.ToggleFullScreen, null, CommandCatalog.CycleAspectRatio, CommandCatalog.CustomAspectRatio, CommandCatalog.CycleCrop, null,
             CommandCatalog.ZoomIn, CommandCatalog.ZoomOut, CommandCatalog.ResetZoom, CommandCatalog.ToggleNavigator, null, SubMenuPrefix + "window-size", null,
             CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
         ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ToggleLibrary, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, null,
