@@ -79,6 +79,13 @@ public sealed record SessionStats
 
     /// <summary>How steadily the newest pictures were presented: the spread of their intervals and lateness.</summary>
     public FrameCadenceStats Cadence { get; init; }
+
+    public int AudioPacketsBuffered { get; init; }
+
+    public int VideoPacketsBuffered { get; init; }
+
+    /// <summary>Newest presented picture time minus the audio clock, in milliseconds.</summary>
+    public double? AudioVideoOffsetMilliseconds { get; init; }
 }
 
 /// <summary>

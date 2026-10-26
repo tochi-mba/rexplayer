@@ -14,8 +14,8 @@ public sealed class StatsAndSnapshotNamesTests
         FormatName = "MP4",
         Tracks =
         [
-            new TrackInfo { Id = 1, Codec = CodecId.H264, Video = new VideoTrackInfo { Width = 1920, Height = 1080, FrameRate = new Rational(24000, 1001) } },
-            new TrackInfo { Id = 2, Codec = CodecId.Aac, Audio = new AudioTrackInfo { SampleRate = 48000, Channels = 2 } },
+            new TrackInfo { Id = 1, Codec = CodecId.H264, BitRate = 4_500_000, Video = new VideoTrackInfo { Width = 1920, Height = 1080, FrameRate = new Rational(24000, 1001), Color = new ColorInfo(ColorMatrix.Bt709, ColorTransfer.Bt709, ColorPrimaries.Bt709, false) } },
+            new TrackInfo { Id = 2, Codec = CodecId.Aac, BitRate = 192_000, Audio = new AudioTrackInfo { SampleRate = 48000, Channels = 2 } },
         ],
     };
 
@@ -33,18 +33,26 @@ public sealed class StatsAndSnapshotNamesTests
             VideoFramesDropped = 2,
             AudioDecoder = "Microsoft AAC Audio Decoder MFT",
             CorruptPackets = 3,
+            Cadence = new FrameCadenceStats(240, 239, 41.7, 0.4, 43, 2.5, 0.8, 7.2),
+            AudioPacketsBuffered = 7,
+            VideoPacketsBuffered = 4,
+            AudioVideoOffsetMilliseconds = -12.5,
         };
 
         var text = StatsText.Describe(now, Film, audioTrack: 2, earlier, TimeSpan.FromSeconds(2)).Split(Environment.NewLine);
 
         Assert.Equal(
         [
-            "Video     H.264 / AVC 1920\u00D71080, 23.976 fps",
+            "Video     H.264 / AVC 1920\u00D71080, 23.976 fps, 4500 kb/s",
             "Decoder   Microsoft H264 Video Decoder MFT (graphics card)",
             "Pictures  240 shown, 2 dropped",
-            "Audio     AAC 48000 Hz, 2 ch",
+            "Late      2.5 ms mean, 7.2 ms worst",
+            "Colour    Bt709, Bt709, Bt709, limited range",
+            "Audio     AAC 48000 Hz, 2 ch, 192 kb/s",
             "Decoder   Microsoft AAC Audio Decoder MFT",
             "Read      1.4 MB, 2000 kb/s",
+            "Buffers   audio 7, video 4 packets",
+            "A/V       -12.5 ms (picture minus sound)",
             "Damaged   3 packet(s) skipped",
         ],
             text);
@@ -68,10 +76,11 @@ public sealed class StatsAndSnapshotNamesTests
         var song = new MediaInfo { FormatName = "FLAC", Tracks = [Film.Tracks[1]] };
         var silent = new MediaInfo { FormatName = "Matroska", Tracks = [Film.Tracks[0] with { Video = new VideoTrackInfo { Width = 16, Height = 8 } }] };
 
-        Assert.Equal(["Audio     AAC 48000 Hz, 2 ch", "Decoder   none", "Read      0.0 MB"], StatsText.Describe(new SessionStats(), song, 2).Split(Environment.NewLine));
-        Assert.Contains("Video     H.264 / AVC 16\u00D78" + Environment.NewLine, StatsText.Describe(new SessionStats(), silent, -1), StringComparison.Ordinal);
+        Assert.Equal(["Audio     AAC 48000 Hz, 2 ch, 192 kb/s", "Decoder   none", "Read      0.0 MB", "Buffers   audio 0, video 0 packets"], StatsText.Describe(new SessionStats(), song, 2).Split(Environment.NewLine));
+        Assert.StartsWith("Video     H.264 / AVC 16\u00D78, 4500 kb/s" + Environment.NewLine,
+            StatsText.Describe(new SessionStats(), silent, -1), StringComparison.Ordinal);
         Assert.Contains("Audio     none (silence)", StatsText.Describe(new SessionStats(), silent, -1), StringComparison.Ordinal);
-        Assert.Equal("Read      0.0 MB", StatsText.Describe(new SessionStats(), null, null));
+        Assert.Equal("Read      0.0 MB" + Environment.NewLine + "Buffers   audio 0, video 0 packets", StatsText.Describe(new SessionStats(), null, null));
         Assert.Throws<ArgumentNullException>(() => StatsText.Describe(null!, null, null));
     }
 

@@ -294,6 +294,9 @@ public sealed partial class MainWindow : IDisposable
                 case "mac-crash-recovery":
                     answered.SetResult(MacCrashRecoverySmokeAction(request.Id));
                     return;
+                case "mac-stats":
+                    answered.SetResult(MacStatsSmokeAction(request.Id));
+                    return;
                 case "mac-drop":
                     _player.Drop(request.Paths ?? []);
                     answered.SetResult(new AutomationReply { Ok = true });
