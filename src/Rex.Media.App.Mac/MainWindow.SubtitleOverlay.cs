@@ -1,3 +1,4 @@
+using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Primitives;
 using Rex.Media.Engine;
@@ -19,6 +20,9 @@ public sealed partial class MainWindow
     private NSLayoutConstraint? _secondaryTopConstraint;
     private NSLayoutConstraint? _secondaryMiddleConstraint;
     private NSLayoutConstraint? _secondaryBottomConstraint;
+    private NSLayoutConstraint? _messageTopConstraint;
+    private NSLayoutConstraint? _messageMiddleConstraint;
+    private NSLayoutConstraint? _messageBottomConstraint;
     private SubtitlePlacement _primaryPlacement = SubtitlePlacement.Bottom;
     private SubtitlePlacement _secondaryPlacement = SubtitlePlacement.Top;
 
@@ -43,7 +47,10 @@ public sealed partial class MainWindow
         _secondaryMiddleConstraint = _secondarySubtitleOverlay.CenterYAnchor.ConstraintEqualTo(_picture.CenterYAnchor);
         _secondaryBottomConstraint = _secondarySubtitleOverlay.BottomAnchor.ConstraintEqualTo(_primarySubtitleOverlay.TopAnchor, -12);
         _secondaryTopConstraint.Active = true;
-        _videoMessageOverlay.TopAnchor.ConstraintEqualTo(_picture.TopAnchor, 14).Active = true;
+        _messageTopConstraint = _videoMessageOverlay.TopAnchor.ConstraintEqualTo(_picture.TopAnchor, 14);
+        _messageMiddleConstraint = _videoMessageOverlay.CenterYAnchor.ConstraintEqualTo(_picture.CenterYAnchor);
+        _messageBottomConstraint = _videoMessageOverlay.BottomAnchor.ConstraintEqualTo(_picture.BottomAnchor, -14);
+        ApplyMacMessagePosition();
     }
 
     private static NSTextField SubtitleLabel(string accessibilityName)
@@ -174,6 +181,58 @@ public sealed partial class MainWindow
             _videoMessageOverlay.StringValue = message;
             _videoMessageOverlay.Hidden = message.Length == 0;
         }
+    }
+
+    private void ApplyMacMessagePosition()
+    {
+        if (_messageTopConstraint is null || _messageMiddleConstraint is null ||
+            _messageBottomConstraint is null) return;
+        _messageTopConstraint.Active = false;
+        _messageMiddleConstraint.Active = false;
+        _messageBottomConstraint.Active = false;
+        (_settings.OnScreenMessagePosition switch
+        {
+            OnScreenMessagePosition.Centre => _messageMiddleConstraint,
+            OnScreenMessagePosition.Bottom => _messageBottomConstraint,
+            _ => _messageTopConstraint,
+        }).Active = true;
+    }
+
+    private AutomationReply MacOsdSmokeAction(string? action)
+    {
+        if (action == "configure")
+        {
+            _settings = (_settings with
+            {
+                OnScreenMessages = true,
+                OnScreenMessageSeconds = 4.5,
+                OnScreenMessagePosition = OnScreenMessagePosition.Bottom,
+                TitleSeconds = 6,
+            }).Normalize();
+            _player.Settings = _settings;
+            SettingsStore.Save(_roots.SettingsPath, _settings);
+            ApplyMacMessagePosition();
+            Say("Playback message proof");
+        }
+        else if (action == "disable")
+        {
+            _settings = _settings with { OnScreenMessages = false, TitleSeconds = 0 };
+            _player.Settings = _settings;
+            SettingsStore.Save(_roots.SettingsPath, _settings);
+            Say("Hidden playback message proof");
+        }
+        else if (action != "status")
+        {
+            return new AutomationReply { Ok = false, Error = "Unknown OSD action." };
+        }
+
+        return new AutomationReply
+        {
+            Ok = true,
+            Text = $"enabled={_settings.OnScreenMessages};duration={_settings.OnScreenMessageSeconds:0.0};" +
+                $"position={_settings.OnScreenMessagePosition};title={_settings.TitleSeconds:0.0};" +
+                $"overlay={_videoMessageOverlay?.StringValue}",
+        };
     }
 
     private void ChangeSubtitleScale(int delta)

@@ -20,6 +20,12 @@ public sealed partial class MainWindow
     private NSTextField? _preferencesPictureSecondsValue;
     private NSTextField? _preferencesSnapshotPattern;
     private NSButton? _preferencesSnapshotSequential;
+    private NSButton? _preferencesOsd;
+    private NSSlider? _preferencesOsdSeconds;
+    private NSTextField? _preferencesOsdSecondsValue;
+    private NSSlider? _preferencesTitleSeconds;
+    private NSTextField? _preferencesTitleSecondsValue;
+    private NSPopUpButton? _preferencesOsdPosition;
 
     /// <summary>Shows the native Mac surface for the shared settings used by this shell.</summary>
     private void ShowPreferences()
@@ -77,6 +83,15 @@ public sealed partial class MainWindow
         _preferencesPictureSeconds = Slider(1, 60, UpdatePreferenceLabels);
         var pictures = PreferenceRow("Show each picture for", _preferencesPictureSeconds, _preferencesPictureSecondsValue);
 
+        _preferencesOsd = CheckBox("Show playback messages over the picture");
+        _preferencesOsdPosition = EffectChoices(["Top", "Centre", "Bottom"]);
+        _preferencesOsdSecondsValue = NSTextField.CreateLabel("");
+        _preferencesOsdSeconds = Slider(0, 30, UpdatePreferenceLabels);
+        var osdSeconds = PreferenceRow("Message duration", _preferencesOsdSeconds, _preferencesOsdSecondsValue);
+        _preferencesTitleSecondsValue = NSTextField.CreateLabel("");
+        _preferencesTitleSeconds = Slider(0, 30, UpdatePreferenceLabels);
+        var titleSeconds = PreferenceRow("Starting title duration", _preferencesTitleSeconds, _preferencesTitleSecondsValue);
+
         _preferencesSnapshotPattern = new NSTextField(new CGRect(0, 0, 300, 24))
         {
             PlaceholderString = "{title} {time} (or {n})",
@@ -109,6 +124,10 @@ public sealed partial class MainWindow
             _preferencesSnapshotSequential,
             PreferencesHeading("Appearance"),
             EffectChoiceRow("Theme", _preferencesTheme),
+            _preferencesOsd,
+            EffectChoiceRow("Message position", _preferencesOsdPosition),
+            osdSeconds,
+            titleSeconds,
             PreferencesHeading("Opening media"),
             _preferencesSingleInstance,
             _preferencesEnqueue,
@@ -174,6 +193,10 @@ public sealed partial class MainWindow
         _preferencesTheme!.SelectItem((int)_settings.Theme);
         _preferencesMaxVolume!.DoubleValue = _settings.MaxVolumePercent;
         _preferencesPictureSeconds!.DoubleValue = _settings.PictureSeconds;
+        _preferencesOsd!.State = State(_settings.OnScreenMessages);
+        _preferencesOsdPosition!.SelectItem((int)_settings.OnScreenMessagePosition);
+        _preferencesOsdSeconds!.DoubleValue = _settings.OnScreenMessageSeconds;
+        _preferencesTitleSeconds!.DoubleValue = _settings.TitleSeconds;
         UpdatePreferenceLabels();
     }
 
@@ -181,6 +204,8 @@ public sealed partial class MainWindow
     {
         _preferencesMaxVolumeValue!.StringValue = $"{Math.Round(_preferencesMaxVolume!.DoubleValue):0} %";
         _preferencesPictureSecondsValue!.StringValue = $"{Math.Round(_preferencesPictureSeconds!.DoubleValue):0} sec";
+        _preferencesOsdSecondsValue!.StringValue = $"{_preferencesOsdSeconds!.DoubleValue:0.0} sec";
+        _preferencesTitleSecondsValue!.StringValue = $"{_preferencesTitleSeconds!.DoubleValue:0.0} sec";
     }
 
     private void SavePreferences()
@@ -200,9 +225,14 @@ public sealed partial class MainWindow
             Theme = (ThemeChoice)(int)_preferencesTheme!.IndexOfSelectedItem,
             MaxVolumePercent = (int)Math.Round(_preferencesMaxVolume!.DoubleValue),
             PictureSeconds = (int)Math.Round(_preferencesPictureSeconds!.DoubleValue),
+            OnScreenMessages = IsChecked(_preferencesOsd),
+            OnScreenMessagePosition = (OnScreenMessagePosition)(int)_preferencesOsdPosition!.IndexOfSelectedItem,
+            OnScreenMessageSeconds = _preferencesOsdSeconds!.DoubleValue,
+            TitleSeconds = _preferencesTitleSeconds!.DoubleValue,
         }).Normalize();
         _player.Settings = _settings;
         ApplyMacTheme();
+        ApplyMacMessagePosition();
         _volume.MaxValue = _settings.MaxVolumePercent / 100.0;
         _player.SetVolume(Math.Min(_player.Volume, _volume.MaxValue));
         try

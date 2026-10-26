@@ -273,6 +273,9 @@ public sealed partial class MainWindow : IDisposable
                 case "mac-kinetic-captions":
                     answered.SetResult(MacKineticSmokeAction(request.Id));
                     return;
+                case "mac-osd":
+                    answered.SetResult(MacOsdSmokeAction(request.Id));
+                    return;
                 case "mac-drop":
                     _player.Drop(request.Paths ?? []);
                     answered.SetResult(new AutomationReply { Ok = true });
@@ -811,9 +814,11 @@ public sealed partial class MainWindow : IDisposable
     private void Say(string text)
     {
         _message.StringValue = text;
-        SetVideoOSD(text);
+        var showOverPicture = _settings.OnScreenMessages && _settings.OnScreenMessageSeconds > 0;
+        SetVideoOSD(showOverPicture ? text : "");
         _clearMessage?.Invalidate();
-        _clearMessage = NSTimer.CreateScheduledTimer(TimeSpan.FromSeconds(3), _ =>
+        _clearMessage = NSTimer.CreateScheduledTimer(
+            TimeSpan.FromSeconds(Math.Max(0.01, _settings.OnScreenMessageSeconds)), _ =>
         {
             _message.StringValue = "";
             SetVideoOSD("");
