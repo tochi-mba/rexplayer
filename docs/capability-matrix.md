@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 148 planned, 55 built, 89 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
+macOS: 148 planned, 54 built, 90 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -388,7 +388,7 @@ macOS: 148 planned, 55 built, 89 verified, 1 verified-hardware, 27 post-1.0, 2 n
 | WIN-11 | Power awareness | VID-29 power requests; pause on sleep, re-open devices on resume | M4/M11 | must | built | built |
 | WIN-12 | Architectures | x64 (M); ARM64 native (S) through cross-platform `Vector128` SIMD paths | M0/M15 | must/should | planned | planned |
 | WIN-13 | Minimum OS | Windows 10 1809 (build 17763) and Windows 11; Windows 11 is the primary target | M0 | must | built | built |
-| WIN-14 | Crash recovery | Global handlers (house), "rexplayer closed unexpectedly - resume where you were?" on next start, opt-in local minidumps, nothing uploaded | M4 | must | verified | built |
+| WIN-14 | Crash recovery | Global handlers (house), "rexplayer closed unexpectedly - resume where you were?" on next start, opt-in local minidumps, nothing uploaded | M4 | must | verified | verified |
 | WIN-15 | Share / "Open with" from apps | - | post | could | post-1.0 | post-1.0 |
 | WIN-16 | URL protocol handler | Deliberately not registered (attack surface without user value) | - | wont | post-1.0 | post-1.0 |
 
