@@ -68,6 +68,7 @@ public sealed class MacAppSmokeTests
     [Capability("AU-07", CapabilityPlatform.MacOS)]
     [Capability("AU-11", CapabilityPlatform.MacOS)]
     [Capability("VID-05", CapabilityPlatform.MacOS)]
+    [Capability("VID-04", CapabilityPlatform.MacOS)]
     [Capability("UI-16", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
@@ -403,6 +404,21 @@ public sealed class MacAppSmokeTests
                 Id = "custom",
             });
             Assert.Contains("aspect=2.333", customAspect?.Text, StringComparison.Ordinal);
+            var autoSize = await Ask(pipe, new AutomationRequest
+            {
+                Command = "mac-window-sizing",
+                Id = "configure",
+            });
+            Assert.Equal("automatic=True;scale=0.50", autoSize?.Text);
+            var largerWindow = await Ask(pipe, new AutomationRequest
+            {
+                Command = "mac-window-sizing",
+                Id = "larger",
+            });
+            Assert.Equal("automatic=True;scale=1.00", largerWindow?.Text);
+            var savedWindowSize = SettingsStore.Load(startupRoots.SettingsPath);
+            Assert.True(savedWindowSize.ResizeWindowToVideo);
+            Assert.Equal(1, savedWindowSize.VideoWindowScale);
             var kinetic = await Ask(pipe, new AutomationRequest
             {
                 Command = "mac-kinetic-captions",
