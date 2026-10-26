@@ -1,4 +1,5 @@
 using System.Globalization;
+using Rex.Media.AppCore.Automation;
 using Rex.Media.Primitives;
 
 namespace Rex.Media.App.Mac;
@@ -6,6 +7,37 @@ namespace Rex.Media.App.Mac;
 /// <summary>Native primary/secondary subtitle, audio-track and sync controls.</summary>
 public sealed partial class MainWindow
 {
+    private AutomationReply SubtitleSmokeAction(string? action)
+    {
+        if (action == "select-secondary")
+        {
+            var second = _player.SubtitleTracks.FirstOrDefault(track =>
+                !ReferenceEquals(track, _player.Subtitles));
+            if (second is null)
+            {
+                return AutomationReply.Failed("Two subtitle tracks are required.");
+            }
+
+            _player.ShowSecondarySubtitles(second);
+            RefreshTrackTools();
+            UpdateSubtitleOverlays();
+        }
+        else if (action is not null and not "status")
+        {
+            return AutomationReply.Failed("Unknown Mac subtitle action: " + action);
+        }
+
+        return new AutomationReply
+        {
+            Ok = true,
+            Text = $"tracks={_player.SubtitleTracks.Count};" +
+                $"primary={_player.Subtitles?.Name ?? "off"};" +
+                $"secondary={_player.SecondarySubtitles?.Name ?? "off"};" +
+                $"primaryPlacement={_primaryPlacement};" +
+                $"secondaryPlacement={_secondaryPlacement}",
+        };
+    }
+
     private NSWindow? _tracksWindow;
     private NSPopUpButton? _tracksAudio;
     private NSPopUpButton? _tracksPrimary;
