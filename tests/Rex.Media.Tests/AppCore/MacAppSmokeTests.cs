@@ -75,6 +75,7 @@ public sealed class MacAppSmokeTests
     [Capability("LIB-05", CapabilityPlatform.MacOS)]
     [Capability("LIB-02", CapabilityPlatform.MacOS)]
     [Capability("UI-04", CapabilityPlatform.MacOS)]
+    [Capability("UI-01", CapabilityPlatform.MacOS)]
     [Capability("UI-16", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
@@ -168,7 +169,7 @@ public sealed class MacAppSmokeTests
             var mainKeyboard = await Ask(pipe, new AutomationRequest { Command = "mac-keyboard" });
             Assert.True(mainKeyboard?.Ok == true, "The Mac main-window keyboard loop failed: " +
                 (mainKeyboard?.Error ?? "no reply") + LogTail(root));
-            Assert.Equal("tab=12;regions=3", mainKeyboard!.Text);
+            Assert.Equal("tab=16;regions=3", mainKeyboard!.Text);
             var logShown = await Ask(pipe, new AutomationRequest { Command = "mac-diagnostics", Id = "show" });
             Assert.True(logShown?.Ok == true, "The Mac log console did not open.");
             var logControls = await Ask(pipe, new AutomationRequest { Command = "mac-diagnostics", Id = "verify-controls" });
@@ -396,6 +397,10 @@ public sealed class MacAppSmokeTests
             Assert.Contains(playing.Title, titled?.Text, StringComparison.Ordinal);
             Assert.Contains("minimal=False", titled?.Text, StringComparison.Ordinal);
             Assert.Contains("context=33", titled?.Text, StringComparison.Ordinal);
+            var mainWindow = await Ask(pipe, new AutomationRequest { Command = "mac-main-window" });
+            Assert.True(mainWindow?.Ok == true && mainWindow.Text?.Contains(
+                "timeline=elapsed,remaining,chapters,buffer,preview", StringComparison.Ordinal) == true,
+                "The Mac main window is incomplete: " + (mainWindow?.Error ?? "no reply"));
             var magnified = await Ask(pipe, new AutomationRequest
             {
                 Command = "mac-video-geometry",
