@@ -294,6 +294,9 @@ public sealed partial class MainWindow : IDisposable
                         Text = $"visible={_musicPresentation?.Hidden == false};art={_musicArtwork?.Hidden == false};heading={_musicHeading?.StringValue};lyrics={_musicLyrics?.Hidden == false};visualizer={_settings.Visualizer};meter={_musicSpectrum?.StringValue.Length ?? 0};text={_musicLyrics?.StringValue}",
                     });
                     return;
+                case "mac-snapshot":
+                    answered.SetResult(SnapshotSmokeAction(request.Id, request.Path));
+                    return;
                 case "status":
                     break;
                 case "ui.add-folder":

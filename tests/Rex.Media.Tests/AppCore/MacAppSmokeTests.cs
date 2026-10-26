@@ -37,6 +37,7 @@ public sealed class MacAppSmokeTests
     [Capability("PB-05", CapabilityPlatform.MacOS)]
     [Capability("PB-10", CapabilityPlatform.MacOS)]
     [Capability("PB-11", CapabilityPlatform.MacOS)]
+    [Capability("PB-16", CapabilityPlatform.MacOS)]
     [Capability("AU-06", CapabilityPlatform.MacOS)]
     [Capability("AU-15", CapabilityPlatform.MacOS)]
     [Capability("LIB-04", CapabilityPlatform.MacOS)]
@@ -303,6 +304,27 @@ public sealed class MacAppSmokeTests
             var fast = await Ask(pipe, new AutomationRequest { Command = "mac-pitch-speed", Id = "maximum" });
             Assert.Contains("speed=4;preserve=False", fast?.Text, StringComparison.Ordinal);
             await Ask(pipe, new AutomationRequest { Command = "mac-pitch-speed", Id = "toggle-pitch" });
+            var snapshotFolder = Path.Combine(root, "snapshots");
+            foreach (var (format, extension) in new[] { ("png", ".png"), ("jpeg", ".jpg"), ("bmp", ".bmp") })
+            {
+                var output = Path.Combine(snapshotFolder, "source-frame" + extension);
+                var snapshot = await Ask(pipe, new AutomationRequest
+                {
+                    Command = "mac-snapshot",
+                    Id = format,
+                    Path = output,
+                });
+                Assert.True(snapshot?.Ok == true && new FileInfo(output).Length > 64,
+                    "The native Mac snapshot export failed for " + format + ": " +
+                    (snapshot?.Error ?? "no reply"));
+                Assert.Contains("width=", snapshot!.Text, StringComparison.Ordinal);
+            }
+            Assert.Equal(new byte[] { 0x89, 0x50, 0x4E, 0x47 },
+                (await File.ReadAllBytesAsync(Path.Combine(snapshotFolder, "source-frame.png"), TestContext.Current.CancellationToken))[..4]);
+            Assert.Equal(new byte[] { 0xFF, 0xD8 },
+                (await File.ReadAllBytesAsync(Path.Combine(snapshotFolder, "source-frame.jpg"), TestContext.Current.CancellationToken))[..2]);
+            Assert.Equal("BM", System.Text.Encoding.ASCII.GetString(
+                (await File.ReadAllBytesAsync(Path.Combine(snapshotFolder, "source-frame.bmp"), TestContext.Current.CancellationToken))[..2]));
             var droppedSubtitles = Path.Combine(root, "drop-test.srt");
             await File.WriteAllTextAsync(droppedSubtitles,
                 "1\n00:00:00,000 --> 00:00:02,000\nDropped subtitle\n",
