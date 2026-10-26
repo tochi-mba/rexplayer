@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 148 planned, 54 built, 90 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
+macOS: 148 planned, 53 built, 91 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -228,7 +228,7 @@ macOS: 148 planned, 54 built, 90 verified, 1 verified-hardware, 27 post-1.0, 2 n
 | VID-28 | Picture-in-picture | Compact always-on-top mini window with minimal controls | M15 | should | planned | planned |
 | VID-29 | Power management | Display stays awake while video plays; audio-only blocks system sleep but not the screen saver; released when paused or stopped | M4 | must | built | built |
 | VID-30 | Frame export | Export the current frame, or every Nth frame of a range, to images | M11 | could | planned | planned |
-| VID-31 | Stats overlay | Decoder (own/MF/hardware), resolution, fps, dropped/late, A/V offset, bitrates, buffer, colour info | M4 | should | verified | built |
+| VID-31 | Stats overlay | Decoder (own/MF/hardware), resolution, fps, dropped/late, A/V offset, bitrates, buffer, colour info | M4 | should | verified | verified |
 
 ## Subtitle & OSD rendering
 

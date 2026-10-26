@@ -1,4 +1,5 @@
 using Rex.Media.AppCore.Player;
+using Rex.Media.AppCore.Automation;
 using Rex.Media.Engine;
 using Rex.Media.Primitives;
 
@@ -98,6 +99,18 @@ public sealed partial class MainWindow
         });
         return allowed ? "macOS, VideoToolbox (hardware permitted)"
             : "macOS, VideoToolbox (hardware disabled by preference)";
+    }
+
+    private AutomationReply MacStatsSmokeAction(string? action)
+    {
+        if (action == "show" && !_statsVisible) ToggleStatsOverlay();
+        else if (action != "status") return AutomationReply.Failed("Unknown stats action.");
+        return new AutomationReply
+        {
+            Ok = true,
+            Text = _statsOverlay?.StringValue,
+            Title = $"visible={_statsVisible}",
+        };
     }
 
     private void DisposeStats()

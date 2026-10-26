@@ -26,13 +26,23 @@ public static class StatsText
                 _ => "not decoding",
             };
             lines.Add(Invariant($"Video     {videoTrack.Codec.DisplayName()} {video.Width}\u00D7{video.Height}{Rate(video.FrameRate)}"));
+            if (videoTrack.BitRate is { } videoBits) lines[^1] += Invariant($", {videoBits / 1000.0:0} kb/s");
             lines.Add($"Decoder   {stats.VideoDecoder ?? "none"} ({where})");
             lines.Add(Invariant($"Pictures  {stats.VideoFramesPresented} shown, {stats.VideoFramesDropped} dropped"));
+            if (stats.Cadence.Pictures > 0)
+            {
+                lines.Add(Invariant($"Late      {stats.Cadence.LatenessMeanMs:0.0} ms mean, {stats.Cadence.LatenessWorstMs:0.0} ms worst"));
+            }
+
+            var color = video.Color.Resolve(video.Width, video.Height);
+            lines.Add($"Colour    {color.Matrix}, {color.Transfer}, {color.Primaries}, " +
+                (color.FullRange ? "full range" : "limited range"));
         }
 
         if (info?.Tracks.FirstOrDefault(track => track.Id == audioTrack) is { Audio: { } audio } audioInfo)
         {
             lines.Add(Invariant($"Audio     {audioInfo.Codec.DisplayName()} {audio.SampleRate} Hz, {audio.Channels} ch"));
+            if (audioInfo.BitRate is { } audioBits) lines[^1] += Invariant($", {audioBits / 1000.0:0} kb/s");
             lines.Add($"Decoder   {stats.AudioDecoder ?? "none"}");
         }
         else if (audioTrack is not null)
@@ -48,6 +58,11 @@ public static class StatsText
         }
 
         lines.Add(read);
+        lines.Add(Invariant($"Buffers   audio {stats.AudioPacketsBuffered}, video {stats.VideoPacketsBuffered} packets"));
+        if (stats.AudioVideoOffsetMilliseconds is { } offset)
+        {
+            lines.Add(Invariant($"A/V       {offset:+0.0;-0.0;0.0} ms (picture minus sound)"));
+        }
         if (stats.CorruptPackets > 0)
         {
             lines.Add(Invariant($"Damaged   {stats.CorruptPackets} packet(s) skipped"));

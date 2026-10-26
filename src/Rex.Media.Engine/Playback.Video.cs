@@ -30,6 +30,7 @@ public sealed partial class MediaSession
         private long _videoFramesDecoded;
         private long _videoFramesPresented;
         private long _videoFramesDropped;
+        private long _lastVideoPtsTicks = long.MinValue;
         private readonly FrameCadence _cadence = new();
 
         /// <summary>Forgets how steadily pictures have been presented so far, so the figures cover only what follows.</summary>
@@ -239,6 +240,7 @@ public sealed partial class MediaSession
                     // The video worker owns the authoritative seek generation.
                     frame.Generation = state.Generation;
                     _presenter!.Present(frame);
+                    if (frame.Pts.IsKnown) Interlocked.Exchange(ref _lastVideoPtsTicks, frame.Pts.Ticks);
                     Interlocked.Increment(ref _videoFramesPresented);
                     RecordCadence(paced, frame.Pts, length);
                     if (!state.Shown)

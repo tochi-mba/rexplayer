@@ -70,6 +70,7 @@ public sealed class MacAppSmokeTests
     [Capability("VID-05", CapabilityPlatform.MacOS)]
     [Capability("VID-04", CapabilityPlatform.MacOS)]
     [Capability("WIN-14", CapabilityPlatform.MacOS)]
+    [Capability("VID-31", CapabilityPlatform.MacOS)]
     [Capability("UI-16", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
@@ -428,6 +429,15 @@ public sealed class MacAppSmokeTests
             Assert.Contains("handlers=True;resumeMarker=True;dumps=True;runtime=1;local=True",
                 crashRecovery?.Text, StringComparison.Ordinal);
             Assert.True(SettingsStore.Load(startupRoots.SettingsPath).LocalCrashDumps);
+            await Ask(pipe, new AutomationRequest { Command = "mac-stats", Id = "show" });
+            var stats = await Until(
+                () => Ask(pipe, new AutomationRequest { Command = "mac-stats", Id = "status" }),
+                reply => reply?.Text?.Contains("Buffers   audio", StringComparison.Ordinal) == true,
+                app, root);
+            Assert.Contains("Decoder", stats.Text, StringComparison.Ordinal);
+            Assert.Contains("Pictures", stats.Text, StringComparison.Ordinal);
+            Assert.Contains("Colour", stats.Text, StringComparison.Ordinal);
+            Assert.Contains("Buffers", stats.Text, StringComparison.Ordinal);
             var kinetic = await Ask(pipe, new AutomationRequest
             {
                 Command = "mac-kinetic-captions",
