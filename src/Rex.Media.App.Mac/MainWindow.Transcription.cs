@@ -1,4 +1,5 @@
 using Rex.Media.AppCore;
+using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Captions;
 using Rex.Media.AppCore.Transcription;
 using Rex.Media.Codecs.Apple;
@@ -354,6 +355,37 @@ public sealed partial class MainWindow
 
         if (worker?.Error is { } error) state += " " + error;
         _macSpeechStatus.StringValue = state;
+    }
+
+    private AutomationReply MacSpeechSmokeAction(string? action)
+    {
+        if (action == "configure")
+        {
+            ShowMacSpeech();
+            _macSpeechQuality!.SelectItem((int)TranscriptModelChoice.Base);
+            _macSpeechLibrary!.State = NSCellStateValue.On;
+            _macSpeechPlaying!.State = NSCellStateValue.On;
+            _macSpeechPaused!.State = NSCellStateValue.On;
+            SaveMacSpeechOptions();
+        }
+        else if (action == "resume")
+        {
+            ShowMacSpeech();
+            _macSpeechPaused!.State = NSCellStateValue.Off;
+            SaveMacSpeechOptions();
+        }
+        else if (action != "status")
+        {
+            return new AutomationReply { Ok = false, Error = "Unknown speech action." };
+        }
+
+        return new AutomationReply
+        {
+            Ok = true,
+            Text = $"visible={_macSpeechWindow?.IsVisible == true};model={MacModel.Id};" +
+                $"library={_settings.Transcription.Library};playing={_settings.Transcription.WhatPlays};" +
+                $"paused={_settings.Transcription.Paused};installed={_macModels.IsInstalled(MacModel)}",
+        };
     }
 
     private void DisposeMacSpeech()

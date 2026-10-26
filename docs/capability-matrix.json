@@ -1329,7 +1329,7 @@
       "oracles": "",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
@@ -1342,7 +1342,7 @@
       "oracles": "",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
@@ -1355,7 +1355,7 @@
       "oracles": "",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
@@ -1368,7 +1368,7 @@
       "oracles": "",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
