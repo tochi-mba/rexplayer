@@ -33,6 +33,8 @@ public sealed class MacAppSmokeTests
     [Capability("UI-05", CapabilityPlatform.MacOS)]
     [Capability("SUB-16", CapabilityPlatform.MacOS)]
     [Capability("OSD-04", CapabilityPlatform.MacOS)]
+    [Capability("OSD-01", CapabilityPlatform.MacOS)]
+    [Capability("OSD-03", CapabilityPlatform.MacOS)]
     [Capability("A11Y-02", CapabilityPlatform.MacOS)]
     [Capability("A11Y-01", CapabilityPlatform.MacOS)]
     [Capability("PB-05", CapabilityPlatform.MacOS)]
@@ -349,6 +351,16 @@ public sealed class MacAppSmokeTests
             Assert.DoesNotContain("secondary=off", dualSubtitles?.Text, StringComparison.Ordinal);
             Assert.Contains("primaryPlacement=Bottom", dualSubtitles?.Text, StringComparison.Ordinal);
             Assert.Contains("secondaryPlacement=Top", dualSubtitles?.Text, StringComparison.Ordinal);
+            var styledSubtitles = await Ask(pipe, new AutomationRequest
+            {
+                Command = "mac-subtitle-style",
+                Id = "configure",
+            });
+            Assert.True(styledSubtitles?.Ok == true, styledSubtitles?.Error ?? "No subtitle-style reply.");
+            Assert.Contains("font=Helvetica Neue;size=150;colour=F0E0D0;opacity=80", styledSubtitles!.Text, StringComparison.Ordinal);
+            Assert.Contains("bold=True;outline=Thick;outlineColour=102030", styledSubtitles.Text, StringComparison.Ordinal);
+            Assert.Contains("shadow=203040/55/4;box=304050/35", styledSubtitles.Text, StringComparison.Ordinal);
+            Assert.Contains("margin=12;bars=True;forceBottom=False", styledSubtitles.Text, StringComparison.Ordinal);
             var titled = await Ask(pipe, new AutomationRequest { Command = "mac-window" });
             Assert.Contains(playing.Title, titled?.Text, StringComparison.Ordinal);
             Assert.Contains("minimal=False", titled?.Text, StringComparison.Ordinal);
