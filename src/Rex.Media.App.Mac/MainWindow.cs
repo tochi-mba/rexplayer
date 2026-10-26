@@ -272,11 +272,7 @@ public sealed partial class MainWindow : IDisposable
                     answered.SetResult(new AutomationReply { Ok = true });
                     return;
                 case "mac-subtitles":
-                    answered.SetResult(new AutomationReply
-                    {
-                        Ok = true,
-                        Text = $"tracks={_player.SubtitleTracks.Count};selected={_player.Subtitles?.Name ?? "off"}",
-                    });
+                    answered.SetResult(SubtitleSmokeAction(request.Id));
                     return;
                 case "mac-audio":
                     answered.SetResult(new AutomationReply

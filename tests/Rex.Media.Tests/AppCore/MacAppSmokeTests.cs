@@ -32,6 +32,7 @@ public sealed class MacAppSmokeTests
     [Capability("UI-09", CapabilityPlatform.MacOS)]
     [Capability("UI-05", CapabilityPlatform.MacOS)]
     [Capability("SUB-16", CapabilityPlatform.MacOS)]
+    [Capability("OSD-04", CapabilityPlatform.MacOS)]
     [Capability("A11Y-02", CapabilityPlatform.MacOS)]
     [Capability("A11Y-01", CapabilityPlatform.MacOS)]
     [Capability("PB-05", CapabilityPlatform.MacOS)]
@@ -333,7 +334,21 @@ public sealed class MacAppSmokeTests
             Assert.True(dropped?.Ok == true, "The Mac did not accept a media and subtitle drop.");
             var subtitleState = await Ask(pipe, new AutomationRequest { Command = "mac-subtitles" });
             Assert.Contains("tracks=1", subtitleState?.Text, StringComparison.Ordinal);
-            Assert.Contains("selected=drop-test.srt", subtitleState?.Text, StringComparison.Ordinal);
+            Assert.Contains("primary=drop-test.srt", subtitleState?.Text, StringComparison.Ordinal);
+            var secondSubtitles = Path.Combine(root, "second-drop-test.srt");
+            await File.WriteAllTextAsync(secondSubtitles,
+                "1\n00:00:00,000 --> 00:00:02,000\nSecond dropped subtitle\n",
+                TestContext.Current.CancellationToken);
+            await Ask(pipe, new AutomationRequest { Command = "mac-drop", Paths = [secondSubtitles] });
+            var dualSubtitles = await Ask(pipe, new AutomationRequest
+            {
+                Command = "mac-subtitles",
+                Id = "select-secondary",
+            });
+            Assert.Contains("tracks=2", dualSubtitles?.Text, StringComparison.Ordinal);
+            Assert.DoesNotContain("secondary=off", dualSubtitles?.Text, StringComparison.Ordinal);
+            Assert.Contains("primaryPlacement=Bottom", dualSubtitles?.Text, StringComparison.Ordinal);
+            Assert.Contains("secondaryPlacement=Top", dualSubtitles?.Text, StringComparison.Ordinal);
             var titled = await Ask(pipe, new AutomationRequest { Command = "mac-window" });
             Assert.Contains(playing.Title, titled?.Text, StringComparison.Ordinal);
             Assert.Contains("minimal=False", titled?.Text, StringComparison.Ordinal);
