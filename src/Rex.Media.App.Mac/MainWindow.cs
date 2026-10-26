@@ -245,6 +245,9 @@ public sealed partial class MainWindow : IDisposable
                 case "mac-bookmarks":
                     answered.SetResult(BookmarkSmokeAction(request.Id));
                     return;
+                case "mac-pitch-speed":
+                    answered.SetResult(PitchSpeedSmokeAction(request.Id));
+                    return;
                 case "mac-resume":
                     answered.SetResult(ResumeSmokeAction(request.Id));
                     return;

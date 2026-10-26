@@ -272,6 +272,37 @@ public sealed partial class MainWindow
     }
 
     /// <summary>Drive the same native bookmark controls used by a person in the playback-tools window.</summary>
+    private AutomationReply PitchSpeedSmokeAction(string? action)
+    {
+        ShowPlaybackTools();
+        switch (action)
+        {
+            case "minimum":
+                _playbackSpeed!.SelectItem(0);
+                _player.SetSpeed(PlayerController.SpeedSteps[0]);
+                break;
+            case "maximum":
+                _playbackSpeed!.SelectItem(PlayerController.SpeedSteps.Count - 1);
+                _player.SetSpeed(PlayerController.SpeedSteps[^1]);
+                break;
+            case "toggle-pitch":
+                _playbackPreservePitch!.PerformClick(_playbackPreservePitch);
+                break;
+            case "status":
+                break;
+            default:
+                return AutomationReply.Failed("Unknown Mac pitch-speed action: " + action);
+        }
+
+        RefreshPlaybackTools();
+        return new AutomationReply
+        {
+            Ok = true,
+            Text = $"speed={_player.Speed.ToString("0.##", CultureInfo.InvariantCulture)};" +
+                $"preserve={_settings.PreservePitch};choices={PlayerController.SpeedSteps.Count}",
+        };
+    }
+
     private AutomationReply BookmarkSmokeAction(string? action)
     {
         ShowPlaybackTools();
