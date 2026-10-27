@@ -76,6 +76,7 @@ public sealed class MacAppSmokeTests
     [Capability("LIB-02", CapabilityPlatform.MacOS)]
     [Capability("UI-04", CapabilityPlatform.MacOS)]
     [Capability("UI-01", CapabilityPlatform.MacOS)]
+    [Capability("AU-18", CapabilityPlatform.MacOS)]
     [Capability("UI-16", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
@@ -578,6 +579,9 @@ public sealed class MacAppSmokeTests
             await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.CycleVisualizer });
             var visualizerShown = await Ask(pipe, new AutomationRequest { Command = "mac-music" });
             Assert.Contains("visualizer=Meters", visualizerShown?.Text, StringComparison.Ordinal);
+            var visualisers = await Ask(pipe, new AutomationRequest { Command = "mac-music", Id = "visualisers" });
+            Assert.True(visualisers?.Ok == true && visualisers.Text?.Contains("camera=", StringComparison.Ordinal) == true,
+                "The native visualisation panel is incomplete: " + (visualisers?.Error ?? "no reply"));
 
             await Library(pipe, "show");
             var folders = await Library(pipe, "folders");

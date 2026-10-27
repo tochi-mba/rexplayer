@@ -341,6 +341,11 @@ public sealed partial class MainWindow : IDisposable
                     });
                     return;
                 case "mac-music":
+                    if (request.Id == "visualisers")
+                    {
+                        answered.SetResult(MacVisualizerSmokeAction());
+                        return;
+                    }
                     RefreshMusicPresentation();
                     RefreshMusicPosition();
                     answered.SetResult(new AutomationReply
