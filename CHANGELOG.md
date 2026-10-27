@@ -4,6 +4,10 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 
 ## Unreleased
 
+### Added
+
+- **Opus sound on a Mac.** WebM videos and .opus files, whose sound is usually Opus, now play their sound on a Mac too, through the Mac's own AudioToolbox and held to the same reference as Windows.
+
 ### Improved
 
 - **The library sidebar shows which view is open.** The chosen view carries an accent bar on a rounded fill, and its focus ring follows the same corners. On the icon rail every icon sits centred under the toggle instead of being cut off at its right edge. Each view has an icon of its own (TV shows no longer wear Home's house, and Songs, Podcasts and Recently added no longer copy Music, Recordings and Add folder). Add folder follows the last view, so it never hides one on a short window. On the Music billboard, Pin and Unpin show a pin and Open album an album.
