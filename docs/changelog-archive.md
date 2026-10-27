@@ -1,7 +1,239 @@
 # Changelog archive
 
-The versions of rexplayer before 0.15.3, moved here from `CHANGELOG.md` to keep it under the
+The versions of rexplayer before 0.16, moved here from `CHANGELOG.md` to keep it under the
 repository's thousand-line limit. Newest first.
+
+## 0.15.10 - 2026-10-12
+
+### Improved
+
+- **Subject Lock recognises a returning subject after the light changes.** Shape
+  is compared independently of brightness and contrast, and colour is compared
+  as chromaticity, allowing for a change of light measured across the whole
+  picture. A coloured reflection or a different lamp no longer rejects the
+  subject, while one candidate still cannot explain its own colours away.
+- **Relative acceptance.** A returning subject must look more like remembered
+  views of itself than like remembered views of the rest of the video, beat
+  every rival elsewhere in the picture by a margin, and be seen twice.
+- **Pose, turning and size.** Remembered views cover new viewpoints, recovery
+  settles each candidate onto the subject's outline, and local tracking no
+  longer lets the box collapse onto part of a subject in uniform clothing.
+- **Faster picture conversion.** Colour conversion resolves each plane once per
+  row instead of three times per pixel, which shortens the Subject Lock
+  readback path.
+
+### Fixed
+
+- Switching Ghostwire Motion off releases its previous-frame texture, and its
+  shader no longer reads the previous frame in modes that do not use it.
+- Resetting a picture-style preset no longer writes back the keys it removed.
+- The Subject Lock panel describes auto-follow as it actually is, and a manual
+  zoom or pan announces that it switched auto-follow off.
+
+### Testing
+
+- Adds Windows regressions for self-similar clothing, loose selections,
+  coloured light, turned-round and deformed returns, colour-only false matches
+  and gradual stretching. The full local check passed before merge; this
+  release was merged without waiting for CI at the owner's request.
+
+### Limitations
+
+- Subject Lock compares visible surfaces, not identity. Two people dressed
+  alike are reported as ambiguous. Accuracy has not yet been measured against
+  an annotated benchmark.
+
+## 0.15.9 - 2026-10-11
+
+### Improved
+
+- **Subject Lock playback responsiveness.** On-screen recovery now searches an
+  owned video snapshot on a background worker instead of repeatedly searching the
+  entire picture during presentation. While a search is running, the presenter
+  can avoid redundant picture readbacks; local tracking also uses a bounded
+  coarse-to-fine search.
+- **Return after an exit.** Recovery uses less descriptor sampling work and no
+  longer treats a change in the subject's background contrast by itself as a
+  reason to reject an otherwise plausible appearance match. Confirmation and
+  competing-match checks remain in place.
+- **Recovery lifecycle.** Seek, reset and reselection cancel outstanding searches.
+  A background result is checked against the current picture before a lock is
+  restored, reducing the chance of applying an outdated result.
+
+### Testing
+
+- Adds Windows regression coverage for background recovery, worker lifecycle,
+  target appearance and candidate validation.
+- Stabilizes timer playback tests with a cancellable audio-write barrier and
+  expands selected container and playlist regressions.
+- The preceding application commit passed the Windows build, adapter/coverage
+  and package gates, desktop UI Automation, performance, portable Linux and
+  website CI. The version-only release change must pass its own checks.
+
+### Limitations
+
+- Appearance matching cannot guarantee identity through arbitrary rotations,
+  occlusions or similar-looking subjects. The flower-dress and grey-outfit
+  footage still need an annotated, repeatable accuracy and frame-time benchmark
+  before claiming reliable recovery under all real-world conditions.
+
+## 0.15.8 - 2026-10-11
+
+### Improved
+
+- **Subject Lock distance changes.** Tracks a selected patch with a size-adaptive local
+  search, rather than leaving the rectangle fixed as a subject moves nearer or farther.
+- **Return after an exit.** Searches additional subject sizes and refines intermediate
+  dimensions and placement. A coarse spatial-colour descriptor supplies an alternative
+  cue for moderate viewpoint and lighting changes, while the original visual reference
+  remains the basis for recovery.
+- **Lighting tolerance.** Models bounded brightness and contrast changes during
+  recovery, while retaining repeat-sighting and competing-match checks.
+
+### Testing
+
+- Adds Windows regressions for continuous changes in apparent size and return sizes
+  that fall between the previous discrete search levels.
+
+### Limitations
+
+- Visible colour and texture are not semantic identity. Similar clothing, drastic
+  viewpoints, motion blur and extended occlusion can still cause a lost lock or a
+  mistaken match. Real-footage precision, false-lock rate and recovery latency are
+  not yet established by an annotated benchmark.
+
+## 0.15.7 - 2026-10-11
+
+### Fixed
+
+- **Subject selection on still pictures.** Refreshes the decoded picture after a
+  new Subject Lock selection, including when a slideshow picture is already
+  visible or has reached its end. The presenter receives the selection before
+  the image is decoded again, so tracking can inspect the chosen region.
+- **Playback generation safety.** Carries the active seek generation through to
+  video frames presented after decoding, helping prevent stale frames from
+  crossing seeks into tracking and picture effects.
+- **Upgrade hand-off safety.** Consumes one-time recovery markers before
+  attempting restoration and rejects invalid queued items, so an interrupted
+  restore is not replayed at a later launch.
+- **Picture caching and presentation.** Hardens thumbnail caching and the
+  unedited-frame path used by Subject Lock previews.
+
+### Improved
+
+- **Tracking reliability.** Tightens bounded reacquisition and conservative
+  subject-identity checks without treating an uncertain match as a confirmed
+  return.
+- **Regression diagnostics.** Expands engine, Windows presenter and desktop
+  coverage. UI Automation now includes the visible Subject Lock status and app
+  log context when selection times out.
+
+### Limitations
+
+- Subject Lock follows visible texture, not semantic identity. Occlusions,
+  lookalikes and low-detail regions may still require manual reselection.
+
+## 0.15.6 - 2026-10-10
+
+### Fixed
+
+- **Unreliable initial selections.** When an area has too little distinguishing
+  texture, Subject Lock now waits for an explicit new selection instead of possibly
+  locking onto an unrelated object that later enters the rejected coordinates.
+- **Oversized video safety.** Frames exceeding the local tracking budget clear the
+  previous subject and removal preview rather than retaining stale tracking state.
+  Manual reselection also starts with fresh frame dimensions and reference data.
+
+### Improved
+
+- **Tracking maintainability.** Moved full-picture re-detection into its own source
+  file, separate from per-frame tracking and non-destructive preview handling.
+- **Regression coverage and audit.** Added Windows tests for rejected selections,
+  frame-budget limits, resolution changes, manual reselection and invalid pixel
+  formats. Published a detailed Subject Lock reliability audit and test matrix in
+  `docs/subject-lock-reliability-audit.md`. The audit PR passed the Windows adapter,
+  desktop UI, packaging/update, performance, Linux and website CI jobs.
+
+### Limitations
+
+- Visible-texture matching cannot guarantee recovery through all pose changes,
+  occlusions, motion blur or lookalikes. A benchmark on representative, annotated
+  real footage is still needed to quantify false locks and reacquisition latency.
+
+## 0.15.5 - 2026-10-10
+
+### Fixed
+
+- **Subject Lock recovery.** The lost-subject search now tolerates moderate changes in
+  lighting, distance and position, covering apparent size changes from half to twice
+  the original selection. Added intermediate size scales after a Windows regression
+  exposed a missing range.
+- **Tracking safety.** A video resolution change requires a fresh selection rather than
+  silently acquiring a different target. The removal preview cannot be re-enabled
+  while the selected subject is lost.
+
+### Verification
+
+- Expanded Windows regression cases cover return size, position, frame edges, lighting,
+  occlusion, lookalikes and the D3D11 presenter path. Full release CI remains the gate
+  for publishing the installable build.
+
+### Limitations
+
+- Subject Lock compares visible image texture rather than semantic identity. It cannot
+  guarantee reacquisition through every pose, occlusion or appearance change.
+
+## 0.15.4 - 2026-10-10
+
+### Fixed
+
+- **Silhouette control checks.** UI Automation visibility polling now retries when a
+  visualisation rebuilds a control between finding it and reading its screen state.
+  The accessible recalibration action remains verified by the desktop tests.
+- **Subject reacquisition.** Keeps the original selected texture while a subject is
+  absent, searches at several sizes when it returns, and requires two consistent
+  sightings before following again. Separate candidates at each size and an
+  outline-contrast check help avoid switching to a similar-looking region.
+
+### Improved
+
+- **Auto-follow framing.** Gradually widens the view after losing the selected subject
+  and eases back toward the target after a confirmed return. Small frame-to-frame
+  location noise no longer makes the camera drift.
+- **Verification.** Added Windows tracking tests for prolonged absence, changing
+  subject size, temporary matches, and visually ambiguous alternatives; added
+  portable tests for steady framing and recovery zoom. The release audit reviewed
+  all changes since 0.15.3, and the latest main CI run passed the Windows desktop,
+  engine, performance, packaging, website and Linux test jobs.
+
+### Limitations
+
+- Subject Lock matches visible texture, not a person's or object's semantic identity.
+  Lighting changes, occlusion and lookalikes can still prevent reliable reacquisition;
+  the non-destructive removal preview remains off after tracking is lost.
+
+## 0.15.3 - 2026-10-10
+
+### Fixed
+
+- **Clearing the picture.** Clearing or switching away from video now clears the GPU render target
+  to black instead of drawing a cached video texture. A decoder-independent Windows regression
+  confirms that later redraws remain black.
+
+### Improved
+
+- **Subject tracking.** Reuses a small template-sampling buffer across consecutive video frames
+  without altering the original reference used to reacquire a selected subject. A regression
+  checks steady-frame allocations.
+- **Video presentation.** Shares the unchanged BGRA colour matrix across draws and paused-frame
+  redraws instead of allocating a new matrix each time.
+- **Camera memory.** Reuses the temporary capture buffer while processing frames under the
+  existing lock, and erases that buffer when capture is disposed.
+- **Verification.** Windows builds, formatting, line coverage, adapter tests, UI Automation,
+  installer and update tests, portable engine tests, site checks and performance baselines
+  passed on the fix pull request.
+
+Versions before 0.15.3 are in [docs/changelog-archive.md](docs/changelog-archive.md).
 
 ## 0.15.2 - 2026-10-10
 

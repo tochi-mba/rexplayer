@@ -17,6 +17,7 @@ public sealed partial class PlayingBars : Grid
 {
     private static readonly List<WeakReference<PlayingBars>> Shown = [];
     private static bool _paused;
+    private static bool _still;
     private readonly Rectangle[] _bars;
     private bool _running;
 
@@ -61,6 +62,26 @@ public sealed partial class PlayingBars : Grid
         }
 
         _paused = paused;
+        HoldAll();
+    }
+
+    /// <summary>
+    /// With the window's animations off (the performance budget, or Windows' own animation setting),
+    /// every equaliser stands still: it keeps marking the playing line without per-frame GPU work.
+    /// </summary>
+    public static void SetAnimationsEnabled(bool on)
+    {
+        if (on != _still)
+        {
+            return;
+        }
+
+        _still = !on;
+        HoldAll();
+    }
+
+    private static void HoldAll()
+    {
         lock (Shown)
         {
             Shown.RemoveAll(weak => !weak.TryGetTarget(out _));
@@ -68,7 +89,7 @@ public sealed partial class PlayingBars : Grid
             {
                 if (weak.TryGetTarget(out var bars))
                 {
-                    bars.Hold(paused);
+                    bars.Hold(_paused || _still);
                 }
             }
         }
@@ -115,7 +136,7 @@ public sealed partial class PlayingBars : Grid
             animation.Duration = TimeSpan.FromMilliseconds(periods[index]);
             animation.IterationBehavior = AnimationIterationBehavior.Forever;
             visual.StartAnimation("Scale.Y", animation);
-            if (_paused)
+            if (_paused || _still)
             {
                 visual.TryGetAnimationController("Scale.Y")?.Pause();
             }
