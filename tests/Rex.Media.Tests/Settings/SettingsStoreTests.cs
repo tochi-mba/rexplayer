@@ -584,6 +584,22 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void TheUniversalMacArchiveIsAValidSavedUpdate()
+    {
+        var pending = new PendingUpdate
+        {
+            Version = "0.16.0",
+            InstallerName = "rexplayer-mac-universal.zip",
+            InstallerUrl = "https://github.com/tochi-mba/rexplayer/releases/download/v0.16.0/rexplayer-mac-universal.zip",
+            ChecksumUrl = "https://github.com/tochi-mba/rexplayer/releases/download/v0.16.0/rexplayer-mac-universal.zip.sha256",
+            ReleasePage = "https://github.com/tochi-mba/rexplayer/releases/tag/v0.16.0",
+            Stage = UpdateStage.Ready,
+        };
+
+        Assert.Equal(pending, new PlayerSettings { PendingUpdate = pending }.Normalize().PendingUpdate);
+    }
+
+    [Fact]
     public void ValuesOutOfRangeAreBroughtBackIntoIt()
     {
         var wild = new PlayerSettings

@@ -123,6 +123,12 @@ public sealed partial class MainWindow : IDisposable
         {
             OpenHandedOver(files);
         }
+        else if (_player.RestoreAfterUpdate(RunningVersion) is { } restored)
+        {
+            if (restored.LibraryVisible) ShowLibrary();
+            if (_librarySearch is not null) _librarySearch.StringValue = restored.Search;
+            if (restored.PlaylistVisible) ShowQueue();
+        }
         else
         {
             _player.RestoreQueue();
