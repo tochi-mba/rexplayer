@@ -63,7 +63,12 @@ public sealed class TourResult
 /// was found: no setting is saved, Preferences is cancelled, the layout and the playing position
 /// are put back, and full screen is left.
 /// </summary>
-public sealed class Tour(AttachedApp app)
+/// <param name="app">The attached player.</param>
+/// <param name="openPages">
+/// Whether to click the first card of a view open. Off by default: on someone's live player a
+/// click is real input into their media, so it is asked for (--open-pages), never assumed.
+/// </param>
+public sealed class Tour(AttachedApp app, bool openPages = false)
 {
     /// <summary>The views toured when the sidebar lists them, with whether each has a details page to open.</summary>
     private static readonly (string View, bool Details)[] Views =
@@ -83,6 +88,11 @@ public sealed class Tour(AttachedApp app)
         if (!app.PipeAnswers)
         {
             _result.Notes.Add("The player's automation pipe gave no answer; samples come from outside the process (no managed heap, hitch or frame figures) and the command-driven steps are skipped.");
+        }
+
+        if (!openPages)
+        {
+            _result.Notes.Add("Details pages were not opened (they need --open-pages, which clicks into the library).");
         }
 
         _result.StartSample = Sample.Read(app, _clock.Elapsed.TotalMilliseconds, startWatch: true);
@@ -196,7 +206,7 @@ public sealed class Tour(AttachedApp app)
 
     private void OpenFirstDetails(string view)
     {
-        if (_cardsUnsafe)
+        if (!openPages || _cardsUnsafe)
         {
             return;
         }
@@ -206,8 +216,18 @@ public sealed class Tour(AttachedApp app)
             var line = app.FirstLine();
             var title = Title();
             var playing = app.PipeAnswers ? app.Status()?.Title : null;
-            Mouse.DoubleClick(app, line);
-            AttachedApp.For(() => (app.IsShown("LibraryBack") && Title() != title) || PlaybackChanged(playing), "the details page to open");
+            bool Opened() => (app.IsShown("LibraryBack") && Title() != title) || PlaybackChanged(playing);
+
+            // One click first: a player set to open on a single click opens the page with it, and a
+            // double click would land its second click on the new page and play what is there. Only
+            // when one click opened nothing (the double-click setting) is a double click sent.
+            Mouse.Click(app, line);
+            if (!AttachedApp.Within(TimeSpan.FromSeconds(2), Opened))
+            {
+                Mouse.DoubleClick(app, line);
+            }
+
+            AttachedApp.For(Opened, "the details page to open");
             if (PlaybackChanged(playing))
             {
                 // Never named: only that it happened, so the person can put their item back.

@@ -6,15 +6,19 @@ using Rex.PerfTour;
 // as action-to-settled latency and sampling the process between steps. It never launches, closes
 // or reconfigures the player, and its report never names what the library holds.
 //
-//   perf-tour [--pid N] [--pipe NAME] [--label NAME] [--out PATH]
+//   perf-tour [--pid N] [--pipe NAME] [--label NAME] [--out PATH] [--open-pages] [--probe VIEW]
 //
-// Without --pid it attaches to the rexplayer window that is running. Exit codes: 0 toured,
+// Without --pid it attaches to the rexplayer window that is running. --open-pages also clicks the
+// first card of a view open (album, artist, movie, show): real input into someone's media, so it
+// is never on by default. --probe lists the control types and ids a view realises, for tuning. Exit codes: 0 toured,
 // 2 nothing to attach to, 3 bad arguments.
 int? pid = null;
 string? pipe = null;
 var label = "tour";
 string? output = null;
 string? probe = null;
+var openPages = args.Contains("--open-pages");
+args = [.. args.Where(arg => arg != "--open-pages")];
 for (var at = 0; at < args.Length - 1; at += 2)
 {
     switch (args[at])
@@ -35,7 +39,7 @@ for (var at = 0; at < args.Length - 1; at += 2)
             probe = args[at + 1];
             break;
         default:
-            Console.Error.WriteLine("perf-tour [--pid N] [--pipe NAME] [--label NAME] [--out PATH]");
+            Console.Error.WriteLine("perf-tour [--pid N] [--pipe NAME] [--label NAME] [--out PATH] [--open-pages] [--probe VIEW]");
             return 3;
     }
 }
@@ -105,7 +109,7 @@ if (probe is not null)
 }
 
 var log = new LogWatch();
-var result = new Tour(app).Run();
+var result = new Tour(app, openPages).Run();
 var report = Report.Write(result, label, app.Process.Id) + log.Summary();
 if (output is null)
 {
