@@ -55,8 +55,9 @@ internal static class Navigation
         {
             // The title is compared wherever it is: a compact header keeps it out of view.
             if (TitleOf(app) == view
-                || (view is "Movies" or "TV Shows" && app.IsShown("LibraryBillboard"))
-                || (view == "Music" && app.IsShown("MusicHero")))
+                // In the tree is enough: a view put back at its remembered scroll keeps these above the fold.
+                || (view is "Movies" or "TV Shows" && app.SidebarSelected(view) && app.TryFind("LibraryBillboard") is not null)
+                || (view == "Music" && app.TryFind("MusicHero") is not null))
             {
                 return true;
             }
@@ -135,12 +136,51 @@ internal static class Navigation
 
     public static bool IsListed(this AttachedApp app, string view) => app.ListedViews().Contains(view);
 
-    /// <summary>The list's realised lines from top to bottom; the names stay inside the tour and never reach the report.</summary>
-    public static string[] Lines(this AttachedApp app, string list = "LibraryList")
+    /// <summary>The surfaces a view shows its media on, in the order they are looked at.</summary>
+    private static readonly string[] Surfaces = ["LibraryList", "LibraryCollage", "LibraryHome"];
+
+    /// <summary>Whether the sidebar has <paramref name="view"/> at all, scrolled into view or not.</summary>
+    public static bool Offers(this AttachedApp app, string view)
     {
         try
         {
-            return app.TryFind(list) is not { } element
+            return app.TryFind("LibrarySources")?.FindFirst(TreeScope.Descendants, new AndCondition(
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem),
+                new PropertyCondition(AutomationElement.NameProperty, view))) is not null;
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Every list and list item under the library pane as "type id (n items)", never with a name.</summary>
+    public static IEnumerable<string> AutomationIds(this AttachedApp app)
+    {
+        var pane = app.Find("LibraryPane");
+        foreach (var id in new[] { "LibraryTitle", "LibraryBillboard", "LibraryList", "LibraryCollage", "LibraryHome", "LibraryBack", "LibrarySearch" })
+        {
+            yield return FormattableString.Invariant($"{id}: inTree={app.TryFind(id) is not null} shown={app.IsShown(id)}");
+        }
+
+        foreach (var list in pane.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.List)).Cast<AutomationElement>())
+        {
+            var items = list.FindAll(TreeScope.Children, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem)).Count;
+            var deep = list.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem)).Count;
+            yield return FormattableString.Invariant($"list id='{list.Current.AutomationId}' class={list.Current.ClassName} children={items} descendants={deep} offscreen={list.Current.IsOffscreen}");
+        }
+    }
+
+    /// <summary>
+    /// The realised lines of whichever surface the view shows (list, collage or shelves), top to
+    /// bottom; the names stay inside the tour and never reach the report.
+    /// </summary>
+    public static string[] Lines(this AttachedApp app)
+    {
+        try
+        {
+            var shown = Surfaces.FirstOrDefault(app.IsShown);
+            return shown is null || app.TryFind(shown) is not { } element
                 ? []
                 : [.. element.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem))
                     .Cast<AutomationElement>().OrderBy(line => line.Current.BoundingRectangle.Top).ThenBy(line => line.Current.BoundingRectangle.Left)
@@ -152,14 +192,23 @@ internal static class Navigation
         }
     }
 
-    /// <summary>The first line of the list, scrolled into view, ready to open. Card looks keep their items under the pane, not always under the list.</summary>
+    /// <summary>Shelves whose cards play or resume rather than open a page; the tour never clicks them.</summary>
+    private static readonly string[] PlayingShelves = ["Continue", "Jump", "Downloading", "Recently", "New episodes"];
+
+    /// <summary>
+    /// The first card of the view's own collection, scrolled into view, ready to open. A plain list
+    /// gives its first line; the browse look gives the first card of a shelf that opens pages, never
+    /// the sidebar and never a shelf whose cards start playback.
+    /// </summary>
     public static AutomationElement FirstLine(this AttachedApp app)
     {
         var item = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem);
         var line = AttachedApp.Until(
-            () => app.TryFind("LibraryList")?.FindFirst(TreeScope.Descendants, item)
-                ?? app.TryFind("LibraryPane")?.FindFirst(TreeScope.Descendants, item),
-            "a first line in the list", TimeSpan.FromSeconds(45));
+            () => (app.IsShown("LibraryList") ? app.TryFind("LibraryList")?.FindFirst(TreeScope.Descendants, item) : null)
+                ?? (app.IsShown("LibraryCollage") ? app.TryFind("LibraryCollage")?.FindFirst(TreeScope.Descendants, item) : null)
+                ?? PageShelf(app)?.FindFirst(TreeScope.Children, item)
+                ?? PageShelf(app)?.FindFirst(TreeScope.Descendants, item),
+            "a first card that opens a page", TimeSpan.FromSeconds(45));
         if (line.TryGetCurrentPattern(ScrollItemPattern.Pattern, out var pattern))
         {
             ((ScrollItemPattern)pattern).ScrollIntoView();
@@ -179,12 +228,33 @@ internal static class Navigation
         return line;
     }
 
+    /// <summary>The first browse shelf whose cards open pages (an "All" shelf first), or null.</summary>
+    private static AutomationElement? PageShelf(AttachedApp app)
+    {
+        try
+        {
+            var shelves = app.TryFind("LibraryPane")?.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.List))
+                .Cast<AutomationElement>()
+                .Where(list => list.Current.AutomationId.StartsWith("LibraryShelfCards-", StringComparison.Ordinal)
+                    && !PlayingShelves.Any(word => list.Current.AutomationId.Contains(word, StringComparison.Ordinal)))
+                .OrderBy(list => list.Current.IsOffscreen)
+                .ToList() ?? [];
+            // A shelf on screen first: a card's own ScrollIntoView moves its row sideways, not the page.
+            return shelves.FirstOrDefault(list => !list.Current.IsOffscreen && list.Current.AutomationId.Contains("All", StringComparison.Ordinal))
+                ?? shelves.FirstOrDefault();
+        }
+        catch (ElementNotAvailableException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>The view's scroller: the list itself, or the scroll viewer inside it or the pane.</summary>
     public static ScrollPattern? Scroller(this AttachedApp app)
     {
         try
         {
-            foreach (var holder in new[] { app.TryFind("LibraryList"), app.TryFind("LibraryPane") })
+            foreach (var holder in new[] { app.TryFind("LibraryList"), app.TryFind("LibraryCollage"), app.TryFind("LibraryHome"), app.TryFind("LibraryPane") })
             {
                 if (holder is null)
                 {

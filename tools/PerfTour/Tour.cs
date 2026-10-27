@@ -109,7 +109,7 @@ public sealed class Tour(AttachedApp app)
         var searched = false;
         foreach (var (view, details) in Views)
         {
-            if (!listed.Contains(view) && !app.IsListed(view))
+            if (!listed.Contains(view) && !app.Offers(view))
             {
                 continue;
             }
@@ -192,14 +192,29 @@ public sealed class Tour(AttachedApp app)
         }, () => scroller.Current.VerticalScrollPercent <= 0.5);
     }
 
+    private bool _cardsUnsafe;
+
     private void OpenFirstDetails(string view)
     {
+        if (_cardsUnsafe)
+        {
+            return;
+        }
+
         var opened = Step("open the first " + Singular(view) + " page", () =>
         {
             var line = app.FirstLine();
             var title = Title();
+            var playing = app.PipeAnswers ? app.Status()?.Title : null;
             Mouse.DoubleClick(app, line);
-            AttachedApp.For(() => app.IsShown("LibraryBack") && Title() != title, "the details page to open");
+            AttachedApp.For(() => (app.IsShown("LibraryBack") && Title() != title) || PlaybackChanged(playing), "the details page to open");
+            if (PlaybackChanged(playing))
+            {
+                // Never named: only that it happened, so the person can put their item back.
+                _cardsUnsafe = true;
+                _result.Notes.Add("Opening a card changed what was playing; the tour stopped opening cards. The playing item may need restoring by hand.");
+                throw new TourStepException("The card started playback instead of opening a page.");
+            }
         }, () => true);
         if (opened)
         {
@@ -210,6 +225,9 @@ public sealed class Tour(AttachedApp app)
             }, () => true);
         }
     }
+
+    private bool PlaybackChanged(string? before) =>
+        app.PipeAnswers && before is not null && app.Status()?.Title is { } now && now != before;
 
     private static string Singular(string view) => view switch
     {

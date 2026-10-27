@@ -14,6 +14,7 @@ int? pid = null;
 string? pipe = null;
 var label = "tour";
 string? output = null;
+string? probe = null;
 for (var at = 0; at < args.Length - 1; at += 2)
 {
     switch (args[at])
@@ -29,6 +30,9 @@ for (var at = 0; at < args.Length - 1; at += 2)
             break;
         case "--out":
             output = args[at + 1];
+            break;
+        case "--probe":
+            probe = args[at + 1];
             break;
         default:
             Console.Error.WriteLine("perf-tour [--pid N] [--pipe NAME] [--label NAME] [--out PATH]");
@@ -53,6 +57,53 @@ if (app is null)
 
 Console.WriteLine(FormattableString.Invariant(
     $"Attached to rexplayer PID {app.Process.Id}; pipe {(app.PipeAnswers ? "answers" : "silent")}."));
+if (probe is not null)
+{
+    // For tuning the tour: the control types and automation ids a view realises, never their names.
+    var wasOpen = app.IsShown("LibraryPane");
+    if (!wasOpen)
+    {
+        app.Run("toggle-library");
+        AttachedApp.For(() => app.IsShown("LibraryPane"), "the library to open");
+    }
+
+    try
+    {
+        try
+        {
+            app.Visit(probe);
+        }
+        catch (TourStepException ex)
+        {
+            Console.WriteLine("The view did not settle: " + ex.Message);
+        }
+
+        foreach (var line in app.AutomationIds())
+        {
+            Console.WriteLine(line);
+        }
+    }
+    finally
+    {
+        // Put the window back however the probe went.
+        try
+        {
+            app.Visit("Home");
+        }
+        catch (TourStepException)
+        {
+            Console.WriteLine("Home did not settle while restoring.");
+        }
+
+        if (!wasOpen && app.IsShown("LibraryPane"))
+        {
+            app.Run("toggle-library");
+        }
+    }
+
+    return 0;
+}
+
 var log = new LogWatch();
 var result = new Tour(app).Run();
 var report = Report.Write(result, label, app.Process.Id) + log.Summary();
