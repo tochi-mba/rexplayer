@@ -91,6 +91,7 @@ Ebml.cs
 EmbersScene.cs
 EngineOptions.cs
 EsDescriptor.cs
+AudioToolboxSetup.cs
 DominantColour.cs
 EnrichedAlbum.cs
 EnrichedArtist.cs

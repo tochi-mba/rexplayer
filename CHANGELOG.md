@@ -4,6 +4,10 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 
 ## Unreleased
 
+### Added
+
+- **Opus sound on a Mac.** WebM videos and .opus files, whose sound is usually Opus, now play their sound on a Mac too, through the Mac's own AudioToolbox and held to the same reference as Windows.
+
 ### Improved
 
 - **One set of REX colours.** Overlays, badges, scrims and text on the picture now draw from shared ink and signal colours, defined once with light, dark and high-contrast versions, instead of about forty separate colours in three clashing shades. Both the Windows and Mac apps can read the same values.
