@@ -48,12 +48,18 @@
        not the Mac's is taken out of the list just before that target, matched on its
        RelativePath ("runtimes/linux-arm64/libwhisper.so"): the item itself is the package's own
        path (".../build/linux-arm64/libwhisper.so"), which carries no "runtimes" folder. The
-       macOS libraries (runtimes/macos-*) stay. -->
+       macOS libraries (runtimes/macos-*) stay, but are bundled without being linked into the
+       executable (LinkToExecutable=false): Whisper loads them itself at run time from
+       runtimes/macos-*, and linking them would make the Apple Silicon build resolve every
+       function Whisper declares, some of which (the OpenVINO encoder) the Mac library lacks. -->
   <Target Name="KeepOtherPlatformsNativeLibrariesOutOfTheBundle" BeforeTargets="_ComputePublishLocation">
     <ItemGroup>
       <_OtherPlatformNativeLibrary Include="@(ResolvedFileToPublish)"
           Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').Contains('runtimes/linux-')) Or $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').Contains('runtimes/win-'))" />
       <ResolvedFileToPublish Remove="@(_OtherPlatformNativeLibrary)" />
+      <ResolvedFileToPublish Update="@(ResolvedFileToPublish)"
+          Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').Contains('runtimes/macos-'))"
+          LinkToExecutable="false" />
     </ItemGroup>
     <Message Importance="high" Condition="'@(_OtherPlatformNativeLibrary)' != ''"
         Text="Left out of rexplayer.app, being for other platforms: @(_OtherPlatformNativeLibrary->'%(RelativePath)', ', ')" />
