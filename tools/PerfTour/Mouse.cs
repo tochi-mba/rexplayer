@@ -21,7 +21,13 @@ internal static partial class Mouse
     private const int VirtualDesktopWidth = 78;
     private const int VirtualDesktopHeight = 79;
 
-    public static void DoubleClick(AttachedApp app, AutomationElement element)
+    /// <summary>One left click at the element's centre; the pointer goes back where it was.</summary>
+    public static void Click(AttachedApp app, AutomationElement element) => Press(app, element, 1);
+
+    /// <summary>Two left clicks in quick succession at the element's centre; the pointer goes back where it was.</summary>
+    public static void DoubleClick(AttachedApp app, AutomationElement element) => Press(app, element, 2);
+
+    private static void Press(AttachedApp app, AutomationElement element, int clicks)
     {
         _ = SetForegroundWindow(app.Process.MainWindowHandle);
         (double X, double Y) where;
@@ -44,7 +50,9 @@ internal static partial class Mouse
 
         var restore = GetCursorPosition();
         Send(Move(where.X, where.Y));
-        Send(Button(LeftDown), Button(LeftUp), Button(LeftDown), Button(LeftUp));
+        Send(clicks == 1
+            ? new[] { Button(LeftDown), Button(LeftUp) }
+            : new[] { Button(LeftDown), Button(LeftUp), Button(LeftDown), Button(LeftUp) });
         Send(Move(restore.X, restore.Y));
     }
 
