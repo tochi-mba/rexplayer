@@ -25,6 +25,11 @@ public sealed partial class MainWindow
     private bool _musicShowLyrics = true;
     private readonly float[] _musicLeft = new float[VisualStage.SoundSize];
     private readonly float[] _musicRight = new float[VisualStage.SoundSize];
+    private MacCameraFeed? _musicCamera;
+    private readonly VisualPicture _musicCameraPicture = new(
+        new byte[MacCameraFeed.PictureWidth * MacCameraFeed.PictureHeight * 4],
+        MacCameraFeed.PictureWidth, MacCameraFeed.PictureHeight);
+    private readonly byte[] _musicCameraMask = new byte[MacCameraFeed.MaskWidth * MacCameraFeed.MaskHeight];
 
     private void AddMusicPresentation(NSView content)
     {
@@ -95,6 +100,7 @@ public sealed partial class MainWindow
             _musicLyricLine = -2;
             if (_musicBackdrop is not null) _musicBackdrop.Hidden = true;
             _musicScene = null;
+            StopMacVisualizerCamera();
             return;
         }
 
@@ -159,7 +165,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        if (VisualScene.Draws(_settings.Visualizer) && !MacVisualizerNeedsCamera(_settings.Visualizer))
+        if (VisualScene.Draws(_settings.Visualizer))
         {
             _musicSpectrum.StringValue = "";
             DrawMacMusicScene(_settings.Visualizer);
@@ -220,6 +226,26 @@ public sealed partial class MainWindow
         stage.Context.Seconds = _player.Position.TotalSeconds;
         stage.Context.Progress = _player.Duration > TimeSpan.Zero
             ? Math.Clamp(_player.Position.TotalSeconds / _player.Duration.TotalSeconds, 0, 1) : 0;
+        (stage.Context.Camera, stage.Context.Mask) = (null, null);
+        if (MacVisualizerNeedsCamera(choice))
+        {
+            KeepMacVisualizerCamera();
+            if (_musicCamera is { HasPicture: true } camera)
+            {
+                camera.CopyPicture(_musicCameraPicture.Bgra);
+                camera.CopyMask(_musicCameraMask);
+                stage.Context.Camera = _musicCameraPicture;
+                if (!camera.IsLearning)
+                {
+                    (stage.Context.Mask, stage.Context.MaskWidth, stage.Context.MaskHeight) =
+                        (_musicCameraMask, MacCameraFeed.MaskWidth, MacCameraFeed.MaskHeight);
+                }
+            }
+        }
+        else
+        {
+            StopMacVisualizerCamera();
+        }
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
         if (!stage.Draw(choice, _settings.VisualOptions, _musicLeft, _musicRight,
             Math.Max(1, _player.SoundSampleRate), TimeSpan.FromMilliseconds(120)))
@@ -250,16 +276,26 @@ public sealed partial class MainWindow
     private void CycleMusicVisualizer()
     {
         var next = Visualizers.Next(_settings.Visualizer);
-        while (next != VisualizerChoice.Off && MacVisualizerNeedsCamera(next))
-        {
-            next = Visualizers.Next(next);
-        }
 
         _settings = _settings with { Visualizer = next };
         SaveMusicSettings();
         _musicScene = null;
         RefreshMusicPosition();
         Say("Audio visualisation: " + Visualizers.Name(next));
+    }
+
+    private void KeepMacVisualizerCamera()
+    {
+        if (!_settings.CameraAllowed || _musicCamera is not null) return;
+        _musicCamera = new MacCameraFeed();
+        _musicCamera.Start();
+        if (_musicCamera.Problem is { } problem) _log.Warning(LogSource, problem);
+    }
+
+    private void StopMacVisualizerCamera()
+    {
+        _musicCamera?.Dispose();
+        _musicCamera = null;
     }
 
     private void SaveMusicSettings()
@@ -284,6 +320,7 @@ public sealed partial class MainWindow
         _musicSceneImage?.Dispose();
         _musicSceneImage = null;
         _musicScene = null;
+        StopMacVisualizerCamera();
         _musicImage?.Dispose();
         _musicImage = null;
     }

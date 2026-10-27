@@ -11,6 +11,7 @@ public sealed partial class MainWindow
     private NSPopUpButton? _musicVisualizerChoice;
     private NSSlider? _musicVisualizerSensitivity;
     private NSButton? _musicVisualizerMeter;
+    private NSButton? _musicVisualizerCamera;
     private readonly List<VisualizerChoice> _macVisualizerChoices = [];
 
     private void ShowMusicVisualizers()
@@ -26,13 +27,12 @@ public sealed partial class MainWindow
             var heading = NSTextField.CreateLabel("Visualise your music");
             heading.Font = NSFont.SystemFontOfSize(22, NSFontWeight.Semibold)!;
             var explanation = NSTextField.CreateWrappingLabel(
-                "Choose a classic visualisation or one of the portable sound-reactive scenes. " +
-                "Effects that need the camera are not offered by this Mac panel.");
+                "Choose a classic or rendered sound-reactive scene. Camera scenes keep live " +
+                "pictures in memory only and stop the camera when another scene is selected.");
             explanation.TextColor = NSColor.SecondaryLabel;
             _musicVisualizerChoice = new NSPopUpButton(new CGRect(0, 0, 460, 28), false);
             foreach (var choice in Enum.GetValues<VisualizerChoice>())
             {
-                if (MacVisualizerNeedsCamera(choice)) continue;
                 _macVisualizerChoices.Add(choice);
                 _musicVisualizerChoice.AddItem(Visualizers.Name(choice));
             }
@@ -46,6 +46,8 @@ public sealed partial class MainWindow
             _musicVisualizerSensitivity.WidthAnchor.ConstraintEqualTo(260).Active = true;
             _musicVisualizerMeter = NSButton.CreateCheckbox(
                 "Show a live beat meter with rendered scenes", ApplyMusicVisualizerOptions);
+            _musicVisualizerCamera = NSButton.CreateCheckbox(
+                "Allow camera-based scenes", ApplyMusicVisualizerOptions);
             var reset = NSButton.CreateButton("Reset this effect", () =>
             {
                 var choice = _settings.Visualizer;
@@ -60,7 +62,7 @@ public sealed partial class MainWindow
                 heading, explanation,
                 EffectChoiceRow("Visualisation", _musicVisualizerChoice),
                 StyleSliderRow("Sensitivity", _musicVisualizerSensitivity),
-                _musicVisualizerMeter, reset,
+                _musicVisualizerMeter, _musicVisualizerCamera, reset,
             ]);
             stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
             stack.Alignment = NSLayoutAttribute.Leading;
@@ -89,24 +91,50 @@ public sealed partial class MainWindow
 
     private void LoadMusicVisualizerOptions()
     {
-        if (_musicVisualizerSensitivity is null || _musicVisualizerMeter is null) return;
+        if (_musicVisualizerSensitivity is null || _musicVisualizerMeter is null || _musicVisualizerCamera is null) return;
         _musicVisualizerSensitivity.DoubleValue = VisualizerOptions.Number(
             _settings.VisualOptions, _settings.Visualizer, VisualizerOptions.Sensitivity);
         _musicVisualizerMeter.State = State(VisualizerOptions.Toggle(
             _settings.VisualOptions, _settings.Visualizer, VisualizerOptions.Meter));
         _musicVisualizerMeter.Enabled = VisualScene.Draws(_settings.Visualizer);
+        _musicVisualizerCamera.State = State(_settings.CameraAllowed);
     }
 
     private void ApplyMusicVisualizerOptions()
     {
-        if (_musicVisualizerSensitivity is null || _musicVisualizerMeter is null) return;
+        if (_musicVisualizerSensitivity is null || _musicVisualizerMeter is null || _musicVisualizerCamera is null) return;
         var choice = _settings.Visualizer;
         var options = VisualizerOptions.With(_settings.VisualOptions, choice,
             VisualizerOptions.Sensitivity, _musicVisualizerSensitivity.DoubleValue);
         options = VisualizerOptions.With(options, choice, VisualizerOptions.Meter,
             IsChecked(_musicVisualizerMeter) ? 1 : 0);
-        _settings = _settings with { VisualOptions = options };
+        _settings = _settings with
+        {
+            VisualOptions = options,
+            CameraAllowed = IsChecked(_musicVisualizerCamera),
+        };
+        if (!_settings.CameraAllowed) StopMacVisualizerCamera();
         SaveMusicSettings();
+    }
+
+    private Rex.Media.AppCore.Automation.AutomationReply MacVisualizerSmokeAction()
+    {
+        ShowMusicVisualizers();
+        var all = Enum.GetValues<VisualizerChoice>();
+        var camera = all.Where(MacVisualizerNeedsCamera).ToArray();
+        var complete = _macVisualizerChoices.Distinct().Count() == all.Length
+            && camera.Length > 0 && camera.All(_macVisualizerChoices.Contains)
+            && _musicVisualizerCamera is { Enabled: true }
+            && _musicVisualizerSensitivity is { Enabled: true }
+            && _musicVisualizerMeter is not null;
+        return complete
+            ? new Rex.Media.AppCore.Automation.AutomationReply
+            {
+                Ok = true,
+                Text = $"scenes={all.Length};camera={camera.Length};sensitivity=True;meter=True;options=True",
+            }
+            : Rex.Media.AppCore.Automation.AutomationReply.Failed(
+                "The Mac visualisation chooser does not expose every scene and control.");
     }
 
     private void DisposeMusicVisualizers()
