@@ -4,8 +4,8 @@ using Rex.Media.Settings;
 namespace Rex.Media.App.Mac;
 
 /// <summary>
-/// Check the owner-pinned release feed, download the universal Mac ZIP with resume
-/// and SHA-256 verification, and leave installation as an explicit user action.
+/// Check the owner-pinned release feed, download the universal Mac ZIP with resume and SHA-256
+/// verification, and install it now, on close, or tonight through a clean process hand-off.
 /// </summary>
 public sealed partial class MainWindow
 {
@@ -13,17 +13,40 @@ public sealed partial class MainWindow
     private NSWindow? _updatesWindow;
     private NSTextField? _updatesStatus;
     private NSPopUpButton? _updatesCadence;
+    private NSPopUpButton? _updatesMode;
+    private NSTextView? _updatesNotes;
     private NSButton? _updatesDownload;
-    private NSButton? _updatesOpenFolder;
+    private NSButton? _updatesInstallNow;
+    private NSButton? _updatesInstallOnClose;
+    private NSButton? _updatesInstallTonight;
     private NSButton? _updatesRemind;
     private NSButton? _updatesSkip;
     private CancellationTokenSource? _updateCancellation;
     private readonly HttpClient _updateHttp = new() { Timeout = TimeSpan.FromMinutes(60) };
     private UpdateOffer? _macUpdateOffer;
+    private PendingUpdate? _macPending;
     private bool _updateChecking;
+    private bool _installHandedOff;
+    private NSTimer? _updateInstallTimer;
 
     private void BeginMacUpdateChecks()
     {
+        _macPending = _settings.PendingUpdate?.InstallerName == MacUpdateAsset
+            ? _settings.PendingUpdate : null;
+        var startup = UpdateFlow.AtStartup(_macPending, RunningVersion, DateTimeOffset.UtcNow);
+        SaveMacPending(startup.Pending);
+        if (_macPending is { } saved)
+        {
+            _macUpdateOffer = new UpdateOffer(Version.Parse(saved.Version), new Uri(saved.InstallerUrl),
+                new Uri(saved.ChecksumUrl), new Uri(saved.ReleasePage), saved.InstallerName)
+            {
+                Notes = saved.Notes,
+                Size = saved.Size,
+                NeedsAttention = saved.NeedsAttention,
+            };
+        }
+        _updateInstallTimer = NSTimer.CreateRepeatingScheduledTimer(TimeSpan.FromMinutes(1), _ =>
+            InstallScheduledMacUpdate());
         if (_settings.UpdateChecks == UpdateCadence.Off)
         {
             return;
@@ -43,7 +66,7 @@ public sealed partial class MainWindow
     {
         if (_updatesWindow is null)
         {
-            _updatesWindow = new NSWindow(new CGRect(0, 0, 590, 365),
+            _updatesWindow = new NSWindow(new CGRect(0, 0, 650, 590),
                 NSWindowStyle.Titled | NSWindowStyle.Closable,
                 NSBackingStore.Buffered, false)
             {
@@ -54,8 +77,7 @@ public sealed partial class MainWindow
             heading.Font = NSFont.SystemFontOfSize(23, NSFontWeight.Semibold)!;
             var intro = NSTextField.CreateWrappingLabel(
                 "Only releases from the rexplayer GitHub repository are accepted. A ZIP " +
-                "is kept only when its download matches the published SHA-256 checksum. " +
-                "Installation is currently manual.");
+                "is kept only when its download matches the published SHA-256 checksum.");
             intro.TextColor = NSColor.SecondaryLabel;
             _updatesStatus = NSTextField.CreateWrappingLabel("Check for a newer version.");
             _updatesStatus.TextColor = NSColor.SecondaryLabel;
@@ -66,12 +88,22 @@ public sealed partial class MainWindow
                     (int)_updatesCadence.IndexOfSelectedItem };
                 SaveMacUpdatePreferences(candidate);
             };
+            _updatesMode = EffectChoices(["Install automatically", "Download, then ask", "Notify only"]);
+            _updatesMode.Activated += (_, _) => SaveMacUpdatePreferences(_settings with
+            {
+                UpdateMode = (UpdateMode)(int)_updatesMode.IndexOfSelectedItem,
+            });
             var check = NSButton.CreateButton("Check now", CheckForMacUpdates);
             _updatesDownload = NSButton.CreateButton("Download & verify", DownloadMacUpdate);
-            _updatesOpenFolder = NSButton.CreateButton("Open downloaded ZIP folder", () =>
-                NSWorkspace.SharedWorkspace.OpenUrl(NSUrl.FromFilename(_roots.UpdateFolder)));
+            _updatesInstallNow = NSButton.CreateButton("Install now", () => InstallMacUpdate(relaunch: true));
+            _updatesInstallOnClose = NSButton.CreateButton("Install when rexplayer closes", ScheduleMacUpdateOnClose);
+            _updatesInstallTonight = NSButton.CreateButton("Install tonight", ScheduleMacUpdateTonight);
             _updatesRemind = NSButton.CreateButton("Remind me later", () =>
             {
+                if (_macPending is { } pending)
+                {
+                    SaveMacPending(UpdateFlow.Remind(pending, RemindChoice.Tomorrow, DateTimeOffset.UtcNow));
+                }
                 _macUpdateOffer = null;
                 if (_updatesStatus is not null)
                     _updatesStatus.StringValue = "We'll check again on the next scheduled interval.";
@@ -79,19 +111,37 @@ public sealed partial class MainWindow
             });
             _updatesSkip = NSButton.CreateButton("Skip this version", () =>
             {
-                if (_macUpdateOffer is not { } skipped) return;
-                SaveMacUpdatePreferences(_settings with { SkippedUpdateVersion = skipped.Version.ToString() });
+                if (_macPending is not { } skipped) return;
+                SaveMacUpdatePreferences(_settings with { SkippedUpdateVersion = skipped.Version });
+                SaveMacPending(null);
                 _macUpdateOffer = null;
                 if (_updatesStatus is not null)
                     _updatesStatus.StringValue = "Skipped version " + skipped.Version + ".";
                 RefreshMacUpdateControls();
             });
-            var controls = NSStackView.FromViews([check, _updatesDownload, _updatesOpenFolder]);
+            _updatesNotes = new NSTextView(new CGRect(0, 0, 590, 180))
+            {
+                Editable = false,
+                Selectable = true,
+                Font = NSFont.SystemFontOfSize(12, NSFontWeight.Regular)!,
+                Value = "Release notes appear here when an update is available.",
+            };
+            var notesScroll = new NSScrollView(new CGRect(0, 0, 590, 180))
+            {
+                HasVerticalScroller = true,
+                DocumentView = _updatesNotes,
+            };
+            notesScroll.HeightAnchor.ConstraintGreaterThanOrEqualTo(140).Active = true;
+            var controls = NSStackView.FromViews([check, _updatesDownload]);
             controls.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             controls.Spacing = 9;
+            var install = NSStackView.FromViews([_updatesInstallNow, _updatesInstallOnClose, _updatesInstallTonight]);
+            install.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
+            install.Spacing = 9;
             var stack = NSStackView.FromViews([
                 heading, intro, EffectChoiceRow("Automatic checks", _updatesCadence),
-                _updatesStatus, controls,
+                EffectChoiceRow("When an update is found", _updatesMode),
+                _updatesStatus, controls, notesScroll, install,
                 PlaybackToolsRow(_updatesRemind, _updatesSkip),
             ]);
             stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
@@ -99,7 +149,7 @@ public sealed partial class MainWindow
             stack.Spacing = 17;
             stack.EdgeInsets = new NSEdgeInsets(22, 24, 22, 24);
             stack.TranslatesAutoresizingMaskIntoConstraints = false;
-            var root = new NSView(new CGRect(0, 0, 590, 365));
+            var root = new NSView(new CGRect(0, 0, 650, 590));
             root.AddSubview(stack);
             stack.TopAnchor.ConstraintEqualTo(root.TopAnchor).Active = true;
             stack.BottomAnchor.ConstraintEqualTo(root.BottomAnchor).Active = true;
@@ -107,11 +157,15 @@ public sealed partial class MainWindow
             stack.TrailingAnchor.ConstraintEqualTo(root.TrailingAnchor).Active = true;
             intro.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
             _updatesStatus.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
+            notesScroll.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
             _updatesWindow.ContentView = root;
             _updatesWindow.Center();
         }
 
         _updatesCadence!.SelectItem((int)_settings.UpdateChecks);
+        _updatesMode!.SelectItem((int)_settings.UpdateMode);
+        if (_updatesNotes is not null && _macPending is { } pending)
+            _updatesNotes.Value = pending.Notes;
         RefreshMacUpdateControls();
         _updatesWindow.MakeKeyAndOrderFront(null);
     }
@@ -126,7 +180,9 @@ public sealed partial class MainWindow
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _updatesStatus!.StringValue = "Could not save update preferences: " + ex.Message;
+            _log.Warning(LogSource, "Could not save update preferences: " + ex.Message);
+            if (_updatesStatus is not null)
+                _updatesStatus.StringValue = "Could not save update preferences: " + ex.Message;
         }
     }
 
@@ -158,6 +214,11 @@ public sealed partial class MainWindow
             {
                 _macUpdateOffer = offer is not null &&
                     offer.Version.ToString() == _settings.SkippedUpdateVersion ? null : offer;
+                if (_macUpdateOffer is { } found && (_macPending is null || _macPending.Version != found.Version.ToString()))
+                {
+                    SaveMacPending(UpdateFlow.Found(found, _settings.UpdateMode, metered: false,
+                        asked: false));
+                }
                 SaveMacUpdatePreferences(_settings with { LastUpdateCheck = DateTimeOffset.UtcNow });
                 if (_updatesStatus is not null)
                 {
@@ -169,7 +230,18 @@ public sealed partial class MainWindow
                                 (offer.Size / (1024 * 1024)) + " MB).";
                 }
 
+                if (_updatesNotes is not null)
+                {
+                    _updatesNotes.Value = _macUpdateOffer?.Notes is { Length: > 0 } notes
+                        ? notes : "This release did not include notes.";
+                }
+
                 RefreshMacUpdateControls();
+                if (_macUpdateOffer is not null && _settings.UpdateMode != UpdateMode.NotifyOnly
+                    && _macPending?.Stage != UpdateStage.Ready)
+                {
+                    DownloadMacUpdate();
+                }
             });
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
@@ -196,9 +268,13 @@ public sealed partial class MainWindow
             return;
         }
 
-        var pending = UpdateFlow.Found(offer, UpdateMode.DownloadAndAsk, metered: false, asked: true);
+        var pending = _macPending?.Version == offer.Version.ToString()
+            ? _macPending with { Stage = UpdateStage.Downloading, Approved = true }
+            : UpdateFlow.Found(offer, _settings.UpdateMode, metered: false, asked: true);
+        SaveMacPending(pending);
         _updateCancellation = new CancellationTokenSource();
-        _updatesStatus!.StringValue = "Downloading and verifying " + offer.InstallerName + "…";
+        if (_updatesStatus is not null)
+            _updatesStatus.StringValue = "Downloading and verifying " + offer.InstallerName + "…";
         RefreshMacUpdateControls();
         var cancellation = _updateCancellation;
         _ = Task.Run(() =>
@@ -234,34 +310,127 @@ public sealed partial class MainWindow
             {
                 _updateCancellation?.Dispose();
                 _updateCancellation = null;
+                var completed = UpdateFlow.AfterDownload(pending, report, DateTimeOffset.UtcNow);
+                SaveMacPending(completed);
                 if (_updatesStatus is not null)
                 {
                     _updatesStatus.StringValue = report.Outcome == DownloadOutcome.Ready
-                        ? "Verified " + offer.Version + ". Open the ZIP folder to install it manually."
+                        ? "Verified " + offer.Version + ". Choose when to install it."
                         : "Update download did not complete: " + (report.Reason ?? report.Outcome.ToString());
                 }
 
                 RefreshMacUpdateControls();
+                InstallScheduledMacUpdate();
             });
         });
     }
 
     private void RefreshMacUpdateControls()
     {
-        if (_updatesDownload is null || _updatesOpenFolder is null)
+        if (_updatesDownload is null || _updatesInstallNow is null)
         {
             return;
         }
 
-        _updatesDownload.Enabled = _macUpdateOffer is not null && _updateCancellation is null;
-        if (_updatesRemind is not null) _updatesRemind.Enabled = _macUpdateOffer is not null;
-        if (_updatesSkip is not null) _updatesSkip.Enabled = _macUpdateOffer is not null;
-        _updatesOpenFolder.Enabled = _macUpdateOffer is { } offer &&
-            File.Exists(Path.Combine(_roots.UpdateFolder, offer.InstallerName));
+        var ready = _macPending is { Stage: UpdateStage.Ready } pending
+            && UpdateDownloader.IsReady(_roots.UpdateFolder, pending);
+        _updatesDownload.Enabled = _macUpdateOffer is not null && !ready && _updateCancellation is null;
+        _updatesInstallNow.Enabled = ready;
+        if (_updatesInstallOnClose is not null) _updatesInstallOnClose.Enabled = ready;
+        if (_updatesInstallTonight is not null) _updatesInstallTonight.Enabled = ready;
+        if (_updatesRemind is not null) _updatesRemind.Enabled = _macPending is not null;
+        if (_updatesSkip is not null) _updatesSkip.Enabled = _macPending is not null;
+    }
+
+    private void SaveMacPending(PendingUpdate? pending)
+    {
+        _macPending = pending;
+        SaveMacUpdatePreferences(_settings with { PendingUpdate = pending });
+    }
+
+    private void ScheduleMacUpdateOnClose()
+    {
+        if (_macPending is not { Stage: UpdateStage.Ready } pending) return;
+        SaveMacPending(UpdateFlow.WhenClosed(pending));
+        _updatesStatus!.StringValue = "rexplayer " + pending.Version + " will install when the app closes.";
+        RefreshMacUpdateControls();
+    }
+
+    private void ScheduleMacUpdateTonight()
+    {
+        if (_macPending is not { Stage: UpdateStage.Ready } pending) return;
+        var scheduled = UpdateFlow.ScheduledTonight(pending, DateTimeOffset.UtcNow, TimeZoneInfo.Local);
+        SaveMacPending(scheduled);
+        _updatesStatus!.StringValue = "rexplayer " + pending.Version + " will install tonight after 3:00 when playback is idle.";
+        RefreshMacUpdateControls();
+    }
+
+    private void InstallScheduledMacUpdate()
+    {
+        if (_installHandedOff || _player.IsPlaying || _macPending is not { Stage: UpdateStage.Ready } pending)
+        {
+            return;
+        }
+
+        var due = pending.Timing == UpdateTiming.Scheduled && pending.InstallAt <= DateTimeOffset.UtcNow;
+        var automatic = UpdateFlow.InstallsUnasked(pending, _settings.UpdateMode);
+        if (due || automatic)
+        {
+            InstallMacUpdate(relaunch: true);
+        }
+    }
+
+    private void InstallMacUpdate(bool relaunch)
+    {
+        if (_installHandedOff || _macPending is not { Stage: UpdateStage.Ready } pending
+            || !UpdateDownloader.IsReady(_roots.UpdateFolder, pending))
+        {
+            return;
+        }
+
+        var saved = false;
+        try
+        {
+            var archive = UpdateDownloader.InstallerPath(_roots.UpdateFolder, pending);
+            var staged = MacUpdateInstaller.Stage(archive, _roots.UpdateFolder);
+            if (relaunch)
+            {
+                _player.SaveForUpdate("Home", _libraryWindow?.IsVisible == true,
+                    _librarySearch?.StringValue ?? "", null, null, null,
+                    _queueWindow?.IsVisible == true, targetVersion: pending.Version, resumePaused: true);
+                saved = true;
+            }
+
+            MacUpdateInstaller.HandOff(staged, NSBundle.MainBundle.BundlePath, _roots.UpdateFolder, relaunch);
+            _installHandedOff = true;
+            SaveMacPending(UpdateFlow.HandedOff(pending, DateTimeOffset.UtcNow));
+            _log.Info(LogSource, "Handed rexplayer " + pending.Version + " to the Mac update helper.");
+            if (relaunch)
+            {
+                NSApplication.SharedApplication.Terminate(null);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException
+            or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            if (saved) _player.Memory.Updating = null;
+            _log.Warning(LogSource, "The Mac update could not start: " + ex.Message);
+            if (_updatesStatus is not null) _updatesStatus.StringValue = "The update could not start: " + ex.Message;
+        }
     }
 
     private void DisposeMacUpdates()
     {
+        if (!_installHandedOff && _macPending is { Stage: UpdateStage.Ready } pending
+            && (pending.Timing is UpdateTiming.OnClose or UpdateTiming.Scheduled
+                || UpdateFlow.InstallsUnasked(pending, _settings.UpdateMode)))
+        {
+            InstallMacUpdate(relaunch: false);
+        }
+
+        _updateInstallTimer?.Invalidate();
+        _updateInstallTimer?.Dispose();
+        _updateInstallTimer = null;
         _updateCancellation?.Cancel();
         _updatesWindow?.Close();
         _updatesWindow?.Dispose();

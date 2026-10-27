@@ -111,8 +111,10 @@ public sealed record PendingUpdate
     public PendingUpdate? Normalize()
     {
         var parts = (Version ?? "").Split('.');
+        var knownInstaller = InstallerName == $"rexplayer-Setup-{Version}.exe"
+            || InstallerName == "rexplayer-mac-universal.zip";
         if (parts.Length != 3 || !parts.All(part => part.Length > 0 && int.TryParse(part, NumberStyles.None, CultureInfo.InvariantCulture, out _))
-            || InstallerName != $"rexplayer-Setup-{Version}.exe"
+            || !knownInstaller
             || !IsHttps(InstallerUrl) || !IsHttps(ChecksumUrl))
         {
             return null;
