@@ -40,11 +40,15 @@ internal static class Navigation
         app.WaitForView(view);
     }
 
-    /// <summary>Waits until <paramref name="view"/> is what the pane shows (streaming views show a billboard or hero first).</summary>
+    /// <summary>
+    /// Waits until <paramref name="view"/> is what the pane shows (streaming views show a billboard
+    /// or hero first). A large live library can take far longer than a test fixture, so the wait is
+    /// long: the point is to measure how long, not to give up.
+    /// </summary>
     public static void WaitForView(this AttachedApp app, string view) =>
         AttachedApp.For(() => (app.IsShown("LibraryTitle") && TitleOf(app) == view)
             || (view is "Movies" or "TV Shows" && app.IsShown("LibraryBillboard"))
-            || (view == "Music" && app.IsShown("MusicHero")), "the view to open");
+            || (view == "Music" && app.IsShown("MusicHero")), "the view to open", TimeSpan.FromSeconds(90));
 
     private static string? TitleOf(AttachedApp app)
     {
@@ -94,12 +98,14 @@ internal static class Navigation
         }
     }
 
-    /// <summary>The first line of the list, scrolled into view, ready to open.</summary>
+    /// <summary>The first line of the list, scrolled into view, ready to open. Card looks keep their items under the pane, not always under the list.</summary>
     public static AutomationElement FirstLine(this AttachedApp app)
     {
+        var item = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem);
         var line = AttachedApp.Until(
-            () => app.TryFind("LibraryList")?.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem)),
-            "a first line in the list");
+            () => app.TryFind("LibraryList")?.FindFirst(TreeScope.Descendants, item)
+                ?? app.TryFind("LibraryPane")?.FindFirst(TreeScope.Descendants, item),
+            "a first line in the list", TimeSpan.FromSeconds(45));
         if (line.TryGetCurrentPattern(ScrollItemPattern.Pattern, out var pattern))
         {
             ((ScrollItemPattern)pattern).ScrollIntoView();
@@ -119,22 +125,43 @@ internal static class Navigation
         return line;
     }
 
-    /// <summary>The list's scroller, when the view scrolls at all.</summary>
+    /// <summary>The view's scroller: the list itself, or the scroll viewer inside it or the pane.</summary>
     public static ScrollPattern? Scroller(this AttachedApp app)
     {
         try
         {
-            return app.TryFind("LibraryList") is { } list
-                && list.TryGetCurrentPattern(ScrollPattern.Pattern, out var pattern)
-                && ((ScrollPattern)pattern).Current.VerticallyScrollable
-                    ? (ScrollPattern)pattern
-                    : null;
+            foreach (var holder in new[] { app.TryFind("LibraryList"), app.TryFind("LibraryPane") })
+            {
+                if (holder is null)
+                {
+                    continue;
+                }
+
+                if (Scrollable(holder) is { } own)
+                {
+                    return own;
+                }
+
+                var inner = holder.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.IsScrollPatternAvailableProperty, true));
+                if (inner is not null && Scrollable(inner) is { } found)
+                {
+                    return found;
+                }
+            }
+
+            return null;
         }
         catch (ElementNotAvailableException)
         {
             return null;
         }
     }
+
+    private static ScrollPattern? Scrollable(AutomationElement element) =>
+        element.TryGetCurrentPattern(ScrollPattern.Pattern, out var pattern)
+            && ((ScrollPattern)pattern).Current.VerticallyScrollable
+                ? (ScrollPattern)pattern
+                : null;
 
     /// <summary>
     /// Opens the drop-down <paramref name="menu"/> until an item named <paramref name="name"/> is on

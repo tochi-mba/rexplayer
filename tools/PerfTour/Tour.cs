@@ -106,6 +106,7 @@ public sealed class Tour(AttachedApp app)
         Step("open the library again", () => SetLibrary(true), () => app.IsShown("LibraryPane"));
 
         var listed = app.ListedViews();
+        var searched = false;
         foreach (var (view, details) in Views)
         {
             if (!listed.Contains(view) && !app.IsListed(view))
@@ -121,8 +122,10 @@ public sealed class Tour(AttachedApp app)
                 OpenFirstDetails(view);
             }
 
-            if (view == "Songs")
+            // Search and the layout switch are toured once, in the first view that offers them.
+            if (!searched && app.IsShown("LibrarySearch"))
             {
+                searched = true;
                 SearchAndClear();
                 SwitchLayoutAndBack(view);
             }
