@@ -445,7 +445,7 @@ public sealed unsafe class MfTransform : IDisposable
 
             var textureId = typeof(ID3D11Texture2D).GUID;
             void* texture;
-            dxgi.GetResource(&textureId, &texture);
+            dxgi.GetResource(&textureId, out texture);
             dxgi.GetSubresourceIndex(out var index);
             var wrapped = (ID3D11Texture2D)Marshal.GetObjectForIUnknown((nint)texture);
             Marshal.Release((nint)texture);
