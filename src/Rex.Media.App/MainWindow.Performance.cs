@@ -154,6 +154,9 @@ public sealed partial class MainWindow
         // Navigation is persistent, not a scrolling result list: show its items
         // immediately in every performance mode, including screenshot capture.
         ShowListAnimations(LibrarySources, false);
+        // The playing mark's equaliser is composition work on every frame it moves;
+        // without animations it stands still and keeps marking the line.
+        PlayingBars.SetAnimationsEnabled(budget.Animations);
 
         if (_visualizing && before.VisualMaxSide != budget.VisualMaxSide)
         {

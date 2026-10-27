@@ -79,6 +79,9 @@ public sealed record DeviceBudget
     /// <summary>The maximum width, in pixels, at which library pictures are decoded.</summary>
     public int LibraryPictureSide { get; init; } = 320;
 
+    /// <summary>The longest side, in pixels, at which a page banner's artwork or backdrop is decoded.</summary>
+    public int HeroPictureSide { get; init; } = 1600;
+
     /// <summary>The timeline shows a preview picture under the pointer when the user allows it.</summary>
     public bool SeekPreview { get; init; } = true;
 
@@ -197,6 +200,7 @@ public static class DeviceProfile
                 PauseBackgroundWorkWhileBrowsing = true,
                 LeanLaunch = true,
                 LibraryPictureSide = 240,
+                HeroPictureSide = 960,
                 SeekPreview = false,
                 Animations = false,
                 VideoQueueCapacity = 12,
@@ -276,6 +280,11 @@ public static class DeviceProfile
         if (budget.LibraryPictureSide < 320)
         {
             changes.Add($"Library pictures are decoded up to {budget.LibraryPictureSide} pixels across to use less memory.");
+        }
+
+        if (budget.HeroPictureSide < 1600)
+        {
+            changes.Add($"Page banners are decoded up to {budget.HeroPictureSide} pixels across to use less memory.");
         }
 
         if (!budget.SeekPreview)

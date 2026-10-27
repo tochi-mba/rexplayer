@@ -47,12 +47,12 @@ public sealed partial class MainWindow
         else if (art is not null)
         {
             Forget(ShowPictureAsync(art.Path, art.Kind, art.Duration, ShowPicture,
-                CancellationToken.None, art: shape, side: Math.Max(1600, _budget.LibraryPictureSide)));
+                CancellationToken.None, art: shape, side: _budget.HeroPictureSide));
         }
 
         async Task ShowArtistPictureAsync()
         {
-            if (await LocalPictureAsync(artistPhoto!, Math.Max(1600, _budget.LibraryPictureSide), CancellationToken.None) is { } portrait)
+            if (await LocalPictureAsync(artistPhoto!, _budget.HeroPictureSide, CancellationToken.None) is { } portrait)
             {
                 ShowPicture(portrait);
                 if (_shownHero == key && request == _heroRequest)
@@ -63,7 +63,7 @@ public sealed partial class MainWindow
             else if (art is not null && _shownHero == key)
             {
                 await ShowPictureAsync(art.Path, art.Kind, art.Duration, ShowPicture, CancellationToken.None,
-                    art: shape, side: Math.Max(1600, _budget.LibraryPictureSide));
+                    art: shape, side: _budget.HeroPictureSide);
             }
         }
     }
