@@ -40,18 +40,23 @@
     <Content Include="..\\..\\CHANGELOG.md" Link="CHANGELOG.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- NuGet's Whisper CPU package carries native files for Linux as well as macOS.
-       The macOS bundler treats every .so in the publish list as a Mach-O library
-       and runs install_name_tool on it, which fails on Linux ELF libraries.
-       Filter only the foreign Linux payloads after NuGet has populated the
-       publish list; retain the native osx-arm64/osx-x64 Whisper libraries. -->
-  <Target Name="ExcludeLinuxWhisperFromMacBundle"
-          AfterTargets="ComputeFilesToPublish"
-          BeforeTargets="_ComputeBundleResourceOutputPaths">
+  <!-- Whisper's runtime package gives a plain net10.0 project (Rex.Media.Speech) its native
+       libraries for every platform, and they reach this app through that reference. The
+       macOS SDK's _ComputePublishLocation, which runs on build as well as publish, turns each
+       library in the publish list into a native reference and runs install_name_tool on it,
+       which fails on Linux ELF files and has no use for Windows DLLs. So every runtime that is
+       not the Mac's is taken out of the list just before that target, matched on its
+       RelativePath ("runtimes/linux-arm64/libwhisper.so"): the item itself is the package's own
+       path (".../build/linux-arm64/libwhisper.so"), which carries no "runtimes" folder. The
+       macOS libraries (runtimes/macos-*) stay. -->
+  <Target Name="KeepOtherPlatformsNativeLibrariesOutOfTheBundle" BeforeTargets="_ComputePublishLocation">
     <ItemGroup>
-      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
-          Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\\', '/').StartsWith('runtimes/linux-'))" />
+      <_OtherPlatformNativeLibrary Include="@(ResolvedFileToPublish)"
+          Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').Contains('runtimes/linux-')) Or $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').Contains('runtimes/win-'))" />
+      <ResolvedFileToPublish Remove="@(_OtherPlatformNativeLibrary)" />
     </ItemGroup>
+    <Message Importance="high" Condition="'@(_OtherPlatformNativeLibrary)' != ''"
+        Text="Left out of rexplayer.app, being for other platforms: @(_OtherPlatformNativeLibrary->'%(RelativePath)', ', ')" />
   </Target>
 
 
