@@ -45,10 +45,64 @@ internal static class Navigation
     /// or hero first). A large live library can take far longer than a test fixture, so the wait is
     /// long: the point is to measure how long, not to give up.
     /// </summary>
-    public static void WaitForView(this AttachedApp app, string view) =>
-        AttachedApp.For(() => (app.IsShown("LibraryTitle") && TitleOf(app) == view)
-            || (view is "Movies" or "TV Shows" && app.IsShown("LibraryBillboard"))
-            || (view == "Music" && app.IsShown("MusicHero")), "the view to open", TimeSpan.FromSeconds(90));
+    public static void WaitForView(this AttachedApp app, string view)
+    {
+        // A view in the browse look shows shelves without the plain title, so the fallback is the
+        // sidebar choice landing and the pane's cards settling: the same count three polls in a row.
+        var settledPolls = 0;
+        var lastCount = -1;
+        AttachedApp.For(() =>
+        {
+            // The title is compared wherever it is: a compact header keeps it out of view.
+            if (TitleOf(app) == view
+                || (view is "Movies" or "TV Shows" && app.IsShown("LibraryBillboard"))
+                || (view == "Music" && app.IsShown("MusicHero")))
+            {
+                return true;
+            }
+
+            if (!app.SidebarSelected(view))
+            {
+                return false;
+            }
+
+            var count = app.CardCount();
+            settledPolls = count > 0 && count == lastCount ? settledPolls + 1 : 0;
+            lastCount = count;
+            return settledPolls >= 3;
+        }, "the view to open", TimeSpan.FromSeconds(90));
+    }
+
+    /// <summary>Whether the sidebar's choice is <paramref name="view"/> now.</summary>
+    public static bool SidebarSelected(this AttachedApp app, string view)
+    {
+        try
+        {
+            var item = app.TryFind("LibrarySources")?.FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.NameProperty, view));
+            return item is not null && item.TryGetCurrentPattern(SelectionItemPattern.Pattern, out var selection)
+                && ((SelectionItemPattern)selection).Current.IsSelected;
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>How many cards or lines the pane has realised now; -1 while it is being rebuilt.</summary>
+    public static int CardCount(this AttachedApp app)
+    {
+        try
+        {
+            return app.TryFind("LibraryPane") is { } pane
+                ? pane.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem)).Count
+                : -1;
+        }
+        catch (ElementNotAvailableException)
+        {
+            return -1;
+        }
+    }
 
     private static string? TitleOf(AttachedApp app)
     {

@@ -24,7 +24,24 @@ internal static partial class Mouse
     public static void DoubleClick(AttachedApp app, AutomationElement element)
     {
         _ = SetForegroundWindow(app.Process.MainWindowHandle);
-        var where = element.GetClickablePoint();
+        (double X, double Y) where;
+        try
+        {
+            var point = element.GetClickablePoint();
+            where = (point.X, point.Y);
+        }
+        catch (NoClickablePointException)
+        {
+            // A card partly covered by a hero still opens from its own centre.
+            var bounds = element.Current.BoundingRectangle;
+            if (bounds.IsEmpty || bounds.Width < 1 || bounds.Height < 1)
+            {
+                throw new TourStepException("The line had nowhere to click.");
+            }
+
+            where = (bounds.Left + bounds.Width / 2, bounds.Top + bounds.Height / 2);
+        }
+
         var restore = GetCursorPosition();
         Send(Move(where.X, where.Y));
         Send(Button(LeftDown), Button(LeftUp), Button(LeftDown), Button(LeftUp));
