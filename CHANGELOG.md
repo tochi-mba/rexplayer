@@ -11,6 +11,10 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 - The automation pipe's `status` reports `picturesPending`, the picture requests still queued or loading, so a script can wait for the pictures on screen to settle. The Windows screenshot tests wait on it, so a card's placeholder is never captured in place of its picture.
 - The library's navigation list no longer flashes grey placeholder boxes before its entries draw.
 
+### Fixed
+
+- **The Mac app builds again, so new versions can publish.** Speech recognition's Linux and Windows libraries were being packed into rexplayer.app, where the Mac's tools refused them and stopped every build since 0.31.0; only the Mac's own libraries go in now.
+
 ## 0.31.0 - 2026-10-25
 ### Added
 - **Native macOS playback and library parity (#555).** Expanded AppKit controls for media information, bookmarks, the queue and named playlists, library folders and backup/restore, context commands, configurable shortcuts, precise audio and subtitle sync, overlays, video sizing, local pictures and first-run guidance.
