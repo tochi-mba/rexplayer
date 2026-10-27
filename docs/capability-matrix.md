@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 148 planned, 47 built, 97 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
+macOS: 148 planned, 46 built, 98 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -186,7 +186,7 @@ macOS: 148 planned, 47 built, 97 verified, 1 verified-hardware, 27 post-1.0, 2 n
 | AU-15 | Pitch-preserving speed | WSOLA time-stretch across 0.25–4×; toggle to "chipmunk" mode | M5 | must | verified | verified |
 | AU-16 | Pitch shift | ±12 semitones (fine cents) independent of speed | M11 | should | planned | planned |
 | AU-17 | Vocal reduction (karaoke) | Centre-channel cancellation with a band limit | M11 | could | planned | planned |
-| AU-18 | Visualisations | Spectrum, oscilloscope, meters and spectrogram, plus music-aware vinyl, halo, mirror wave, aurora, embers, resonance, ripples, strobe, camera silhouette, live beat edit and a scrolling groove of the spectrum, beat grid and drum hits, a flight through rings of light that pass on the beat, cymatics, ridgelines, a synthwave drive, fireworks, a lightning storm, a lava lamp, a constellation of the melody, a galaxy, a kaleidoscope, a murmuration, ink in water, a city skyline and a mandala, and from the camera clones of the listener's dance, a time warp, an aura, an LED wall, stardust, a hall of mirrors, light painting, a scanner, a shatter, spotlights, an infinity mirror and water, moving to levels measured against each song's own range, the beat-driven ones (vinyl, halo, embers, ripples, strobe and beat edit) to a beat clock that locks to the kicks at any frame rate; per-effect colours, sensitivity, motion and composition controls, and a beat meter | M5/M11 | should | verified | built |
+| AU-18 | Visualisations | Spectrum, oscilloscope, meters and spectrogram, plus music-aware vinyl, halo, mirror wave, aurora, embers, resonance, ripples, strobe, camera silhouette, live beat edit and a scrolling groove of the spectrum, beat grid and drum hits, a flight through rings of light that pass on the beat, cymatics, ridgelines, a synthwave drive, fireworks, a lightning storm, a lava lamp, a constellation of the melody, a galaxy, a kaleidoscope, a murmuration, ink in water, a city skyline and a mandala, and from the camera clones of the listener's dance, a time warp, an aura, an LED wall, stardust, a hall of mirrors, light painting, a scanner, a shatter, spotlights, an infinity mirror and water, moving to levels measured against each song's own range, the beat-driven ones (vinyl, halo, embers, ripples, strobe and beat edit) to a beat clock that locks to the kicks at any frame rate; per-effect colours, sensitivity, motion and composition controls, and a beat meter | M5/M11 | should | verified | verified |
 | AU-19 | Audio-only presentation | Large cover art, metadata, lyrics (META-09), optional visualiser | M6 | must | verified | verified |
 | AU-20 | Resampler quality | Fast / normal (default) / high windowed-sinc polyphase | M2 | must | built | built |
 | AU-21 | Language preferences | Ordered list (e.g. `en, fr`), "original language" option, commentary tracks deprioritised | M5 | must | verified | verified |

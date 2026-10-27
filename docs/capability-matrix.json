@@ -1836,7 +1836,7 @@
       "oracles": "PIX",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {
