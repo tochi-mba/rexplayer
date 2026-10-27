@@ -78,4 +78,12 @@ public sealed class PitchSpeedTests
     [InlineData(5)]
     public void InvalidSpeedsAreRefused(double speed) =>
         Assert.Throws<ArgumentOutOfRangeException>(() => new PitchSpeed(Rate, 1, speed));
+
+    [Fact]
+    public void FrameOfAnotherFormatIsRefused()
+    {
+        var processor = new PitchSpeed(Rate, 1, 2);
+        using var stereo = AudioFrame.Rent(Rate, 2, 64);
+        Assert.Throws<InvalidOperationException>(() => processor.Process(stereo));
+    }
 }
