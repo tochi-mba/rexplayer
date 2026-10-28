@@ -107,7 +107,7 @@ public sealed partial class MainWindow : Window
         _player.PositionChanged += (_, _) => ShowLyricLine();
         _player.PositionChanged += (_, _) => RefreshLyricsCompanion();
         _player.Changed += (_, _) => RefreshLyricsCompanion();
-        _player.Message += (_, text) => Say(text);
+        _player.Message += (_, text) => SayFromPlayer(text);
         _player.Playlist.Changed += (_, _) => ShowPlaylist();
         WireSubtitles();
         WireKineticCaptions();
