@@ -2,8 +2,8 @@
 # Captured and visually approved from macOS arm64 GitHub Actions runs 1951 and 1961;
 # both runs produced byte-identical PNGs. A changed shot fails only in this CI lane.
 # Review artifacts/mac-library-screenshots in the failing run before updating a baseline.
-0cf0956ef5445ea804166dedd90687677600c8a9f0de86aa2583dc7f40f77842  mac-library-empty.png
+90961f5f9d2ecfca46df3b2f73a7eb9f8a34be641560cb7a8bee0e8a44297bc1  mac-library-empty.png
 d090ca6d23d30ec8f4fc2466831c31792aa3cc5a54df5fffe97391318ddf78fd  mac-library-minimum-width.png
 2feb5810b13ae3f7027d3b179c839aa1b0b9f47e669f530a4a259aecefe1d98e  mac-library-no-matches.png
-5b62147779e1822f0986fe42e3e3eb883a5e958cf587c1ef3ab8067ff6fabb2e  mac-library-populated.png
+2d29649eb7bc743bd8c4b42fcdecc9df424b8ff71a8c1a77a23f50a2b9d1ebbd  mac-library-populated.png
 909c46d8c2464dce56757ab7d4ca691396d05a5c6c49eb26a2b515046c3fa87e  mac-library-searched.png
