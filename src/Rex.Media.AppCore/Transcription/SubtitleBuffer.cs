@@ -72,12 +72,13 @@ public static class SubtitleBuffer
         !hasUsableSubtitles || words == CaptionWordSource.Transcript;
 
     /// <summary>
-    /// Whether the coverage rail has a place under the timeline: while something that can be heard
-    /// is open (the quality picker stays at hand before any coverage exists), or while coverage is
-    /// still shown after it. A picture has nothing to transcribe, so nothing is shown for one.
+    /// Whether the coverage rail has a place under the timeline: only while there is coverage to show,
+    /// a transcript made or being made, so an empty rail never sits under the track (the quality is
+    /// also chosen in Preferences). A picture has nothing to transcribe, and a compact transport
+    /// (the minimal interface, or a window too short to spare the line) keeps to the timeline itself.
     /// </summary>
-    public static bool RailShown(bool itemOpen, bool itemIsPicture, BufferState state) =>
-        !itemIsPicture && (itemOpen || state != BufferState.None);
+    public static bool RailShown(bool itemIsPicture, BufferState state, bool compact) =>
+        !compact && !itemIsPicture && state != BufferState.None;
 
     /// <summary>
     /// How far subtitles must lead before held playback may safely resume. A faster

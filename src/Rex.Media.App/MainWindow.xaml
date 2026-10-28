@@ -765,9 +765,9 @@
         <Grid.RowDefinitions><RowDefinition Height="32" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
         <Slider x:Name="SeekBar" Minimum="0" Maximum="1" StepFrequency="0.1" IsEnabled="False" IsThumbToolTipEnabled="False" MinHeight="32"
                 ValueChanged="OnSeekBarChanged" IsTabStop="True" AutomationProperties.AutomationId="SeekBar" AutomationProperties.Name="Position" />
-        <!-- A second aligned rail for transcript coverage. The whole width maps to the same
-             timeline as SeekBar; labels are on their own row and never shift the spans. -->
-        <Grid x:Name="TranscriptRail" Grid.Row="1" Margin="14,0,14,3" Visibility="Collapsed"
+        <!-- A second rail for transcript coverage, end to end with the track and shown only while there is
+             coverage to show (SubtitleBuffer.RailShown); labels are on their own row and never shift the spans. -->
+        <Grid x:Name="TranscriptRail" Grid.Row="1" Margin="0,2,0,4" Visibility="Collapsed"
               AutomationProperties.AutomationId="TranscriptRail" AutomationProperties.Name="Transcript coverage">
           <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
           <Grid Height="6" VerticalAlignment="Center" IsHitTestVisible="False">
@@ -775,12 +775,12 @@
             <Canvas x:Name="SubtitleBuffer" Height="6" IsHitTestVisible="False"
                     AutomationProperties.AutomationId="SubtitleBuffer" AutomationProperties.Name="Subtitles ready" />
           </Grid>
-          <Grid Grid.Row="1" Margin="0,3,0,0">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <TextBlock Text="CAPTIONS" FontSize="10" CharacterSpacing="65" VerticalAlignment="Center"
+          <Grid Grid.Row="1" Margin="0,4,0,0">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="Captions" FontSize="{StaticResource RexCaptionFontSize}" VerticalAlignment="Center"
                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                          AutomationProperties.AccessibilityView="Raw" />
-              <DropDownButton x:Name="TranscriptModelButton" Content="Default" Padding="5,0" MinHeight="20" FontSize="10"
+              <DropDownButton x:Name="TranscriptModelButton" Content="Default"
                               AutomationProperties.AutomationId="TranscriptModelButton" AutomationProperties.Name="Transcription quality">
                 <DropDownButton.Flyout>
                   <MenuFlyout>
@@ -791,8 +791,8 @@
                 </DropDownButton.Flyout>
               </DropDownButton>
             </StackPanel>
-            <TextBlock x:Name="SubtitleBufferState" HorizontalAlignment="Right" TextAlignment="Right"
-                       FontSize="11" FontWeight="SemiBold"
+            <TextBlock x:Name="SubtitleBufferState" HorizontalAlignment="Right" VerticalAlignment="Center" TextAlignment="Right"
+                       FontSize="{StaticResource RexCaptionFontSize}" FontWeight="SemiBold"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                        AutomationProperties.AutomationId="SubtitleBufferState" AutomationProperties.LiveSetting="Off" />
           </Grid>

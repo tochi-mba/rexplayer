@@ -22,8 +22,9 @@ public sealed partial class MainWindow
         ShowTranscriptModelChoice();
         var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(DisplayedCoverage, DisplayedDuration, _player.Position, DisplayedHearing);
         var key = string.Join(";", view.Spans);
-        // Keep the quality picker available even before this model has any saved coverage; a picture has nothing to hear.
-        TranscriptRail.Visibility = Rex.Media.AppCore.Transcription.SubtitleBuffer.RailShown(_player.Item is not null, ItemIsPicture, view.State) ? Visibility.Visible : Visibility.Collapsed;
+        // Only coverage there is: an empty rail never sits under the track, and a picture has nothing to hear.
+        TranscriptRail.Visibility = Rex.Media.AppCore.Transcription.SubtitleBuffer.RailShown(ItemIsPicture, view.State,
+            compact: _settings.MinimalInterface && !IsFullScreen) ? Visibility.Visible : Visibility.Collapsed;
         if (key != _shownBuffer)
         {
             _shownBuffer = key;
