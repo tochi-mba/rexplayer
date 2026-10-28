@@ -339,7 +339,7 @@
                   AutomationProperties.AutomationId="LibraryNavigationToggle" AutomationProperties.Name="Collapse library navigation">
             <FontIcon x:Name="LibraryNavigationToggleIcon" Glyph="&#xE76B;" FontSize="16" />
           </Button>
-          <ListView x:Name="LibrarySources" Grid.Row="1" SelectionMode="Single" Padding="0,8,0,12" Background="Transparent"
+          <ListView x:Name="LibrarySources" Grid.Row="1" SelectionMode="Single" Padding="0,8,0,12" Background="Transparent" ShowsScrollingPlaceholders="False"
                     ItemContainerStyle="{StaticResource LibrarySourceItemStyle}"
                     ItemTemplate="{StaticResource LibrarySourceTemplate}"
                     SelectionChanged="OnLibrarySourceChanged" AutomationProperties.AutomationId="LibrarySources" AutomationProperties.Name="Library views" />
