@@ -182,15 +182,9 @@ public sealed partial class MainWindow
             media.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
             media.Alignment = NSLayoutAttribute.Leading;
             media.Spacing = 1;
-            var next = NSButton.CreateButton("Play next", () =>
-            {
-                var at = _player.Playlist.IndexOf(item);
-                if (at >= 0 && _player.Playlist.Current is not null)
-                {
-                    _player.Playlist.QueueNext(at);
-                }
-            });
-            next.Enabled = _player.Playlist.Current is not null && !playing && !missing;
+            // With nothing playing, "next" is the front of the queue, as on Windows.
+            var next = NSButton.CreateButton("Play next", () => _player.Playlist.QueueNext([item]));
+            next.Enabled = !playing && !missing;
             next.ToolTip = "Make this entry play next, including when shuffle is enabled";
             ((NSView)next).AccessibilityLabel = "Play " + item.Title + " next";
             var up = NSButton.CreateButton("Earlier", () =>
