@@ -20,6 +20,15 @@ public sealed class VisualStage
     private VisualScene? _scene;
     private VisualizerChoice _choice;
 
+    // The next frame builds a scene's caches for a new size or a new scene, so its time says nothing
+    // about how fast frames are; and after a change of quality the next is held off for a while, so
+    // the canvas cannot bounce between two sizes (each change costs a frame of rebuilding).
+    private bool _settling = true;
+    private int _hold;
+
+    /// <summary>Frames after a change of <see cref="Quality"/> before it may change again: about half a second.</summary>
+    public const int HoldFrames = 30;
+
     /// <summary>Samples of each channel a frame is drawn from: what <see cref="MusicPulse"/> analyses.</summary>
     public const int SoundSize = MusicPulse.AnalysisSize;
 
@@ -61,18 +70,39 @@ public sealed class VisualStage
     public double DrawMilliseconds { get; private set; }
 
     /// <summary>
+    /// Whether <see cref="Pixels"/> hold a frame drawn at the canvas's present size: false from a
+    /// resize until the next frame is drawn, so the window keeps showing the last picture meanwhile
+    /// rather than an empty one.
+    /// </summary>
+    public bool HasFrame { get; private set; }
+
+    /// <summary>
     /// Takes how long a frame took to draw. Over about 25 ms a frame (fewer than forty a second
-    /// with time for the rest) the canvas shrinks a step; under 10 ms it grows a step back.
+    /// with time for the rest) the canvas shrinks a step; under 10 ms it grows a step back. The
+    /// first frame at a new size or of a new scene does not count, and a change waits
+    /// <see cref="HoldFrames"/> frames after the last one.
     /// </summary>
     public void Took(double milliseconds)
     {
+        if (_settling)
+        {
+            _settling = false;
+            return;
+        }
+
         DrawMilliseconds = DrawMilliseconds == 0 ? milliseconds : (DrawMilliseconds * 0.9) + (milliseconds * 0.1);
+        if (_hold > 0)
+        {
+            _hold--;
+            return;
+        }
+
         var quality = DrawMilliseconds > 25 ? Math.Max(LowestQuality, Quality * 0.85)
             : DrawMilliseconds < 10 ? Math.Min(1, Quality * 1.1)
             : Quality;
         if (Math.Abs(quality - Quality) > 0.001)
         {
-            (Quality, WantsResize, DrawMilliseconds) = (quality, true, 17);
+            (Quality, WantsResize, DrawMilliseconds, _hold) = (quality, true, 17, HoldFrames);
         }
     }
 
@@ -128,6 +158,7 @@ public sealed class VisualStage
             _scene = VisualScene.For(choice);
             _pulse.Reset();
             Canvas.Clear(Rgb.Black);
+            _settling = true;
         }
 
         if (_scene is null)
@@ -162,6 +193,7 @@ public sealed class VisualStage
         cancellation.ThrowIfCancellationRequested();
         Canvas.Settle();
         Canvas.ToBgra(Pixels, 1, 0.35f);
+        HasFrame = true;
         if (Context.Toggle(Player.VisualizerOptions.Meter))
         {
             // Over the finished picture, so it never feeds the scene's trails.
@@ -245,6 +277,7 @@ public sealed class VisualStage
         Canvas = new Raster(width, height);
         Pixels = new byte[width * height * 4];
         Context.Canvas = Canvas;
+        (HasFrame, _settling) = (false, true);
     }
 
     /// <summary>Starts again from silence, as when the song changes or the music stops.</summary>

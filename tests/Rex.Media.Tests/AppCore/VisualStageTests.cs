@@ -606,6 +606,11 @@ public sealed class VisualStageTests
         var stage = Stage(96, 54);
         Assert.Equal(1, stage.Quality);
         Assert.False(stage.WantsResize);
+
+        // The first frame builds the scene's caches: however slow, it does not count.
+        stage.Took(500);
+        Assert.Equal(1, stage.Quality);
+        Assert.False(stage.WantsResize);
         stage.Took(50);
         Assert.True(stage.Quality < 1);
         Assert.True(stage.WantsResize);
@@ -613,13 +618,13 @@ public sealed class VisualStageTests
         var reduced = stage.Quality;
         stage.Resize(96, 54);
         Assert.False(stage.WantsResize);
-        for (var i = 0; i < 80; i++)
+        for (var i = 0; i < 400; i++)
         {
             stage.Took(100);
         }
 
         Assert.Equal(VisualStage.LowestQuality, stage.Quality, 8);
-        for (var i = 0; i < 80; i++)
+        for (var i = 0; i < 400; i++)
         {
             stage.Took(1);
         }
@@ -632,6 +637,65 @@ public sealed class VisualStageTests
         Assert.False(stage.WantsResize);
         stage.Took(17);
         Assert.InRange(stage.DrawMilliseconds, 0, 30);
+    }
+
+    [Fact]
+    public void QualityHoldsStillForAWhileAfterEachChangeSoTheCanvasCannotBounce()
+    {
+        var stage = Stage(96, 54);
+        stage.Took(17);
+        stage.Took(400);
+        var lowered = stage.Quality;
+        Assert.True(lowered < 1);
+
+        // Fast frames straight after the change do not grow it back at once.
+        for (var i = 0; i < VisualStage.HoldFrames; i++)
+        {
+            stage.Took(1);
+            Assert.Equal(lowered, stage.Quality);
+        }
+
+        stage.Took(1);
+        Assert.True(stage.Quality > lowered);
+    }
+
+    [Fact]
+    public void TheFirstFrameAtANewSizeOrOfANewSceneDoesNotCount()
+    {
+        var stage = Stage(96, 54);
+        stage.Took(17);
+        stage.Resize(120, 68);
+        stage.Took(1000);
+        Assert.Equal(1, stage.Quality);
+        Assert.False(stage.WantsResize);
+
+        // A new scene builds its caches on its first frame too.
+        var left = new float[VisualStage.SoundSize];
+        stage.Draw(VisualizerChoice.Vinyl, Defaults, left, left, 48000, TimeSpan.FromMilliseconds(16), TestContext.Current.CancellationToken);
+        stage.Took(17);
+        stage.Draw(VisualizerChoice.Aurora, Defaults, left, left, 48000, TimeSpan.FromMilliseconds(16), TestContext.Current.CancellationToken);
+        stage.Took(1000);
+        Assert.Equal(1, stage.Quality);
+    }
+
+    [Fact]
+    public void APictureIsReadyOnlyOnceAFrameIsDrawnAtTheCanvasSize()
+    {
+        var stage = Stage(96, 54);
+        Assert.False(stage.HasFrame);
+        var left = new float[VisualStage.SoundSize];
+        stage.Draw(VisualizerChoice.Vinyl, Defaults, left, left, 48000, TimeSpan.FromMilliseconds(16), TestContext.Current.CancellationToken);
+        Assert.True(stage.HasFrame);
+
+        // Resized, the pixels are empty until the next frame: the window keeps the last picture up.
+        stage.Resize(120, 68);
+        Assert.False(stage.HasFrame);
+        stage.Resize(120, 68);
+        Assert.False(stage.HasFrame);
+        stage.Draw(VisualizerChoice.Vinyl, Defaults, left, left, 48000, TimeSpan.FromMilliseconds(16), TestContext.Current.CancellationToken);
+        Assert.True(stage.HasFrame);
+        stage.Resize(120, 68);
+        Assert.True(stage.HasFrame);
     }
 
     [Fact]

@@ -19,6 +19,7 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 
 - **Song titles are readable in a dark window on a light desktop** (and the other way round). Colours the window picks in code now follow its own theme rather than Windows' theme, which had left titles in the Songs table dark grey on a dark surface; the lines also follow a change of theme at once.
 - Leaving full screen no longer leaves the playback controls with a see-through background.
+- **Visualisations no longer flicker**, the vinyl record most of all and especially just after it starts. When a visualisation changed the size it draws at to keep up, it showed an empty picture until the next frame and could keep changing back and forth; it now keeps the last picture up until the new one is drawn, ignores the one slow frame that rebuilds a scene, and holds its size steady for a moment after each change.
 - **The Mac app builds again, so new versions can publish.** Speech recognition's Linux and Windows libraries were being packed into rexplayer.app, where the Mac's tools refused them and stopped every build since 0.31.0; only the Mac's own libraries go in now.
 
 ## 0.31.0 - 2026-10-25

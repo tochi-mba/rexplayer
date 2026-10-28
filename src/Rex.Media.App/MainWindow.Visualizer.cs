@@ -469,7 +469,9 @@ public sealed partial class MainWindow
             (across, down) = (_visualStage.Canvas.Width, _visualStage.Canvas.Height);
         }
 
-        if (_visualBitmap is null || _visualBitmap.PixelWidth != across || _visualBitmap.PixelHeight != down || SpectrogramImage.Source != _visualBitmap)
+        // A picture already showing stays up, stretched, until the first frame at the new size is
+        // drawn (DrawStage swaps it then): a new bitmap shown at once would be empty, a flicker.
+        if (_visualBitmap is null || SpectrogramImage.Source != _visualBitmap)
         {
             _visualBitmap = new WriteableBitmap(across, down);
             SpectrogramImage.Source = _visualBitmap;
@@ -705,8 +707,15 @@ public sealed partial class MainWindow
             stage.Reset();
             _stageReset = false;
         }
-        else if (_stageWork is { IsCompletedSuccessfully: true } && bitmap.PixelWidth == stage.Canvas.Width && bitmap.PixelHeight == stage.Canvas.Height)
+        else if (_stageWork is { IsCompletedSuccessfully: true } && stage.HasFrame)
         {
+            if (bitmap.PixelWidth != stage.Canvas.Width || bitmap.PixelHeight != stage.Canvas.Height)
+            {
+                // The first frame at a new size: the last picture stayed up until now.
+                bitmap = _visualBitmap = new WriteableBitmap(stage.Canvas.Width, stage.Canvas.Height);
+                SpectrogramImage.Source = bitmap;
+            }
+
             stage.Pixels.CopyTo(0, bitmap.PixelBuffer, 0, stage.Pixels.Length);
             bitmap.Invalidate();
         }
