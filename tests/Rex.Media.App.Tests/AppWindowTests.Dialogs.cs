@@ -71,7 +71,8 @@ public sealed partial class AppWindowTests
 
         // A second dialog asked for while one is open (a script's, say) is not stacked on top.
         app.Run(CommandCatalog.Preferences);
-        Wait.For(() => app.LogText.Contains("\"Preferences\" was not shown: \"Keyboard shortcuts\" is open.", StringComparison.Ordinal), "the second dialog to be refused");
+        // It says why rather than doing nothing: the message reaches the screen and the log.
+        Wait.For(() => app.LogText.Contains("\"Preferences\" was not shown: close \"Keyboard shortcuts\" first.", StringComparison.Ordinal), "the second dialog to be refused");
         Assert.False(app.IsShown("PreferencesSection"));
         app.Press("CloseButton");
         Wait.For(() => app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Keyboard shortcuts")) is null, "the sheet to close");
