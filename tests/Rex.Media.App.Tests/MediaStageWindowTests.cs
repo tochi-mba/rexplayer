@@ -8,6 +8,12 @@ namespace Rex.Media.App.Tests;
 [Collection("desktop")]
 public sealed class MediaStageWindowTests : IDisposable
 {
+    /// <summary>
+    /// A minute-long film: the version picker shows only while its film plays, and the usual 0.4 s
+    /// clip can end, taking the picker with it, before a test has worked it.
+    /// </summary>
+    private const string LongFilm = "h264-aac-minute.mp4";
+
     private readonly LibraryScene _scene = new();
 
     public void Dispose() => _scene.Dispose();
@@ -483,8 +489,8 @@ public sealed class MediaStageWindowTests : IDisposable
     [Fact]
     public void SelectingAnAlternateMovieEncodingUpdatesTheCurrentVersionMenu()
     {
-        var movie = _scene.Film("Resolution.Film.2023.1080p.mp4");
-        _scene.Film("Resolution.Film.2023.720p.mp4");
+        var movie = _scene.Film("Resolution.Film.2023.1080p.mp4", LongFilm);
+        _scene.Film("Resolution.Film.2023.720p.mp4", LongFilm);
         _scene.Ready(settings => settings with { Theme = ThemeChoice.Dark });
         using var app = AppProcess.Start([movie], root: _scene.Root);
         Wait.For(() => app.Find("Stage").Current.Name == "MOVIE playback stage"
@@ -525,8 +531,8 @@ public sealed class MediaStageWindowTests : IDisposable
     [InlineData(true)]
     public void AFocusedMovieVersionPickerOrFlyoutReturnsFocusWhenPicturePlaybackReplacesTheFilm(bool focusFlyoutItem)
     {
-        var movie = _scene.Film("Focus.Film.2023.1080p.mp4");
-        _scene.Film("Focus.Film.2023.720p.mp4");
+        var movie = _scene.Film("Focus.Film.2023.1080p.mp4", LongFilm);
+        _scene.Film("Focus.Film.2023.720p.mp4", LongFilm);
         var picture = _scene.Picture("focus-replacement.jpg");
         _scene.Ready(settings => settings with { Theme = ThemeChoice.Dark });
         using var app = AppProcess.Start([movie, picture], root: _scene.Root);

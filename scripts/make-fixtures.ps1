@@ -150,6 +150,8 @@ Invoke-Mp4 -Name 'h264-aac.mp4' -Source 'testsrc2=size=128x72:rate=25:duration=0
 Invoke-Mp4 -Name 'h264-aac-fragmented.mp4' -Source 'testsrc2=size=128x72:rate=25:duration=0.4' -Inputs $video -Options ($common + @('-movflags', '+frag_keyframe+empty_moov+default_base_moof'))
 Invoke-Mp4 -Name 'h264-rotated.mov' -Source 'testsrc2=size=128x72:rate=25:duration=0.2' -Before @('-display_rotation', '90', '-noautorotate') -Options @('-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-bsf:v', 'filter_units=remove_types=6', '-map_metadata', '-1')
 # A wide film letterboxed into 16:9: black bars recorded above and below the picture, for thumbnails cut free of them.
+# A minute-long film, so a window test can work a playing film's controls before it ends.
+Invoke-Mp4 -Name 'h264-aac-minute.mp4' -Source 'testsrc2=size=128x72:rate=2:duration=60' -Inputs @('-f', 'lavfi', '-i', 'aevalsrc=0.3*sin(2*PI*440*t):s=8000:d=60') -Options @('-map', '0:v', '-map', '1:a', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '40', '-g', '120', '-pix_fmt', 'yuv420p', '-bsf:v', 'filter_units=remove_types=6', '-c:a', 'aac', '-b:a', '8k', '-map_metadata', '-1', '-movflags', '+faststart')
 Invoke-Mp4 -Name 'h264-letterboxed.mp4' -Source 'testsrc2=size=256x108:rate=25:duration=0.4,pad=256:144:0:18:black' -Options @('-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-bsf:v', 'filter_units=remove_types=6', '-map_metadata', '-1')
 
 # Matroska and WebM, from FFmpeg's muxers.
