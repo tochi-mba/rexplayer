@@ -68,6 +68,8 @@ public sealed partial class MainWindow
 
         LyricsStatus.Foreground = _lyricAccessibility.HighContrast
             ? LyricNeutralBrush() : RexTheme.Brush("RexOverlayTextBrush");
+        LyricsStatusPill.Background = _lyricAccessibility.HighContrast
+            ? LyricChipBrush() : RexTheme.Brush("RexOverlayBrush");
         foreach (var child in LyricsLines.Children)
         {
             switch (child)
@@ -152,9 +154,8 @@ public sealed partial class MainWindow
                 return;
             }
 
-            // A narrower window changes wrapping and the vertical anchor.
-            // Do not reset the user's manually suspended follow state.
-            LyricsBox.Height = Math.Max(120, Stage.ActualHeight * 0.45);
+            // A narrower window changes wrapping and the vertical anchor (the stage layout
+            // sizes the box). Do not reset the user's manually suspended follow state.
             if (_followCurrentLyric)
             {
                 DispatcherQueue.TryEnqueue(() =>
@@ -177,6 +178,7 @@ public sealed partial class MainWindow
 
         _followCurrentLyric = false;
         LyricsFollowButton.Visibility = Visibility.Visible;
+        ShowLyricsActions();
     }
 
     private void BringActiveLyricIntoView()
@@ -314,7 +316,7 @@ public sealed partial class MainWindow
             LyricsStatus.Text = lyricStatus ?? "";
         }
 
-        LyricsStatus.Visibility = lyricStatus is null ? Visibility.Collapsed : Visibility.Visible;
+        LyricsStatusPill.Visibility = lyricStatus is null ? Visibility.Collapsed : Visibility.Visible;
         FindLyricsButton.Visibility = stage.Profile is MediaStageProfile.Song or MediaStageProfile.Audio
             && _settings.ShowLyrics && _player.Info is not null
             && _player.Lyrics is null && !string.IsNullOrWhiteSpace(_player.Artist)
@@ -446,7 +448,6 @@ public sealed partial class MainWindow
             }
 
             LyricsBox.Visibility = lyrics is null ? Visibility.Collapsed : Visibility.Visible;
-            LyricsBox.Height = Math.Min(360, Math.Max(0, Stage.ActualHeight * 0.45));
             if (_restoreLyricFocusAfterTrackChange
                 && LyricsLines.Children.OfType<Button>().FirstOrDefault() is { } firstLyric)
             {
@@ -466,8 +467,9 @@ public sealed partial class MainWindow
         }
 
         ShowStageChapters(stage, item, info);
-        LayOutMediaStage();
         LyricsDetachButton.Visibility = lyrics is null ? Visibility.Collapsed : Visibility.Visible;
+        ShowLyricsActions();
+        LayOutMediaStage();
         RefreshLyricsCompanion();
     }
 
@@ -491,39 +493,8 @@ public sealed partial class MainWindow
     /// </summary>
     private void LayOutMediaStage()
     {
-        var width = Math.Max(0, Stage.ActualWidth);
-        var height = Math.Max(0, Stage.ActualHeight);
-        var compact = width < 760 || height < 450;
-        var tiny = width < 480 || height < 280;
-        var compactLyrics = compact && _shownLyrics is not null && LyricsBox.Visibility == Visibility.Visible;
-
-        // On small stages the old fixed top/bottom insets could leave the visualiser
-        // with no drawable height at all. Keep a meaningful canvas at every size.
-        Visualizer.Margin = tiny ? new Thickness(8)
-            : compact ? new Thickness(20, 36, 20, 12)
-            : new Thickness(48, 120, 48, 48);
-
-        Grid.SetColumn(IdleText, compact ? 0 : 1);
-        Grid.SetRow(IdleText, compact ? 1 : 0);
-        Idle.ColumnDefinitions[1].Width = compact ? new GridLength(0) : GridLength.Auto;
-        Idle.ColumnSpacing = compact ? 0 : 32;
-        Idle.RowSpacing = compact ? 10 : 0;
-        Idle.Margin = new Thickness(tiny ? 12 : compact ? 20 : 32);
-        IdleText.MaxWidth = compact ? Math.Max(160, width - 40) : 560;
-        IdleTitle.FontSize = tiny ? 24 : compact ? 32 : 44;
-
-        var artSize = Math.Min(240, Math.Max(0, Math.Min(width - 48,
-            compact ? height - 180 : height - 48)));
-        CoverBox.Width = artSize;
-        CoverBox.Height = artSize;
-        // Decoding is asynchronous. Never resurrect a stale cover after a stream switch.
-        CoverBox.Visibility = _shownCover is not null && CoverImage.Source is not null
-            && !tiny && !compactLyrics && artSize >= 80 ? Visibility.Visible : Visibility.Collapsed;
-        // Compact lyrics need their own bottom region, not overlap the album artwork.
-        Idle.VerticalAlignment = compactLyrics ? VerticalAlignment.Top : VerticalAlignment.Center;
-
-        LyricsBox.Height = Math.Min(360, Math.Max(0, height * (tiny ? 0.35 : 0.45)));
-        LyricsBox.Margin = compact ? new Thickness(12, 0, 12, 12) : new Thickness(48, 0, 48, 24);
+        // The title block, cover, visualisation and lyrics: MainWindow.StageLayout.cs.
+        LayOutStageContent();
 
         // The transport itself scrolls, preserving all existing buttons and their focus order.
         // On narrow windows the secondary tools move to their own row rather than overlap it.
@@ -693,22 +664,13 @@ public sealed partial class MainWindow
             return;
         }
 
-        CoverBox.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
         if (!shown)
         {
             _visualCover = null;
             CoverImage.Source = null;
         }
 
-        // With a cover the details sit beside it, left-aligned; without, they are centred.
-        var alignment = shown ? HorizontalAlignment.Left : HorizontalAlignment.Center;
-        var textAlignment = shown ? TextAlignment.Left : TextAlignment.Center;
-        foreach (var text in new[] { IdleKicker, IdleTitle, IdleHint, IdleAlbum, IdleMeta })
-        {
-            text.HorizontalAlignment = alignment;
-            text.TextAlignment = textAlignment;
-        }
-
+        // The layout shows the cover when there is room, and lines the details up beside it.
         LayOutMediaStage();
     }
 

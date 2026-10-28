@@ -113,6 +113,7 @@ public sealed partial class MainWindow : Window
         WireKineticCaptions();
         WireTranscription();
         WireVisualizer();
+        WireStageLayout();
         WireLyricNavigation();
         WireLibrary();
         ApplyTooltips();
