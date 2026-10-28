@@ -618,11 +618,8 @@ public sealed partial class MainWindow : Window
     private void ShowPosition()
     {
         var duration = _player.Duration;
-        var timeline = TimeText.Timeline(_player.Position, duration);
-        Elapsed.Text = TimeText.Format(timeline.Elapsed, duration);
-        Remaining.Text = timeline.Remaining is not { } left ? "--:--"
-            : _showRemaining ? "-" + TimeText.Format(left, duration)
-            : TimeText.Format(duration);
+        var timeline = TimeText.Timeline(_player.Position, duration, _player.State == SessionState.Ended);
+        (Elapsed.Text, Remaining.Text) = TimeText.Clocks(_player.Position, duration, _player.Item is null ? null : _player.State, _showRemaining);
         _updatingControls = true;
         SeekBar.Maximum = timeline.SliderMaximum;
         if (!_scrubbing)
