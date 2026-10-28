@@ -23,6 +23,8 @@ public sealed partial class MainWindow
     private DispatcherQueueTimer? _librarySearchTimer;
     private CancellationTokenSource? _librarySearchCancel;
     private FoundSearch? _librarySearchFound;
+    // A search typed but not yet shown counts as pending work, so a script waiting for the view to settle waits for it too.
+    private PendingPicture? _librarySearchSettling;
     private SearchExtras? _librarySearchExtras;
     private HomeShelfControls? _homeShelfControls;
     private (IReadOnlyList<LibraryEntry> Entries, ListeningShelves? Listening, IReadOnlyList<LibraryEntry> Music)? _withoutListening;
@@ -161,6 +163,7 @@ public sealed partial class MainWindow
             OnTick(_librarySearchTimer, StartLibrarySearch);
         }
 
+        _librarySearchSettling ??= PictureStarted();
         Restart(_librarySearchTimer);
     }
 
@@ -169,6 +172,7 @@ public sealed partial class MainWindow
     {
         if (_library is null || !LibraryOpen || !_librarySearchText.Changes(LibrarySearch.Text))
         {
+            SettleLibrarySearch();
             return;
         }
 
@@ -179,17 +183,25 @@ public sealed partial class MainWindow
         var cancel = _librarySearchCancel = new CancellationTokenSource();
         Forget(Task.Run(() => LibrarySearchIndex.For(entries).Search(text, extras.Of, cancel.Token), cancel.Token).ContinueWith(search => OnWindowThread(() =>
         {
-            if (!search.IsCompletedSuccessfully || cancel.IsCancellationRequested || _librarySearchCancel != cancel)
+            if (_librarySearchCancel != cancel)
             {
                 return;
             }
 
             _librarySearchCancel = null;
+            if (!search.IsCompletedSuccessfully)
+            {
+                SettleLibrarySearch();
+                return;
+            }
+
             if (LibrarySearch.Text.Trim() == text && _librarySearchText.Changes(LibrarySearch.Text))
             {
                 _librarySearchFound = new FoundSearch(entries, text, extras, search.Result);
                 ShowLibraryAtPlace();
             }
+
+            SettleLibrarySearch();
         }), TaskScheduler.Default));
     }
 
@@ -209,5 +221,12 @@ public sealed partial class MainWindow
         _librarySearchTimer?.Stop();
         _librarySearchCancel?.Cancel();
         _librarySearchCancel = null;
+        SettleLibrarySearch();
+    }
+
+    private void SettleLibrarySearch()
+    {
+        _librarySearchSettling?.Dispose();
+        _librarySearchSettling = null;
     }
 }
