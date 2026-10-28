@@ -3,8 +3,10 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Player;
+using Rex.Media.AppCore.Shell;
 using Rex.Media.AppCore.Transcription;
 using Rex.Media.Engine;
 
@@ -36,11 +38,12 @@ public sealed partial class MainWindow
     private bool _transportPicture;
     private bool _layingOutTransport;
 
-    /// <summary>The bar follows its own buttons and group as they change width.</summary>
+    /// <summary>The bar follows its own buttons and group as they change width, and a closing library hands focus back quietly.</summary>
     private void WireTransport()
     {
         TransportButtons.SizeChanged += (_, _) => LayOutTransport();
         AudioControlStrip.SizeChanged += (_, _) => LayOutTransport();
+        LibraryPane.RegisterPropertyChangedCallback(UIElement.VisibilityProperty, (_, _) => KeepFocusOutOfClosedLibrary());
     }
 
     /// <summary>Lays the bar out for the window's size and mode.</summary>
@@ -263,5 +266,22 @@ public sealed partial class MainWindow
             FillSpeedMenu(speed.Items);
             items.Add(speed);
         }
+    }
+
+    /// <summary>
+    /// A library that closes with focus on one of its lines would leave Windows to hand focus, keyboard
+    /// ring and all, to the next button on the bar. The picture takes it instead, quietly, as it does
+    /// after a shortcut.
+    /// </summary>
+    private void KeepFocusOutOfClosedLibrary()
+    {
+        if (_closed || LibraryPane.Visibility == Visibility.Visible || Content?.XamlRoot is not { } root
+            || FocusManager.GetFocusedElement(root) is not DependencyObject focused
+            || !FocusWithin.IsInside<DependencyObject>(focused, LibraryPane, VisualTreeHelper.GetParent))
+        {
+            return;
+        }
+
+        Stage.Focus(FocusState.Programmatic);
     }
 }
