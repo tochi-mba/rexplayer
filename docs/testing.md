@@ -105,6 +105,11 @@ visible desktop. The strict virtual-desktop clipping check applies only to
 Popup and Preferences scenes require visible variation in the UIA control witness;
 ordinary library and playback scenes instead require semantic UIA readiness and a
 nonuniform rendered image, since an individual icon can legitimately be mostly uniform.
+UIA reports WinUI's controls before the compositor draws them, so every scene also waits
+until the window has painted: its client area (below the title bar Windows draws) must not
+be one flat colour, the backdrop an undrawn window shows, and the readiness control's box
+must hold a few drawn pixels. A window still unpainted after the UI patience fails with
+that reason and its last frame instead of recording a blank capture.
 The harness positions isolated test windows on the visible desktop before opening dialogs
 and rejects cropped/offscreen desktop evidence. Each scene writes an actual PNG, a JSON
 sidecar recording both semantic and pixel checks, and the app log. CI also keeps the
@@ -119,9 +124,14 @@ actual failure message is rendered. The screenshot-only
 caption-loading scene uses a slow offline fake-speech fixture; no network,
 external speech model or fabricated PNG is involved.
 
-Every successful scene takes a second compositor frame and checks the differing-pixel
-ratio against its declared tolerance. CI retains `repeat/<scene-id>.png` and, on
-instability, `repeat-diff/<scene-id>.png`. It then reruns the seven fixture-backed
+Before a scene is captured the harness moves the pointer off the window, so no hover fill
+or tooltip from the test's last click is recorded. It then takes compositor frames 250 ms
+apart until two agree, no channel moving by more than 8 of 255, so a transition (a
+selection pill sliding, an expander opening, a fill fading) is never captured mid-way. A
+scene that never holds still within 4 s (a spinning ring, a running clock) is judged by
+its declared differing-pixel tolerance on the last pair that met it, and its sidecar says
+it never settled. CI retains `repeat/<scene-id>.png` and, for a scene that never settled,
+`repeat-diff/<scene-id>.png` marking what kept moving. It then reruns the seven fixture-backed
 empty, single, mixed, RTL, long-text and missing-artwork captures in new app
 processes, under `ci-windows-repeat`, and checks their resulting PNG pixels with
 `scripts/check-screenshot-repeatability.ps1`. These checks measure stability;
