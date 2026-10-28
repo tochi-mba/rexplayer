@@ -36,8 +36,12 @@ internal static partial class Pointer
 
     public static void RightClick(AppProcess app, AutomationElement element) => Mouse(app, element, RightDown, RightUp, 1);
 
-    /// <summary>Leave offline fixture screenshots free of hover-dependent highlights.</summary>
-    public static void ParkOutsideWindow(AppProcess app)
+    /// <summary>
+    /// Moves the pointer to a corner of the desktop the window leaves free, so a screenshot shows
+    /// no hover fill, pressed look or tooltip left by the test's last click. A window covering
+    /// every corner leaves the pointer where it is; the answer says whether it moved.
+    /// </summary>
+    public static bool ParkOutsideWindow(AppProcess app)
     {
         var desktop = WindowPicture.DesktopBounds;
         var window = WindowPicture.Bounds(app.Handle);
@@ -48,10 +52,14 @@ internal static partial class Pointer
             (X: (int)desktop.Right - 2, Y: (int)desktop.Top + 1),
             (X: (int)desktop.Left + 1, Y: (int)desktop.Top + 1),
         };
-        var target = corners.FirstOrDefault(point => !window.Contains(point.X, point.Y));
-        Assert.True(corners.Any(point => !window.Contains(point.X, point.Y)),
-            "The screenshot window leaves no desktop space to park the pointer.");
-        MoveHoverPointer(target.X, target.Y);
+        var free = corners.Where(point => !window.Contains(point.X, point.Y)).ToArray();
+        if (free.Length == 0)
+        {
+            return false;
+        }
+
+        MoveHoverPointer(free[0].X, free[0].Y);
+        return true;
     }
 
     /// <summary>Move the real pointer over a fraction of a visible slider without clicking or seeking.</summary>
