@@ -28,13 +28,22 @@ internal static class RexTheme
     /// <summary>A brush such as <c>RexOverlayTextBrush</c> or <c>TextFillColorPrimaryBrush</c>, for the window's theme.</summary>
     public static Brush Brush(string key) => (Brush)Resource(key);
 
+    /// <summary>
+    /// A brush for <paramref name="theme"/>, for a part of the window that keeps a theme of its own
+    /// whatever the window's (the stage, which is always black, is always dark).
+    /// </summary>
+    public static Brush Brush(string key, ElementTheme theme) => (Brush)Resource(key, theme);
+
     /// <summary>A resource for the window's theme: its themed version if it has one, else the shared one.</summary>
-    public static object Resource(string key)
+    public static object Resource(string key) => Resource(key, s_root?.ActualTheme ?? ElementTheme.Dark);
+
+    /// <summary>A resource for <paramref name="theme"/>: its themed version if it has one, else the shared one.</summary>
+    public static object Resource(string key, ElementTheme theme)
     {
         var resources = Application.Current.Resources;
-        foreach (var theme in ThemeNames())
+        foreach (var name in ThemeNames(theme))
         {
-            if (FindThemed(resources, key, theme) is { } found)
+            if (FindThemed(resources, key, name) is { } found)
             {
                 return found;
             }
@@ -47,9 +56,9 @@ internal static class RexTheme
     public static Windows.UI.Color Color(uint argb) =>
         Windows.UI.Color.FromArgb((byte)(argb >> 24), (byte)(argb >> 16), (byte)(argb >> 8), (byte)argb);
 
-    // WinUI's own dictionaries name the dark theme "Default".
-    private static string[] ThemeNames() => (s_accessibility ??= new()).HighContrast ? ["HighContrast"]
-        : s_root?.ActualTheme == ElementTheme.Light ? ["Light"]
+    // WinUI's own dictionaries name the dark theme "Default". High contrast outranks any theme asked for.
+    private static string[] ThemeNames(ElementTheme theme) => (s_accessibility ??= new()).HighContrast ? ["HighContrast"]
+        : theme == ElementTheme.Light ? ["Light"]
         : ["Dark", "Default"];
 
     private static object? FindThemed(ResourceDictionary dictionary, string key, string theme)
