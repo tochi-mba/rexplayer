@@ -62,6 +62,7 @@ public sealed class MacAppSmokeTests
         });
         var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
         var screenshots = RepoPaths.Combine("artifacts", "mac-queue-screenshots");
+        var changedShots = new List<string>();
         Directory.CreateDirectory(screenshots);
         var libraryScreenshots = RepoPaths.Combine("artifacts", "mac-library-screenshots");
         Directory.CreateDirectory(libraryScreenshots);
@@ -180,7 +181,7 @@ public sealed class MacAppSmokeTests
             await Library(pipe, "capture-empty");
             // The reviewed "empty" baseline must be taken now, before adding
             // a watched folder or resizing the AppKit library to minimum width.
-            await CaptureLibraryScreenshot(pipe, "empty", root);
+            await CaptureLibraryScreenshot(pipe, "empty", root, changedShots);
             await Library(pipe, "add-folder", libraryFixture);
             var populated = await Until(
                 () => Ask(pipe, new AutomationRequest { Command = "mac-library", Id = "status" }),
@@ -416,6 +417,7 @@ public sealed class MacAppSmokeTests
             Assert.True(app.WaitForExit(Patience), "rexplayer.app did not quit when asked.");
             Assert.Equal(0, app.ExitCode);
             Assert.Contains("rexplayer starting", await File.ReadAllTextAsync(Path.Combine(root, "logs", "rexplayer.log"), TestContext.Current.CancellationToken), StringComparison.Ordinal);
+            AssertNoScreenshotChanged(changedShots);
         }
         catch (Exception error)
         {
@@ -476,6 +478,7 @@ public sealed class MacAppSmokeTests
         // The library Play/Queue smoke assertions inspect queue contents below.
         start.Environment["REXPLAYER_MAC_QUEUE_TESTS"] = "1";
         using var app = Process.Start(start)!;
+        var changedShots = new List<string>();
         try
         {
             await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Ok: true }, app, root);
@@ -483,7 +486,7 @@ public sealed class MacAppSmokeTests
             var opened = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
             Assert.True(opened?.Ok == true, "Opening the populated Mac library failed: " + (opened?.Error ?? "no reply") + LogTail(root));
             Assert.True((await Ask(pipe, new AutomationRequest { Command = "status" }))?.Ok == true, "The populated Mac library stopped responding." + LogTail(root));
-            await CaptureLibraryScreenshot(pipe, "populated", root);
+            await CaptureLibraryScreenshot(pipe, "populated", root, changedShots);
             var keys = await Ask(pipe, new AutomationRequest { Command = "ui.keyboard" });
             Assert.True(keys?.Ok == true, "Mac library AppKit Tab/Shift-Tab loop failed: " + (keys?.Error ?? "no reply") + LogTail(root));
             var tree = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
@@ -525,15 +528,15 @@ public sealed class MacAppSmokeTests
                 "The Videos category did not restore after switching all six categories.");
             var small = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryWidth", Value = 590 });
             Assert.True(small?.Ok == true, "The native library could not use its minimum window size: " + (small?.Error ?? "no reply"));
-            await CaptureLibraryScreenshot(pipe, "minimum-width", root);
+            await CaptureLibraryScreenshot(pipe, "minimum-width", root, changedShots);
             var searched = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "known-video" });
             Assert.True(searched?.Ok == true && searched.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
                 "Searching the native library failed: " + (searched?.Text ?? searched?.Error ?? "no reply") + LogTail(root));
-            await CaptureLibraryScreenshot(pipe, "searched", root);
+            await CaptureLibraryScreenshot(pipe, "searched", root, changedShots);
             var noMatches = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "no-such-video-name" });
             Assert.True(noMatches?.Ok == true && noMatches.Text?.Contains("0 matching", StringComparison.Ordinal) == true,
                 "An unmatched native search did not clear the results: " + (noMatches?.Text ?? noMatches?.Error ?? "no reply") + LogTail(root));
-            await CaptureLibraryScreenshot(pipe, "no-matches", root);
+            await CaptureLibraryScreenshot(pipe, "no-matches", root, changedShots);
 
             // Invoke the actual AppKit result buttons, not PlayerController directly.
             // This exercises native Play -> player -> library -> Queue wiring.
@@ -667,6 +670,8 @@ public sealed class MacAppSmokeTests
                     reopenedApp.WaitForExit();
                 }
             }
+
+            AssertNoScreenshotChanged(changedShots);
         }
         finally
         {
@@ -877,7 +882,12 @@ public sealed class MacAppSmokeTests
         }
     }
 
-    private static async Task CaptureLibraryScreenshot(string pipe, string name, string root)
+    // Every shot is taken before any mismatch fails the test, so one run's artifact holds all
+    // the shots that need review and every changed hash is reported together.
+    private static void AssertNoScreenshotChanged(List<string> changedShots) =>
+        Assert.True(changedShots.Count == 0, string.Join(Environment.NewLine, changedShots));
+
+    private static async Task CaptureLibraryScreenshot(string pipe, string name, string root, List<string> changedShots)
     {
         var directory = Environment.GetEnvironmentVariable("REXPLAYER_MAC_SCREENSHOTS") ?? root;
         var file = Path.Combine(directory, "mac-library-" + name + ".png");
@@ -899,9 +909,11 @@ public sealed class MacAppSmokeTests
                 .Select(line => line.Split(' ', 2)[0])
                 .Single();
             var actual = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();
-            Assert.True(string.Equals(baseline, actual, StringComparison.Ordinal),
-                "Native Mac screenshot " + target + " changed. Review the mac-library-screenshots CI artifact before approving a new baseline." +
-                Environment.NewLine + "Expected: " + baseline + Environment.NewLine + "Actual:   " + actual);
+            if (!string.Equals(baseline, actual, StringComparison.Ordinal))
+            {
+                changedShots.Add("Native Mac screenshot " + target + " changed. Review the mac-library-screenshots CI artifact before approving a new baseline." +
+                    Environment.NewLine + "Expected: " + baseline + Environment.NewLine + "Actual:   " + actual);
+            }
         }
     }
 
