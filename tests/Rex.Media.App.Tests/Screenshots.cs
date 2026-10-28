@@ -283,9 +283,16 @@ internal static class Screenshots
         WriteCaptureMetadata(scene, app, picture, automationId, pixelThreshold,
             maxDifferingRatio, true, rendered, needsPixelWitness && HasVisibleVariation(witness),
             repeatable, repeatDifference,
-            new { pointerParked, painted = unpainted is null, unpainted, settled, changedPixels,
+            new
+            {
+                pointerParked,
+                painted = unpainted is null,
+                unpainted,
+                settled,
+                changedPixels,
                 settleMilliseconds = (int)settleTime.TotalMilliseconds,
-                settleIntervalMilliseconds = (int)SettleInterval.TotalMilliseconds });
+                settleIntervalMilliseconds = (int)SettleInterval.TotalMilliseconds
+            });
         Save(Path.Combine(Output, "actual", name + ".png"), picture);
         Save(Path.Combine(Output, "window", name + ".png"), fullWindow);
         if (repeat.Bgra is { Length: > 0 })
