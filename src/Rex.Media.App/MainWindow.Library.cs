@@ -668,8 +668,13 @@ public sealed partial class MainWindow
         _libraryPictures.Cancel();
         _libraryPictures.Dispose();
         _libraryPictures = new CancellationTokenSource();
-        // A new view (or none) replaces the cards: what the old ones showed need not stay decoded.
-        TrimPictures(_budget.PictureMemoryIdleBytes);
+        // Another route replaces the cards: what the old ones showed need not stay decoded. A
+        // refresh of the same route keeps them, so its cards come back from memory at once.
+        if (CurrentLibraryRoute() is var route && route != _picturesRoute)
+        {
+            _picturesRoute = route;
+            TrimPictures(_budget.PictureMemoryIdleBytes);
+        }
     }
 
     /// <summary>Selection follows the active surface; library commands work in every layout.</summary>

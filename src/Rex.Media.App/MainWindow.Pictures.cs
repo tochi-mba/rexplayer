@@ -37,6 +37,8 @@ public sealed partial class MainWindow
     // A separate fast lane keeps one hovered or keyboard-focused thumbnail responsive while
     // the normal visible-card workers finish slower disk reads or video decodes.
     private readonly SemaphoreSlim _priorityPictureSlot = new(1, 1);
+    // The library route whose cards the picture memory was last trimmed for.
+    private LibraryRoute? _picturesRoute;
     private readonly PictureMemory<ImageSource> _pictureMemory = new(new Rex.Media.AppCore.Performance.DeviceBudget().PictureMemoryBytes);
 
     /// <summary>A visible playlist line asks for its picture once; a file that is missing, or a stream, has none to give.</summary>
