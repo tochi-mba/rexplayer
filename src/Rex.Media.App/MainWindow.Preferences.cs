@@ -16,7 +16,6 @@ public sealed partial class MainWindow
         Func<Task>? requestedEditor = null;
 
         // What to show once Preferences has closed: WinUI shows one dialog at a time.
-        Func<Task>? afterClose = null;
 
         // Not a live region: it changes with every step of a download, and the updater announces
         // its changes of state itself.
@@ -25,7 +24,7 @@ public sealed partial class MainWindow
 
         // Only the section shown is built; the others are built when first chosen (or searched).
         var sections = new Rex.Media.AppCore.LazySections<StackPanel, PlayerSettings> { Built = WrapLabels };
-        AddPreferenceSections(sections, updateStatus, edit => requestedEditor = edit, then => afterClose = then);
+        AddPreferenceSections(sections, updateStatus, edit => requestedEditor = edit);
         var names = sections.Names;
 
         // The status line follows a check or a download while Preferences is open.
@@ -287,10 +286,6 @@ public sealed partial class MainWindow
                     }
                 }
                 while (requestedEditor is not null && !_closed);
-                if (afterClose is { } then && !_closed)
-                {
-                    await then();
-                }
             }
             finally
             {

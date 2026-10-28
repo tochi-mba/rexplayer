@@ -42,6 +42,11 @@ public sealed partial class MainWindow
     private void OnPreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
         _lastInputTick = Environment.TickCount64;
+        if (IsFullScreen && e.Key != VirtualKey.Escape)
+        {
+            // A key brings the controls back as the pointer does, so the keyboard alone can reach them.
+            ShowFullScreenControls();
+        }
         if (e.Key == VirtualKey.Escape && !e.Handled && EscapeFromUpdateCard())
         {
             e.Handled = true;
@@ -501,6 +506,24 @@ public sealed partial class MainWindow
         PlaylistUndoRemoval.IsEnabled = true;
         Say(chosen.Count == 1 ? "Removed entry from the queue. Undo removal is available"
             : $"Removed {chosen.Count} entries from the queue. Undo removal is available");
+    }
+
+    /// <summary>Stop and empty the queue, keeping what it held so the queue panel's Undo removal brings it back.</summary>
+    private void ClearQueue()
+    {
+        if (_player.Playlist.Items.Count == 0)
+        {
+            _player.Stop();
+            return;
+        }
+
+        var saved = _player.Playlist.CaptureRemoval();
+        _player.Stop();
+        _undoQueueRemoval = saved;
+        _undoQueuePlayerItem = _player.Item;
+        _player.Playlist.Clear();
+        PlaylistUndoRemoval.IsEnabled = true;
+        Say("Queue cleared. Undo removal in the queue brings it back");
     }
 
     private void OnPlaylistUndoRemoval(object sender, RoutedEventArgs e)
