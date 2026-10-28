@@ -184,7 +184,7 @@ public sealed partial class MainWindow
             actions.Children.Add(HeroButton(AlbumIsPinned(group) ? "Unpin album" : "Pin album", AlbumIsPinned(group) ? "\uE77A" : "\uE718",
                 "MusicHeroPin", accent: false, () => ToggleAlbumPin(group)));
         }
-        words.Children.Add(actions);
+        words.Children.Add(FitBillboardActions(actions));
         frame.Children.Add(words);
         return frame;
     }
@@ -202,8 +202,45 @@ public sealed partial class MainWindow
 
         AutomationProperties.SetAutomationId(button, id);
         AutomationProperties.SetName(button, text);
+        ToolTipService.SetToolTip(button, text);
         button.Click += (_, _) => click();
         return button;
+    }
+
+    /// <summary>
+    /// The billboard's buttons in a row that fits: where the row would run past the billboard (Unpin album was
+    /// cut off), every button after Play shows its icon alone, keeping its name and tooltip. The row sits in a
+    /// scroller because a scroller reports the width it is given, where an overflowing row reports its own.
+    /// Worked out on a size change only.
+    /// </summary>
+    private static ScrollViewer FitBillboardActions(StackPanel actions)
+    {
+        var row = new ScrollViewer
+        {
+            Content = actions,
+            HorizontalScrollMode = ScrollMode.Enabled,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden,
+            VerticalScrollMode = ScrollMode.Disabled,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+        };
+        var full = 0.0;
+        row.SizeChanged += (_, e) =>
+        {
+            if (full == 0)
+            {
+                full = actions.DesiredSize.Width;
+            }
+
+            var narrow = full > e.NewSize.Width + 0.5;
+            foreach (var button in actions.Children.Skip(1).OfType<Button>())
+            {
+                if (button.Content is StackPanel panel && panel.Children.Count == 2 && panel.Children[1] is TextBlock label)
+                {
+                    label.Visibility = narrow ? Visibility.Collapsed : Visibility.Visible;
+                }
+            }
+        };
+        return row;
     }
 
     /// <summary>One row: its title over cards that scroll sideways, virtualised, each card's art asked for when it is realised and let go when it is recycled.</summary>

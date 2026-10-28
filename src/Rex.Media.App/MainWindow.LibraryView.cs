@@ -362,7 +362,7 @@ public sealed partial class MainWindow
                 }
                 else
                 {
-                    _songsShowPlays = ViewFacts.SongsShowPlays(list.Select(entry => entry.Plays));
+                    _songsShowPlays = _songsTable && ViewFacts.SongsShowPlays(list.Select(entry => entry.Plays));
                     sections = _librarySource == LibrarySource.Songs ? SongSections(list, choice) : EntrySections(list, choice);
                 }
 

@@ -114,11 +114,6 @@ public sealed partial class MainWindow
                 : " · Saved edited words shown; the generated original is not available.";
         }
 
-        if (loaded.Failure is { } failureReason)
-        {
-            coverageText += " · Transcription error: " + failureReason;
-        }
-
         var coverage = new TextBlock
         {
             Text = coverageText,
@@ -126,8 +121,22 @@ public sealed partial class MainWindow
         };
         AutomationProperties.SetAutomationId(coverage, "TranscriptReaderCoverage");
         panel.Children.Add(coverage);
+        if (loaded.Failure is { } failureReason)
+        {
+            // A failed job is a problem of its own, marked as one, not a clause at the end of the status line.
+            var problem = new TextBlock { Text = "Transcription stopped: " + failureReason, TextWrapping = TextWrapping.Wrap, Foreground = RexTheme.Brush("SystemFillColorCriticalBrush") };
+            AutomationProperties.SetAutomationId(problem, "TranscriptReaderProblem");
+            var problemRow = new Grid { ColumnSpacing = 8 };
+            problemRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            problemRow.ColumnDefinitions.Add(new ColumnDefinition());
+            problemRow.Children.Add(new FontIcon { Glyph = "\uE7BA", FontSize = 14, Foreground = RexTheme.Brush("SystemFillColorCriticalBrush"), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0) });
+            Grid.SetColumn(problem, 1);
+            problemRow.Children.Add(problem);
+            panel.Children.Add(problemRow);
+        }
 
-        var navigation = new StackPanel { Orientation = Orientation.Vertical, Spacing = 6 };
+        // Previous, the page, Next and Follow playback read as one row of controls.
+        var navigation = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var previous = new Button { Content = "Previous paragraphs" };
         var next = new Button { Content = "Next paragraphs" };
         var follow = new Button { Content = "Follow playback", IsEnabled = false };
