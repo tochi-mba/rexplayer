@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
@@ -23,6 +24,14 @@ namespace Rex.Media.App.Tests;
 /// and says so. A mismatch fails and leaves the actual picture and a diff (changed pixels in red
 /// over a faded copy of the baseline) beside it.
 /// </para>
+/// <para>
+/// A shot is evidence only of a window that has finished drawing. Before capturing, the scene's UI
+/// Automation contract must hold, the window must have painted its content (its client area is
+/// not the backdrop's one flat colour and the readiness control's box shows something drawn), and
+/// two frames taken <see cref="SettleInterval"/> apart must agree, no pixel changing by more than
+/// <see cref="SettledPixelThreshold"/>, so nothing animating (a selection pill sliding, an
+/// expander opening, a fill fading) is caught mid-way.
+/// </para>
 /// </summary>
 internal static class Screenshots
 {
@@ -31,6 +40,25 @@ internal static class Screenshots
 
     /// <summary>A shot matches while no more than this share of its pixels differ.</summary>
     public const double DefaultMaxDifferingRatio = 0.005;
+
+    /// <summary>
+    /// Within one run the same machine draws a still window identically, so between two frames a
+    /// pixel has changed when a channel moves by more than this: a fade still under way shows.
+    /// </summary>
+    internal const int SettledPixelThreshold = 8;
+
+    /// <summary>A control's box shows something drawn when at least this many of its pixels differ from its most common colour.</summary>
+    internal const int MinimumInk = 8;
+
+    /// <summary>
+    /// Frames compared for stillness are at least this far apart. A control's transition lasts a
+    /// few hundred milliseconds, so it moves visibly in this time, while two frames taken a few
+    /// milliseconds apart can both land inside it and agree.
+    /// </summary>
+    internal static readonly TimeSpan SettleInterval = TimeSpan.FromMilliseconds(250);
+
+    /// <summary>How long a scene may take to hold still before the older, tolerant rule decides.</summary>
+    private static readonly TimeSpan SettleLimit = TimeSpan.FromSeconds(4);
 
     public static string Lane => Environment.GetEnvironmentVariable("REXPLAYER_UI_LANE") is { Length: > 0 } lane
         ? lane
@@ -89,9 +117,7 @@ internal static class Screenshots
             // excuse to omit the screenshot and the application's diagnostic log.
             try
             {
-                var failedFrame = scene.CaptureMode == "desktop"
-                    ? WindowPicture.TakeDesktop(app.Handle)
-                    : WindowPicture.Take(app.Handle);
+                var failedFrame = Capture(app, scene);
                 WriteCaptureMetadata(scene, app, failedFrame, automationId, pixelThreshold,
                     maxDifferingRatio, false, false, false);
                 Save(Path.Combine(Output, "actual", name + ".png"), failedFrame);
@@ -123,15 +149,26 @@ internal static class Screenshots
         (int Width, int Height, byte[] Bgra) picture = default;
         (int Width, int Height, byte[] Bgra) fullWindow = default;
         (int Width, int Height, byte[] Bgra) witness = default;
-        var rendered = Wait.Within(TimeSpan.FromSeconds(5), () =>
+        // UI Automation also reports controls the compositor has not drawn yet. On a slow runner
+        // the window can still show nothing but its backdrop, one flat colour under a title bar
+        // whose text alone makes the whole frame look varied, so wait (as long as any other UI
+        // wait) until the window has painted its content before taking a frame as evidence.
+        string? unpainted = null;
+        var sinceCapture = Stopwatch.StartNew();
+        var rendered = Wait.Within(AppProcess.Patience, () =>
         {
             try
             {
-                var captured = scene.CaptureMode == "desktop"
-                    ? WindowPicture.TakeDesktop(app.Handle)
-                    : WindowPicture.Take(app.Handle);
+                var captured = Capture(app, scene);
+                sinceCapture.Restart();
                 fullWindow = captured;
                 picture = captured;
+                unpainted = Unpainted(app, captured, scene.ReadinessId, pixelThreshold);
+                if (unpainted is not null)
+                {
+                    return false;
+                }
+
                 if (needsPixelWitness && !TryCropControl(app, captured, scene.ReadinessId, out witness))
                 {
                     return false;
@@ -160,76 +197,103 @@ internal static class Screenshots
             return;
         }
 
-        // Two independent compositor reads of the same stable scene must match.
-        // Record the second frame and a diff even when the repeatability gate fails.
-        // A bounded retry permits initial WinUI layout animations to finish without
-        // silently treating permanently moving or stale content as deterministic.
+        // Two independent compositor reads of the same scene must agree before one becomes
+        // evidence. A pill sliding along a list, an expander opening or a fill fading changes
+        // little between two quick frames, so the frames are taken SettleInterval apart and must
+        // not differ at all (no channel moving by more than SettledPixelThreshold). Successive
+        // frames are compared, each with the one before, until a pair agrees. A scene that never
+        // holds still (a spinning ring, a running clock) is judged by the older tolerance on the
+        // last pair that met it, and its metadata and the test output say it never settled.
         (int Width, int Height, byte[] Bgra) repeat = default;
         (int Width, int Height, byte[] Bgra) repeatedWindow = default;
+        ((int Width, int Height, byte[] Bgra) Picture, (int Width, int Height, byte[] Bgra) Window,
+            (int Width, int Height, byte[] Bgra) Repeat, double Difference)? tolerated = null;
         var repeatDifference = 1.0;
+        var changedPixels = -1;
+        var settled = false;
         var advanceFrame = false;
-        // Compare consecutive captures, not every future capture against the first
-        // frame. The initial UIA-ready frame can still be mid-transition; once the
-        // compositor settles, two successive frames must independently agree.
-        // A continuously animated or changing scene still fails this strict gate.
-        var repeatable = rendered && Wait.Within(TimeSpan.FromSeconds(4), () =>
+        var settling = Stopwatch.StartNew();
+        if (rendered)
         {
-            try
+            _ = Wait.Within(SettleLimit, () =>
             {
-                if (advanceFrame && repeat.Bgra is { Length: > 0 })
+                try
                 {
-                    picture = repeat;
-                    fullWindow = repeatedWindow;
-                    advanceFrame = false;
-                }
+                    if (advanceFrame && repeat.Bgra is { Length: > 0 })
+                    {
+                        picture = repeat;
+                        fullWindow = repeatedWindow;
+                        advanceFrame = false;
+                    }
 
-                var captured = scene.CaptureMode == "desktop"
-                    ? WindowPicture.TakeDesktop(app.Handle)
-                    : WindowPicture.Take(app.Handle);
-                repeat = captured;
-                repeatedWindow = captured;
-                if (automationId is not null && !TryCropControl(app, captured, automationId, out repeat))
-                {
+                    var early = SettleInterval - sinceCapture.Elapsed;
+                    if (early > TimeSpan.Zero)
+                    {
+                        Thread.Sleep(early);
+                    }
+
+                    var captured = Capture(app, scene);
+                    sinceCapture.Restart();
                     repeat = captured;
+                    repeatedWindow = captured;
+                    if (automationId is not null && !TryCropControl(app, captured, automationId, out repeat))
+                    {
+                        repeat = captured;
+                        return false;
+                    }
+
+                    if (repeat.Width != picture.Width || repeat.Height != picture.Height)
+                    {
+                        advanceFrame = true;
+                        return false;
+                    }
+
+                    repeatDifference = Changed(picture, repeat, pixelThreshold) / (double)(picture.Width * picture.Height);
+                    changedPixels = Changed(picture, repeat, SettledPixelThreshold);
+                    var picturesIdle = app.PicturesPending == 0;
+                    settled = picturesIdle && changedPixels == 0;
+                    if (!settled && picturesIdle && repeatDifference <= maxDifferingRatio)
+                    {
+                        tolerated = (picture, fullWindow, repeat, repeatDifference);
+                    }
+
+                    advanceFrame = !settled;
+                    return settled;
+                }
+                catch (Exception error)
+                {
+                    RecordCaptureError(app, name, error);
                     return false;
                 }
+            });
+        }
 
-                if (repeat.Width != picture.Width || repeat.Height != picture.Height)
-                {
-                    advanceFrame = true;
-                    return false;
-                }
+        var settleTime = settling.Elapsed;
+        if (!settled && tolerated is { } moving)
+        {
+            (picture, fullWindow, repeat, repeatDifference) = moving;
+            TestContext.Current.SendDiagnosticMessage(
+                $"Screenshot {name}: still changing after {SettleLimit.TotalSeconds:0} s ({changedPixels} pixels moved between the last two frames), so the last pair within {maxDifferingRatio:P2} was kept. See repeat-diff/{name}.png.");
+        }
 
-                var (different, _) = Difference(picture, repeat, pixelThreshold);
-                repeatDifference = different / (double)(picture.Width * picture.Height);
-                if (repeatDifference <= maxDifferingRatio && app.PicturesPending == 0)
-                {
-                    return true;
-                }
-
-                advanceFrame = true;
-                return false;
-            }
-            catch (Exception error)
-            {
-                RecordCaptureError(app, name, error);
-                return false;
-            }
-        });
+        var repeatable = settled || tolerated is not null;
 
         // Persist artifacts *before* any screenshot assertion, including failed
         // readiness, missing popups, occlusion and mismatched committed baselines.
         WriteCaptureMetadata(scene, app, picture, automationId, pixelThreshold,
             maxDifferingRatio, true, rendered, needsPixelWitness && HasVisibleVariation(witness),
-            repeatable, repeatDifference);
+            repeatable, repeatDifference,
+            new { painted = unpainted is null, unpainted, settled, changedPixels,
+                settleMilliseconds = (int)settleTime.TotalMilliseconds,
+                settleIntervalMilliseconds = (int)SettleInterval.TotalMilliseconds });
         Save(Path.Combine(Output, "actual", name + ".png"), picture);
         Save(Path.Combine(Output, "window", name + ".png"), fullWindow);
         if (repeat.Bgra is { Length: > 0 })
         {
             Save(Path.Combine(Output, "repeat", name + ".png"), repeat);
-            if (!repeatable && repeat.Width == picture.Width && repeat.Height == picture.Height)
+            if (!settled && repeat.Width == picture.Width && repeat.Height == picture.Height)
             {
-                var (_, repeatDiff) = Difference(picture, repeat, pixelThreshold);
+                var (_, repeatDiff) = Difference(picture, repeat, SettledPixelThreshold);
                 Save(Path.Combine(Output, "repeat-diff", name + ".png"), repeatDiff);
             }
         }
@@ -242,6 +306,11 @@ internal static class Screenshots
             $"Screenshot {name} extends beyond the visible desktop. Black offscreen pixels must never become composited evidence.");
         Assert.True(ViewportMatchesDeclared(scene, app) is not false,
             $"Screenshot {name} does not have the declared {scene.Dimensions} viewport.");
+        Assert.True(unpainted is null,
+            $"Screenshot {name} was never painted: {unpainted}, {AppProcess.Patience.TotalSeconds:0} s after UI Automation reported {scene.ReadinessId}. "
+            + $"The last frame is window/{name}.png in the screenshots artefact. A whole window that stays one colour is not being drawn "
+            + "(minimised, covered, on a locked or disconnected desktop, or the app stalled before its first frame: see its .log beside it); "
+            + "one control that stays blank is a rendering defect in the app.");
         Assert.True(HasVisibleVariation(picture),
             $"Screenshot {name} appears blank or uniform; wait for the expected UI before capturing it.");
         Assert.True(!needsPixelWitness || HasVisibleVariation(witness),
@@ -257,7 +326,7 @@ internal static class Screenshots
     private static void WriteCaptureMetadata(ScreenshotScenes.ScreenshotScene scene, AppProcess app,
         (int Width, int Height, byte[] Bgra) picture, string? automationId,
         int pixelThreshold, double maxDifferingRatio, bool ready, bool rendered, bool witnessVaried,
-        bool repeatable = false, double repeatDifference = 1.0)
+        bool repeatable = false, double repeatDifference = 1.0, object? capture = null)
     {
         var dir = Path.Combine(Output, "actual");
         Directory.CreateDirectory(dir);
@@ -289,6 +358,9 @@ internal static class Screenshots
             witnessVisiblyVaried = witnessVaried,
             repeatabilityAchieved = repeatable,
             repeatedDifferingRatio = repeatDifference,
+            // Whether the window had painted, and whether two frames SettleInterval apart agreed
+            // (or how many pixels were still changing).
+            capture,
             expectedAutomationIds = scene.ExpectedAutomationIds,
             observedAutomationIds = scene.ExpectedAutomationIds.Select(id => ObserveControl(app, id)).ToArray(),
             // Some semantic text readiness controls (such as LibraryTitle) are
@@ -344,6 +416,47 @@ internal static class Screenshots
 
         var actual = app.Window.Current.BoundingRectangle;
         return Math.Abs(actual.Width - width) < 2 && Math.Abs(actual.Height - height) < 2;
+    }
+
+    private static (int Width, int Height, byte[] Bgra) Capture(AppProcess app, ScreenshotScenes.ScreenshotScene scene) =>
+        scene.CaptureMode == "desktop" ? WindowPicture.TakeDesktop(app.Handle) : WindowPicture.Take(app.Handle);
+
+    /// <summary>
+    /// Why a frame does not show the window's content yet, or null once it does. A window WinUI
+    /// has not drawn into shows only its backdrop (#202020 dark, #F3F3F3 light, or a plain grey
+    /// through PrintWindow) across the whole client area, and a control not drawn yet leaves its
+    /// box one flat colour although UI Automation already places it there.
+    /// </summary>
+    private static string? Unpainted(AppProcess app, (int Width, int Height, byte[] Bgra) frame,
+        string readinessId, int pixelThreshold)
+    {
+        var window = WindowPicture.Bounds(app.Handle);
+        var client = WindowPicture.ClientBounds(app.Handle);
+        var content = Crop(frame, window, client);
+        if (!HasVisibleVariation(content))
+        {
+            return $"its whole client area is one flat colour ({Hex(MostCommonColour(content))}), the backdrop of a window with nothing drawn in it";
+        }
+
+        try
+        {
+            var control = app.Window.FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty, readinessId));
+            var area = control is null || control.Current.IsOffscreen ? System.Windows.Rect.Empty : control.Current.BoundingRectangle;
+            area.Intersect(client);
+            if (area.IsEmpty || area.Width < 1 || area.Height < 1)
+            {
+                return $"{readinessId} has no place inside the client area";
+            }
+
+            var box = Crop(frame, window, area);
+            return HasInk(box, pixelThreshold) ? null
+                : $"{readinessId} is one flat colour ({Hex(MostCommonColour(box))}) across its box {area.ToString(CultureInfo.InvariantCulture)}, so nothing is drawn where UI Automation places it";
+        }
+        catch (ElementNotAvailableException)
+        {
+            return $"{readinessId} was replaced while its pixels were checked";
+        }
     }
 
     /// <summary>
@@ -544,6 +657,60 @@ internal static class Screenshots
         return lastX - firstX >= 24 && lastY - firstY >= 24;
     }
 
+    /// <summary>
+    /// Whether a control's box shows anything drawn: at least <see cref="MinimumInk"/> of its
+    /// pixels differ from its most common colour by more than <paramref name="pixelThreshold"/>.
+    /// Unlike <see cref="HasVisibleVariation"/>, which judges a whole frame, a short label or a
+    /// small button passes; a box an unpainted window leaves at its backdrop colour does not.
+    /// </summary>
+    internal static bool HasInk((int Width, int Height, byte[] Bgra) picture, int pixelThreshold)
+    {
+        if (picture.Width <= 0 || picture.Height <= 0
+            || (long)picture.Width * picture.Height > picture.Bgra.Length / 4)
+        {
+            return false;
+        }
+
+        var (blue, green, red) = MostCommonColour(picture);
+        var pixels = picture.Bgra;
+        var ink = 0;
+        for (var i = 0; i < picture.Width * picture.Height * 4; i += 4)
+        {
+            var moved = Math.Max(Math.Abs(pixels[i] - blue), Math.Max(Math.Abs(pixels[i + 1] - green), Math.Abs(pixels[i + 2] - red)));
+            if (moved > pixelThreshold && ++ink >= MinimumInk)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>The colour most of a picture's pixels have, judged from an even sample of at most about 4,000 of them.</summary>
+    internal static (int Blue, int Green, int Red) MostCommonColour((int Width, int Height, byte[] Bgra) picture)
+    {
+        var counts = new Dictionary<int, int>();
+        var total = picture.Width * picture.Height;
+        var step = Math.Max(1, total / 4000);
+        var (common, most) = (0, 0);
+        for (var p = 0; p < total; p += step)
+        {
+            var i = p * 4;
+            var key = (picture.Bgra[i + 2] << 16) | (picture.Bgra[i + 1] << 8) | picture.Bgra[i];
+            counts.TryGetValue(key, out var count);
+            counts[key] = ++count;
+            if (count > most)
+            {
+                (common, most) = (key, count);
+            }
+        }
+
+        return (common & 0xFF, (common >> 8) & 0xFF, common >> 16);
+    }
+
+    private static string Hex((int Blue, int Green, int Red) colour) =>
+        string.Create(CultureInfo.InvariantCulture, $"#{colour.Red:X2}{colour.Green:X2}{colour.Blue:X2}");
+
     /// <summary>The comparison itself, for a picture already taken.</summary>
     public static void Compare(string name, (int Width, int Height, byte[] Bgra) picture,
         int pixelThreshold = DefaultPixelThreshold, double maxDifferingRatio = DefaultMaxDifferingRatio, int maxViewportHeightChange = 0)
@@ -597,6 +764,22 @@ internal static class Screenshots
             Save(diffPath, diff);
             Assert.Fail($"Screenshot {name} differs from its baseline in {ratio:P2} of its pixels (at most {maxDifferingRatio:P2} allowed). See {actual} and {diffPath}.");
         }
+    }
+
+    /// <summary>How many pixels of two same-sized pictures differ by more than the threshold, without drawing where.</summary>
+    internal static int Changed((int Width, int Height, byte[] Bgra) first, (int Width, int Height, byte[] Bgra) second, int pixelThreshold)
+    {
+        var changed = 0;
+        for (var i = 0; i < first.Width * first.Height * 4; i += 4)
+        {
+            if (Math.Max(Math.Abs(first.Bgra[i] - second.Bgra[i]),
+                Math.Max(Math.Abs(first.Bgra[i + 1] - second.Bgra[i + 1]), Math.Abs(first.Bgra[i + 2] - second.Bgra[i + 2]))) > pixelThreshold)
+            {
+                changed++;
+            }
+        }
+
+        return changed;
     }
 
     /// <summary>How many pixels differ by more than the threshold, and a picture showing where.</summary>
