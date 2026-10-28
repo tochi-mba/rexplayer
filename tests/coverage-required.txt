@@ -452,3 +452,5 @@ ListeningViews.cs
 LazySections.cs
 DesignTokens.cs
 OnScreenMessage.cs
+Legibility.cs
+LibraryHeaderLayout.cs
