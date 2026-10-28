@@ -16,7 +16,6 @@ public sealed class AtAudioDecoder : IAudioDecoder
     private readonly CompressedAudioConverter _converter;
     private readonly float[] _interleaved;
     private MediaTime _next = MediaTime.Unknown;
-    private bool _firstOutput = true;
 
     public AtAudioDecoder(TrackInfo track)
     {
@@ -44,19 +43,7 @@ public sealed class AtAudioDecoder : IAudioDecoder
         int frames;
         try
         {
-            var packetSamples = _setup.SamplesIn(packet.Data.Span);
-            frames = _converter.Decode(packet.Data.Span, _interleaved, packetSamples);
-            // AudioToolbox prefixes its first Opus output with a short priming run. The packet
-            // already names exactly how many samples it decodes, so remove only that first excess;
-            // container pre-skip and end padding remain the engine's responsibility.
-            if (_firstOutput && _setup.Format == AudioToolboxFormat.Opus && frames > packetSamples)
-            {
-                var priming = frames - packetSamples;
-                var outputChannels = _converter.Channels;
-                _interleaved.AsSpan(priming * outputChannels, packetSamples * outputChannels)
-                    .CopyTo(_interleaved);
-                frames = packetSamples;
-            }
+            frames = _converter.Decode(packet.Data.Span, _interleaved, _setup.SamplesIn(packet.Data.Span));
         }
         catch (IOException ex)
         {
@@ -72,8 +59,6 @@ public sealed class AtAudioDecoder : IAudioDecoder
         {
             return;
         }
-
-        _firstOutput = false;
 
         var channels = _converter.Channels;
         var frame = AudioFrame.Rent(_setup.OutputRate, channels, frames);
@@ -97,7 +82,6 @@ public sealed class AtAudioDecoder : IAudioDecoder
     public void Flush()
     {
         _next = MediaTime.Unknown;
-        _firstOutput = true;
         try
         {
             _converter.Reset();
