@@ -825,6 +825,15 @@ public sealed partial class MainWindow : IDisposable
         RefreshMusicPresentation();
     }
 
+    // Opening saves where the playing item is, which would overwrite the planted point, so the
+    // session ends first and the planted point is the one the reopened item finds.
+    private void OfferResumeAt15(string location)
+    {
+        _player.Stop();
+        _player.Memory.Left(location, TimeSpan.FromSeconds(15), TimeSpan.Zero);
+        _player.Open([location]);
+    }
+
     /// <summary>Exercise the native, nonmodal resume offer and its two real buttons.</summary>
     private AutomationReply ResumeSmokeAction(string? action)
     {
@@ -838,8 +847,7 @@ public sealed partial class MainWindow : IDisposable
             case "offer":
                 _settings = _settings with { ResumeMode = ResumeBehavior.Ask };
                 _player.Settings = _settings;
-                _player.Memory.Left(item.Location, TimeSpan.FromSeconds(15), TimeSpan.Zero);
-                _player.Open([item.Location]);
+                OfferResumeAt15(item.Location);
                 break;
             case "accept":
                 _resumeAccept?.PerformClick(_resumeAccept);
@@ -850,14 +858,12 @@ public sealed partial class MainWindow : IDisposable
             case "always":
                 _settings = _settings with { ResumeMode = ResumeBehavior.Always };
                 _player.Settings = _settings;
-                _player.Memory.Left(item.Location, TimeSpan.FromSeconds(15), TimeSpan.Zero);
-                _player.Open([item.Location]);
+                OfferResumeAt15(item.Location);
                 break;
             case "never":
                 _settings = _settings with { ResumeMode = ResumeBehavior.Never };
                 _player.Settings = _settings;
-                _player.Memory.Left(item.Location, TimeSpan.FromSeconds(15), TimeSpan.Zero);
-                _player.Open([item.Location]);
+                OfferResumeAt15(item.Location);
                 break;
             case "status":
                 break;
