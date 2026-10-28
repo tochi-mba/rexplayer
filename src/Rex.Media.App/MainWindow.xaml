@@ -240,11 +240,19 @@
               </Expander>
             </StackPanel>
             <StackPanel x:Name="WelcomeActions" Spacing="14" Margin="0,18,0,0">
+              <!-- Ordinary button sizes, like every other button; the second keeps an outline you
+                   can see on black (the dark theme's own fill and edge all but vanish there). -->
               <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
-                <Button Content="Open file" Click="OnWelcomeOpen" Style="{StaticResource AccentButtonStyle}" Padding="22,12" AutomationProperties.AutomationId="WelcomeOpen" ToolTipService.ToolTip="Open a file (Ctrl+O)" />
-                <Button Content="Browse library" Click="OnToggleLibrary" Padding="22,12" AutomationProperties.AutomationId="WelcomeLibrary" />
+                <Button Content="Open file" Click="OnWelcomeOpen" Style="{StaticResource AccentButtonStyle}" MinWidth="120" AutomationProperties.AutomationId="WelcomeOpen" ToolTipService.ToolTip="Open a file (Ctrl+O)" />
+                <Button Content="Browse library" Click="OnToggleLibrary" MinWidth="120" AutomationProperties.AutomationId="WelcomeLibrary">
+                  <Button.Resources>
+                    <StaticResource x:Key="ButtonBackground" ResourceKey="RexOverlayFillBrush" />
+                    <StaticResource x:Key="ButtonBorderBrush" ResourceKey="RexOverlayTertiaryTextBrush" />
+                    <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="RexOverlaySecondaryTextBrush" />
+                  </Button.Resources>
+                </Button>
               </StackPanel>
-              <TextBlock Text="Your music. Your films. Your space." FontSize="12" Foreground="{StaticResource RexOverlaySecondaryTextBrush}" HorizontalAlignment="Center" />
+              <TextBlock x:Name="WelcomeTagline" Text="Your music. Your films. Your space." FontSize="12" Foreground="{StaticResource RexOverlaySecondaryTextBrush}" HorizontalAlignment="Center" />
             </StackPanel>
           </StackPanel>
         </Grid>

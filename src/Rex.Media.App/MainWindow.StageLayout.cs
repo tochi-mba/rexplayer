@@ -86,6 +86,12 @@ public sealed partial class MainWindow
         // Decoding is asynchronous: only this item's decoded cover shows, never a stale one.
         CoverBox.Visibility = layout.CoverShown ? Visibility.Visible : Visibility.Collapsed;
         AlignTitleBlock(layout.TextBesideCover);
+        // An empty line (a song with no artist) takes no room. The tiniest welcome keeps its
+        // title and its buttons; the hint and the tagline give way, rather than the buttons.
+        var welcome = _player.Item is null;
+        IdleHint.Visibility = IdleHint.Text.Length == 0 || (welcome && layout.Tiny) ? Visibility.Collapsed : Visibility.Visible;
+        WelcomeTagline.Visibility = layout.Tiny ? Visibility.Collapsed : Visibility.Visible;
+        WelcomeActions.Margin = new Thickness(0, layout.Tiny ? 4 : 18, 0, 0);
 
         LyricsDock.Margin = new Thickness(layout.DockSide, 0, layout.DockSide, layout.DockBottom);
         LyricsBox.Height = layout.LyricsHeight;
