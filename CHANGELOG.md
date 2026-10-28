@@ -11,6 +11,10 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 ### Improved
 
 - **The library sidebar shows which view is open.** The chosen view carries an accent bar on a rounded fill, and its focus ring follows the same corners. On the icon rail every icon sits centred under the toggle instead of being cut off at its right edge. Each view has an icon of its own (TV shows no longer wear Home's house, and Songs, Podcasts and Recently added no longer copy Music, Recordings and Add folder). Add folder follows the last view, so it never hides one on a short window. On the Music billboard, Pin and Unpin show a pin and Open album an album.
+- **The playback controls fit every window.** The buttons take their full width first and the title what is left; buttons that do not fit move into a More menu, so none is cut off and no scroll bar crosses Play. The speed and volume group takes a line of its own only when the line is really full, and a short window keeps a single line of buttons.
+- The timeline reads as one line: the time played, the track and the time left are centred on the track, the track runs to the bar's right edge, and the movie versions and slideshow pickers sit with speed and volume. The times use the interface font with even-width figures, and every control on the line of buttons is the same height.
+- The captions rail under the track shows only while there is transcript coverage to show, with a normal-size quality picker, and stays out of the minimal interface and short windows.
+- With nothing to play, Previous, Play, Stop and Next are dimmed and both times read --:--; a slideshow shows no speed or volume.
 - **One set of REX colours.** Overlays, badges, scrims and text on the picture now draw from shared ink and signal colours, defined once with light, dark and high-contrast versions, instead of about forty separate colours in three clashing shades. Both the Windows and Mac apps can read the same values.
 - The Fastest performance mode decodes page banner artwork at up to 960 pixels across (about a third of the memory of the full 1600), and Preferences says so.
 - When the window's animations are off (Fastest, or Windows' own animation setting), the playing song's equaliser mark stands still instead of animating, while still marking the line.
@@ -29,7 +33,10 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 
 - **The playback stage looks right in the light theme.** Its eyebrow, the lyric being sung and its buttons now use the dark theme's colours on the black stage instead of a light theme's, which were hard to read or looked disabled.
 - Nothing on the stage draws into the playback controls in a very small window, and the welcome screen keeps its Open file and Browse library buttons at the smallest size, where Browse library now has a visible outline.
-
+- The time left adds up with the time played (a 20-second clip reads 0:00 and -0:20, not -0:19) and never reads -0:00, and a clip shorter than a second fills the seek rail when it ends.
+- The menu bar and the playback controls are opaque in the window's own theme, so a dark window on a light desktop no longer washes out to grey.
+- The title bar shows rexplayer's icon instead of the generic Windows one.
+- Playing something from the library no longer leaves a keyboard focus ring on the first playback button.
 - **Song titles are readable in a dark window on a light desktop** (and the other way round). Colours the window picks in code now follow its own theme rather than Windows' theme, which had left titles in the Songs table dark grey on a dark surface; the lines also follow a change of theme at once.
 - **Visualisations no longer flicker**, the vinyl record most of all and especially just after it starts. When a visualisation changed the size it draws at to keep up, it showed an empty picture until the next frame and could keep changing back and forth; it now keeps the last picture up until the new one is drawn, ignores the one slow frame that rebuilds a scene, and holds its size steady for a moment after each change.
 - **Songs are no longer transcribed.** Their words come from the lyrics lookup. Only videos, audiobooks and podcasts are transcribed without being asked; voice recordings still are when you ask. A song whose cover picture is stored as a one-frame video track now counts as a song, not a video. The library reads its videos' details again once to sort these out.
