@@ -279,7 +279,13 @@ public sealed partial class MainWindow
         {
             CancelLibraryPictures();
             // A closed library keeps only a few pictures for its next opening.
+            var before = (_pictureMemory.Count, _pictureMemory.Bytes);
             TrimPictures(_budget.PictureMemoryFloorBytes, releaseRows: true);
+            App.Log.Info(LogSource, $"The library closed: {before.Count} decoded pictures ({before.Bytes >> 20} MB) became {_pictureMemory.Count} ({_pictureMemory.Bytes >> 20} MB).");
+            // Each picture let go is a native surface behind a small managed wrapper, released
+            // only when that wrapper is collected; with a small heap that could be minutes away.
+            // A background collection releases them now, without holding the window.
+            GC.Collect(2, GCCollectionMode.Forced, blocking: false);
         }
     }
 
