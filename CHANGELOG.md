@@ -15,8 +15,15 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 - **Preferences opens and cancels quickly.** Only the section shown is built; the others are built the first time they are chosen or searched, and Save reads only the sections that were opened.
 - Home and the library views are worked out once per library change, ahead in the background, and Home keeps its shelves, so returning to it no longer rebuilds them; search waits for a pause in typing and filters a prepared index off the window thread.
 - The Windows screenshot tests take a picture only once the window has drawn its content and stopped moving: they wait until the window is no longer its plain backdrop colour, until two frames a quarter of a second apart agree, and move the pointer off the window first, so a blank window, a half-finished animation or a leftover hover is never recorded as evidence.
+- **The playback stage keeps one tidy order.** The title sits at the top while a visualisation or lyrics show, the visualisation draws in its own band below it, and the lyrics, their status and their buttons share one area at the bottom, so nothing is printed across anything else. Without a cover the title is truly centred.
+- The line under the lyrics shows only for songs, in plain words ("The lyrics follow the song line by line."), in a softer colour and on a backing that reads over a visualisation.
+- A file that cannot be played gets a clear error screen: a warning sign, the reason once, the technical details behind Details, and an Open another file button.
+- A paused spectrum rests on a quiet line instead of a dashed one; the title pill no longer repeats a title the stage already shows; the caption wait says what it is doing once, on a panel nothing shows through.
 
 ### Fixed
+
+- **The playback stage looks right in the light theme.** Its eyebrow, the lyric being sung and its buttons now use the dark theme's colours on the black stage instead of a light theme's, which were hard to read or looked disabled.
+- Nothing on the stage draws into the playback controls in a very small window, and the welcome screen keeps its Open file and Browse library buttons at the smallest size, where Browse library now has a visible outline.
 
 - **Song titles are readable in a dark window on a light desktop** (and the other way round). Colours the window picks in code now follow its own theme rather than Windows' theme, which had left titles in the Songs table dark grey on a dark surface; the lines also follow a change of theme at once.
 - **Visualisations no longer flicker**, the vinyl record most of all and especially just after it starts. When a visualisation changed the size it draws at to keep up, it showed an empty picture until the next frame and could keep changing back and forth; it now keeps the last picture up until the new one is drawn, ignores the one slow frame that rebuilds a scene, and holds its size steady for a moment after each change.
