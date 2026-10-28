@@ -107,6 +107,11 @@ internal static class Screenshots
             Assert.Fail($"Screenshot {name} never reached its declared UI Automation readiness state. See its captured evidence.");
         }
 
+        // Cards and banners fetch their pictures after the layout is ready, and a placeholder
+        // holds still long enough to pass the two-frame check below. Capture only once the
+        // window has no picture request queued or loading.
+        var picturesSettled = Wait.Within(AppProcess.Patience, () => app.PicturesPending == 0);
+
         // A text label, playback button or list pane can be visually uniform
         // while the surrounding scene genuinely renders. Only the actual
         // compositor-backed dialogs and menus need a varied control crop.
@@ -197,7 +202,7 @@ internal static class Screenshots
 
                 var (different, _) = Difference(picture, repeat, pixelThreshold);
                 repeatDifference = different / (double)(picture.Width * picture.Height);
-                if (repeatDifference <= maxDifferingRatio)
+                if (repeatDifference <= maxDifferingRatio && app.PicturesPending == 0)
                 {
                     return true;
                 }
@@ -241,6 +246,7 @@ internal static class Screenshots
             $"Screenshot {name} appears blank or uniform; wait for the expected UI before capturing it.");
         Assert.True(!needsPixelWitness || HasVisibleVariation(witness),
             $"Screenshot {name} does not visibly render the expected popup control {scene.ReadinessId}, despite UI Automation reporting it. See its actual capture.");
+        Assert.True(picturesSettled, $"Screenshot {name} was taken while the window still had {app.PicturesPending} picture request(s) loading after {AppProcess.Patience.TotalSeconds:0} s.");
         Assert.True(rendered, $"Screenshot {name} did not render the declared image and pixel witness before the deadline.");
         Assert.True(repeatable,
             $"Screenshot {name} did not stabilize on a second desktop capture ({repeatDifference:P2} differing pixels). Inspect repeat and repeat-diff artifacts.");

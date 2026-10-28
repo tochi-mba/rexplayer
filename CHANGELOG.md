@@ -8,6 +8,7 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 
 - The Fastest performance mode decodes page banner artwork at up to 960 pixels across (about a third of the memory of the full 1600), and Preferences says so.
 - When the window's animations are off (Fastest, or Windows' own animation setting), the playing song's equaliser mark stands still instead of animating, while still marking the line.
+- The automation pipe's `status` reports `picturesPending`, the picture requests still queued or loading, so a script can wait for the pictures on screen to settle. The Windows screenshot tests wait on it, so a card's placeholder is never captured in place of its picture.
 
 ## 0.31.0 - 2026-10-25
 ### Added

@@ -619,6 +619,7 @@ public sealed partial class MainWindow
                     Title = _player.Item is null ? null : _player.Title,
                     Position = _player.Position.TotalSeconds,
                     Duration = _player.Duration > TimeSpan.Zero ? _player.Duration.TotalSeconds : null,
+                    PicturesPending = PicturesPending,
                 });
             }
             catch (Exception ex)

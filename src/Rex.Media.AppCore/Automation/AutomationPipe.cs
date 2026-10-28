@@ -61,6 +61,12 @@ public sealed record AutomationReply
 
     public double? Duration { get; init; }
 
+    /// <summary>
+    /// For <c>status</c>: picture requests (cards, banners, playlist lines) still queued or loading,
+    /// so a script can wait for the pictures on screen to settle. Null when the shell does not count them.
+    /// </summary>
+    public int? PicturesPending { get; init; }
+
     /// <summary>For <c>metrics</c> and <c>measure</c>: what was measured, each a number under its name.</summary>
     public IReadOnlyDictionary<string, double>? Metrics { get; init; }
 
