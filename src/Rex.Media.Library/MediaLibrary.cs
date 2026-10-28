@@ -192,6 +192,8 @@ public sealed class MediaLibrary
 
     private readonly object _gate = new();
     private readonly Dictionary<string, LibraryEntry> _entries = new(StringComparer.OrdinalIgnoreCase);
+    // The entries as last handed out; the same list until they change, so views can be cached by it.
+    private IReadOnlyList<LibraryEntry>? _snapshot;
     // Last-known played items removed by a scan. Not in live views; retained
     // for safe recovery if the same file returns or moves to a unique location.
     private readonly Dictionary<string, LibraryEntry> _absent = new(StringComparer.OrdinalIgnoreCase);
@@ -239,14 +241,17 @@ public sealed class MediaLibrary
         }
     }
 
-    /// <summary>Every file the library knows, in no particular order.</summary>
+    /// <summary>
+    /// Every file the library knows, in no particular order: an immutable snapshot that stays the
+    /// same object until the entries change, so what is worked out from it can be cached by it.
+    /// </summary>
     public IReadOnlyList<LibraryEntry> Entries
     {
         get
         {
             lock (_gate)
             {
-                return [.. _entries.Values];
+                return _snapshot ??= Array.AsReadOnly(_entries.Values.ToArray());
             }
         }
     }
@@ -914,6 +919,7 @@ public sealed class MediaLibrary
             return;
         }
 
+        _snapshot = null;
         foreach (var entry in entries)
         {
             if (remove)

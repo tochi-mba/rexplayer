@@ -239,7 +239,7 @@ public sealed partial class MainWindow
         if (search.Length > 0)
         {
             (kicker, title) = ("SEARCH", search);
-            var found = LibraryViews.Search(entries, search, SearchMetadata);
+            var found = FoundFor(entries, search);
             // Search stays global for individual media, but a search made from a grouped
             // library view must also offer matching artists, albums, genres or shows as
             // navigable results. Otherwise finding an artist can only play one of their
@@ -339,14 +339,14 @@ public sealed partial class MainWindow
             kicker = "LIBRARY";
             IReadOnlyList<LibraryEntry>? list = _librarySource switch
             {
-                LibrarySource.Songs => LibraryViews.Songs(entries),
+                LibrarySource.Songs => LibraryMemo.Songs(entries),
                 LibrarySource.Movies => LibraryViews.Movies(entries, MovieLookupOf),
                 LibrarySource.OtherVideos => LibraryViews.OtherVideos(entries, MovieLookupOf),
-                LibrarySource.Videos => LibraryViews.Videos(entries),
-                LibrarySource.Pictures => LibraryViews.Pictures(entries),
+                LibrarySource.Videos => LibraryMemo.Videos(entries),
+                LibrarySource.Pictures => LibraryMemo.Pictures(entries),
                 LibrarySource.ContinueWatching => LibraryViews.ContinueWatching(entries, _player.LeftAt),
-                LibrarySource.RecentlyPlayed => LibraryViews.RecentlyPlayed(entries, _player.Memory.Recent.Where(File.Exists)),
-                LibrarySource.RecentlyAdded => LibraryViews.RecentlyAdded(entries),
+                LibrarySource.RecentlyPlayed => LibraryViews.RecentlyPlayed(entries, ExistingRecent()),
+                LibrarySource.RecentlyAdded => LibraryMemo.RecentlyAdded(entries),
                 _ => null,
             };
             if (list is not null)
@@ -782,10 +782,8 @@ public sealed partial class MainWindow
     /// <summary>Home: shelves of what to play next, each with a way to see all of it.</summary>
     private void ShowHome(IReadOnlyList<LibraryEntry> entries, bool sameRoute)
     {
-        var music = entries.Count(entry => entry.Kind == LibraryKind.Music);
-        var videos = entries.Count(entry => entry.Kind == LibraryKind.Video);
-        var pictures = entries.Count(entry => entry.Kind == LibraryKind.Picture);
-        var recent = LibraryViews.RecentlyAdded(entries);
+        var (music, videos, pictures) = LibraryMemo.Counts(entries);
+        var recent = LibraryMemo.RecentlyAdded(entries);
         ShowHero("YOUR LIBRARY", "Home", string.Join(" \u00B7 ", new[] { Count(music, "song"), Count(videos, "video"), Count(pictures, "picture") }), "\uE80F",
             recent.FirstOrDefault(entry => entry.Kind != LibraryKind.Picture) ?? recent.FirstOrDefault());
         ShowViewOptions(false, ViewChoice("Home"), false, LibraryKind.Music);
@@ -796,7 +794,7 @@ public sealed partial class MainWindow
         ShowLibraryEmpty(entries.Count == 0, false, LibrarySource.Home);
 
         var downloading = HomeShelves.Downloading(entries, 20);
-        var albums = LibraryViews.Albums(entries);
+        var albums = LibraryMemo.Albums(entries);
         var pinned = new List<LibraryGroup>();
         foreach (var path in _settings.PinnedAlbumPaths)
         {
@@ -814,12 +812,12 @@ public sealed partial class MainWindow
             ("Pinned albums", LibrarySource.Albums, [.. pinned.Take(20).Select(GroupRow)], false),
             ("Jump back in", LibrarySource.ContinueWatching, [.. LibraryViews.ContinueWatching(entries, _player.LeftAt).Take(20).Select(EntryRow)], true),
             .. ListeningShelvesForHome(),
-            ("Recently played", LibrarySource.RecentlyPlayed, [.. LibraryViews.RecentlyPlayed(entries, _player.Memory.Recent.Where(File.Exists)).Where(entry => entry.Kind == LibraryKind.Music).Take(20).Select(EntryRow)], false),
-            (MostPlayedShelf, LibrarySource.Songs, [.. HomeShelves.MostPlayed(entries, 20).Select(EntryRow)], false),
+            ("Recently played", LibrarySource.RecentlyPlayed, [.. LibraryViews.RecentlyPlayed(entries, ExistingRecent()).Where(entry => entry.Kind == LibraryKind.Music).Take(20).Select(EntryRow)], false),
+            (MostPlayedShelf, LibrarySource.Songs, [.. LibraryMemo.MostPlayed(entries).Select(EntryRow)], false),
             ("New in your library", LibrarySource.RecentlyAdded, [.. recent.Where(entry => entry.Kind == LibraryKind.Music).Take(20).Select(EntryRow)], false),
-            ("Albums", LibrarySource.Albums, [.. LibraryArrangement.Sort(LibraryViews.Albums(entries), LibrarySort.Added, false).Take(20).Select(GroupRow)], false),
+            ("Albums", LibrarySource.Albums, [.. LibraryMemo.AlbumsByAdded(entries).Take(20).Select(GroupRow)], false),
             ("Movies", LibrarySource.Movies, [.. LibraryViews.Movies(recent, MovieLookupOf).Take(20).Select(EntryRow)], false),
-            ("TV Shows", LibrarySource.TvShows, [.. LibraryViews.TvShows(entries).Take(20).Select(GroupRow)], false),
+            ("TV Shows", LibrarySource.TvShows, [.. LibraryMemo.TvShows(entries).Take(20).Select(GroupRow)], false),
             ("Other videos", LibrarySource.OtherVideos, [.. LibraryViews.RecentlyAdded(LibraryViews.OtherVideos(entries, MovieLookupOf)).Take(20).Select(EntryRow)], true),
             ("Videos", LibrarySource.Videos, [.. recent.Where(entry => entry.Kind == LibraryKind.Video).Take(20).Select(EntryRow)], true),
             ("Pictures", LibrarySource.Pictures, [.. recent.Where(entry => entry.Kind == LibraryKind.Picture).Take(24).Select(EntryRow)], false),
@@ -834,19 +832,10 @@ public sealed partial class MainWindow
         }
 
         CancelLibraryPictures();
-        _homeShelfRows = [.. shelves.SelectMany(shelf => shelf.Rows)];
         _shownLibrary = shown;
         // Preserve the current shelf scroll position when the route has not changed.
         var place = sameRoute ? CapturePlace() : null;
-        LibraryShelves.Children.Clear();
-        foreach (var (shelfTitle, see, rows, wide) in shelves.Where(shelf => shelf.Rows.Count > 0))
-        {
-            LibraryShelves.Children.Add(Shelf(shelfTitle, see, rows, wide,
-                seeAll: shelfTitle != "Pinned albums",
-                id: shelfTitle == DownloadingShelf ? "Downloading"
-                    : shelfTitle == "Podcast shows" ? "PodcastShows"
-                    : shelfTitle == "Pinned albums" ? "PinnedAlbums" : null));
-        }
+        PlaceHomeShelves(shown, shelves);
 
         if (place is not null)
         {

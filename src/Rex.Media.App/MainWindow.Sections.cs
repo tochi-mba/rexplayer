@@ -72,7 +72,7 @@ public sealed partial class MainWindow
             || completed.Podcasts.Count > 0 || completed.Audio.Count > 0;
         var facts = Rex.Media.AppCore.Library.LibraryFacts.Of(entries, WithoutListening(entries), Listening(),
             movies.Contains, episodes.Contains, otherVideos.Contains, _player.LeftAt,
-            LibraryViews.RecentlyPlayed(entries, _player.Memory.Recent.Where(File.Exists)).Count > 0, playlists > 0, folders > 0,
+            LibraryViews.RecentlyPlayed(entries, ExistingRecent()).Count > 0, playlists > 0, folders > 0,
             completed: hasCompleted);
         var wasShown = _sections.Looked && IsSourceShown(_librarySource);
         var now = DateTimeOffset.UtcNow;

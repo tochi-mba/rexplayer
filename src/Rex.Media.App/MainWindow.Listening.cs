@@ -124,13 +124,6 @@ public sealed partial class MainWindow
         return _audioShelfOf.GetValueOrDefault(entry.Path, AudioShelf.Music);
     }
 
-    /// <summary>The entries without the audio that is not music, for the music views.</summary>
-    private IReadOnlyList<LibraryEntry> WithoutListening(IReadOnlyList<LibraryEntry> entries)
-    {
-        Listening();
-        return _audioShelfOf.Count == 0 ? entries : [.. entries.Where(entry => !_audioShelfOf.ContainsKey(entry.Path))];
-    }
-
     /// <summary>The Audiobooks, Podcasts or Recordings view over <paramref name="entries"/> (already filtered as the view's choices say).</summary>
     private (string Kicker, string Title, string Subtitle, List<LibraryRowGroup> Sections, bool GroupsView) ListeningView(IReadOnlyList<LibraryEntry> entries)
     {

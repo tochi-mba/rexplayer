@@ -35,7 +35,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        var show = LibraryViews.RefreshGroup(LibraryViews.TvShows(_library!.Entries), _libraryGroup!);
+        var show = LibraryViews.RefreshGroup(LibraryMemo.TvShows(_library!.Entries), _libraryGroup!);
         if (_librarySeason is null && _showPageOf is not null && string.Equals(_showPageOf, show.Name, StringComparison.OrdinalIgnoreCase))
         {
             // Back from the page's season: the page itself is what Back closes.

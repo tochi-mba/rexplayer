@@ -208,7 +208,7 @@ public sealed partial class MainWindow
 
         if (_librarySource == LibrarySource.Videos)
         {
-            var videos = LibraryViews.Videos(entries);
+            var videos = LibraryMemo.Videos(entries);
             var movies = LibraryViews.Movies(videos, MovieLookupOf);
             var episodes = LibraryViews.TvShows(videos);
             var claimed = movies.Select(movie => movie.Path).Concat(episodes.SelectMany(show => show.Entries).Select(episode => episode.Path))
@@ -223,12 +223,12 @@ public sealed partial class MainWindow
 
         IReadOnlyList<LibraryEntry> media = _librarySource switch
         {
-            LibrarySource.Songs => LibraryViews.Songs(entries),
+            LibrarySource.Songs => LibraryMemo.Songs(entries),
             LibrarySource.OtherVideos => LibraryViews.OtherVideos(entries, MovieLookupOf),
-            LibrarySource.Pictures => LibraryViews.Pictures(entries),
+            LibrarySource.Pictures => LibraryMemo.Pictures(entries),
             LibrarySource.ContinueWatching => LibraryViews.ContinueWatching(entries, _player.LeftAt),
-            LibrarySource.RecentlyPlayed => LibraryViews.RecentlyPlayed(entries, _player.Memory.Recent.Where(File.Exists)),
-            LibrarySource.RecentlyAdded => LibraryViews.RecentlyAdded(entries),
+            LibrarySource.RecentlyPlayed => LibraryViews.RecentlyPlayed(entries, ExistingRecent()),
+            LibrarySource.RecentlyAdded => LibraryMemo.RecentlyAdded(entries),
             _ => entries,
         };
 

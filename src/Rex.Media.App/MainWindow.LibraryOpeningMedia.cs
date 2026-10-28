@@ -98,6 +98,11 @@ public sealed partial class MainWindow
     /// </summary>
     private void OnLibrarySearchPreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
+        if (e.Key is VirtualKey.Down or VirtualKey.Enter)
+        {
+            FinishLibrarySearch();
+        }
+
         switch (e.Key)
         {
             case VirtualKey.Escape when LibrarySearch.Text.Length > 0:
