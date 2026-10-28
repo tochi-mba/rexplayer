@@ -205,6 +205,7 @@ public sealed partial class MainWindow
     /// </summary>
     private async Task LoadRowPictureAsync(LibraryRow row, LibraryEntry entry, bool urgent, CancellationToken view)
     {
+        using var pending = PictureStarted();
         DressPlaceholder(row, entry);
         row.PictureWork?.Cancel();
         using var work = CancellationTokenSource.CreateLinkedTokenSource(view);

@@ -289,6 +289,9 @@ internal sealed class AppProcess : IDisposable
     public void Fault(string where) =>
         Send(new Rex.Media.AppCore.Automation.AutomationRequest { Command = "fault", Id = where }, "the fault " + where);
 
+    /// <summary>Picture requests (cards, banners, playlist lines) the window still has queued or loading.</summary>
+    public int PicturesPending => Status().PicturesPending ?? 0;
+
     /// <summary>The playing position in seconds, as the player reports it.</summary>
     public double Position => Status().Position ?? 0;
 

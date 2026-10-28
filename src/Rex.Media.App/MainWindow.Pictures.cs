@@ -61,6 +61,7 @@ public sealed partial class MainWindow
     private async Task ShowPictureAsync(string path, LibraryKind kind, TimeSpan? duration, Action<ImageSource> show, CancellationToken viewToken,
         bool urgent = false, PictureArt art = PictureArt.Natural, int? side = null, Action? missed = null)
     {
+        using var pending = PictureStarted();
         var settings = _settings;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(viewToken);
         var token = timeout.Token;
