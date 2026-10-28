@@ -4,6 +4,7 @@ using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Platform;
 using Rex.Media.AppCore.Player;
+using Rex.Media.AppCore.Shell;
 using Rex.Media.Audio;
 using Rex.Media.Audio.CoreAudio;
 using Rex.Media.Codecs.Apple;
@@ -943,14 +944,18 @@ public sealed partial class MainWindow : IDisposable
         ? time.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture)
         : time.ToString(@"m\:ss", CultureInfo.InvariantCulture);
 
+    private static readonly TimeSpan MessageAtLeast = TimeSpan.FromSeconds(3);
+
     private void Say(string text)
     {
         _message.StringValue = text;
-        var showOverPicture = _settings.OnScreenMessages && _settings.OnScreenMessageSeconds > 0;
+        var showOverPicture = OnScreenMessage.Shows(text, _settings.OnScreenMessages);
         SetVideoOSD(showOverPicture ? text : "");
         _clearMessage?.Invalidate();
-        _clearMessage = NSTimer.CreateScheduledTimer(
-            TimeSpan.FromSeconds(Math.Max(0.01, _settings.OnScreenMessageSeconds)), _ =>
+        // The line doubles as the window's status, so it keeps at least three seconds; a long
+        // message or a problem stays as long as it takes to read.
+        var readFor = OnScreenMessage.Duration(text);
+        _clearMessage = NSTimer.CreateScheduledTimer(readFor > MessageAtLeast ? readFor : MessageAtLeast, _ =>
         {
             _message.StringValue = "";
             SetVideoOSD("");

@@ -18,7 +18,7 @@ namespace Rex.Media.App;
 public sealed partial class MainWindow
 {
     private void AddPreferenceSections(LazySections<StackPanel, PlayerSettings> sections, TextBlock updateStatus,
-        Action<Func<Task>> requestEditor, Action<Func<Task>> afterClose)
+        Action<Func<Task>> requestEditor)
     {
         var s = _settings;
         sections.Add("Playback", () =>
@@ -75,19 +75,20 @@ public sealed partial class MainWindow
             Props.SetAutomationId(lookSettings, "PreferencesLookSettings");
             lookSettings.Click += (_, _) =>
             {
+                // Preferences comes back with its pending changes once the editor closes.
+                requestEditor(() => ShowVideoStyleSettingsAsync(effect: false));
                 _dialog?.Hide();
-                OnWindowThread(() => Forget(ShowVideoStyleSettingsAsync(effect: false)));
             };
             var effectSettings = new Button { Content = "Customize the current picture effect..." };
             Props.SetAutomationId(effectSettings, "PreferencesEffectSettings");
             effectSettings.Click += (_, _) =>
             {
+                requestEditor(() => ShowVideoStyleSettingsAsync(effect: true));
                 _dialog?.Hide();
-                OnWindowThread(() => Forget(ShowVideoStyleSettingsAsync(effect: true)));
             };
             Fill(page, pictures, navigator, pictureLook, pictureEffect, lookSettings, effectSettings, new TextBlock
             {
-                Text = "Customize opens a separate editor for the saved look or effect and closes Preferences without saving. Save changes here first.",
+                Text = "Customize opens a separate editor for the saved look or effect. Your pending Preferences changes stay here until you return.",
                 TextWrapping = TextWrapping.Wrap,
                 Opacity = 0.75,
             });
@@ -247,7 +248,11 @@ public sealed partial class MainWindow
             return (page, n => n with { SingleInstance = single.IsChecked == true, EnqueueFromSecondLaunch = enqueue.IsChecked == true });
         });
 
-        sections.Add("Updates", () => UpdatePreferences(s, updateStatus, afterClose));
+        sections.Add("Updates", () => UpdatePreferences(s, updateStatus, requestEditor, () =>
+        {
+            _settings = sections.Apply(_settings);
+            SaveSettings();
+        }));
     }
 
     private (StackPanel, Func<PlayerSettings, PlayerSettings>) PerformancePreferences(PlayerSettings s)
@@ -379,7 +384,8 @@ public sealed partial class MainWindow
         });
     }
 
-    private (StackPanel, Func<PlayerSettings, PlayerSettings>) UpdatePreferences(PlayerSettings s, TextBlock updateStatus, Action<Func<Task>> afterClose)
+    private (StackPanel, Func<PlayerSettings, PlayerSettings>) UpdatePreferences(PlayerSettings s, TextBlock updateStatus,
+        Action<Func<Task>> requestEditor, Action savePending)
     {
         var page = PreferencePage("Updates");
         var updates = Choice("Look for new versions", ["Never", "Daily", "Weekly"], (int)s.UpdateChecks);
@@ -393,6 +399,8 @@ public sealed partial class MainWindow
         Props.SetAutomationId(installNow, "PreferencesInstallUpdate");
         installNow.Click += (_, _) =>
         {
+            // The app restarts to install, so pending changes are saved rather than lost.
+            savePending();
             _dialog?.Hide();
             OnWindowThread(() => Forget(InstallAsync(unattended: false)));
         };
@@ -407,7 +415,7 @@ public sealed partial class MainWindow
             Props.SetAutomationId(whatsNew, "PreferencesWhatsNew");
             whatsNew.Click += (_, _) =>
             {
-                afterClose(ShowWhatsNewAsync);
+                requestEditor(ShowWhatsNewAsync);
                 _dialog?.Hide();
             };
             Fill(lastUpdated, updatedText, whatsNew);

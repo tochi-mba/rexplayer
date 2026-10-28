@@ -18,10 +18,16 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 ### Fixed
 
 - **Song titles are readable in a dark window on a light desktop** (and the other way round). Colours the window picks in code now follow its own theme rather than Windows' theme, which had left titles in the Songs table dark grey on a dark surface; the lines also follow a change of theme at once.
-- Leaving full screen no longer leaves the playback controls with a see-through background.
 - **Visualisations no longer flicker**, the vinyl record most of all and especially just after it starts. When a visualisation changed the size it draws at to keep up, it showed an empty picture until the next frame and could keep changing back and forth; it now keeps the last picture up until the new one is drawn, ignores the one slow frame that rebuilds a scene, and holds its size steady for a moment after each change.
 - **Songs are no longer transcribed.** Their words come from the lyrics lookup. Only videos, audiobooks and podcasts are transcribed without being asked; voice recordings still are when you ask. A song whose cover picture is stored as a one-frame video track now counts as a song, not a video. The library reads its videos' details again once to sort these out.
 - **Files still downloading are no longer transcribed.** A file a downloader is still writing (such as one ending in .!qB or .part) waits until it is complete, instead of failing over and over in the background.
+- **Problems are always shown.** A message saying something could not be done now appears over the picture even with on-screen messages turned off; before, it reached only the log. Every message also stays long enough to read, longer for a longer one, on Windows and Mac.
+- Asking for a dialog while another is open now says so instead of doing nothing.
+- Removing items from the library with Delete could fail to show its question; it now opens.
+- **Preferences keeps your unsaved changes** when you open Customize look, Customize effect or What's new: Preferences comes back afterwards as you left it. Restart and install now saves them before restarting.
+- Clear playlist can be undone with Undo removal in the queue.
+- In full screen, pressing a key brings the controls back, as moving the pointer does.
+- Leaving full screen no longer leaves the playback controls with a see-through background.
 - **The Mac app builds again, so new versions can publish.** Speech recognition's Linux and Windows libraries were being packed into rexplayer.app, where the Mac's tools refused them and stopped every build since 0.31.0; only the Mac's own libraries go in now.
 
 ## 0.31.0 - 2026-10-25

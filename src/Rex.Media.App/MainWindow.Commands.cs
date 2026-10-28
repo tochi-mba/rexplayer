@@ -227,8 +227,7 @@ public sealed partial class MainWindow
                 RememberLater();
                 break;
             case CommandCatalog.ClearPlaylist:
-                _player.Stop();
-                _player.Playlist.Clear();
+                ClearQueue();
                 break;
             case CommandCatalog.MinimalInterface:
                 _settings = _settings with { MinimalInterface = !_settings.MinimalInterface };
@@ -961,16 +960,18 @@ public sealed partial class MainWindow
 
     /// <summary>
     /// Shows a dialog, one at a time: WinUI allows only one, so one asked for while another is open
-    /// (a script's command, say) is not shown. The window hides an open dialog before it closes.
+    /// (a script's command, say) is not shown, and the message says why. The window hides an open
+    /// dialog before it closes. A dialog built without a place to show gets the window's.
     /// </summary>
     private async Task<ContentDialogResult> ShowDialogAsync(ContentDialog dialog)
     {
         if (_dialog is not null)
         {
-            App.Log.Debug(LogSource, $"\"{dialog.Title}\" was not shown: \"{_dialog.Title}\" is open.");
+            Say($"\"{dialog.Title}\" was not shown: close \"{_dialog.Title}\" first.");
             return ContentDialogResult.None;
         }
 
+        dialog.XamlRoot ??= Content.XamlRoot;
         _dialog = dialog;
         try
         {

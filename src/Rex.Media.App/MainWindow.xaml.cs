@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Rex.Media.AppCore;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Player;
+using Rex.Media.AppCore.Shell;
 using Rex.Media.Audio;
 using Rex.Media.Audio.Wasapi;
 using Rex.Media.Codecs.MediaFoundation;
@@ -36,6 +37,7 @@ public sealed partial class MainWindow : Window
 
     private readonly PlayerController _player;
     private readonly DispatcherQueueTimer _osdTimer;
+    private readonly bool _evidenceOsd;
     private object? _osdNoticeItem;
     private readonly DispatcherQueueTimer _saveTimer;
     private readonly DispatcherQueueTimer _controlsTimer;
@@ -129,8 +131,8 @@ public sealed partial class MainWindow : Window
 
         // UI evidence runs hold a genuine failure notice long enough for two
         // independently rendered screenshots. Normal users keep the brief OSD.
-        var evidenceOsd = Environment.GetEnvironmentVariable("REXPLAYER_VISUAL_EVIDENCE") == "1";
-        _osdTimer = Timer(TimeSpan.FromSeconds(evidenceOsd ? 30 : 1.5),
+        _evidenceOsd = Environment.GetEnvironmentVariable("REXPLAYER_VISUAL_EVIDENCE") == "1";
+        _osdTimer = Timer(OnScreenMessage.Shortest,
             () => OsdBox.Visibility = Visibility.Collapsed);
         _saveTimer = Timer(TimeSpan.FromMilliseconds(500), SaveSettings);
         _controlsTimer = Timer(TimeSpan.FromSeconds(_settings.ControlsHideSeconds), HideFullScreenControls);
@@ -724,22 +726,6 @@ public sealed partial class MainWindow : Window
         PlaylistUndoRemoval.IsEnabled = _undoQueueRemoval is { } removed
             && ReferenceEquals(_undoQueuePlayerItem, _player.Item)
             && _player.Playlist.CanUndoRemoval(removed);
-    }
-
-    /// <summary>A short message over the picture, which fades after a moment.</summary>
-    private void Say(string text)
-    {
-        App.Log.Info(LogSource, text);
-        if (!_settings.OnScreenMessages)
-        {
-            return;
-        }
-
-        _osdNoticeItem = _player.Item;
-        Osd.Text = text;
-        OsdBox.Visibility = Visibility.Visible;
-        _osdTimer.Stop();
-        _osdTimer.Start();
     }
 
     private void ApplySettingsToControls()

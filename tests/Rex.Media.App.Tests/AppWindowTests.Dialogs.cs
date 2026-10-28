@@ -104,6 +104,9 @@ public sealed partial class AppWindowTests
         app.Press("PreferencesWhatsNew");
         Wait.For(() => app.IsShown("WhatsNewText"), "What's new from Preferences");
         app.Press("CloseButton");
+
+        // Preferences comes back, still open on the section it was showing, rather than closing unsaved.
+        Wait.For(() => !app.IsShown("WhatsNewText") && app.IsShown("PreferencesLastUpdated"), "Preferences to come back");
         Assert.Equal(0, app.Close());
     }
 
