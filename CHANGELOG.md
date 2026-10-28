@@ -14,6 +14,7 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 - **Library artwork gives its memory back.** Decoded pictures are kept within a byte budget set by the performance mode (smaller on Fastest and while Energy Saver is on) instead of a flat 400, changing view lets most of them go, and closing the library keeps only a few.
 - **Preferences opens and cancels quickly.** Only the section shown is built; the others are built the first time they are chosen or searched, and Save reads only the sections that were opened.
 - Home and the library views are worked out once per library change, ahead in the background, and Home keeps its shelves, so returning to it no longer rebuilds them; search waits for a pause in typing and filters a prepared index off the window thread.
+- The Windows screenshot tests take a picture only once the window has drawn its content and stopped moving: they wait until the window is no longer its plain backdrop colour, until two frames a quarter of a second apart agree, and move the pointer off the window first, so a blank window, a half-finished animation or a leftover hover is never recorded as evidence.
 
 ### Fixed
 
