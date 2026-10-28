@@ -28,6 +28,9 @@
   <ItemGroup>
     <!-- "What's new" shows this version's section. -->
     <EmbeddedResource Include="..\..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
+    <!-- The title bar's icon: the window names this file by path when it opens (AppWindow.SetIcon),
+         so it sits beside rexplayer.exe in the build, the published folder and the installed app. -->
+    <None Include="..\..\assets\rexplayer.ico" Link="rexplayer.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
