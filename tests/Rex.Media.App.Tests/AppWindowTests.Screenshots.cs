@@ -391,11 +391,29 @@ public sealed partial class AppWindowTests
     {
         var film = RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4");
         using var app = AppProcess.Start([film], extraSettings: "\"theme\": \"Light\"");
-        Wait.For(() => app.Text("NowPlaying") == "Basquiat" && app.Status().State == "Playing",
-            "the video to start before pausing");
-        app.Run(CommandCatalog.PlayPause);
-        Wait.For(() => app.Status().State == "Paused" && app.IsShown("PlayPauseButton"),
-            "the paused video and playback controls");
+        Wait.For(() => app.Text("NowPlaying") == "Basquiat", "the video to open");
+        // The clip lasts 0.4 s, so a poll can miss its playing state entirely. Press play/pause
+        // whenever it is playing or has ended (which plays it again), giving a press time to
+        // land, until it holds paused.
+        var sincePress = System.Diagnostics.Stopwatch.StartNew();
+        string? pressedIn = null;
+        Wait.For(() =>
+        {
+            var state = app.Status().State;
+            if (state == "Paused")
+            {
+                return app.IsShown("PlayPauseButton");
+            }
+
+            if (state is "Playing" or "Ended" && (state != pressedIn || sincePress.ElapsedMilliseconds > 300))
+            {
+                app.Run(CommandCatalog.PlayPause);
+                pressedIn = state;
+                sincePress.Restart();
+            }
+
+            return false;
+        }, "the paused video and playback controls");
         Screenshots.PinViewport(app, 1000, 700);
         Screenshots.Match(app, "playback-paused");
         Assert.Equal(0, app.Close());
