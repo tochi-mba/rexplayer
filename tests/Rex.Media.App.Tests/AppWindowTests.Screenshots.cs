@@ -33,11 +33,11 @@ public sealed partial class AppWindowTests
     {
         using var app = AppStartedAt(width, height, "Light");
         app.Run(CommandCatalog.Preferences);
-        Wait.For(() => app.IsShown("PreferencesSection") && app.IsShown("PrimaryButton"), "Preferences to open");
+        Wait.For(() => app.IsShown("PreferencesCategorySearch") && app.IsShown("PrimaryButton"), "Preferences to open");
 
         Screenshots.Match(app, "preferences-" + size);
         app.Press("CloseButton");
-        Wait.For(() => !app.IsShown("PreferencesSection"), "Preferences to close");
+        Wait.For(() => !app.IsShown("PreferencesCategorySearch"), "Preferences to close");
         Assert.Equal(0, app.Close());
     }
 

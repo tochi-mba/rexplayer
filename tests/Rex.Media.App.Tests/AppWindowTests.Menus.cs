@@ -10,23 +10,23 @@ namespace Rex.Media.App.Tests;
 /// </summary>
 public sealed partial class AppWindowTests
 {
-    /// <summary>Each top-level menu, its submenus, and the commands found in it with them open.</summary>
+    /// <summary>Each top-level menu, its submenus by automation id, and the commands found in it with them open.</summary>
     private static readonly (string Menu, string[] Submenus, string[] Commands)[] MenuBar =
     [
         ("MediaMenu", [], [CommandCatalog.OpenFile, CommandCatalog.OpenFolder, CommandCatalog.OpenLocation, CommandCatalog.PasteLocation, CommandCatalog.OpenPlaylist, CommandCatalog.SavePlaylist, CommandCatalog.Quit]),
-        ("PlaybackMenu", ["jump", "speed", "sleep"], [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, CommandCatalog.SkipSection, CommandCatalog.NextEpisode,
-            CommandCatalog.GoToTime, CommandCatalog.CycleRepeat, CommandCatalog.ToggleShuffle, CommandCatalog.ShowPosition, CommandCatalog.AddBookmark, CommandCatalog.Resume,
+        ("PlaybackMenu", ["Submenu-jump", "Submenu-speed", "BookmarksMenu", "Submenu-sleep"], [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, CommandCatalog.SkipSection, CommandCatalog.NextEpisode,
+            CommandCatalog.GoToTime, CommandCatalog.CycleRepeat, CommandCatalog.ToggleShuffle, CommandCatalog.AddBookmark, CommandCatalog.Resume,
             CommandCatalog.JumpForwardVeryShort, CommandCatalog.JumpBackVeryShort, CommandCatalog.JumpForwardShort, CommandCatalog.JumpBackShort, CommandCatalog.JumpForwardMedium, CommandCatalog.JumpBackMedium, CommandCatalog.JumpForwardLong, CommandCatalog.JumpBackLong,
             CommandCatalog.Faster, CommandCatalog.Slower, CommandCatalog.SlightlyFaster, CommandCatalog.SlightlySlower, CommandCatalog.NormalSpeed,
             CommandCatalog.StopAfterCurrent, CommandCatalog.PauseAfterCurrent, CommandCatalog.SleepPrefix + "15", CommandCatalog.SleepPrefix + "30", CommandCatalog.SleepPrefix + "60", CommandCatalog.SleepAtEndOfItem, CommandCatalog.SleepOff]),
-        ("AudioMenu", ["audio-timing"], [CommandCatalog.CycleAudioTrack, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, CommandCatalog.Effects, CommandCatalog.CycleVisualizer, CommandCatalog.VisualizerSettings, CommandCatalog.ToggleLyrics,
+        ("AudioMenu", ["Submenu-audio-timing"], [CommandCatalog.CycleAudioTrack, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, CommandCatalog.Effects, CommandCatalog.CycleVisualizer, CommandCatalog.VisualizerSettings, CommandCatalog.ToggleLyrics,
             CommandCatalog.AudioEarlier, CommandCatalog.AudioLater, CommandCatalog.ResetAudioDelay]),
-        ("SubtitleMenu", ["subtitle-timing", "subtitle-size", "kinetic-captions"], [CommandCatalog.AddSubtitles, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles, CommandCatalog.ToggleKineticCaptions, CommandCatalog.Transcribe, CommandCatalog.SaveTranscript,
+        ("SubtitleMenu", ["Submenu-subtitle-timing", "Submenu-subtitle-size", "Submenu-kinetic-captions"], [CommandCatalog.AddSubtitles, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles, CommandCatalog.ToggleKineticCaptions, CommandCatalog.Transcribe, CommandCatalog.SaveTranscript,
             CommandCatalog.SubtitlesEarlier, CommandCatalog.SubtitlesLater, CommandCatalog.ResetSubtitleDelay, CommandCatalog.SubtitlesBigger, CommandCatalog.SubtitlesSmaller, CommandCatalog.ResetSubtitleSize,
             CommandCatalog.CycleCaptionStyle, CommandCatalog.CycleCaptionWords, CommandCatalog.CycleCaptionLayout, CommandCatalog.KineticCaptionsLivelier, CommandCatalog.KineticCaptionsCalmer, CommandCatalog.KineticCaptionSettings]),
-        ("VideoMenu", ["window-size"], [CommandCatalog.ToggleFullScreen, CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, CommandCatalog.ZoomIn, CommandCatalog.ZoomOut, CommandCatalog.ResetZoom, CommandCatalog.ToggleNavigator,
+        ("VideoMenu", ["Submenu-window-size"], [CommandCatalog.ToggleFullScreen, CommandCatalog.CycleAspectRatio, CommandCatalog.CycleCrop, CommandCatalog.ZoomIn, CommandCatalog.ZoomOut, CommandCatalog.ResetZoom, CommandCatalog.ToggleNavigator,
             CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop, CommandCatalog.ScaleQuarter, CommandCatalog.ScaleHalf, CommandCatalog.ScaleOriginal, CommandCatalog.ScaleDouble]),
-        ("ViewMenu", ["library-backup"], [CommandCatalog.TogglePlaylist, CommandCatalog.ToggleLibrary, CommandCatalog.MinimalInterface, CommandCatalog.MediaInformation, CommandCatalog.Preferences, CommandCatalog.KeyboardAndMouse,
+        ("ViewMenu", ["Submenu-library-backup"], [CommandCatalog.TogglePlaylist, CommandCatalog.ToggleLibrary, CommandCatalog.MinimalInterface, CommandCatalog.MediaInformation, CommandCatalog.ShowPosition, CommandCatalog.Preferences, CommandCatalog.KeyboardAndMouse,
             CommandCatalog.ClearPlaylist, CommandCatalog.ClearHistory, CommandCatalog.BackUpLibrary, CommandCatalog.RestoreLibrary]),
         ("HelpMenu", [], [CommandCatalog.ShortcutSheet, CommandCatalog.Help, CommandCatalog.ShowLog, CommandCatalog.OpenLogFolder, CommandCatalog.SaveDiagnostics, CommandCatalog.CheckForUpdates]),
     ];
@@ -56,7 +56,7 @@ public sealed partial class AppWindowTests
             foreach (var submenu in submenus)
             {
                 var before = found.Count;
-                var sub = (ExpandCollapsePattern)app.Find("Submenu-" + submenu).GetCurrentPattern(ExpandCollapsePattern.Pattern);
+                var sub = (ExpandCollapsePattern)app.Find(submenu).GetCurrentPattern(ExpandCollapsePattern.Pattern);
                 sub.Expand();
                 Wait.For(() =>
                 {
@@ -103,9 +103,16 @@ public sealed partial class AppWindowTests
         Input.Focus(app);
         Input.RightClick(app.Find("Stage"));
         Wait.For(() => app.IsShown("Context-" + CommandCatalog.PlayPause), "the right-click menu to open");
-        foreach (var id in new[] { CommandCatalog.Stop, CommandCatalog.ToggleFullScreen, CommandCatalog.MinimalInterface, CommandCatalog.Preferences, CommandCatalog.Quit })
+        foreach (var id in new[] { CommandCatalog.Stop, CommandCatalog.ToggleFullScreen, CommandCatalog.MinimalInterface, CommandCatalog.Preferences })
         {
             Assert.True(app.IsShown("Context-" + id), id + " is missing from the right-click menu.");
+        }
+
+        // It opens within the window, every line of it on screen.
+        var window = app.Window.Current.BoundingRectangle;
+        foreach (var id in new[] { CommandCatalog.PlayPause, CommandCatalog.Preferences })
+        {
+            Assert.True(window.Contains(app.Find("Context-" + id).Current.BoundingRectangle), id + " is outside the window.");
         }
 
         Screenshots.Match(app, "context-menu");

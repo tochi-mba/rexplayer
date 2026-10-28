@@ -66,7 +66,24 @@ public sealed partial class AppWindowTests
         Assert.Equal("Sensitivity", sensitivity.Current.Name);
         Assert.Contains("from 0.25 to 4", sensitivity.Current.HelpText, StringComparison.Ordinal);
         Assert.Equal("Colours", app.Find("Visual-colors").Current.Name);
-        Assert.Equal("Its own colour (with One colour)", app.Find("Visual-color").Current.Name);
+
+        // A colour of its own counts only with One colour, so it is offered only then.
+        Assert.False(app.IsShown("Visual-color"));
+        var one = app.OpenMenu(new AndCondition(
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem),
+            new PropertyCondition(AutomationElement.NameProperty, "One colour")), "One colour", false, "Visual-colors");
+        ((SelectionItemPattern)one.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
+        try
+        {
+            ((ExpandCollapsePattern)app.Find("Visual-colors").GetCurrentPattern(ExpandCollapsePattern.Pattern)).Collapse();
+        }
+        catch (InvalidOperationException)
+        {
+            // Choosing already closed the list.
+        }
+
+        Wait.For(() => app.IsShown("Visual-color"), "the colour to be offered with One colour");
+        Assert.Equal("Colour", app.Find("Visual-color").Current.Name);
         Assert.Equal("Bars", app.Find("Visual-bars").Current.Name);
         Assert.Equal("Show the peaks", app.Find("Visual-peaks").Current.Name);
 
@@ -100,16 +117,15 @@ public sealed partial class AppWindowTests
             new PropertyCondition(AutomationElement.NameProperty, "Zoomed in, the wheel and two-finger scrolling move about the picture")));
         ((TogglePattern)pans.GetCurrentPattern(TogglePattern.Pattern)).Toggle();
         app.Press(saveShortcuts ? "PrimaryButton" : "CloseButton");
-        Wait.For(() => app.IsShown("PreferencesSection"), "Preferences to return after the shortcut editor");
-        var selected = ((SelectionPattern)app.Find("PreferencesSection").GetCurrentPattern(SelectionPattern.Pattern)).Current.GetSelection();
-        Assert.Equal("Keyboard and mouse", Assert.Single(selected).Current.Name);
+        Wait.For(() => app.IsShown("PreferencesCategorySearch"), "Preferences to return after the shortcut editor");
+        Assert.Equal("Keyboard and mouse", PreferencesSectionShown(app));
         Assert.Equal(before.ShortJumpSeconds, app.SavedSettings.ShortJumpSeconds);
         ChoosePreferencesSection(app, "Playback");
         var retained = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants,
             new PropertyCondition(AutomationElement.NameProperty, "Short jump (seconds)")));
         Assert.Equal(37, ((RangeValuePattern)retained.GetCurrentPattern(RangeValuePattern.Pattern)).Current.Value);
         app.Press(savePreferences ? "PrimaryButton" : "CloseButton");
-        Wait.For(() => !app.IsShown("PreferencesSection"), "Preferences to close");
+        Wait.For(() => !app.IsShown("PreferencesCategorySearch"), "Preferences to close");
         Wait.For(() => app.SavedSettings.ShortJumpSeconds == (savePreferences ? 37 : before.ShortJumpSeconds)
             && app.SavedSettings.WheelPansWhenZoomed == (saveShortcuts ? !before.WheelPansWhenZoomed : before.WheelPansWhenZoomed),
             "each dialog's Save or Cancel choice to apply independently");
@@ -123,7 +139,9 @@ public sealed partial class AppWindowTests
         using var app = AppProcess.Start();
         ((TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern)).Resize(720, 640);
         app.Run(CommandCatalog.Preferences);
-        Assert.Equal("Settings section", app.Find("PreferencesSection").Current.Name);
+        Assert.Equal("Preferences section", app.Find("PreferencesSection").Current.Name);
+        Assert.False(app.IsShown("PreferencesCategoryList"));
+        Assert.True(app.IsShown("PreferencesCategorySearch"), "The search is offered in a narrow window too.");
         Assert.Null(app.Window.FindFirst(TreeScope.Descendants,
             new PropertyCondition(AutomationElement.AutomationIdProperty, "PreferencesUpdateChecks")));
         ChoosePreferencesSection(app, "Subtitles");
@@ -179,8 +197,7 @@ public sealed partial class AppWindowTests
         var search = (ValuePattern)app.Find("PreferencesCategorySearch").GetCurrentPattern(ValuePattern.Pattern);
         Assert.False(app.Find("PreferencesCategorySearch").Current.IsOffscreen);
 
-        string Section() => ((SelectionPattern)app.Find("PreferencesSection")
-            .GetCurrentPattern(SelectionPattern.Pattern)).Current.GetSelection().Single().Current.Name;
+        string? Section() => PreferencesSectionShown(app);
 
         // This label is a TextBlock after WrapLabels. Search must not compare its type name.
         search.SetValue("Keep audio-only items playing in the library");
@@ -190,14 +207,17 @@ public sealed partial class AppWindowTests
         search.SetValue("Fastest");
         Wait.For(() => Section() == "Performance", "search to find a choice option");
 
-        // The artwork options exist underneath a collapsed Expander.
+        // The artwork options sit in a closed group, which the search opens to show the setting.
         search.SetValue("Artwork detail (%)");
         Wait.For(() => Section() == "Music and artwork", "search to find a collapsed option");
-        Assert.Equal(ExpandCollapseState.Collapsed, ((ExpandCollapsePattern)app.Find("PreferencesArtworkDetails")
-            .GetCurrentPattern(ExpandCollapsePattern.Pattern)).Current.ExpandCollapseState);
+        Wait.For(() => ((ExpandCollapsePattern)app.Find("PreferencesArtworkDetails")
+            .GetCurrentPattern(ExpandCollapsePattern.Pattern)).Current.ExpandCollapseState == ExpandCollapseState.Expanded,
+            "the group holding the setting found to open");
+        Assert.True(app.IsShown("PreferencesScroll"));
 
         search.SetValue("a setting that does not exist 012345");
-        Wait.For(() => app.IsShown("PreferencesSearchEmpty"), "search to explain no matching results");
+        Wait.For(() => app.IsShown("PreferencesSearchEmpty") && !app.IsShown("PreferencesScroll"),
+            "the page to say nothing matches, in place of a section");
 
         // Restoring the search should restore a useful section instead of the no-results state.
         search.SetValue("sUbTiTlE");
@@ -219,26 +239,42 @@ public sealed partial class AppWindowTests
             "the wide Settings rail to show");
         var search = (ValuePattern)app.Find("PreferencesCategorySearch").GetCurrentPattern(ValuePattern.Pattern);
         search.SetValue("Fastest");
-        Wait.For(() => ((SelectionPattern)app.Find("PreferencesSection").GetCurrentPattern(SelectionPattern.Pattern))
-            .Current.GetSelection().Single().Current.Name == "Performance", "search to select Performance");
+        Wait.For(() => PreferencesSectionShown(app) == "Performance", "search to select Performance");
 
         transform.Resize(720, 640);
-        Wait.For(() => !app.IsShown("PreferencesCategorySearch") && app.IsShown("PreferencesSection"),
-            "the compact picker to replace the wide rail");
+        Wait.For(() => !app.IsShown("PreferencesCategoryList") && app.IsShown("PreferencesSection") && app.IsShown("PreferencesCategorySearch"),
+            "the compact picker to replace the wide rail, beside the search");
+        Assert.Equal("Performance", PreferencesSectionShown(app));
+
+        // A section the search did not find ends the search.
         ChoosePreferencesSection(app, "Subtitles");
 
         transform.Resize(1000, 760);
         Wait.For(() => app.IsShown("PreferencesCategorySearch") && app.IsShown("PreferencesCategoryList"),
             "the category rail to return after resize");
-        Assert.Equal("", search.Current.Value);
-        Assert.Equal("Subtitles", ((SelectionPattern)app.Find("PreferencesSection")
-            .GetCurrentPattern(SelectionPattern.Pattern)).Current.GetSelection().Single().Current.Name);
+        Wait.For(() => search.Current.Value.Length == 0 && PreferencesSectionShown(app) == "Subtitles",
+            "the rail to show every section again, Subtitles chosen");
         app.Press("CloseButton");
         Assert.Equal(0, app.Close());
     }
 
+    /// <summary>
+    /// Chooses a Preferences section the way the window offers it: on the rail beside the page in a
+    /// wide window, in the section picker above it in a narrow one.
+    /// </summary>
     private static void ChoosePreferencesSection(AppProcess app, string name)
     {
+        Wait.For(() => app.IsShown("PreferencesCategoryList") || app.IsShown("PreferencesSection"), "Preferences' sections");
+        if (app.IsShown("PreferencesCategoryList"))
+        {
+            var entry = Wait.Until(() => app.Find("PreferencesCategoryList").FindFirst(TreeScope.Descendants, new AndCondition(
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem),
+                new PropertyCondition(AutomationElement.NameProperty, name))));
+            ((SelectionItemPattern)entry.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
+            Wait.For(() => PreferencesSectionShown(app) == name, "the section " + name + " to be chosen on the rail");
+            return;
+        }
+
         var selector = app.Find("PreferencesSection");
         Assert.False(selector.Current.IsOffscreen);
         // The list drops down on the window's thread after Expand returns, and can close again as
@@ -249,6 +285,22 @@ public sealed partial class AppWindowTests
         ((SelectionItemPattern)item.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         ((ExpandCollapsePattern)app.Find("PreferencesSection").GetCurrentPattern(ExpandCollapsePattern.Pattern)).Collapse();
         Wait.For(() => !app.Find("PreferencesSection").Current.IsOffscreen, "section navigation to stay visible");
+    }
+
+    /// <summary>The Preferences section chosen now, on the rail or in the picker, whichever is shown; null when none is.</summary>
+    private static string? PreferencesSectionShown(AppProcess app)
+    {
+        try
+        {
+            var navigation = app.IsShown("PreferencesCategoryList") ? "PreferencesCategoryList" : "PreferencesSection";
+            var selection = ((SelectionPattern)app.Find(navigation).GetCurrentPattern(SelectionPattern.Pattern)).Current.GetSelection();
+            return selection.Length == 1 ? selection[0].Current.Name : null;
+        }
+        catch (ElementNotAvailableException)
+        {
+            // Replaced while it was read (the rail's items change with a search): read again.
+            return null;
+        }
     }
 
     [Fact]
@@ -267,7 +319,7 @@ public sealed partial class AppWindowTests
         ChoosePreferencesSection(app, "Playback");
         Assert.Equal(37, ((RangeValuePattern)jump.GetCurrentPattern(RangeValuePattern.Pattern)).Current.Value);
         app.Press("CloseButton");
-        Wait.For(() => !app.IsShown("PreferencesSection"), "Preferences to close after Cancel");
+        Wait.For(() => !app.IsShown("PreferencesCategorySearch"), "Preferences to close after Cancel");
         Assert.Equal(before, app.SavedSettings.ShortJumpSeconds);
         Assert.Equal(0, app.Close());
     }

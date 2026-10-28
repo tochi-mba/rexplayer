@@ -106,7 +106,9 @@ public sealed class AppEndToEndTests : IDisposable
         Assert.Contains("Optional metadata lookups and update checks contact online services only when enabled",
             app.Text("WelcomePrivacy"), StringComparison.Ordinal);
         Screenshots.Match(app, "welcome-first-run-offline");
-        app.Press("CloseButton");
+        // Start is the welcome's one button, its default.
+        Assert.False(app.IsShown("CloseButton"));
+        app.Press("PrimaryButton");
         Wait.For(() => File.Exists(app.SettingsPath) && app.SavedSettings.FirstRunDone, "the welcome to be remembered");
 
         var saved = app.SavedSettings;
@@ -121,7 +123,7 @@ public sealed class AppEndToEndTests : IDisposable
         using var app = AppProcess.Start(firstRun: true);
 
         app.Toggle("WelcomeUpdates");
-        app.Press("CloseButton");
+        app.Press("PrimaryButton");
         Wait.For(() => File.Exists(app.SettingsPath) && app.SavedSettings.FirstRunDone,
             "the chosen update preference to be remembered");
         Assert.Equal(UpdateCadence.Daily, app.SavedSettings.UpdateChecks);

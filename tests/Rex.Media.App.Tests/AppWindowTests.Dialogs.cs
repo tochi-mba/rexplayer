@@ -22,7 +22,7 @@ public sealed partial class AppWindowTests
         Assert.False(app.Find("StartOverButton").Current.IsEnabled);
 
         app.Run(CommandCatalog.OpenLocation);
-        Wait.For(() => app.IsShown("LocationBox"), "the location dialog");
+        Wait.For(() => app.IsShown("LocationBox") && app.IsShown("LocationBrowse"), "the location dialog, with a way to browse");
         Screenshots.Match(app, "dialog-open-location");
         ((ValuePattern)app.Find("LocationBox").GetCurrentPattern(ValuePattern.Pattern)).SetValue("\"" + song + "\"");
         app.Press("PrimaryButton");
@@ -62,7 +62,8 @@ public sealed partial class AppWindowTests
 
         app.Run(CommandCatalog.ShortcutSheet);
         var sheet = Wait.Until(() => app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Keyboard shortcuts")));
-        foreach (var line in new[] { "Play or pause: Space", "Mute: M", "Preferences: Ctrl+P" })
+        // Each line is read as one sentence, the keys in their everyday names.
+        foreach (var line in new[] { "Play or pause: Space or Play/pause key", "Mute: M", "Preferences: Ctrl+P", "A little faster: Right bracket" })
         {
             Wait.For(() => All(app.Window, ControlType.Text).Any(text => text.Current.Name.StartsWith(line, StringComparison.Ordinal)), "the sheet to list " + line);
         }
@@ -73,11 +74,11 @@ public sealed partial class AppWindowTests
         app.Run(CommandCatalog.Preferences);
         // It says why rather than doing nothing: the message reaches the screen and the log.
         Wait.For(() => app.LogText.Contains("\"Preferences\" was not shown: close \"Keyboard shortcuts\" first.", StringComparison.Ordinal), "the second dialog to be refused");
-        Assert.False(app.IsShown("PreferencesSection"));
+        Assert.False(app.IsShown("PreferencesCategorySearch"));
         app.Press("CloseButton");
         Wait.For(() => app.Window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Keyboard shortcuts")) is null, "the sheet to close");
         Assert.NotNull(sheet);
-        OpenDialog(app, CommandCatalog.Preferences, "PreferencesSection");
+        OpenDialog(app, CommandCatalog.Preferences, "PreferencesCategorySearch");
         app.Press("CloseButton");
         Assert.Equal(0, app.Close());
     }
@@ -99,7 +100,7 @@ public sealed partial class AppWindowTests
         Wait.For(() => !app.IsShown("WhatsNewText"), "What's new to close");
 
         // Preferences' Updates section offers it again.
-        OpenDialog(app, CommandCatalog.Preferences, "PreferencesSection");
+        OpenDialog(app, CommandCatalog.Preferences, "PreferencesCategorySearch");
         ChoosePreferencesSection(app, "Updates");
         Assert.False(string.IsNullOrWhiteSpace(app.Text("PreferencesLastUpdated")));
         app.Press("PreferencesWhatsNew");

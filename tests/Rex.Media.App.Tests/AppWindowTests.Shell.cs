@@ -13,7 +13,7 @@ namespace Rex.Media.App.Tests;
 /// </summary>
 public sealed partial class AppWindowTests
 {
-    /// <summary>Every section of Preferences, in order, as its picker names them.</summary>
+    /// <summary>Every section of Preferences, in order, as its rail and its picker name them.</summary>
     private static readonly string[] PreferencesSections =
     [
         "Playback", "Intros and credits", "Video and pictures", "Music and artwork", "Performance", "Languages", "Subtitles",
@@ -27,25 +27,15 @@ public sealed partial class AppWindowTests
     {
         using var app = AppStartedAt(1000, 760, "Light");
         app.Run(CommandCatalog.Preferences);
-        var picker = (ExpandCollapsePattern)app.Find("PreferencesSection").GetCurrentPattern(ExpandCollapsePattern.Pattern);
-        picker.Expand();
+
+        // A wide window lists the sections on a rail beside the page. A list can leave items it has
+        // not drawn out of UI Automation, so the order is checked on those it offers; the loop below
+        // chooses every section and checks that its own page appears.
         var offered = Wait.Until(() =>
         {
-            var names = All(app.Window, ControlType.ListItem).Select(item => item.Current.Name).Where(PreferencesSections.Contains).Distinct().ToArray();
-            if (names.Length > 0)
-            {
-                return names;
-            }
-
-            // The picker can swallow the first Expand while Preferences is still settling: ask again.
-            picker.Expand();
-            return null;
+            var names = All(app.Find("PreferencesCategoryList"), ControlType.ListItem).Select(item => item.Current.Name).Where(PreferencesSections.Contains).Distinct().ToArray();
+            return names.Length > 0 ? names : null;
         });
-        picker.Collapse();
-        // WinUI virtualizes long ComboBox popups: UI Automation only exposes the
-        // visible prefix of the 15 choices at a time, not all of their offscreen
-        // list items. Verify the offered order here; the loop below selects
-        // every section and checks that its unique page actually appears.
         Assert.NotEmpty(offered);
         Assert.Equal(PreferencesSections.Take(offered.Length), offered);
 
@@ -137,7 +127,7 @@ public sealed partial class AppWindowTests
         Input.Press("M");
         Wait.For(() => app.Text("MuteButton") == "Unmute", "M to mute");
         Input.Press("Ctrl+P");
-        Wait.For(() => app.IsShown("PreferencesSection"), "Ctrl+P to open Preferences");
+        Wait.For(() => app.IsShown("PreferencesCategorySearch"), "Ctrl+P to open Preferences");
         app.Press("CloseButton");
         Assert.Equal(0, app.Close());
     }

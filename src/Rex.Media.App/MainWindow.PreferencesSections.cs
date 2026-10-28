@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Rex.Media.AppCore;
 using Rex.Media.AppCore.Commands;
+using Rex.Media.AppCore.Shell;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
 using Rex.Media.Subtitles;
@@ -55,7 +56,7 @@ public sealed partial class MainWindow
             var autoCredits = Check("Skip credits automatically (plays the next episode when one follows)", s.SkipCreditsAutomatically);
             Props.SetAutomationId(autoIntro, "PreferencesAutoSkipIntro");
             Props.SetAutomationId(autoCredits, "PreferencesAutoSkipCredits");
-            Fill(page, new TextBlock { Text = "While an episode's intro or credits play, a button offers to skip them. Turn these on to skip without a click; a 5 second countdown lets you cancel. To choose per show, use Always skip for this show on the button's menu.", TextWrapping = TextWrapping.Wrap },
+            Fill(page, Intro("While an episode's intro or credits play, a button offers to skip them. Turn these on to skip after a 5-second countdown you can cancel. To choose per show, use Always skip for this show on the button's menu."),
                 autoIntro, autoCredits);
             return (page, n => n with
             {
@@ -71,7 +72,7 @@ public sealed partial class MainWindow
             var navigator = Check("Show the whole picture in a corner while zoomed in", s.ShowNavigator);
             var pictureLook = Choice("Default video picture look", VideoLooks.Names.ToArray(), (int)s.VideoLook);
             var pictureEffect = Choice("Picture effects (optional)", [.. Enum.GetValues<VideoEffect>().Select(VideoEffects.PickerLabel)], (int)s.VideoEffect);
-            var lookSettings = new Button { Content = "Customize the current picture look..." };
+            var lookSettings = new Button { Content = "Customise the current picture look..." };
             Props.SetAutomationId(lookSettings, "PreferencesLookSettings");
             lookSettings.Click += (_, _) =>
             {
@@ -79,19 +80,15 @@ public sealed partial class MainWindow
                 requestEditor(() => ShowVideoStyleSettingsAsync(effect: false));
                 _dialog?.Hide();
             };
-            var effectSettings = new Button { Content = "Customize the current picture effect..." };
+            var effectSettings = new Button { Content = "Customise the current picture effect..." };
             Props.SetAutomationId(effectSettings, "PreferencesEffectSettings");
             effectSettings.Click += (_, _) =>
             {
                 requestEditor(() => ShowVideoStyleSettingsAsync(effect: true));
                 _dialog?.Hide();
             };
-            Fill(page, pictures, navigator, pictureLook, pictureEffect, lookSettings, effectSettings, new TextBlock
-            {
-                Text = "Customize opens a separate editor for the saved look or effect. Your pending Preferences changes stay here until you return.",
-                TextWrapping = TextWrapping.Wrap,
-                Opacity = 0.75,
-            });
+            Fill(page, pictures, navigator, pictureLook, pictureEffect, lookSettings, effectSettings,
+                Note("Customise opens a separate editor for the saved look or effect. Your pending Preferences changes stay here until you return."));
             // Enhanced Subject Lock's optional models sit with the picture effects that Subject Lock belongs to.
             Fill(page, Heading(Rex.Media.Vision.ModelDownloadText.Heading), SubjectModelsSection());
             return (page, n => n with
@@ -106,8 +103,8 @@ public sealed partial class MainWindow
         sections.Add("Music and artwork", () =>
         {
             var page = PreferencePage("Music and artwork");
-            var visualizer = VisualizerChoices(s.Visualizer);
-            var audiobookVisualizer = VisualizerChoices(s.AudiobookVisualizer);
+            var visualizer = VisualizerChoices(s.Visualizer, "While music plays, show");
+            var audiobookVisualizer = VisualizerChoices(s.AudiobookVisualizer, "While an audiobook plays, show");
             Describe(audiobookVisualizer, "Used only for items recognised or manually classified as audiobooks. Other audio keeps the default above.");
             var generatedArt = Check("Generate artwork from music when no cover exists", s.GenerateAudioArtwork);
             var artworkStyle = Choice("Generated artwork style", ["Prism", "Orbit", "Wave", "Minimal"], (int)s.AudioArtworkStyle);
@@ -126,12 +123,8 @@ public sealed partial class MainWindow
             Props.SetAutomationId(artworkDetails, "PreferencesArtworkDetails");
             Props.SetName(artworkDetails, "Generated artwork appearance");
             Fill(page, Heading("Default visualisation for songs and other audio"), visualizer,
-                Heading("Default visualisation for audiobooks"), audiobookVisualizer, generatedArt, artworkDetails, new TextBlock
-                {
-                    Text = "These choices apply when rexplayer generates a cover. Existing album covers are kept.",
-                    TextWrapping = TextWrapping.Wrap,
-                    Opacity = 0.75,
-                });
+                Heading("Default visualisation for audiobooks"), audiobookVisualizer, generatedArt, artworkDetails,
+                Note("These choices apply when rexplayer generates a cover. Existing album covers are kept."));
             return (page, n => n with
             {
                 Visualizer = visualizer.SelectedItem is ComboBoxItem { Tag: VisualizerChoice shown } ? shown : s.Visualizer,
@@ -150,8 +143,12 @@ public sealed partial class MainWindow
         sections.Add("Languages", () =>
         {
             var page = PreferencePage("Languages");
-            var audioLanguages = Words("Play sound in (languages, best first, such as \"ja, original\")", s.AudioLanguages);
-            var subtitleLanguages = Words("Show subtitles in (languages, best first, such as \"en, fr\")", s.SubtitleLanguages);
+            var audioLanguages = Words("Play sound in", s.AudioLanguages);
+            audioLanguages.PlaceholderText = "Such as ja, original";
+            Describe(audioLanguages, "Languages, best first, separated by commas. \"original\" is the language the media was made in.");
+            var subtitleLanguages = Words("Show subtitles in", s.SubtitleLanguages);
+            subtitleLanguages.PlaceholderText = "Such as en, fr";
+            Describe(subtitleLanguages, "Languages, best first, separated by commas: codes such as en or names such as English.");
             Fill(page, audioLanguages, subtitleLanguages);
             return (page, n => n with { AudioLanguages = audioLanguages.Text, SubtitleLanguages = subtitleLanguages.Text });
         });
@@ -226,12 +223,7 @@ public sealed partial class MainWindow
                 }));
                 _dialog?.Hide();
             };
-            Fill(page, keys, new TextBlock
-            {
-                Text = "Your pending Preferences changes stay here while you edit shortcuts. Save or cancel the shortcut editor to return.",
-                TextWrapping = TextWrapping.Wrap,
-                Opacity = 0.75,
-            });
+            Fill(page, keys, Note("Your pending Preferences changes stay here while you edit shortcuts. Save or cancel the shortcut editor to return."));
             return (page, n => n);
         });
 
@@ -264,22 +256,13 @@ public sealed partial class MainWindow
         Props.SetAutomationId(performanceNow, "PreferencesPerformanceNow");
         var performanceChanges = new TextBlock { TextWrapping = TextWrapping.Wrap };
         Props.SetAutomationId(performanceChanges, "PreferencesPerformanceChanges");
-        var performanceTranscriptionNote = new TextBlock
-        {
-            Text = "Transcription quality stays as you choose it on the caption rail or under Transcription, in every mode.",
-            TextWrapping = TextWrapping.Wrap,
-            Opacity = 0.75,
-        };
+        var performanceTranscriptionNote = Note("Transcription quality stays as you choose it on the caption rail or under Transcription, in every mode.");
         Props.SetAutomationId(performanceTranscriptionNote, "PreferencesPerformanceTranscriptionNote");
         var energySaverAutomatic = Check("When Energy Saver is on, use the Automatic performance mode", s.AutomaticWhenEnergySaver);
         Props.SetAutomationId(energySaverAutomatic, "PreferencesEnergySaverAutomatic");
-        var energySaverHint = new TextBlock
-        {
-            Text = "The mode chosen above returns when Energy Saver turns off.",
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(32, 0, 0, 8),
-            Opacity = 0.75,
-        };
+        var energySaverHint = Note("The mode chosen above returns when Energy Saver turns off.");
+        // Under the check box's label, as its own note.
+        energySaverHint.Margin = new Thickness(28, -4, 0, 0);
         Props.SetHelpText(energySaverAutomatic, energySaverHint.Text);
         void ShowPerformance()
         {
@@ -295,7 +278,7 @@ public sealed partial class MainWindow
         energySaverAutomatic.Checked += (_, _) => ShowPerformance();
         energySaverAutomatic.Unchecked += (_, _) => ShowPerformance();
         ShowPerformance();
-        Fill(page, new TextBlock { Text = "On a slower computer rexplayer can do a little less so playback stays smooth. Automatic decides from the computer and Windows' energy saver; choose a level to decide yourself.", TextWrapping = TextWrapping.Wrap },
+        Fill(page, Intro("On a slower computer rexplayer can do a little less so playback stays smooth. Automatic decides from the computer and Windows' energy saver; choose a level to decide yourself."),
             performance, energySaverAutomatic, energySaverHint, performanceNow, performanceChanges, performanceTranscriptionNote);
         return (page, n => n with
         {
@@ -307,7 +290,9 @@ public sealed partial class MainWindow
     private static (StackPanel, Func<PlayerSettings, PlayerSettings>) SubtitlePreferences(PlayerSettings s)
     {
         var page = PreferencePage("Subtitles");
-        var font = new ComboBox { Header = "Subtitle font", IsEditable = true, ItemsSource = SubtitleFonts, Text = s.SubtitleFont, MinWidth = 220 };
+        // The font chosen is one of the list, so the box draws it; one typed in by hand joins the list.
+        string[] fonts = string.IsNullOrWhiteSpace(s.SubtitleFont) || SubtitleFonts.Contains(s.SubtitleFont) ? SubtitleFonts : [s.SubtitleFont, .. SubtitleFonts];
+        var font = new ComboBox { Header = "Subtitle font", IsEditable = true, ItemsSource = fonts, SelectedItem = s.SubtitleFont, Text = s.SubtitleFont, MinWidth = 220 };
         Props.SetName(font, "Subtitle font");
         var size = Number("Subtitle size (%)", s.SubtitleSize, 50, 400);
         var color = ColorChoice("Subtitle colour", s.SubtitleColor);
@@ -349,7 +334,7 @@ public sealed partial class MainWindow
     private static (StackPanel, Func<PlayerSettings, PlayerSettings>) LibraryPreferences(PlayerSettings s)
     {
         var page = PreferencePage("Library");
-        var mediaOpenClick = Choice("Open media on", ["Single click", "Double click"], (int)s.MediaOpenClickMode);
+        var mediaOpenClick = Choice("Open media on", ["Single click", "Double-click"], (int)s.MediaOpenClickMode);
         Props.SetAutomationId(mediaOpenClick, "PreferencesMediaOpenClick");
         var libraryOpening = Choice("When opening the library", ["Show the playing item", "Return to where I left the library"], s.OpenLibraryAtPlayingItem ? 0 : 1);
         Props.SetAutomationId(libraryOpening, "PreferencesLibraryOpening");
@@ -366,12 +351,8 @@ public sealed partial class MainWindow
         keepLibraryAudio.IsEnabled = pauseLibrary.IsChecked == true;
         pauseLibrary.Checked += (_, _) => keepLibraryAudio.IsEnabled = true;
         pauseLibrary.Unchecked += (_, _) => keepLibraryAudio.IsEnabled = false;
-        Fill(page, libraryOpening, detailWriting, mediaOpenClick, libraryFullScreen, libraryPlayback, pauseLibrary, keepLibraryAudio, new TextBlock
-        {
-            Text = "Return to where I left the library keeps your browsing view while the player is open. Ctrl or Shift clicks still select media without opening it.",
-            TextWrapping = TextWrapping.Wrap,
-            Opacity = 0.75,
-        });
+        Fill(page, libraryOpening, detailWriting, mediaOpenClick, libraryFullScreen, libraryPlayback, pauseLibrary, keepLibraryAudio,
+            Note("Return to where I left the library keeps your browsing view while the player is open. Ctrl+click and Shift+click still select media without opening it."));
         return (page, n => n with
         {
             MediaOpenClickMode = (MediaOpenClick)Math.Max(0, mediaOpenClick.SelectedIndex),
@@ -429,14 +410,31 @@ public sealed partial class MainWindow
         });
     }
 
+    /// <summary>
+    /// A section's page: its name as the page's title, then its settings 8 apart and its groups 24
+    /// apart, never wider than a line that reads well.
+    /// </summary>
     private static StackPanel PreferencePage(string name)
     {
-        var page = new StackPanel { Spacing = 8, MinWidth = 280, MaxWidth = 460 };
-        var heading = Heading(name);
-        Props.SetHeadingLevel(heading, Peers.AutomationHeadingLevel.Level2);
-        page.Children.Add(heading);
+        var page = new StackPanel { Spacing = 8, MaxWidth = PreferencesLayout.PageWidth, HorizontalAlignment = HorizontalAlignment.Left };
+        var title = new TextBlock
+        {
+            Text = name,
+            Style = (Style)Application.Current.Resources["SubtitleTextBlockStyle"],
+            Margin = new Thickness(0, 0, 0, 4),
+        };
+        Props.SetHeadingLevel(title, Peers.AutomationHeadingLevel.Level2);
+        page.Children.Add(title);
         return page;
     }
+
+    /// <summary>A page's opening words: what its settings are for, in body text a step quieter than the settings.</summary>
+    private static TextBlock Intro(string text) => new()
+    {
+        Text = text,
+        TextWrapping = TextWrapping.Wrap,
+        Foreground = RexTheme.Brush("TextFillColorSecondaryBrush"),
+    };
 
     private static void Fill(Panel panel, params UIElement[] controls)
     {

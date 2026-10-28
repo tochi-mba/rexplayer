@@ -9,7 +9,9 @@ namespace Rex.Media.App;
 /// <summary>
 /// The visualisations' settings (AU-18): choose one, and its own settings appear (its colours and
 /// sensitivity, and what only it has), each change showing at once behind the dialog; Save keeps
-/// them, Cancel puts everything back as it was.
+/// them, Cancel puts everything back as it was. A setting that counts only with another (its own
+/// colour, with One colour) shows only then; every field is as wide as the dialog; and the dialog
+/// fits the window, its settings scrolling under a soft foot when they do not all fit.
 /// </summary>
 public sealed partial class MainWindow
 {
@@ -21,15 +23,27 @@ public sealed partial class MainWindow
         var shown = activeBefore == VisualizerChoice.Off ? VisualizerChoice.Spectrum : activeBefore;
         var choices = Enum.GetValues<VisualizerChoice>().Where(choice => choice != VisualizerChoice.Off).ToList();
 
-        var which = new ComboBox { Header = "Visualisation", ItemsSource = choices.Select(Visualizers.Name).ToList(), SelectedIndex = choices.IndexOf(shown), MinWidth = 260 };
+        var which = new ComboBox { Header = "Visualisation", ItemsSource = choices.Select(Visualizers.Name).ToList(), SelectedIndex = choices.IndexOf(shown), HorizontalAlignment = HorizontalAlignment.Stretch };
         AutomationProperties.SetAutomationId(which, "VisualizerChoice");
         AutomationProperties.SetName(which, "Visualisation");
-        var panel = new StackPanel { Spacing = 10 };
-        var note = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 440, Foreground = RexTheme.Brush("TextFillColorSecondaryBrush") };
-        var reset = new Button { Content = "Back to how this one came" };
+        var panel = new StackPanel { Spacing = 12 };
+        var note = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = RexTheme.Brush("TextFillColorSecondaryBrush") };
+
+        // At the foot of the dialog, beside its own buttons: it puts back the one visualisation shown.
+        var reset = new Button { Content = "Restore defaults" };
         AutomationProperties.SetAutomationId(reset, "VisualizerReset");
         AutomationProperties.SetName(reset, "Restore defaults for this visualisation");
         AutomationProperties.SetHelpText(reset, "Only this visualisation's settings are reset. Other visualisations keep their saved values.");
+
+        // Each setting's control, shown only while the setting counts with the others as they are.
+        var controls = new List<(UIElement Control, string Key)>();
+        void ShowWhatApplies()
+        {
+            foreach (var (control, key) in controls)
+            {
+                control.Visibility = VisualizerOptions.Applies(options, shown, key) ? Visibility.Visible : Visibility.Collapsed;
+            }
+        }
 
         // Shown behind the dialog as it changes.
         void Preview()
@@ -53,12 +67,19 @@ public sealed partial class MainWindow
                 options[pair.Key] = pair.Value;
             }
 
+            // Only the colours decide whether another setting counts.
+            if (key == VisualizerOptions.Colors)
+            {
+                ShowWhatApplies();
+            }
+
             Preview();
         }
 
         void Show()
         {
             panel.Children.Clear();
+            controls.Clear();
             note.Text = shown switch
             {
                 VisualizerChoice.Strobe => "Flashing light can trigger seizures in people with photosensitive epilepsy. Three flashes a second is the most guidelines allow.",
@@ -70,8 +91,12 @@ public sealed partial class MainWindow
             note.Visibility = note.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             foreach (var option in VisualizerOptions.For(shown))
             {
-                panel.Children.Add(Control(option));
+                var control = Control(option);
+                controls.Add((control, option.Key));
+                panel.Children.Add(control);
             }
+
+            ShowWhatApplies();
         }
 
         UIElement Control(VisualOption option)
@@ -88,6 +113,7 @@ public sealed partial class MainWindow
                     return toggle;
                 case VisualOptionKind.Choice:
                     var choice = Choice(option.Label, [.. option.Choices!], VisualizerOptions.Choice(options, shown, option.Key));
+                    choice.HorizontalAlignment = HorizontalAlignment.Stretch;
                     AutomationProperties.SetAutomationId(choice, id);
                     AutomationProperties.SetName(choice, option.Label);
                     AutomationProperties.SetHelpText(choice, "Choose " + option.Label + " for " + Visualizers.Name(shown));
@@ -95,6 +121,7 @@ public sealed partial class MainWindow
                     return choice;
                 case VisualOptionKind.Color:
                     var color = ColorChoice(option.Label, VisualizerOptions.Rgb(options, shown, option.Key));
+                    color.Box.HorizontalAlignment = HorizontalAlignment.Stretch;
                     AutomationProperties.SetAutomationId(color.Box, id);
                     AutomationProperties.SetName(color.Box, option.Label);
                     AutomationProperties.SetHelpText(color.Box, "Choose " + option.Label + " for " + Visualizers.Name(shown));
@@ -109,7 +136,7 @@ public sealed partial class MainWindow
                         Maximum = option.Maximum,
                         StepFrequency = whole ? 1 : (option.Maximum - option.Minimum) / 100,
                         Value = VisualizerOptions.Number(options, shown, option.Key),
-                        MinWidth = 320,
+                        HorizontalAlignment = HorizontalAlignment.Stretch,
                     };
                     AutomationProperties.SetAutomationId(slider, id);
                     AutomationProperties.SetName(slider, option.Label);
@@ -139,13 +166,27 @@ public sealed partial class MainWindow
         };
 
         Show();
-        var content = new StackPanel { Spacing = 12, MinWidth = 440 };
-        content.Children.Add(which);
-        // Keep the reversible reset action beside the selector even on
-        // compact displays, rather than below a potentially clipped scroll.
+
+        // The choice and its note on top, its settings scrolling below them when the window is too
+        // short for all of them, and Restore defaults at the foot, always in view.
+        var heading = new StackPanel { Spacing = 12 };
+        heading.Children.Add(which);
+        heading.Children.Add(note);
+        var settings = WithScrollCue(new ScrollViewer
+        {
+            Content = panel,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Padding = new Thickness(0, 0, 16, 0),
+        });
+        var content = new Grid { RowSpacing = 16, Width = DialogWidth(Rex.Media.AppCore.Shell.DialogLayout.OrdinaryWidth), MaxHeight = DialogHeight(600) };
+        content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        content.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        content.Children.Add(heading);
+        Grid.SetRow(settings, 1);
+        content.Children.Add(settings);
+        Grid.SetRow(reset, 2);
         content.Children.Add(reset);
-        content.Children.Add(note);
-        content.Children.Add(new ScrollViewer { Content = panel, MaxHeight = 420, Padding = new Thickness(0, 0, 16, 0) });
         var keep = await Ask("Visualisation settings", content, "Save");
         if (!keep)
         {

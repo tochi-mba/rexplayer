@@ -41,7 +41,7 @@ public sealed partial class MainWindow
 
         if (ticks.Count == 0)
         {
-            folders.Children.Add(new TextBlock { Text = "The library watches no folders yet; add them in the library.", TextWrapping = TextWrapping.Wrap });
+            folders.Children.Add(Note("The library watches no folders yet; add them in the library."));
         }
 
         void Follow() => folders.Visibility = scope.SelectedIndex == (int)TranscriptionScope.ChosenFolders ? Visibility.Visible : Visibility.Collapsed;
@@ -91,13 +91,9 @@ public sealed partial class MainWindow
         // This is the same opt-in hold used by progressive captions, not a second buffering mode.
         // Explain the potentially long initial wait and the escape hatch before the user opts in.
         var hold = Check("Wait for generated subtitles before playing", t.HoldForSubtitles);
-        var holdHint = new TextBlock
-        {
-            Text = "If the selected caption source needs a transcript, wait for enough words to avoid gaps. To generate subtitles for media not being transcribed from your library, also turn on \"Transcribe whatever I play\" above. Existing usable subtitles play without waiting unless kinetic captions are set to transcript-only. Choose Play now to skip the wait.",
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(32, 0, 0, 8),
-            Opacity = 0.75,
-        };
+        var holdHint = Note("If the selected caption source needs a transcript, wait for enough words to avoid gaps. To generate subtitles for media not being transcribed from your library, also turn on \"Transcribe whatever I play\" above. Existing usable subtitles play without waiting unless kinetic captions are set to transcript-only. Choose Play now to skip the wait.");
+        // Under the check box's label, as its own note.
+        holdHint.Margin = new Thickness(28, 0, 0, 0);
         AutomationProperties.SetHelpText(hold, holdHint.Text);
         var holdGroup = new StackPanel { Spacing = 2 };
         holdGroup.Children.Add(hold);
@@ -202,7 +198,7 @@ public sealed partial class MainWindow
 
         UIElement[] controls =
         [
-            new TextBlock { Text = "Subtitles made from the speech, on this computer: what plays is heard from where it plays, its subtitles appearing as they are heard, and the library ahead of time.", TextWrapping = TextWrapping.Wrap },
+            Intro("rexplayer can make subtitles from speech on this computer: for what plays, as it plays, and for the library ahead of time."),
             library, backgroundDetails, whatPlays, holdGroup, writeSrt, cleanOnDisable, cleanNow, model, language, modelLine, download, storage, clearing,
         ];
         return (controls, settings => settings with

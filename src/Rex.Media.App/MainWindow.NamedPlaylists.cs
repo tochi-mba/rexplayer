@@ -25,10 +25,10 @@ public sealed partial class MainWindow
         var media = Menu.Items.First(item => item.Title == "Media");
         media.Items.Insert(media.Items.IndexOf(media.Items.First(item => AutomationProperties.GetAutomationId(item) == "Command-" + CommandCatalog.SavePlaylist)) + 1, _playlistsMenu);
 
+        // Beside the playlists it adds to, which keeps the Playback menu short.
         _addToPlaylistMenu = new MenuFlyoutSubItem { Text = "Add to a playlist" };
         AutomationProperties.SetAutomationId(_addToPlaylistMenu, "AddToPlaylistMenu");
-        var playback = Menu.Items.First(item => item.Title == "Playback");
-        playback.Items.Insert(playback.Items.IndexOf(playback.Items.First(item => AutomationProperties.GetAutomationId(item) == "Command-" + CommandCatalog.AddBookmark)), _addToPlaylistMenu);
+        media.Items.Insert(media.Items.IndexOf(_playlistsMenu) + 1, _addToPlaylistMenu);
 
         var entries = new MenuFlyout();
         entries.Opening += (_, _) => FillPlaylistEntryMenu(entries);
@@ -250,7 +250,7 @@ public sealed partial class MainWindow
         AutomationProperties.SetAutomationId(facts, "NamedPlaylistFacts");
         var editorOpen = true;
         var labels = new ObservableCollection<string>(staged.Select(item =>
-            (item.Title ?? PlaylistItem.TitleOf(item.Location)) + " · " + (PlaylistItem.SourceOf(item.Location) ?? item.Location)));
+            (item.Title ?? PlaylistItem.TitleOf(item.Location)) + " \u00B7 " + (PlaylistItem.SourceOf(item.Location) ?? item.Location)));
         var list = new ListView
         {
             ItemsSource = labels,
@@ -340,7 +340,7 @@ public sealed partial class MainWindow
                 var changed = PlayerController.RelocatedPlaylistEntry(prior, file.Path);
                 staged[index] = changed;
                 labels[index] = (changed.Title ?? PlaylistItem.TitleOf(changed.Location))
-                    + " · " + (PlaylistItem.SourceOf(changed.Location) ?? changed.Location);
+                    + " \u00B7 " + (PlaylistItem.SourceOf(changed.Location) ?? changed.Location);
                 RefreshFacts();
                 RefreshActions();
             }

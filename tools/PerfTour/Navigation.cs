@@ -342,9 +342,22 @@ internal static class Navigation
         }
     }
 
-    /// <summary>Chooses a Preferences section in the section drop-down and waits for the rail to stay visible.</summary>
+    /// <summary>
+    /// Chooses a Preferences section: on the rail beside the page in a wide window, else in the
+    /// section drop-down, then waits for the navigation to stay visible.
+    /// </summary>
     public static void ChoosePreferencesSection(this AttachedApp app, string name)
     {
+        if (app.IsShown("PreferencesCategoryList"))
+        {
+            var entry = AttachedApp.Until(() => app.TryFind("PreferencesCategoryList")?.FindFirst(TreeScope.Descendants, new AndCondition(
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem),
+                new PropertyCondition(AutomationElement.NameProperty, name))), "the section " + name + " on the rail");
+            ((SelectionItemPattern)entry.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
+            AttachedApp.For(() => app.IsShown("PreferencesCategoryList"), "the section rail to stay visible");
+            return;
+        }
+
         var item = app.OpenMenu("PreferencesSection", name, itemOnScreen: false);
         ((SelectionItemPattern)item.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         try
@@ -359,9 +372,29 @@ internal static class Navigation
         AttachedApp.For(() => app.IsShown("PreferencesSection"), "the section navigation to stay visible");
     }
 
-    /// <summary>The names the Preferences section drop-down offers, read with the list open, then closed again.</summary>
+    /// <summary>
+    /// The names of Preferences' sections: read from the rail in a wide window, else from the section
+    /// drop-down with its list open, then closed again.
+    /// </summary>
     public static string[] PreferencesSections(this AttachedApp app)
     {
+        if (app.IsShown("PreferencesCategoryList"))
+        {
+            return AttachedApp.Until<string[]>(() =>
+            {
+                try
+                {
+                    var entries = app.Find("PreferencesCategoryList").FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem))
+                        .Cast<AutomationElement>().Select(item => item.Current.Name).ToArray();
+                    return entries.Length > 0 ? entries : null;
+                }
+                catch (ElementNotAvailableException)
+                {
+                    return null;
+                }
+            }, "the section rail");
+        }
+
         var selector = app.Find("PreferencesSection");
         var expander = (ExpandCollapsePattern)selector.GetCurrentPattern(ExpandCollapsePattern.Pattern);
         expander.Expand();

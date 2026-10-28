@@ -24,14 +24,9 @@ public sealed partial class MainWindow
     private (UIElement[] Controls, Func<PlayerSettings, PlayerSettings> Apply) MetadataPreferences()
     {
         var m = _settings.Metadata;
-        var intro = new TextBlock
-        {
-            Text = "rexplayer can fetch posters, descriptions, episode titles, genres, cast and album art "
-                + "from free online catalogues that need no key or sign-up. A lookup sends the names of your files and folders to those "
-                + "services, so each kind stays off until you turn it on. Everything fetched is kept on this "
-                + "computer and works offline, and artwork found in your files or beside them always wins.",
-            TextWrapping = TextWrapping.Wrap,
-        };
+        var intro = Intro("rexplayer can fetch posters, descriptions, episode titles, cast and album art from free online "
+            + "catalogues. A lookup sends the names of your files and folders to them, so each kind stays off until you turn "
+            + "it on. What is fetched stays on this computer, and artwork in or beside your files always wins.");
         var tv = Check("Fetch TV show details (TVmaze)", m.TvShows);
         AutomationProperties.SetAutomationId(tv, "PreferencesMetadataTv");
         var movies = Check("Fetch movie details (Wikidata and Wikipedia)", m.Movies);
@@ -40,13 +35,8 @@ public sealed partial class MainWindow
         AutomationProperties.SetAutomationId(music, "PreferencesMetadataMusic");
         var covers = Choice("Fetched album covers", ["Fill missing covers only", "Replace existing covers too"], m.ReplaceCovers ? 1 : 0);
         AutomationProperties.SetAutomationId(covers, "PreferencesMetadataCovers");
-        var coversHelp = new TextBlock
-        {
-            Text = "Replacing changes only what rexplayer shows; your files are never written to. Per album, right-click for Replace cover... and Restore original cover.",
-            TextWrapping = TextWrapping.Wrap,
-            Opacity = 0.75,
-        };
-        var credit = new TextBlock { Text = MetadataPolicy.DataCredit, TextWrapping = TextWrapping.Wrap, Opacity = 0.75 };
+        var coversHelp = Note("Replacing changes only what rexplayer shows; your files are never written to. Per album, right-click for Replace cover... and Restore original cover.");
+        var credit = Note(MetadataPolicy.DataCredit);
         AutomationProperties.SetAutomationId(credit, "PreferencesMetadataCredit");
 
         // Folders left out: listed with a way to put each back, and a picker to leave one out.
