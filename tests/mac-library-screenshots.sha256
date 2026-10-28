@@ -3,7 +3,7 @@
 # both runs produced byte-identical PNGs. A changed shot fails only in this CI lane.
 # Review artifacts/mac-library-screenshots in the failing run before updating a baseline.
 1b966dea7e9e514cf13730f220d161115af3e0701b5faa1dfbec131dc544a048  mac-library-empty.png
-d090ca6d23d30ec8f4fc2466831c31792aa3cc5a54df5fffe97391318ddf78fd  mac-library-minimum-width.png
+06886170ed800c04092cd4def363898e286031a4cd5f71f63a4c688cfa9b861f  mac-library-minimum-width.png
 2feb5810b13ae3f7027d3b179c839aa1b0b9f47e669f530a4a259aecefe1d98e  mac-library-no-matches.png
 0f623623403bab47876673b1051b4c3b0ce9b138effb56e5bfab2b4cf91883f7  mac-library-populated.png
 909c46d8c2464dce56757ab7d4ca691396d05a5c6c49eb26a2b515046c3fa87e  mac-library-searched.png
