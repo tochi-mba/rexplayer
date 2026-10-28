@@ -507,7 +507,8 @@ public sealed partial class MainWindow : Window
         IdleTitle.Text = _player.Item is null ? "rexplayer" : title;
         IdleHint.Text = _player.Item is null ? "Drop media here, or press Ctrl+O to open a file."
             : _player.State == SessionState.Opening ? "Opening" + "\u2026"
-            : _player.Failure ?? _player.Artist ?? "";
+            : _player.Failure is { } failure ? DamageNotices.Short(failure) : _player.Artist ?? "";
+        ShowStageError();
 
         var waitingForDownload = _player.State == SessionState.Buffering;
         DownloadBufferOverlay.Visibility = waitingForDownload ? Visibility.Visible : Visibility.Collapsed;

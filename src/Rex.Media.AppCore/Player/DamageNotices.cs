@@ -58,6 +58,23 @@ public static partial class DamageNotices
         return text.EndsWith('.') ? text : text + ".";
     }
 
+    /// <summary>
+    /// What <see cref="Short"/> leaves out, for whoever opens the details: the rest of the reason after
+    /// its first sentence (the bytes a file starts with, say), or all of it when that sentence was
+    /// cut; null when the short reason is the whole of it.
+    /// </summary>
+    public static string? Detail(string? reason)
+    {
+        var text = ErrorName().Replace((reason ?? string.Empty).Trim(), string.Empty).Trim();
+        var end = text.IndexOf(". ", StringComparison.Ordinal);
+        if ((end > 0 ? end + 1 : text.Length) > LongestReason)
+        {
+            return text;
+        }
+
+        return end > 0 ? text[(end + 2)..].TrimStart() : null;
+    }
+
     /// <summary>The "IndexOutOfRangeException: " a technical summary starts its message with.</summary>
     [GeneratedRegex(@"\b[A-Za-z]*Exception:\s*")]
     private static partial Regex ErrorName();
