@@ -23,8 +23,7 @@ public sealed partial class MainWindow
         var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(DisplayedCoverage, DisplayedDuration, _player.Position, DisplayedHearing);
         var key = string.Join(";", view.Spans);
         // Only coverage there is: an empty rail never sits under the track, and a picture has nothing to hear.
-        TranscriptRail.Visibility = Rex.Media.AppCore.Transcription.SubtitleBuffer.RailShown(ItemIsPicture, view.State,
-            compact: _settings.MinimalInterface && !IsFullScreen) ? Visibility.Visible : Visibility.Collapsed;
+        ShowTranscriptRail(view.State);
         if (key != _shownBuffer)
         {
             _shownBuffer = key;

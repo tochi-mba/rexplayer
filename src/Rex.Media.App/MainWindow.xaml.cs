@@ -123,6 +123,7 @@ public sealed partial class MainWindow : Window
         Stage.SizeChanged += (_, _) => LayOutMediaStage();
         WireSubjectTools();
         WireSeekBar();
+        WireTransport();
         // The WinUI Slider may mark pointer motion handled as it moves its thumb.
         // Listen to routed motion anyway so the real timeline hover time is
         // updated even when optional thumbnail decoding is switched off.
@@ -546,6 +547,7 @@ public sealed partial class MainWindow : Window
         StartOverButton.IsEnabled = _player.CanSeek;
         ShowSpeed();
         _updatingControls = false;
+        ShowTransportState();
 
         if (!ReferenceEquals(_player.Item, _shownItem))
         {

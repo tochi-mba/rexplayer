@@ -35,19 +35,24 @@ public sealed partial class MainWindow
     private void OnSpeedButton(object sender, RoutedEventArgs e)
     {
         var menu = new MenuFlyout();
-
+        FillSpeedMenu(menu.Items);
+        menu.ShowAt(SpeedButton);
+    }
+    /// <summary>The speed choices, for the speed button's menu and for the transport's More menu.</summary>
+    private void FillSpeedMenu(IList<MenuFlyoutItemBase> items)
+    {
         void AddCommand(string name, string id, string command)
         {
             var item = new MenuFlyoutItem { Text = name };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, id);
             item.Click += (_, _) => Run(command);
-            menu.Items.Add(item);
+            items.Add(item);
         }
 
         AddCommand("Slower", "SpeedSlower", CommandCatalog.Slower);
         AddCommand("Normal speed (1\u00D7)", "SpeedNormal", CommandCatalog.NormalSpeed);
         AddCommand("Faster", "SpeedFaster", CommandCatalog.Faster);
-        menu.Items.Add(new MenuFlyoutSeparator());
+        items.Add(new MenuFlyoutSeparator());
 
         foreach (var rate in PlayerController.SpeedSteps)
         {
@@ -57,10 +62,8 @@ public sealed partial class MainWindow
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, "SpeedRate-" + rate.ToString("0.##", CultureInfo.InvariantCulture));
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(item, chosen ? label + ", current speed" : label);
             item.Click += (_, _) => _player.SetSpeed(rate);
-            menu.Items.Add(item);
+            items.Add(item);
         }
-
-        menu.ShowAt(SpeedButton);
     }
     private void BuildMenus()
     {
@@ -436,18 +439,8 @@ public sealed partial class MainWindow
         StageChaptersButton.Visibility = !minimal && _stageView.ShowChapters && _stageView.CanSeek
             && _player.CanSeek && StageChapterMenu.Items.Count > 0
             ? Visibility.Visible : Visibility.Collapsed;
-        foreach (var secondary in new UIElement[]
-        {
-            StartOverButton, PreviousButton, StopButton, NextButton, ShuffleButton,
-            RepeatButton, PlaylistButton, TransportSeparator,
-        })
-        {
-            secondary.Visibility = minimal ? Visibility.Collapsed : Visibility.Visible;
-        }
-
-        Controls.Padding = minimal ? new Thickness(12, 3, 12, 5) : new Thickness(16, 10, 16, 12);
-        Controls.RowSpacing = minimal ? 1 : 8;
-        VolumeBar.Width = minimal ? 88 : 120;
+        // Which buttons each mode shows, and the bar's spacing, are the transport's own layout.
+        LayOutTransport();
         if (!IsFullScreen)
         {
             Controls.Visibility = Visibility.Visible;

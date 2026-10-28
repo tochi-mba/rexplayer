@@ -486,23 +486,13 @@ public sealed partial class MainWindow
         // The title block, cover, visualisation and lyrics: MainWindow.StageLayout.cs.
         LayOutStageContent();
 
-        // The transport itself scrolls, preserving all existing buttons and their focus order.
-        // On narrow windows the secondary tools move to their own row rather than overlap it.
-        var narrowControls = Root.ActualWidth < 820;
-        Grid.SetRow(AudioControlStrip, narrowControls ? 2 : 1);
-        Grid.SetColumn(AudioControlStrip, narrowControls ? 0 : 2);
-        Grid.SetColumnSpan(AudioControlStrip, narrowControls ? 3 : 1);
-        AudioControlStrip.HorizontalAlignment = narrowControls
-            ? HorizontalAlignment.Center : HorizontalAlignment.Left;
-        var minimalControls = _settings.MinimalInterface && !IsFullScreen;
-        Controls.Padding = minimalControls ? new Thickness(12, 3, 12, 5)
-            : narrowControls ? new Thickness(12, 8, 12, 9) : new Thickness(20, 12, 20, 14);
-        Controls.ColumnSpacing = narrowControls ? 6 : 12;
-        Controls.RowSpacing = minimalControls ? 1 : narrowControls ? 4 : 8;
         if (PictureIntervalButton.Visibility == Visibility.Visible)
         {
             ShowPictureIntervalLabel();
         }
+
+        // The transport fits its own width: no button is cut off or scrolled away (MainWindow.Transport.cs).
+        LayOutTransport();
     }
 
     /// <summary>
