@@ -13,7 +13,6 @@ using Rex.Media.IO;
 using Rex.Media.Library;
 using Rex.Media.Settings;
 using Rex.Media.Video;
-using Rex.Media.Video.Metal;
 
 namespace Rex.Media.App.Mac;
 

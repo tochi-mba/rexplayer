@@ -229,23 +229,23 @@ public sealed partial class MediaSession
             var videoTicks = Interlocked.Read(ref _lastVideoPtsTicks);
             return new()
             {
-            PacketsRead = Interlocked.Read(ref _packetsRead),
-            BytesRead = Interlocked.Read(ref _bytesRead),
-            AudioFramesDecoded = Interlocked.Read(ref _framesDecoded),
-            AudioSamplesPlayed = Interlocked.Read(ref _samplesWritten),
-            CorruptPackets = Interlocked.Read(ref _corruptPackets),
-            AudioDecoder = Volatile.Read(ref _audioItem).Decoder.Name,
-            ItemsStarted = Volatile.Read(ref _itemsStarted),
-            EarlierItemsDuration = new MediaTime(Interlocked.Read(ref _earlierTicks)),
-            VideoFramesDecoded = Interlocked.Read(ref _videoFramesDecoded),
-            VideoFramesPresented = Interlocked.Read(ref _videoFramesPresented),
-            VideoFramesDropped = Interlocked.Read(ref _videoFramesDropped),
-            VideoDecoder = Volatile.Read(ref _videoItem).VideoDecoder?.Name,
-            VideoDecoderSource = Volatile.Read(ref _videoItem).VideoDecoder?.Source,
-            Cadence = _cadence.Snapshot(),
-            AudioPacketsBuffered = _audioQueue.Count,
-            VideoPacketsBuffered = _videoQueue?.Count ?? 0,
-            AudioVideoOffsetMilliseconds = videoTicks == long.MinValue ? null
+                PacketsRead = Interlocked.Read(ref _packetsRead),
+                BytesRead = Interlocked.Read(ref _bytesRead),
+                AudioFramesDecoded = Interlocked.Read(ref _framesDecoded),
+                AudioSamplesPlayed = Interlocked.Read(ref _samplesWritten),
+                CorruptPackets = Interlocked.Read(ref _corruptPackets),
+                AudioDecoder = Volatile.Read(ref _audioItem).Decoder.Name,
+                ItemsStarted = Volatile.Read(ref _itemsStarted),
+                EarlierItemsDuration = new MediaTime(Interlocked.Read(ref _earlierTicks)),
+                VideoFramesDecoded = Interlocked.Read(ref _videoFramesDecoded),
+                VideoFramesPresented = Interlocked.Read(ref _videoFramesPresented),
+                VideoFramesDropped = Interlocked.Read(ref _videoFramesDropped),
+                VideoDecoder = Volatile.Read(ref _videoItem).VideoDecoder?.Name,
+                VideoDecoderSource = Volatile.Read(ref _videoItem).VideoDecoder?.Source,
+                Cadence = _cadence.Snapshot(),
+                AudioPacketsBuffered = _audioQueue.Count,
+                VideoPacketsBuffered = _videoQueue?.Count ?? 0,
+                AudioVideoOffsetMilliseconds = videoTicks == long.MinValue ? null
                 : TimeSpan.FromTicks(videoTicks - VideoNow.Ticks).TotalMilliseconds,
             };
         }
