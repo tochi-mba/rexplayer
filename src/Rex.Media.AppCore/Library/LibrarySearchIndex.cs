@@ -18,6 +18,7 @@ public sealed class LibrarySearchIndex
     private static readonly CompareInfo Compare = CultureInfo.CurrentCulture.CompareInfo;
     // A culture where "i" and "I" differ ignoring case (Turkish) is not the ordinal lowercase, so it never takes the quick path.
     private static readonly bool AsciiIsOrdinal = Compare.Compare("i", "I", CompareOptions.IgnoreCase) == 0;
+    private static readonly System.Buffers.SearchValues<char> PlainAscii = System.Buffers.SearchValues.Create("\n" + string.Concat(Enumerable.Range(' ', '~' - ' ' + 1).Select(c => (char)c)));
 
     private readonly IReadOnlyList<LibraryEntry> _entries;
     private readonly string[] _lines;
@@ -114,21 +115,6 @@ public sealed class LibrarySearchIndex
             : Compare.IndexOf(line, word, Loose) >= 0;
 
     /// <summary>The lowercase of text that is plain printable ASCII (line breaks allowed), where it can be searched by ordinal; null otherwise.</summary>
-    private static string? Lower(string text)
-    {
-        if (!AsciiIsOrdinal)
-        {
-            return null;
-        }
-
-        foreach (var c in text)
-        {
-            if (c is not ('\n' or (>= ' ' and <= '~')))
-            {
-                return null;
-            }
-        }
-
-        return text.ToLowerInvariant();
-    }
+    private static string? Lower(string text) =>
+        AsciiIsOrdinal && !text.AsSpan().ContainsAnyExcept(PlainAscii) ? text.ToLowerInvariant() : null;
 }

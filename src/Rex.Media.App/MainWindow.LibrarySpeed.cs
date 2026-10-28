@@ -26,9 +26,8 @@ public sealed partial class MainWindow
     private SearchExtras? _librarySearchExtras;
     private HomeShelfControls? _homeShelfControls;
     private (IReadOnlyList<LibraryEntry> Entries, ListeningShelves? Listening, IReadOnlyList<LibraryEntry> Music)? _withoutListening;
-    // Whether a recently played file is still there, learnt in the background; unknown counts as there.
+    // Whether a recently played file is still there, as last looked; forgotten when the library changes.
     private readonly ConcurrentDictionary<string, bool> _recentExists = new(StringComparer.OrdinalIgnoreCase);
-    private int _recentCheck;
 
     /// <summary>What a search found, and what it was found over.</summary>
     private sealed record FoundSearch(IReadOnlyList<LibraryEntry> Entries, string Text, SearchExtras Extras, IReadOnlyList<LibraryEntry> Found);
@@ -59,37 +58,9 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>The recently played files still on the disk; ones not checked yet count as there, and Home is amended once a background check finds one gone.</summary>
-    private IEnumerable<string> ExistingRecent()
-    {
-        var recent = _player.Memory.Recent;
-        var unknown = recent.Where(path => !_recentExists.ContainsKey(path)).ToArray();
-        if (unknown.Length > 0 && Interlocked.Exchange(ref _recentCheck, 1) == 0)
-        {
-            Forget(Task.Run(() =>
-            {
-                var gone = false;
-                foreach (var path in unknown)
-                {
-                    var there = File.Exists(path);
-                    _recentExists[path] = there;
-                    gone |= !there;
-                }
-
-                Volatile.Write(ref _recentCheck, 0);
-                if (gone)
-                {
-                    OnWindowThread(() =>
-                    {
-                        _shownLibrary = "";
-                        ShowLibrary();
-                    });
-                }
-            }));
-        }
-
-        return recent.Where(path => _recentExists.GetValueOrDefault(path, true));
-    }
+    /// <summary>The recently played files still on the disk, each looked for once per library change rather than on every visit.</summary>
+    private IEnumerable<string> ExistingRecent() =>
+        _player.Memory.Recent.Where(path => _recentExists.GetOrAdd(path, File.Exists));
 
     /// <summary>The entries that are not audiobooks, podcasts or recordings: the same list while the library and its classification stay the same.</summary>
     private IReadOnlyList<LibraryEntry> WithoutListening(IReadOnlyList<LibraryEntry> entries)
