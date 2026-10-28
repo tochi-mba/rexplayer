@@ -400,7 +400,8 @@ public sealed partial class MacAppSmokeTests
             var titled = await Ask(pipe, new AutomationRequest { Command = "mac-window" });
             Assert.Contains(playing.Title, titled?.Text, StringComparison.Ordinal);
             Assert.Contains("minimal=False", titled?.Text, StringComparison.Ordinal);
-            Assert.Contains("context=33", titled?.Text, StringComparison.Ordinal);
+            var contextCommands = ContextMenuLayout.Groups.Sum(group => group.Commands.Count(command => command is not null));
+            Assert.Contains("context=" + contextCommands + ";", titled?.Text, StringComparison.Ordinal);
             var mainWindow = await Ask(pipe, new AutomationRequest { Command = "mac-main-window" });
             Assert.True(mainWindow?.Ok == true && mainWindow.Text?.Contains(
                 "timeline=elapsed,remaining,chapters,buffer,preview", StringComparison.Ordinal) == true,
@@ -510,7 +511,7 @@ public sealed partial class MacAppSmokeTests
             Assert.True(minimal?.Ok == true, "The Mac minimal-interface command was not handled.");
             var hiddenChrome = await Ask(pipe, new AutomationRequest { Command = "mac-window" });
             Assert.Contains("minimal=True", hiddenChrome?.Text, StringComparison.Ordinal);
-            Assert.Contains("context=33", hiddenChrome?.Text, StringComparison.Ordinal);
+            Assert.Contains("context=" + contextCommands + ";", hiddenChrome?.Text, StringComparison.Ordinal);
             await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.MinimalInterface });
             await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleAlwaysOnTop });
             var floating = await Ask(pipe, new AutomationRequest { Command = "mac-window" });
@@ -520,7 +521,7 @@ public sealed partial class MacAppSmokeTests
             await Until(
                 () => Ask(pipe, new AutomationRequest { Command = "mac-window" }),
                 reply => reply?.Text?.Contains("fullscreen=True", StringComparison.Ordinal) == true &&
-                    reply.Text.Contains("context=33", StringComparison.Ordinal),
+                    reply.Text.Contains("context=" + contextCommands + ";", StringComparison.Ordinal),
                 app, root);
             var fullScreenController = await Ask(pipe, new AutomationRequest { Command = "mac-fullscreen-controller" });
             Assert.True(fullScreenController?.Ok == true &&
