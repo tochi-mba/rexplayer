@@ -105,15 +105,18 @@ public sealed partial class MainWindow
         return thumbnail is { Type: ThumbnailType.Image } ? thumbnail : null;
     }
 
-    /// <summary>The header's backdrop for a tint: the colour at the top, fading into the page's own background at the bottom.</summary>
-    private static Brush TintBrush(Tint tint)
+    /// <summary>
+    /// A music hero's plate for a tint: the colour deepened only as far as light words need
+    /// (<see cref="Legibility"/>), a shade deeper at the bottom. It never fades into the page, which
+    /// is light in a light window, so every word on it reads in either theme.
+    /// </summary>
+    private static Brush PlateBrush(Tint tint)
     {
-        var colour = Windows.UI.Color.FromArgb(0xFF, tint.R, tint.G, tint.B);
-        var page = RexTheme.Resource("SolidBackgroundFillColorBase") is Windows.UI.Color background ? background : RexTheme.Color(DesignTokens.DarkInk[2]);
+        var plate = Legibility.Toward(Argb(tint), DesignTokens.DarkInk[0], Legibility.LightWords, Legibility.BodyContrast);
+        var deeper = Legibility.Over(DesignTokens.WithAlpha(DesignTokens.DarkInk[0], 0x66), plate);
         var brush = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 0), EndPoint = new Windows.Foundation.Point(0, 1) };
-        brush.GradientStops.Add(new GradientStop { Color = colour, Offset = 0 });
-        brush.GradientStops.Add(new GradientStop { Color = Windows.UI.Color.FromArgb(0xFF, (byte)((colour.R + page.R) / 2), (byte)((colour.G + page.G) / 2), (byte)((colour.B + page.B) / 2)), Offset = 0.6 });
-        brush.GradientStops.Add(new GradientStop { Color = page, Offset = 1 });
+        brush.GradientStops.Add(new GradientStop { Color = RexTheme.Color(plate), Offset = 0 });
+        brush.GradientStops.Add(new GradientStop { Color = RexTheme.Color(deeper), Offset = 1 });
         return brush;
     }
 }

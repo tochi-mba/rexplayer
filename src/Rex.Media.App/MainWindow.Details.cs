@@ -124,7 +124,8 @@ public sealed partial class MainWindow
         _placeKey = LibraryPlaces.Key(_librarySource.ToString(), _libraryGroup?.Name, _librarySource == LibrarySource.Albums ? _libraryGroup?.Detail : null,
             _librarySeason?.Name, DetailsMark + _details.Count.ToString(System.Globalization.CultureInfo.InvariantCulture) + " " + stop.Key);
         _selectionView = _placeKey;
-        LibraryHome.Visibility = LibraryHero.Visibility = Visibility.Visible;
+        LibraryHome.Visibility = Visibility.Visible;
+        ShowLibraryTitleOnly(false);
         LibraryList.Visibility = LibraryCollage.Visibility = Visibility.Collapsed;
         foreach (var control in new FrameworkElement[] { LibraryLookButton, LibrarySortButton, LibraryGroupButton, LibraryFilterButton, LibrarySizePanel, LibraryFolderActions, LibrarySeasonPicker })
         {

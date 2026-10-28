@@ -54,7 +54,9 @@ public sealed partial class MainWindow
         AutomationProperties.SetName(LibraryCredit, credit?.Text ?? "");
         _shownTrailer = trailer;
         LibraryTrailer.Visibility = trailer is null ? Visibility.Collapsed : Visibility.Visible;
-        LibraryHeroArtBox.Height = poster ? 225 : 150;
+        // Movies and shows wear their posters, everything else square artwork; Back over it never outgrows it.
+        (LibraryHeroArtBox.Width, LibraryHeroArtBox.Height) = poster ? (HeroPosterWidth, HeroPosterHeight) : (HeroCoverSide, HeroCoverSide);
+        LibraryBack.MaxWidth = LibraryHeroArtBox.Width;
 
         // A metadata refresh can arrive while the page is scrolled. Keep the compact header's
         // deliberate visibility choices instead of letting newly populated text expand it.
@@ -73,33 +75,28 @@ public sealed partial class MainWindow
         _wideWork?.Cancel();
         _wideWork?.Dispose();
         _wideWork = null;
-        LibraryHeroWide.Source = null;
+        LibraryHeroWideBrush.ImageSource = null;
         LibraryHeroWide.Opacity = 0;
         if (backdrop is not null)
         {
+            // Decoded tiny, like the artwork behind the words: under the plate it is only ever a blur.
             _wideWork = new CancellationTokenSource();
-            ShowRemotePicture(backdrop, ShownWidth(LibraryHero), picture =>
+            ShowRemotePicture(backdrop, BlurSide, picture =>
             {
                 if (_shownWide == wide)
                 {
-                    LibraryHeroWide.Source = picture;
-                    LibraryHeroWide.Opacity = 0.6;
+                    LibraryHeroWideBrush.ImageSource = picture;
+                    LibraryHeroWide.Opacity = 1;
                 }
             }, _wideWork.Token);
         }
     }
 
-    /// <summary>
-    /// The banner's pictures take its words' height (and never less than its least), so a title's
-    /// synopsis can grow the banner while a picture, however tall, never stretches it.
-    /// </summary>
-    private void OnLibraryHeroSized(object sender, SizeChangedEventArgs e) =>
-        LibraryHeroBackdrop.Height = LibraryHeroWide.Height = Math.Max(LibraryHero.MinHeight, e.NewSize.Height);
-
-    private static void ShowText(TextBlock block, string text)
+    /// <summary>A line of the banner's words, hidden when it says nothing and while the header is compact.</summary>
+    private void ShowText(TextBlock block, string text)
     {
         block.Text = text;
-        block.Visibility = text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        block.Visibility = text.Length > 0 && !_libraryHeaderCompact ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>A cast member's photo in the banner's frame, when their card had one.</summary>
@@ -111,13 +108,22 @@ public sealed partial class MainWindow
         }
 
         var hero = _shownHero;
-        ShowRemotePicture(uri, (int)(150 * Scale), picture =>
+        // A photo is coming, so the words sit on the plate from the start.
+        _heroPictured = true;
+        ApplyHeroLook();
+        ShowRemotePicture(uri, (int)(HeroCoverSide * Scale), picture =>
         {
             if (_shownHero == hero)
             {
-                (LibraryHeroArt.Source, LibraryHeroBackdrop.Source) = (picture, picture);
+                LibraryHeroArt.Source = picture;
                 LibraryHeroArt.Opacity = 1;
-                LibraryHeroBackdrop.Opacity = 0.6;
+                ShowRemotePicture(uri, BlurSide, blur =>
+                {
+                    if (_shownHero == hero)
+                    {
+                        ShowHeroBackdrop(blur);
+                    }
+                }, _libraryPictures.Token);
             }
         }, _libraryPictures.Token);
     }
@@ -133,7 +139,7 @@ public sealed partial class MainWindow
         {
             // Under a page opened over the show, the page owns the banner.
             (string, Uri)? credit = TitleSections.FromTvMaze(facts) ? (TitleSections.TvMazeCredit, TitleSections.TvMazePage(facts!.CatalogueId)) : null;
-            ShowTitleExtras(TitleFacts.Show(facts), TitleSections.ShowSynopsis(facts), credit, trailer: null, poster: false, backdrop: null);
+            ShowTitleExtras(TitleFacts.Show(facts), TitleSections.ShowSynopsis(facts), credit, trailer: null, poster: true, backdrop: null);
         }
 
         var number = season?.Entries.Select(LibraryViews.EpisodeOf).FirstOrDefault(episode => episode is not null)?.Season;

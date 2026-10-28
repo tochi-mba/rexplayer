@@ -108,12 +108,22 @@ public sealed partial class MainWindow
 
     /// <summary>
     /// The hero: the featured album's cover (or the artist's portrait) beside its name and facts,
-    /// over a backdrop tinted from that picture, with Play, Shuffle and a way to open its page.
+    /// over a plate in that picture's colour, deep enough for its words in either theme, with Play,
+    /// Shuffle and a way to open its page.
     /// </summary>
     private Grid MusicHero(MusicPick pick)
     {
         var group = pick.Group;
-        var frame = new Grid { MinHeight = 268, CornerRadius = new CornerRadius(14), Padding = new Thickness(28), ColumnSpacing = 28, Background = TintBrush(AppCore.Visuals.DominantColour.Fallback) };
+        // A plate that light words read on in either theme, so the card and its buttons take the dark theme.
+        var frame = new Grid
+        {
+            MinHeight = 268,
+            CornerRadius = new CornerRadius(14),
+            Padding = new Thickness(28),
+            ColumnSpacing = 28,
+            Background = PlateBrush(AppCore.Visuals.DominantColour.Fallback),
+            RequestedTheme = ElementTheme.Dark,
+        };
         frame.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         frame.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         AutomationProperties.SetAutomationId(frame, "MusicHero");
@@ -125,7 +135,7 @@ public sealed partial class MainWindow
             Width = 212,
             Height = 212,
             CornerRadius = new CornerRadius(pick.IsArtist ? 106 : 10),
-            Background = RexTheme.Brush("LayerFillColorDefaultBrush"),
+            Background = new SolidColorBrush(RexTheme.Color(AppCore.Design.DesignTokens.DarkInk[3])),
             VerticalAlignment = VerticalAlignment.Center,
         };
         var picture = new Image { Stretch = Stretch.UniformToFill, Opacity = 0, OpacityTransition = new ScalarTransition { Duration = TimeSpan.FromMilliseconds(200) } };
@@ -141,7 +151,7 @@ public sealed partial class MainWindow
             var tint = await HeaderTintAsync(group.Entries.FirstOrDefault(), photo, token);
             if (request == _musicHeroRequest && !token.IsCancellationRequested)
             {
-                frame.Background = TintBrush(tint);
+                frame.Background = PlateBrush(tint);
             }
         }
 
@@ -155,7 +165,7 @@ public sealed partial class MainWindow
             CharacterSpacing = 80,
             Foreground = RexTheme.Brush("RexOverlaySecondaryTextBrush"),
         });
-        var name = new TextBlock { Text = group.Name, Style = (Style)Application.Current.Resources["TitleLargeTextBlockStyle"], TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 2, TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(Microsoft.UI.Colors.White) };
+        var name = new TextBlock { Text = group.Name, Style = (Style)Application.Current.Resources["TitleLargeTextBlockStyle"], TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 2, TextWrapping = TextWrapping.Wrap, Foreground = RexTheme.Brush("RexOverlayTextBrush") };
         AutomationProperties.SetAutomationId(name, "MusicHeroTitle");
         words.Children.Add(name);
         var line = pick.IsArtist
