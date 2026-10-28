@@ -115,6 +115,18 @@ public static partial class ArtworkChoice
             : new ArtworkSource(ArtworkSourceKind.GeneratedFrame, null);
     }
 
+    /// <summary>
+    /// Whether <paramref name="picture"/> is named as a show's, season's or movie's folder art: one of
+    /// <see cref="FolderNames"/> or a season's own name ("season02-poster", "specials"), as one of
+    /// <see cref="Extensions"/>, whatever its case. Only the name is read, never the disk.
+    /// </summary>
+    public static bool IsFolderArtName(string picture)
+    {
+        ArgumentNullException.ThrowIfNull(picture);
+        var name = Path.GetFileNameWithoutExtension(picture.AsSpan());
+        return OneOf(Path.GetExtension(picture.AsSpan()), Extensions) && (OneOf(name, FolderNames) || SeasonArt().IsMatch(name));
+    }
+
     /// <summary>The metadata cache's key for one episode's still, from the show's normalised name.</summary>
     public static string StillKey(string show, int season, int episode)
     {
@@ -210,6 +222,23 @@ public static partial class ArtworkChoice
         return Find([folder], [.. suffixes.Select(suffix => stem + suffix)], exists);
     }
 
+    private static bool OneOf(ReadOnlySpan<char> text, IReadOnlyList<string> choices)
+    {
+        for (var i = 0; i < choices.Count; i++)
+        {
+            if (text.Equals(choices[i], StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     [GeneratedRegex(@"(?<![\p{L}\p{N}])(?:(?:season|series|staffel|saison|temporada)[ ._-]*\d{1,3}|s\d{1,3}|specials?)(?![\p{L}\p{N}])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SeasonFolder();
+
+    /// <summary>Every name <see cref="SeasonNames"/> gives, for any season: "season02-poster", "season 2", "season-specials-poster", "specials".</summary>
+    [GeneratedRegex(@"^(?:season ?\d{1,3}|season-specials|specials)(?:-poster)?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex SeasonArt();
 }
