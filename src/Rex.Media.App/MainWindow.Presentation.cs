@@ -49,9 +49,11 @@ public sealed partial class MainWindow
         ? new SolidColorBrush(_lyricSystemColors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Foreground))
         : new SolidColorBrush(RexTheme.Color(DesignTokens.WithAlpha(DesignTokens.DarkText[0], 0xB0)));
 
+    // The stage is always dark, so the line being sung takes the dark theme's accent (the light
+    // theme's is too dark to read on black).
     private Brush LyricAccentBrush() => _lyricAccessibility.HighContrast
         ? LyricNeutralBrush()
-        : RexTheme.Brush("AccentFillColorDefaultBrush");
+        : RexTheme.Brush("AccentFillColorDefaultBrush", ElementTheme.Dark);
 
     private Brush LyricChipBrush() => _lyricAccessibility.HighContrast
         ? new SolidColorBrush(_lyricSystemColors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Background))
