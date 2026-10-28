@@ -40,6 +40,24 @@
     <Content Include="..\\..\\CHANGELOG.md" Link="CHANGELOG.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- Whisper resolves these functions from its selected runtime library. The macOS SDK would
+       otherwise keep them as native-linker references, even though the library is deliberately
+       loaded only when speech recognition is used. -->
+  <ItemGroup>
+    <ReferenceNativeSymbol Include="whisper_ctx_init_openvino_encoder_with_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_free" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_free_params" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_free_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_default_params_by_ref" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_get_segment_no_speech_prob_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_get_segment_t0_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_get_segment_t1_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_get_segment_text_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_get_token_data_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_get_token_p_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_get_token_text_from_state" SymbolType="Function" SymbolMode="Ignore" />
+  </ItemGroup>
+
   <!-- Whisper's runtime package gives a plain net10.0 project (Rex.Media.Speech) native
        libraries for every platform, and they reach this app through that reference. The macOS
        SDK treats native files present during _ComputePublishLocation as link inputs. Remove every
