@@ -26,6 +26,7 @@ public sealed partial class MainWindow
 
     private Rect _stageClip;
     private bool? _titleBesideCover;
+    private bool _stageTiny;
 
     private void WireStageLayout()
     {
@@ -92,6 +93,7 @@ public sealed partial class MainWindow
         IdleHint.Visibility = IdleHint.Text.Length == 0 || (welcome && layout.Tiny) ? Visibility.Collapsed : Visibility.Visible;
         WelcomeTagline.Visibility = layout.Tiny ? Visibility.Collapsed : Visibility.Visible;
         WelcomeActions.Margin = new Thickness(0, layout.Tiny ? 4 : 18, 0, 0);
+        _stageTiny = layout.Tiny;
 
         LyricsDock.Margin = new Thickness(layout.DockSide, 0, layout.DockSide, layout.DockBottom);
         LyricsBox.Height = layout.LyricsHeight;
@@ -152,6 +154,22 @@ public sealed partial class MainWindow
         {
             StopVisualizing();
         }
+    }
+
+    /// <summary>
+    /// What the player announces. Its title as an item starts is not put in a pill over a stage
+    /// that already shows it in large type (sound, which the window title and the transport name
+    /// too), nor over the smallest stage, where the pill would cover most of it.
+    /// </summary>
+    private void SayFromPlayer(string text)
+    {
+        if (text == _player.Title && (_stageView.ShowAudioPresentation || _stageTiny))
+        {
+            App.Log.Info(LogSource, text);
+            return;
+        }
+
+        Say(text);
     }
 
     /// <summary>The row of lyrics actions takes room only while one of them shows.</summary>
