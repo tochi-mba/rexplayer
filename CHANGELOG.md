@@ -17,6 +17,7 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 
 ### Fixed
 
+- **Song titles are readable in a dark window on a light desktop** (and the other way round). Colours the window picks in code now follow its own theme rather than Windows' theme, which had left titles in the Songs table dark grey on a dark surface; the lines also follow a change of theme at once.
 - Leaving full screen no longer leaves the playback controls with a see-through background.
 - **The Mac app builds again, so new versions can publish.** Speech recognition's Linux and Windows libraries were being packed into rexplayer.app, where the Mac's tools refused them and stopped every build since 0.31.0; only the Mac's own libraries go in now.
 

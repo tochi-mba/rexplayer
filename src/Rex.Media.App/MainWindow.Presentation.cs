@@ -51,7 +51,7 @@ public sealed partial class MainWindow
 
     private Brush LyricAccentBrush() => _lyricAccessibility.HighContrast
         ? LyricNeutralBrush()
-        : (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+        : RexTheme.Brush("AccentFillColorDefaultBrush");
 
     private Brush LyricChipBrush() => _lyricAccessibility.HighContrast
         ? new SolidColorBrush(_lyricSystemColors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Background))

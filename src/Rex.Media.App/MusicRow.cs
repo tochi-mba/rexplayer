@@ -41,7 +41,7 @@ public sealed partial class MusicRow(
     public const double PlayBarWidth = 48;
 
     /// <summary>The title's colour: the accent while it plays, the usual text colour otherwise.</summary>
-    public Brush TitleBrush => (Brush)Application.Current.Resources[IsPlaying ? "AccentTextFillColorPrimaryBrush" : "TextFillColorPrimaryBrush"];
+    public Brush TitleBrush => RexTheme.Brush(IsPlaying ? "AccentTextFillColorPrimaryBrush" : "TextFillColorPrimaryBrush");
 
     /// <summary>The number in an album's leading column, hidden while the equaliser stands in its place.</summary>
     public Visibility NumberVisibility => IsPlaying ? Visibility.Collapsed : Visibility.Visible;
@@ -51,6 +51,9 @@ public sealed partial class MusicRow(
 
     /// <summary>The first artist the song is by, which its artist link opens.</summary>
     public string? ArtistLink { get; init; }
+
+    /// <summary>Picks the title's colour again, for a window whose theme just changed.</summary>
+    public void RefreshTheme() => Changed(nameof(TitleBrush));
 
     protected override void PlayingChanged()
     {

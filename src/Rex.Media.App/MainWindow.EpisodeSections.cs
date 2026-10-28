@@ -227,7 +227,7 @@ public sealed partial class MainWindow
         _shownSectionMarks = shown;
         SectionMarkers.Children.Clear();
         _sectionMarks.Clear();
-        var accent = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+        var accent = RexTheme.Brush("AccentFillColorDefaultBrush");
         foreach (var view in marks)
         {
             var (start, end) = (view.Start!.Value, view.End!.Value);

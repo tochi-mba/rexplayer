@@ -334,7 +334,7 @@ public sealed partial class MainWindow
         var standardLabel = systemText ?? RexTheme.Brush("RexOverlaySecondaryTextBrush");
         var standardTitle = systemText ?? RexTheme.Brush("RexOverlayTextBrush");
         var background = colors is null
-            ? (Brush)Application.Current.Resources["LayerFillColorDefaultBrush"]
+            ? RexTheme.Brush("LayerFillColorDefaultBrush")
             : new SolidColorBrush(colors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Background));
         var frame = new Grid { Height = 320, CornerRadius = new CornerRadius(12), Background = background };
         AutomationProperties.SetAutomationId(frame, "LibraryBillboard");

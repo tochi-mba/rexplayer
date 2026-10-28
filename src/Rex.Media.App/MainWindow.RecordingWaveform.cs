@@ -1,7 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using Rex.Media.AppCore;
 using Rex.Media.AppCore.Captions;
 using Rex.Media.AppCore.Library;
@@ -144,7 +143,7 @@ public sealed partial class MainWindow
             current = -1;
             end.Text = "End " + TimeText.Format(snapshot.Duration, snapshot.Duration);
             middle.Text = "Middle " + TimeText.Format(snapshot.Duration / 2, snapshot.Duration);
-            var accent = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+            var accent = RexTheme.Brush("AccentFillColorDefaultBrush");
             for (var index = 0; index < snapshot.Peaks.Length; index++)
             {
                 var at = RecordingWaveform.At(snapshot.Duration, index, snapshot.Peaks.Length);
