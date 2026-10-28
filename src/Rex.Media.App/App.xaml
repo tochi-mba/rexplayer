@@ -58,6 +58,8 @@
       <SolidColorBrush x:Key="RexAttentionBrush" Color="#FFFF7C60" />
       <SolidColorBrush x:Key="RexOverlayBrush" Color="#C00B0F0C" />
       <SolidColorBrush x:Key="RexStrongOverlayBrush" Color="#F20B0F0C" />
+      <!-- A panel on the stage that nothing behind it may show through, such as a wait with its own heading. -->
+      <SolidColorBrush x:Key="RexStageSurfaceBrush" Color="#FF0B0F0C" />
       <SolidColorBrush x:Key="RexOverlayTextBrush" Color="#FFF2F5F0" />
       <SolidColorBrush x:Key="RexOverlaySecondaryTextBrush" Color="#FFB8C4BC" />
       <SolidColorBrush x:Key="RexOverlayTertiaryTextBrush" Color="#FF8A968E" />

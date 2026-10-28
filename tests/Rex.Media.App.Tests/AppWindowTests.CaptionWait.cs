@@ -28,7 +28,8 @@ public sealed partial class AppWindowTests
         app.Run(CommandCatalog.Transcribe);
         Wait.For(() => app.IsShown("CaptionBufferOverlay") && app.Status().State == "Paused", "playback to wait for captions",
             () => $"State: {app.Status().State}; rail: {app.Text("SubtitleBufferState")}; log: {app.LogText}");
-        Assert.StartsWith("Preparing captions", app.Text("CaptionBufferOverlayText"), StringComparison.Ordinal);
+        // The overlay's heading says what is happening once; its words add how far it has got.
+        Assert.DoesNotContain("Preparing captions", app.Text("CaptionBufferOverlayText"), StringComparison.Ordinal);
         Assert.Contains("Playback will start automatically", app.Text("CaptionBufferOverlayText"), StringComparison.Ordinal);
         Assert.True(app.IsShown("CaptionBufferPlayNow"), "The wait can always be skipped.");
 
@@ -53,7 +54,7 @@ public sealed partial class AppWindowTests
         Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 1000) < 2 &&
             Math.Abs(app.Window.Current.BoundingRectangle.Height - 700) < 2,
             "the pinned caption-loading viewport");
-        Assert.StartsWith("Preparing captions", app.Text("CaptionBufferOverlayText"), StringComparison.Ordinal);
+        Assert.Contains("Playback will start automatically", app.Text("CaptionBufferOverlayText"), StringComparison.Ordinal);
         Screenshots.Match(app, "caption-buffer-loading");
         app.Press("CaptionBufferPlayNow");
         Wait.For(() => !app.IsShown("CaptionBufferOverlay") && app.Status().State == "Playing", "Play now to start playback");
