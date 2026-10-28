@@ -24,27 +24,30 @@ public sealed partial class MainWindow
     private const string MostPlayedShelf = "Your most played";
     private const string DownloadingShelf = "Downloading";
 
+    // Segoe Fluent Icons glyphs, also in Segoe MDL2 Assets, one meaning each and no two views alike: Home, Audio,
+    // MusicNote, MusicAlbum, Contact, Tag, Dictionary, Contact2, Streaming, Microphone, Movies, TVMonitor, Video,
+    // ViewAll, Photo, Play, Completed, History, DateTime, BulletedList and Folder.
     private static readonly (LibrarySource Source, LibrarySourceItem Item)[] LibrarySourceItems =
     [
         (LibrarySource.Home, new("\uE80F", "Home")),
-        (LibrarySource.Music, new("\uE189", "Music")),
-        (LibrarySource.Songs, new("\uE8D6", "Songs")),
+        (LibrarySource.Music, new("\uE8D6", "Music")),
+        (LibrarySource.Songs, new("\uEC4F", "Songs")),
         (LibrarySource.Albums, new("\uE93C", "Albums")),
         (LibrarySource.Artists, new("\uE77B", "Artists")),
         (LibrarySource.Genres, new("\uE8EC", "Genres")),
         (LibrarySource.Audiobooks, new("\uE82D", "Audiobooks")),
-        (LibrarySource.Authors, new("\uE77B", "Authors")),
-        (LibrarySource.Podcasts, new("\uE720", "Podcasts")),
-        (LibrarySource.Recordings, new("\uE1D6", "Recordings")),
-        (LibrarySource.Movies, new("\uE714", "Movies")),
-        (LibrarySource.TvShows, new("\uE80F", "TV Shows")),
-        (LibrarySource.OtherVideos, new("\uE722", "Other videos")),
-        (LibrarySource.Videos, new("\uE8FD", "All videos")),
+        (LibrarySource.Authors, new("\uE8D4", "Authors")),
+        (LibrarySource.Podcasts, new("\uE93E", "Podcasts")),
+        (LibrarySource.Recordings, new("\uE720", "Recordings")),
+        (LibrarySource.Movies, new("\uE8B2", "Movies")),
+        (LibrarySource.TvShows, new("\uE7F4", "TV Shows")),
+        (LibrarySource.OtherVideos, new("\uE714", "Other videos")),
+        (LibrarySource.Videos, new("\uE8A9", "All videos")),
         (LibrarySource.Pictures, new("\uE91B", "Pictures")),
         (LibrarySource.ContinueWatching, new("\uE768", "Continue watching")),
-        (LibrarySource.Completed, new("\uE73E", "Completed")),
+        (LibrarySource.Completed, new("\uE930", "Completed")),
         (LibrarySource.RecentlyPlayed, new("\uE81C", "Recently played")),
-        (LibrarySource.RecentlyAdded, new("\uE710", "Recently added")),
+        (LibrarySource.RecentlyAdded, new("\uEC92", "Recently added")),
         (LibrarySource.Playlists, new("\uE8FD", "Playlists")),
         (LibrarySource.Folders, new("\uE8B7", "Folders")),
     ];

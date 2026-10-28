@@ -49,8 +49,7 @@
       <x:Double x:Key="LibraryNavigationCompactWidth">64</x:Double>
       <x:Double x:Key="LibraryNavigationItemHeight">44</x:Double>
       <x:Double x:Key="LibraryBrandFontSize">20</x:Double>
-      <Thickness x:Key="LibraryNavigationItemMargin">8,2</Thickness>
-      <CornerRadius x:Key="LibraryNavigationItemRadius">10</CornerRadius>
+      <Thickness x:Key="LibraryNavigationItemMargin">12,2</Thickness>
       <!-- Colours that stay the same in every theme: they sit on the picture, which is always dark. -->
       <Color x:Key="SignalColor">#FFD7FF3F</Color>
       <SolidColorBrush x:Key="SignalBrush" Color="{StaticResource SignalColor}" />

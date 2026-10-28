@@ -329,12 +329,12 @@
           <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
         <Grid Grid.Column="0" Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
-          <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+          <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
           <StackPanel x:Name="LibraryBrand" Margin="20,18,48,8" Spacing="2" IsHitTestVisible="False">
             <TextBlock Text="rexplayer" FontSize="{StaticResource LibraryBrandFontSize}" FontWeight="SemiBold" CharacterSpacing="-30" />
             <TextBlock Text="YOUR LIBRARY" FontSize="10" CharacterSpacing="140" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           </StackPanel>
-          <Button x:Name="LibraryNavigationToggle" Width="40" Height="40" Margin="8,8,8,0" HorizontalAlignment="Right"
+          <Button x:Name="LibraryNavigationToggle" Width="40" Height="40" Margin="12,8,12,0" HorizontalAlignment="Right"
                   Click="OnLibraryNavigationToggle" ToolTipService.ToolTip="Collapse library navigation"
                   AutomationProperties.AutomationId="LibraryNavigationToggle" AutomationProperties.Name="Collapse library navigation">
             <FontIcon x:Name="LibraryNavigationToggleIcon" Glyph="&#xE76B;" FontSize="16" />
@@ -342,15 +342,19 @@
           <ListView x:Name="LibrarySources" Grid.Row="1" SelectionMode="Single" Padding="0,8,0,12" Background="Transparent" ShowsScrollingPlaceholders="False"
                     ItemContainerStyle="{StaticResource LibrarySourceItemStyle}"
                     ItemTemplate="{StaticResource LibrarySourceTemplate}"
-                    SelectionChanged="OnLibrarySourceChanged" AutomationProperties.AutomationId="LibrarySources" AutomationProperties.Name="Library views" />
-          <Button Grid.Row="2" Margin="8,8,8,16" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                  Click="OnLibraryAddFolder" AutomationProperties.AutomationId="LibraryQuickAddFolder"
-                  AutomationProperties.Name="Add a folder to your library" ToolTipService.ToolTip="Add a folder to your library">
-            <StackPanel Orientation="Horizontal" Spacing="10">
-              <FontIcon Glyph="&#xE710;" FontSize="14" />
-              <TextBlock x:Name="LibraryQuickAddText" Text="Add folder" />
-            </StackPanel>
-          </Button>
+                    SelectionChanged="OnLibrarySourceChanged" AutomationProperties.AutomationId="LibrarySources" AutomationProperties.Name="Library views">
+            <!-- Adding a folder follows the last view, inside the list's scrolling, so it never covers a view on a short window. -->
+            <ListView.Footer>
+              <Button x:Name="LibraryQuickAdd" Margin="12,8,12,4" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                      Click="OnLibraryAddFolder" AutomationProperties.AutomationId="LibraryQuickAddFolder"
+                      AutomationProperties.Name="Add a folder to your library" ToolTipService.ToolTip="Add a folder to your library">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <FontIcon Glyph="&#xE8F4;" FontSize="14" />
+                  <TextBlock x:Name="LibraryQuickAddText" Text="Add folder" />
+                </StackPanel>
+              </Button>
+            </ListView.Footer>
+          </ListView>
         </Grid>
         <Grid Grid.Column="1" Margin="10,10,12,12" CornerRadius="16"
               Background="{ThemeResource LibrarySurfaceBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
