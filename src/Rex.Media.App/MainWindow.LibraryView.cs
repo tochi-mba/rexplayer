@@ -140,6 +140,7 @@ public sealed partial class MainWindow
 
         BuildLibrary();
         ShowDownloads();
+        ShowLibraryHeaderRows();
     }
 
     private void BuildLibrary()
@@ -163,7 +164,7 @@ public sealed partial class MainWindow
         var sameRoute = selectionView == _selectionView;
         if (!sameRoute)
         {
-            SetLibraryHeaderCompact(false);
+            RefreshLibraryHeader(0);
         }
         var selected = sameRoute
             ? SelectedLibraryRows().Select(SelectionIdentity).ToHashSet(StringComparer.OrdinalIgnoreCase)
@@ -206,8 +207,7 @@ public sealed partial class MainWindow
         LibraryHome.Visibility = home || browse || musicHome ? Visibility.Visible : Visibility.Collapsed;
         LibraryList.Visibility = home || browse || musicHome ? Visibility.Collapsed : Visibility.Visible;
         LibraryCollage.Visibility = Visibility.Collapsed;
-        LibraryHero.Visibility = browse || musicHome ? Visibility.Collapsed : Visibility.Visible;
-        ApplySmallHomeViewport(home);
+        ShowLibraryTitleOnly(browse || musicHome);
         if (home || browse || musicHome)
         {
             ShowMusicPageExtras(null, songsTable: false);

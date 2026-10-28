@@ -395,68 +395,77 @@
         <Grid Grid.Column="1" Margin="10,10,12,12" CornerRadius="16"
               Background="{ThemeResource LibrarySurfaceBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
           <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-          <!-- The view's banner: its artwork, blurred behind and sharp in front, its name, what it holds, and what to do with it. -->
-          <Grid x:Name="LibraryHero" MinHeight="196" AutomationProperties.AutomationId="LibraryHero"
+          <!-- The view's banner: its artwork, blurred behind and sharp in front, its name, what it holds, and what to do with it.
+               Behind the words the artwork is decoded so small that, stretched, it is a blur, under a plate that keeps the
+               words readable over any picture and fades into the page below them (MainWindow.LibraryHeroLook.cs). The fills
+               take no part in layout, so the banner is always as tall as its words. -->
+          <Grid x:Name="LibraryHero" AutomationProperties.AutomationId="LibraryHero"
                 AutomationProperties.Name="Expanded library header">
-            <Image x:Name="LibraryHeroBackdrop" Height="196" VerticalAlignment="Top" Stretch="UniformToFill" Opacity="0.6">
-              <Image.OpacityTransition><ScalarTransition Duration="0:0:0.25" /></Image.OpacityTransition>
-            </Image>
-            <!-- A title's own wide backdrop, fetched lazily at the banner's size, over the blurred artwork. The pictures take
-                 the height of the words beside them (OnLibraryHeroSized), so a tall picture never stretches the banner. -->
-            <Image x:Name="LibraryHeroWide" Height="196" VerticalAlignment="Top" Stretch="UniformToFill" Opacity="0">
-              <Image.OpacityTransition><ScalarTransition Duration="0:0:0.25" /></Image.OpacityTransition>
-            </Image>
-            <Rectangle>
-              <Rectangle.Fill>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                  <GradientStop Color="{StaticResource RexScrimSoftColor}" Offset="0" />
-                  <GradientStop Color="{ThemeResource SolidBackgroundFillColorBase}" Offset="1" />
-                </LinearGradientBrush>
-              </Rectangle.Fill>
+            <Rectangle x:Name="LibraryHeroBackdrop" Opacity="0">
+              <Rectangle.Fill><ImageBrush x:Name="LibraryHeroBackdropBrush" Stretch="UniformToFill" /></Rectangle.Fill>
+              <Rectangle.OpacityTransition><ScalarTransition Duration="0:0:0.25" /></Rectangle.OpacityTransition>
             </Rectangle>
-            <Grid x:Name="LibraryHeroContent" Padding="28,24,28,22" ColumnSpacing="24" SizeChanged="OnLibraryHeroSized">
+            <!-- A title's own wide backdrop, fetched lazily and blurred the same way, over the artwork once it comes. -->
+            <Rectangle x:Name="LibraryHeroWide" Opacity="0">
+              <Rectangle.Fill><ImageBrush x:Name="LibraryHeroWideBrush" Stretch="UniformToFill" /></Rectangle.Fill>
+              <Rectangle.OpacityTransition><ScalarTransition Duration="0:0:0.25" /></Rectangle.OpacityTransition>
+            </Rectangle>
+            <Border x:Name="LibraryHeroPlate" Visibility="Collapsed">
+              <Border.BackgroundTransition><BrushTransition /></Border.BackgroundTransition>
+            </Border>
+            <Rectangle x:Name="LibraryHeroFade" Visibility="Collapsed" VerticalAlignment="Bottom" />
+            <Grid x:Name="LibraryHeroContent" Padding="24,20,24,8" ColumnSpacing="24">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
               </Grid.ColumnDefinitions>
-              <Border x:Name="LibraryHeroArtBox" AutomationProperties.AutomationId="LibraryHeroArtBox" Width="150" Height="150" CornerRadius="12" VerticalAlignment="Bottom" Background="{ThemeResource LayerFillColorDefaultBrush}">
-                <Grid>
-                  <FontIcon x:Name="LibraryHeroGlyph" Glyph="&#xE8D6;" FontSize="56" Opacity="0.45" />
-                  <Image x:Name="LibraryHeroArt" Stretch="UniformToFill" AutomationProperties.AutomationId="LibraryHeroArt">
-                    <Image.OpacityTransition><ScalarTransition Duration="0:0:0.25" /></Image.OpacityTransition>
-                  </Image>
-                </Grid>
-              </Border>
-              <StackPanel x:Name="LibraryHeroWords" Grid.Column="1" VerticalAlignment="Bottom" Spacing="6">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Button x:Name="LibraryBack" Visibility="Collapsed" Click="OnLibraryBack" AutomationProperties.AutomationId="LibraryBack" AutomationProperties.Name="Back"
-                          ToolTipService.ToolTip="Back (Alt+Left)" Padding="10,5">
-                    <Button.KeyboardAccelerators>
-                      <KeyboardAccelerator Key="Left" Modifiers="Menu" />
-                    </Button.KeyboardAccelerators>
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                      <FontIcon Glyph="&#xE72B;" FontSize="12" />
-                      <TextBlock x:Name="LibraryBackText" Text="Back" />
-                    </StackPanel>
-                  </Button>
-                  <TextBlock x:Name="LibraryKicker" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold" CharacterSpacing="80"
-                             Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.AutomationId="LibraryKicker" />
-                </StackPanel>
-                <TextBlock x:Name="LibraryTitle" Style="{ThemeResource TitleLargeTextBlockStyle}" TextTrimming="CharacterEllipsis" MaxLines="1"
-                           AutomationProperties.AutomationId="LibraryTitle" />
-                <TextBlock x:Name="LibrarySubtitle" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"
+              <!-- Back sits over the artwork, so the kicker lines up with the title; the compact header puts it before the title. -->
+              <Grid x:Name="LibraryHeroAside">
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                <Button x:Name="LibraryBack" Visibility="Collapsed" Click="OnLibraryBack" AutomationProperties.AutomationId="LibraryBack" AutomationProperties.Name="Back"
+                        ToolTipService.ToolTip="Back (Alt+Left)" Padding="10,5" Margin="0,0,0,12" HorizontalAlignment="Left" VerticalAlignment="Top" MaxWidth="150">
+                  <Button.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="Left" Modifiers="Menu" />
+                  </Button.KeyboardAccelerators>
+                  <Grid ColumnSpacing="6">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <FontIcon Glyph="&#xE72B;" FontSize="12" />
+                    <TextBlock x:Name="LibraryBackText" Grid.Column="1" Text="Back" TextTrimming="CharacterEllipsis" />
+                  </Grid>
+                </Button>
+                <Border x:Name="LibraryHeroArtBox" Grid.Row="2" AutomationProperties.AutomationId="LibraryHeroArtBox" Width="150" Height="150" CornerRadius="{StaticResource RexCardRadius}"
+                        HorizontalAlignment="Left" VerticalAlignment="Bottom" Background="{ThemeResource RexRaisedBrush}">
+                  <Grid>
+                    <FontIcon x:Name="LibraryHeroGlyph" Glyph="&#xE8D6;" FontSize="56" Opacity="0.45" />
+                    <Image x:Name="LibraryHeroArt" Stretch="UniformToFill" AutomationProperties.AutomationId="LibraryHeroArt">
+                      <Image.OpacityTransition><ScalarTransition Duration="0:0:0.25" /></Image.OpacityTransition>
+                    </Image>
+                  </Grid>
+                </Border>
+              </Grid>
+              <!-- One row each, so the compact header can put the actions beside the title (MainWindow.LibraryHeader.cs). -->
+              <Grid x:Name="LibraryHeroWords" Grid.Column="1" VerticalAlignment="Bottom">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                  <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                <TextBlock x:Name="LibraryKicker" Grid.ColumnSpan="2" FontSize="12" FontWeight="SemiBold" CharacterSpacing="80"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.AutomationId="LibraryKicker" />
+                <TextBlock x:Name="LibraryTitle" Grid.Row="1" Grid.ColumnSpan="2" Margin="0,2,0,0" Style="{ThemeResource TitleLargeTextBlockStyle}" TextTrimming="CharacterEllipsis" MaxLines="1"
+                           VerticalAlignment="Center" AutomationProperties.AutomationId="LibraryTitle" />
+                <!-- Row 2 holds an album's artists (MainWindow.AlbumPage.cs). -->
+                <TextBlock x:Name="LibrarySubtitle" Grid.Row="3" Grid.ColumnSpan="2" Margin="0,4,0,0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"
                            AutomationProperties.AutomationId="LibrarySubtitle" />
                 <!-- A title's details, each hidden when there is nothing to say: its facts or its makers, its synopsis and the synopsis's credit. -->
-                <TextBlock x:Name="LibraryFacts" Visibility="Collapsed" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" MaxLines="2"
+                <TextBlock x:Name="LibraryFacts" Grid.Row="4" Grid.ColumnSpan="2" Margin="0,4,0,0" Visibility="Collapsed" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" MaxLines="2"
                            TextTrimming="CharacterEllipsis" MaxWidth="760" HorizontalAlignment="Left" AutomationProperties.AutomationId="LibraryFacts" />
-                <TextBlock x:Name="LibraryOverview" Visibility="Collapsed" TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis" MaxWidth="760"
-                           HorizontalAlignment="Left" Margin="0,6,0,0" AutomationProperties.AutomationId="LibraryOverview" />
-                <HyperlinkButton x:Name="LibraryCredit" Visibility="Collapsed" Padding="0" FontSize="11" Margin="0,2,0,0"
+                <TextBlock x:Name="LibraryOverview" Grid.Row="5" Grid.ColumnSpan="2" Visibility="Collapsed" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" MaxWidth="760"
+                           HorizontalAlignment="Left" Margin="0,8,0,0" AutomationProperties.AutomationId="LibraryOverview" />
+                <HyperlinkButton x:Name="LibraryCredit" Grid.Row="6" Grid.ColumnSpan="2" Visibility="Collapsed" Padding="0" FontSize="11" Margin="0,2,0,0"
                                  AutomationProperties.AutomationId="LibraryCredit" />
-                <ScrollViewer HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
+                <ScrollViewer x:Name="LibraryHeroActions" Grid.Row="7" Grid.ColumnSpan="2" Margin="0,12,0,0" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
                               VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled"
                               AutomationProperties.Name="Library actions">
-                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
+                <StackPanel x:Name="LibraryHeroActionRow" Orientation="Horizontal" Spacing="8">
                   <Button x:Name="LibraryPlay" Click="OnLibraryPlay" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="LibraryPlay"
                           ToolTipService.ToolTip="Play the chosen items, or all of them (Enter)">
                     <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE768;" FontSize="14" /><TextBlock x:Name="LibraryPlayText" Text="Play" AutomationProperties.AutomationId="LibraryPlayText" /></StackPanel>
@@ -487,25 +496,27 @@
                   </StackPanel>
                 </StackPanel>
                 </ScrollViewer>
-              </StackPanel>
+              </Grid>
             </Grid>
           </Grid>
-          <!-- How the view is shown: its layout, order, grouping and card size, each kept per view. -->
-          <Grid x:Name="LibraryViewOptionsHost" Grid.Row="1" Margin="24,0,24,8" RowSpacing="8" HorizontalAlignment="Stretch">
+          <!-- Search, then how the view is shown: its layout, order, grouping and card size, each kept per view, with the
+               library's scan status and transcription queue at the end of that row. A row with nothing to show is left out
+               (MainWindow.LibraryHeaderRows.cs). -->
+          <Grid x:Name="LibraryViewOptionsHost" Grid.Row="1" Margin="24,12,24,0" HorizontalAlignment="Stretch">
             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-            <Grid Grid.Row="0" ColumnSpacing="12" RowSpacing="6" HorizontalAlignment="Stretch">
-              <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+            <TextBox x:Name="LibrarySearch" Margin="0,0,0,4" MinWidth="120" HorizontalAlignment="Stretch" PlaceholderText="Search the library" ToolTipService.ToolTip="Search by title, artist, album or filename" TextChanged="OnLibrarySearchChanged" PreviewKeyDown="OnLibrarySearchPreviewKeyDown"
+                     AutomationProperties.AutomationId="LibrarySearch" AutomationProperties.Name="Search the library" />
+            <Grid x:Name="LibraryToolbar" Grid.Row="1" ColumnSpacing="12">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
-            <TextBox x:Name="LibrarySearch" Grid.Row="0" Grid.ColumnSpan="2" MinWidth="120" HorizontalAlignment="Stretch" PlaceholderText="Search the library" ToolTipService.ToolTip="Search by title, artist, album or filename" TextChanged="OnLibrarySearchChanged" PreviewKeyDown="OnLibrarySearchPreviewKeyDown"
-                     AutomationProperties.AutomationId="LibrarySearch" AutomationProperties.Name="Search the library" />
-            <TextBlock x:Name="LibraryStatus" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       TextTrimming="CharacterEllipsis" Margin="8,0" AutomationProperties.AutomationId="LibraryStatus"
+            <TextBlock x:Name="LibraryStatus" Grid.Column="1" MaxWidth="280" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       TextTrimming="CharacterEllipsis" AutomationProperties.AutomationId="LibraryStatus"
                        AutomationProperties.HelpText="Library scan status" AutomationProperties.LiveSetting="Polite" />
             <!-- A compact, clickable job count. Open it for the real queue, filenames and progress. -->
-            <DropDownButton x:Name="LibraryTranscription" Grid.Row="1" Grid.Column="1" Visibility="Collapsed" MaxWidth="240"
+            <DropDownButton x:Name="LibraryTranscription" Grid.Column="2" Visibility="Collapsed" MaxWidth="240" VerticalAlignment="Center"
                             AutomationProperties.AutomationId="LibraryTranscription" AutomationProperties.Name="Transcription queue"
                             ToolTipService.ToolTip="Open transcription queue and controls">
               <StackPanel Orientation="Horizontal" Spacing="6">
@@ -553,8 +564,7 @@
                 </Flyout>
               </DropDownButton.Flyout>
             </DropDownButton>
-            </Grid>
-            <ScrollViewer Grid.Row="1" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
+            <ScrollViewer HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
                           VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled"
                           AutomationProperties.Name="Library view options">
           <Grid Padding="0,4,0,8" ColumnSpacing="8">
@@ -576,6 +586,7 @@
             </StackPanel>
           </Grid>
             </ScrollViewer>
+            </Grid>
           </Grid>
           <ListView x:Name="LibraryList" Grid.Row="2" Padding="18,0,18,8" SelectionMode="Extended" IsItemClickEnabled="False" IsTabStop="True" Tapped="OnLibraryTapped" DoubleTapped="OnLibraryDoubleTapped" PreviewKeyDown="OnLibraryKeyDown"
                      ScrollViewer.VerticalScrollMode="Enabled" ScrollViewer.VerticalScrollBarVisibility="Auto"

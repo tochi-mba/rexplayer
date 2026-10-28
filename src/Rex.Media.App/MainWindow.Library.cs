@@ -476,6 +476,7 @@ public sealed partial class MainWindow
     private void ShowLibraryStatus()
     {
         LibraryStatus.Text = _scanner?.Status ?? "";
+        ShowLibraryHeaderRows();
 
         // A scan that finds nothing new changes no entries, so the view is never rebuilt: an empty
         // one would go on saying it is looking, or never say so.

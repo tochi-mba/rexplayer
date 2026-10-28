@@ -676,6 +676,7 @@ public sealed partial class MainWindow
         var settings = _settings.Transcription;
         var shown = settings.Library || _askedTranscripts.Count > 0 || _worker is not null;
         LibraryTranscription.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
+        ShowLibraryHeaderRows();
         if (!shown)
         {
             return;

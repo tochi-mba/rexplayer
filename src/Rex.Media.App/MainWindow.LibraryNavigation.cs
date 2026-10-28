@@ -36,37 +36,14 @@ public sealed partial class MainWindow
         ApplyLibraryNavigationWidth();
     }
 
+    // A short library gets the compact header on every view, keeping the title and Back, and Home in
+    // a tiny one (the supported 360×430 minimum) gives its search and options to its shelves, so the
+    // shelf viewport stays mounted; both come back when there is room (LibraryHeaderLayout).
     private void OnLibraryPaneSized(object sender, SizeChangedEventArgs e)
     {
         ApplyLibraryNavigationWidth();
-        ApplySmallHomeViewport(LibraryHome.Visibility == Visibility.Visible);
-        // At the supported 360×430 minimum the 196px expanded header, view
-        // controls and outer margins otherwise leave the Home shelf ScrollViewer
-        // with zero height. Keep the hero's title and Back accessible, but use
-        // the compact 128px header so the actual shelf viewport remains mounted.
-        // Re-expand when there is adequate vertical room.
-        if (e.NewSize.Height > 0 && e.NewSize.Height < 550)
-        {
-            SetLibraryHeaderCompact(true);
-        }
-        else if (e.NewSize.Height >= 550 && LibraryHome.Visibility == Visibility.Visible)
-        {
-            SetLibraryHeaderCompact(false);
-        }
-    }
-
-    // On a 360x430 desktop the search/filter toolbar and expanded header
-    // otherwise consume every row of the Home scroll viewport. Shelves and
-    // navigation have priority until more height is available. Other routes
-    // keep their search and filters even at the same small window size.
-    private void ApplySmallHomeViewport(bool home)
-    {
-        var tinyHome = home && LibraryPane.ActualHeight is > 0 and < 550;
-        LibraryViewOptionsHost.Visibility = tinyHome ? Visibility.Collapsed : Visibility.Visible;
-        if (tinyHome)
-        {
-            SetLibraryHeaderCompact(true);
-        }
+        ShowLibraryHeaderRows();
+        RefreshLibraryHeader();
     }
 
     /// <summary>

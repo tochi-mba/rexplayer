@@ -10,19 +10,14 @@ namespace Rex.Media.App;
 
 /// <summary>
 /// An album's page and the Songs table, the streaming-style way (LIB-05). The album keeps the
-/// library's banner and virtualised list, made its own: a larger cover over a backdrop tinted from
-/// it, each artist a link, the release's kind, year, songs and length, Play, Shuffle, Add and a
+/// library's banner and virtualised list, made its own: the cover over a plate of the cover's own
+/// colour, each artist a link, the release's kind, year, songs and length, Play, Shuffle, Add and a
 /// "..." menu, then numbered tracks (the playing one marked, featured artists under the title, a
 /// subtle bar of plays), disc headings for a set, and under the list the release facts a lookup
 /// found and more by the same artist. <see cref="AlbumPage"/> decides; this file draws.
 /// </summary>
 public sealed partial class MainWindow
 {
-    private const double AlbumHeroHeight = 248;
-    private const double AlbumCoverSide = 200;
-    private const double HeroHeight = 196;
-    private const double HeroCoverSide = 150;
-
     /// <summary>Whether the open view is the Songs table, whose lines carry its columns.</summary>
     private bool _songsTable;
 
@@ -97,10 +92,8 @@ public sealed partial class MainWindow
         if (album is null)
         {
             ++_albumTintRequest;
-            LibraryHero.Background = null;
-            SetExpandedLibraryHeaderHeight(HeroHeight);
-            LibraryHeroArtBox.Width = LibraryHeroArtBox.Height = HeroCoverSide;
-            LibraryHeroBackdrop.Visibility = Visibility.Visible;
+            _heroTint = null;
+            ApplyHeroLook();
             LibraryList.Footer = null;
             if (_heroArtists is not null)
             {
@@ -115,17 +108,17 @@ public sealed partial class MainWindow
             return;
         }
 
-        SetExpandedLibraryHeaderHeight(AlbumHeroHeight);
-        LibraryHeroArtBox.Width = LibraryHeroArtBox.Height = AlbumCoverSide;
-        LibraryHeroBackdrop.Visibility = Visibility.Collapsed;
+        // The page wears its cover's colour as the plate under its words, once that colour is known.
         var request = ++_albumTintRequest;
+        _heroTint = null;
         Forget(TintAlbumAsync());
         async Task TintAlbumAsync()
         {
             var tint = await HeaderTintAsync(album.Entries.FirstOrDefault(), null, CancellationToken.None);
             if (request == _albumTintRequest)
             {
-                LibraryHero.Background = TintBrush(tint);
+                _heroTint = tint;
+                ApplyHeroLook();
             }
         }
 
@@ -145,8 +138,9 @@ public sealed partial class MainWindow
         {
             _heroArtists = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, Margin = new Thickness(-8, 0, 0, 0) };
             AutomationProperties.SetAutomationId(_heroArtists, "LibraryHeroArtists");
-            var words = (Panel)LibraryTitle.Parent;
-            words.Children.Insert(words.Children.IndexOf(LibraryTitle) + 1, _heroArtists);
+            Grid.SetRow(_heroArtists, 2);
+            Grid.SetColumnSpan(_heroArtists, 2);
+            LibraryHeroWords.Children.Add(_heroArtists);
         }
 
         _heroArtists.Children.Clear();
@@ -158,7 +152,7 @@ public sealed partial class MainWindow
             _heroArtists.Children.Add(link);
         }
 
-        _heroArtists.Visibility = artists.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        _heroArtists.Visibility = artists.Count > 0 && !_libraryHeaderCompact ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>The "..." menu beside Play, Shuffle and Add: the album's artists, and its details and cover.</summary>
