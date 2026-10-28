@@ -328,6 +328,13 @@ public sealed partial class MainWindow
             return true;
         }
 
+        if (action == "clear")
+        {
+            _player.Playlist.Clear();
+            RefreshQueue();
+            return true;
+        }
+
         if (_queueWindow is null)
         {
             return false;

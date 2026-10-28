@@ -263,6 +263,8 @@ public sealed partial class MacAppSmokeTests
             Assert.Contains("not a finalized-release screenshot",
                 File.ReadAllText(Path.Combine(libraryScreenshots, "provenance.txt")), StringComparison.Ordinal);
 
+            // Playing the named playlist above filled the queue; the empty shot needs it emptied.
+            await Queue(pipe, "clear");
             var empty = await Queue(pipe, "show");
             Assert.Contains("0 items", empty.Title, StringComparison.Ordinal);
             await Queue(pipe, "verify-missing");
