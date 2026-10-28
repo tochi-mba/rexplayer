@@ -43,6 +43,11 @@ public sealed class AudioToolboxSetupTests
     {
         Assert.Throws<MediaFormatException>(() => AudioToolboxSetup.For(Track(CodecId.Aac, [])));
         Assert.Throws<MediaFormatException>(() => AudioToolboxSetup.For(Track(CodecId.Aac, [0x10, 0x00], channels: 0)));
+
+        // LC at 48 kHz with the reserved channel configuration 8: it parses but names no channels,
+        // and the track names none either.
+        var noChannels = Assert.Throws<MediaFormatException>(() => AudioToolboxSetup.For(Track(CodecId.Aac, [0x11, 0xC0], channels: 0)));
+        Assert.Contains("channel count", noChannels.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -53,11 +58,22 @@ public sealed class AudioToolboxSetupTests
         var setup = AudioToolboxSetup.For(Track(CodecId.Opus, head));
 
         Assert.Equal((AudioToolboxFormat.Opus, 48_000, 48_000, 2, 0), (setup.Format, setup.CodedRate, setup.OutputRate, setup.Channels, setup.FramesPerPacket));
-        Assert.Equal(head, setup.Cookie);
+        Assert.Equal([.. head[..10], 0, 0, .. head[12..]], setup.Cookie);
         Assert.Equal(AudioToolboxSetup.LongestOpusPacket, setup.LongestPacket);
 
         // TOC byte: CELT full band 20 ms (configuration 31), one frame.
         Assert.Equal(960, setup.SamplesIn([0xF8, 0x00]));
+    }
+
+    [Fact]
+    public void OpusIsGivenNoPreSkipAsPlaybackLeavesThoseSamplesOutByTheirTimes()
+    {
+        var head = OpusHead(2);
+
+        var setup = AudioToolboxSetup.For(Track(CodecId.Opus, head));
+
+        Assert.Equal(0, Rex.Media.Codecs.Opus.OpusHead.Parse(setup.Cookie).PreSkip);
+        Assert.Equal(312, Rex.Media.Codecs.Opus.OpusHead.Parse(head).PreSkip);
     }
 
     [Fact]

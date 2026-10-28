@@ -16,7 +16,7 @@ public enum AudioToolboxFormat
 /// How a track is handed to an AudioToolbox decoder (ADR-0008: the decision lives here, the Mac
 /// adapter only follows it): the format, the rate it is coded at and the rate it plays at, the
 /// channels, the samples in a packet (zero where packets vary), and the configuration bytes the
-/// decoder takes, AAC's ES_Descriptor or Opus's identification header.
+/// decoder takes, AAC's ES_Descriptor or Opus's identification header with its pre-skip given as none.
 /// </summary>
 public sealed record AudioToolboxSetup(AudioToolboxFormat Format, int CodedRate, int OutputRate, int Channels, int FramesPerPacket, byte[] Cookie)
 {
@@ -75,6 +75,11 @@ public sealed record AudioToolboxSetup(AudioToolboxFormat Format, int CodedRate,
             throw new MediaFormatException($"AudioToolbox is given mono and stereo Opus; this stream has {head.Channels} channels in mapping family {head.MappingFamily}.");
         }
 
-        return new AudioToolboxSetup(AudioToolboxFormat.Opus, OpusRate, OpusRate, head.Channels, 0, track.CodecPrivate);
+        // AudioToolbox leaves the pre-skip out itself, but the packets' times already put those
+        // samples before zero, where playback leaves them out; told of it as well, the decoder would
+        // drop them a second time and every sample after would play early. Windows is given none too.
+        var cookie = track.CodecPrivate.ToArray();
+        cookie[10] = cookie[11] = 0;
+        return new AudioToolboxSetup(AudioToolboxFormat.Opus, OpusRate, OpusRate, head.Channels, 0, cookie);
     }
 }
