@@ -114,11 +114,11 @@ public sealed class ShowPageTests
 
     [Fact]
     [Capability("LIB-05")]
-    public void ThePickerExplicitlyNamesSeasonZeroWithoutChangingRegularSeasonLabels()
+    public void ThePickerNamesSeasonZeroByWhatItHolds()
     {
         var show = Show(Episode("Alpha S00E01"), Episode("Alpha S01E01"));
         var seasons = LibraryViews.TvSeasons(show);
-        Assert.Equal(["Season 1", "Season 0 (Specials)"], seasons.Select(ShowPage.SeasonPickerLabel));
+        Assert.Equal(["Season 1", "Specials"], seasons.Select(ShowPage.SeasonPickerLabel));
         Assert.Equal("Specials", seasons[^1].Name);
         Assert.Throws<ArgumentNullException>(() => ShowPage.SeasonPickerLabel(null!));
     }
@@ -129,6 +129,9 @@ public sealed class ShowPageTests
         Assert.Equal("Resume S02 E01", ShowPage.PlayLabel(Episode("Alpha S02E01"), resumes: true));
         Assert.Equal("Play S01 E03", ShowPage.PlayLabel(Episode("Alpha S01E03"), resumes: false));
         Assert.Equal("Play", ShowPage.PlayLabel(Episode("Holiday"), resumes: false));
+        // An episode with no number of its own is never announced as a bare season ("Play S01 E").
+        Assert.Equal("Play", ShowPage.PlayLabel(Episode(Path.Combine("Season 1", "Arrival")), resumes: false));
+        Assert.Equal("Play Special 2", ShowPage.PlayLabel(Episode("Alpha S00E02"), resumes: false));
         Assert.Equal("Play", ShowPage.PlayLabel(null, resumes: false));
     }
 
@@ -160,20 +163,23 @@ public sealed class ShowPageTests
 
         Assert.Equal(new EpisodeWatchSummary(2, 2, 0), seasonOne);
         Assert.True(seasonOne.IsComplete);
-        Assert.Equal("Season complete: 2 of 2 episodes watched", seasonOne.Describe("Season"));
+        Assert.Equal("Season watched · 2 of 3 in the series", ShowPage.ViewingLine(seasonOne, series));
         Assert.Equal(new EpisodeWatchSummary(1, 0, 1), seasonTwo);
-        Assert.Equal("Season: 0 of 1 episode watched · 1 in progress", seasonTwo.Describe("Season"));
+        Assert.Equal("0 of 1 watched this season, 1 in progress · 2 of 3 in the series", ShowPage.ViewingLine(seasonTwo, series));
         Assert.False(seasonTwo.IsComplete);
         Assert.Equal(new EpisodeWatchSummary(3, 2, 1), series);
         Assert.False(series.IsComplete);
-        Assert.Equal("Series: 2 of 3 episodes watched · 1 in progress", series.Describe("Series"));
+        Assert.Equal("2 of 3 episodes watched, 1 in progress", ShowPage.ViewingLine(null, series));
+        Assert.Equal("2 of 3 episodes watched, 1 in progress", ShowPage.ViewingLine(series, series));
+        Assert.Equal("0 of 1 episode watched", ShowPage.ViewingLine(new EpisodeWatchSummary(0, 0, 0), new EpisodeWatchSummary(1, 0, 0)));
 
         // Completing the final episode changes only its own and the parent summaries.
         Assert.True(ShowPage.WatchSummary(show.Entries, Nothing).IsComplete);
-        Assert.Equal("Series complete: 3 of 3 episodes watched",
-            ShowPage.WatchSummary(show.Entries, Nothing).Describe("Series"));
+        Assert.Equal("All 3 episodes watched",
+            ShowPage.ViewingLine(null, ShowPage.WatchSummary(show.Entries, Nothing)));
         Assert.False(ShowPage.WatchSummary([], Nothing).IsComplete);
-        Assert.Equal("Season: no episodes", ShowPage.WatchSummary([], Nothing).Describe("Season"));
+        Assert.Equal("", ShowPage.ViewingLine(null, ShowPage.WatchSummary([], Nothing)));
+        Assert.Throws<ArgumentNullException>(() => ShowPage.ViewingLine(null, null!));
         Assert.Throws<ArgumentNullException>(() => ShowPage.WatchSummary(null!, Nothing));
         Assert.Throws<ArgumentNullException>(() => ShowPage.WatchSummary([], null!));
     }
@@ -197,7 +203,7 @@ public sealed class ShowPageTests
         Assert.Equal("4 episodes", LibraryViews.TvSeasons(grouped).Single(s => s.Name == "Season 1").Detail);
         Assert.Equal(new EpisodeWatchSummary(5, 3, 1), summary);
         Assert.False(summary.IsComplete);
-        Assert.Equal("Season: 3 of 5 episodes watched · 1 in progress", summary.Describe("Season"));
+        Assert.Equal("3 of 5 episodes watched, 1 in progress", ShowPage.ViewingLine(summary, summary));
 
         // When episode four reaches the end, its previously incomplete play
         // becomes complete without double-counting the second version of one.
@@ -244,11 +250,13 @@ public sealed class ShowPageTests
     }
 
     [Fact]
-    public void TheDetailSaysTheSeasonAndWhereItWasLeftOrThatItWasWatched()
+    public void TheDetailSaysTheSeasonHowLongAndWhereItWasLeftOrThatItWasWatched()
     {
         var hour = TimeSpan.FromHours(1);
         var entry = Episode("Alpha S01E03", duration: hour);
-        Assert.Equal("Season 1 · Episode 3 · Stopped at 0:12:30", ShowPage.EpisodeDetail(entry, Mark(entry), TimeSpan.FromSeconds(750)));
+        Assert.Equal("Season 1 · Episode 3 · 1 h · Stopped at 0:12:30", ShowPage.EpisodeDetail(entry, Mark(entry), TimeSpan.FromSeconds(750)));
+        var unnumbered = Episode(Path.Combine("Season 1", "Arrival"), duration: TimeSpan.FromMinutes(42));
+        Assert.Equal("Season 1 · 42 min", ShowPage.EpisodeDetail(unnumbered, Mark(unnumbered), null));
 
         var seen = Episode("Alpha S01E04", plays: 1);
         Assert.Equal("Season 1 · Episode 4 · Watched", ShowPage.EpisodeDetail(seen, Mark(seen), null));

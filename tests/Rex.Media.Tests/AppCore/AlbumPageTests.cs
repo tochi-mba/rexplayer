@@ -79,7 +79,7 @@ public sealed class AlbumPageTests
         var album = FullAlbum;
         Assert.Equal(2024, AlbumPage.Year(album, LunguBoy with { FirstReleased = "2024" }));
         Assert.Equal(2024, AlbumPage.Year(album, null));
-        Assert.Equal("Album \u00B7 2024 \u00B7 8 songs, 32 min", AlbumPage.Line(album, ReleaseKind.Album, 2024));
+        Assert.Equal("Album \u00B7 2024 \u00B7 8 songs \u00B7 32 min", AlbumPage.Line(album, ReleaseKind.Album, 2024));
         Assert.Equal("Single \u00B7 1 song", AlbumPage.Line(Album(Song("Wave", minutes: 0) with { Duration = null }), ReleaseKind.Single, null));
         Assert.Throws<ArgumentNullException>(() => AlbumPage.Year(null!, null));
         Assert.Throws<ArgumentNullException>(() => AlbumPage.Line(null!, ReleaseKind.Album, null));

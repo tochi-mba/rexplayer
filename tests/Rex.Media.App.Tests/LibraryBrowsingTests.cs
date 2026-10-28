@@ -136,7 +136,7 @@ public sealed class LibraryBrowsingTests : IDisposable
         Wait.For(() => app.Lines().SequenceEqual(["Lonely At The Top", "Sungba", "Terminator"]), "the songs by title", () => string.Join(", ", app.Lines()));
         app.Pick("LibrarySort", "Reverse");
         Wait.For(() => app.Lines().SequenceEqual(["Terminator", "Sungba", "Lonely At The Top"]), "the order reversed", () => string.Join(", ", app.Lines()));
-        Assert.StartsWith("↑", app.Text("LibrarySort"), StringComparison.Ordinal);
+        Assert.Equal("Title, reversed", app.Text("LibrarySort"));
         app.Pick("LibraryGroup", "Letter");
         Wait.For(() => HasText(app, "LibraryList", "L") && HasText(app, "LibraryList", "S") && HasText(app, "LibraryList", "T"), "a heading per first letter");
 

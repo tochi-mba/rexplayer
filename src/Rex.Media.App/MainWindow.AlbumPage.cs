@@ -21,6 +21,9 @@ public sealed partial class MainWindow
     /// <summary>Whether the open view is the Songs table, whose lines carry its columns.</summary>
     private bool _songsTable;
 
+    /// <summary>Whether a song in the Songs table has been played, so its plays column is worth its width (D9).</summary>
+    private bool _songsShowPlays = true;
+
     private string _shownMusicPage = "";
     private long _albumTintRequest;
     private StackPanel? _heroArtists;
@@ -64,6 +67,7 @@ public sealed partial class MainWindow
             Album = song.Album ?? "",
             PlaysText = PlaysText(song.Plays),
             PlaysNumber = song.Plays > 0 ? song.Plays.ToString("N0", CultureInfo.CurrentCulture) : "",
+            PlaysColumnWidth = new GridLength(_songsShowPlays ? MusicRow.PlaysColumn : 0),
         };
         row.SetTranscript(plain.TranscriptGlyph, plain.TranscriptText);
         ShowDownload(row, song);
@@ -80,7 +84,7 @@ public sealed partial class MainWindow
     private void ShowMusicPageExtras(LibraryGroup? album, bool songsTable)
     {
         var facts = album is null ? null : MetadataAlbum(album.Detail, album.Entries.FirstOrDefault()?.Album ?? album.Name);
-        var key = album is null ? (songsTable ? "songs" : "")
+        var key = album is null ? (songsTable ? (_songsShowPlays ? "songs, plays" : "songs") : "")
             : "album\n" + album.Name + "\n" + album.Detail + "\n" + album.Entries.Count + "\n" + facts?.ToJson() + "\n" + MoreByKey();
         if (key == _shownMusicPage)
         {
@@ -88,7 +92,7 @@ public sealed partial class MainWindow
         }
 
         _shownMusicPage = key;
-        LibraryList.Header = songsTable ? SongsTableHeader() : null;
+        LibraryList.Header = songsTable ? SongsTableHeader(_songsShowPlays) : null;
         if (album is null)
         {
             ++_albumTintRequest;
@@ -246,17 +250,17 @@ public sealed partial class MainWindow
     /// The Songs table's column headings, in a list line of their own so they get exactly the lines'
     /// padding and columns; screen readers skip it, since each line names its own columns.
     /// </summary>
-    private static ListViewItem SongsTableHeader()
+    private static ListViewItem SongsTableHeader(bool plays)
     {
         var header = new Grid { ColumnSpacing = 14, Padding = new Thickness(0, 4, 0, 4) };
         AutomationProperties.SetAutomationId(header, "SongsTableHeader");
-        foreach (var width in new[] { new GridLength(40), new GridLength(2, GridUnitType.Star), new GridLength(1, GridUnitType.Star), new GridLength(1, GridUnitType.Star), new GridLength(56), new GridLength(72), new GridLength(52) })
+        foreach (var width in new[] { new GridLength(40), new GridLength(2, GridUnitType.Star), new GridLength(1, GridUnitType.Star), new GridLength(1, GridUnitType.Star), new GridLength(plays ? MusicRow.PlaysColumn : 0), new GridLength(72), new GridLength(52) })
         {
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
         }
 
         var secondary = RexTheme.Brush("TextFillColorSecondaryBrush");
-        foreach (var (text, column, right) in new[] { ("Title", 1, false), ("Artist", 2, false), ("Album", 3, false), ("Plays", 4, true), ("Length", 6, true) })
+        foreach (var (text, column, right) in new[] { ("Title", 1, false), ("Artist", 2, false), ("Album", 3, false), ("Plays", 4, true), ("Length", 6, true) }.Where(heading => plays || heading.Item1 != "Plays"))
         {
             var heading = new TextBlock { Text = text, Foreground = secondary, FontSize = 12, HorizontalAlignment = right ? HorizontalAlignment.Right : HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
             AutomationProperties.SetAutomationId(heading, "SongsTableHeading-" + text);

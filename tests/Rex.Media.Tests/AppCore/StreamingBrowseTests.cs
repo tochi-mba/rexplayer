@@ -217,6 +217,8 @@ public sealed class StreamingBrowseTests
     [InlineData(30, "1 min")]
     [InlineData(45 * 60, "45 min")]
     [InlineData((3600 * 2) + (5 * 60), "2 h 5 min")]
+    [InlineData(3600 * 2, "2 h")]
+    [InlineData((3600 * 5) + 20, "5 h")]
     public void LengthsReadTheWayPeopleSayThem(int? seconds, string expected)
     {
         Assert.Equal(expected, StreamingBrowse.Length(seconds is { } s ? TimeSpan.FromSeconds(s) : null));

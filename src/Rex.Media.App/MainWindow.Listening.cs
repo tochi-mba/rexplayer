@@ -154,7 +154,7 @@ public sealed partial class MainWindow
                             [new LibraryRowGroup("", chapters.Select((chapter, index) => ChapterRow(book, chapter, index, currentChapter, started, markedParts)))], false);
                     }
 
-                    return ("AUTHOR", author.Name, Count(theirBooks.Count, "book") + " · " + Total(author.Entries),
+                    return ("AUTHOR", author.Name, ViewFacts.Join(Count(theirBooks.Count, "book"), Total(author.Entries)),
                         [new LibraryRowGroup("", theirBooks.Select(BookRow))], true);
                 }
 
@@ -182,7 +182,8 @@ public sealed partial class MainWindow
                 List<LibraryRowGroup> shelves = going.Count > 0
                     ? [new LibraryRowGroup("Continue listening", going.Select(BookRow)), new LibraryRowGroup("All books", books.Select(BookRow))]
                     : [new LibraryRowGroup("", books.Select(BookRow))];
-                return ("LIBRARY", title, Count(books.Count, "book") + " · " + Total(mine), shelves, true);
+                // Count and length come from the same books, so a filter that hides them all no longer reads "0 books · 1 h 30 min".
+                return ("LIBRARY", title, ViewFacts.CountAndLength(books.Count, "book", books.SelectMany(book => book.Entries).Select(entry => entry.Duration)), shelves, true);
             case LibrarySource.Podcasts:
                 var shows = ListeningViews.Shows(mine);
                 if (_libraryGroup is { } openedShow)
@@ -190,7 +191,7 @@ public sealed partial class MainWindow
                     var show = LibraryViews.RefreshGroup(shows, openedShow);
                     _libraryGroup = show;
                     var unplayed = ListeningViews.Unplayed(show, _player.LeftAt);
-                    return ("PODCAST", show.Name, string.Join(" · ", new[] { show.Detail, Count(show.Entries.Count, "episode"), unplayed + " unplayed", "Local files only" }.Where(part => part is not null)),
+                    return ("PODCAST", show.Name, string.Join(" · ", new[] { show.Detail, Count(show.Entries.Count, "episode"), unplayed + " unplayed" }.Where(part => part is not null)),
                         [new LibraryRowGroup("", show.Entries.Select(PodcastEpisodeRow))], false);
                 }
 
@@ -199,7 +200,7 @@ public sealed partial class MainWindow
                 var recordings = mine.Where(entry => _audioShelfOf[entry.Path] == AudioShelf.Recordings).ToList();
                 var sounds = mine.Where(entry => _audioShelfOf[entry.Path] == AudioShelf.Sounds).OrderBy(entry => entry.Title, NaturalOrder.Instance).ToList();
                 var sections = ListeningViews.RecordingSections(recordings, sounds, DateTime.Now);
-                return ("LIBRARY", title, string.Join(" · ", new[] { Count(recordings.Count, "recording"), sounds.Count > 0 ? Count(sounds.Count, "sound") : null, Total(mine) }.Where(part => part is not null)),
+                return ("LIBRARY", title, ViewFacts.Join(Count(recordings.Count, "recording"), sounds.Count > 0 ? Count(sounds.Count, "sound") : null, Total(mine)),
                     [.. sections.Select(section => new LibraryRowGroup(section.Header, section.Entries.Select(RecordingRow)))], false);
         }
     }
@@ -292,7 +293,7 @@ public sealed partial class MainWindow
         // The index stores a file timestamp and, sometimes, only a year tag. Neither is
         // proof of a published date, so the interface must not invent one.
         var dateText = episode.Year is { } year && episode.Modified.Year != year
-            ? "Year tag " + year.ToString(CultureInfo.CurrentCulture)
+            ? year.ToString(CultureInfo.CurrentCulture)
             : date == DateTime.MinValue ? null
             : (episode.Modified != default ? "File date " : "Dated ") + date.ToLocalTime().ToString("d", CultureInfo.CurrentCulture);
         var remaining = left is not null && progress.Remaining is { } timeLeft

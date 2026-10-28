@@ -45,7 +45,7 @@ public sealed class TitleFactsTests
     public void AShowsBillboardLineUsesItsFactsOrTheLibrarysOwn()
     {
         var show = new EnrichedShow { CatalogueId = 82, Name = "Game of Thrones", Premiered = "2011-04-17", RuntimeMinutes = 60, Rating = 8.9, Genres = ["Drama", "Adventure", "Fantasy", "War"] };
-        Assert.Equal("2011 · 1 h 0 min · 8.9 / 10 · Drama · Adventure · Fantasy", TitleFacts.ShowLine(show, "3 seasons"));
+        Assert.Equal("2011 · 1 h · 8.9 / 10 · Drama · Adventure · Fantasy", TitleFacts.ShowLine(show, "3 seasons"));
         Assert.Equal("3 seasons", TitleFacts.ShowLine(null, "3 seasons"));
         Assert.Equal("3 seasons", TitleFacts.ShowLine(new EnrichedShow { CatalogueId = 0, Name = "Nothing" }, "3 seasons"));
         Assert.Equal("3 seasons", TitleFacts.ShowLine(new EnrichedShow { CatalogueId = 5, Name = "Bare", RuntimeMinutes = 0 }, "3 seasons"));
@@ -54,7 +54,7 @@ public sealed class TitleFactsTests
     [Fact]
     public void AShowsFactsAreItsNetworkYearsAndStatus()
     {
-        Assert.Equal("HBO · 2011-2019 · Ended", TitleFacts.Show(new EnrichedShow
+        Assert.Equal("HBO · 2011\u20132019 · Ended", TitleFacts.Show(new EnrichedShow
         {
             CatalogueId = 82,
             Name = "Game of Thrones",
@@ -70,7 +70,7 @@ public sealed class TitleFactsTests
     }
 
     [Theory]
-    [InlineData("2011-04-17", "2019-05-19", "2011-2019")]
+    [InlineData("2011-04-17", "2019-05-19", "2011\u20132019")]
     [InlineData("2011-04-17", "2011-12-01", "2011")]
     [InlineData("2011-04-17", null, "2011")]
     [InlineData(null, "2019-05-19", null)]

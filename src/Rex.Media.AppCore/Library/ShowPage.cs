@@ -10,16 +10,6 @@ public sealed record EpisodeWatchSummary(int Total, int Completed, int InProgres
 {
     /// <summary>A season or show is complete only if all of its episodes are actually completed.</summary>
     public bool IsComplete => Total > 0 && Completed == Total;
-
-    /// <summary>Read an aggregate without implying that a partially watched episode is finished.</summary>
-    public string Describe(string scope)
-    {
-        var noun = Total == 1 ? "episode" : "episodes";
-        return Total == 0 ? $"{scope}: no episodes"
-            : IsComplete ? $"{scope} complete: {Completed} of {Total} {noun} watched"
-            : $"{scope}: {Completed} of {Total} {noun} watched"
-                + (InProgress > 0 ? $" · {InProgress} in progress" : "");
-    }
 }
 
 /// <summary>
@@ -112,14 +102,42 @@ public static partial class ShowPage
             ?? DefaultSeason(seasons, nextUp);
     }
 
-    /// <summary>Keep season zero discoverable in the picker, while grouping those videos as Specials.</summary>
+    /// <summary>A season as the picker names it: "Season 2", and season zero by what it holds, "Specials".</summary>
     public static string SeasonPickerLabel(LibraryGroup season)
     {
         ArgumentNullException.ThrowIfNull(season);
-        return season.Name == "Specials" ? "Season 0 (Specials)" : season.Name;
+        return season.Name;
     }
 
-    /// <summary>What the page's Play button says: "Resume S01 E03", "Play S01 E01", or just "Play".</summary>
+    /// <summary>
+    /// The show page's viewing line: how much of the season shown and of the series has been watched,
+    /// once each ("1 of 2 watched this season · 1 of 3 in the series"); one figure when the season is
+    /// the whole series, and empty for a show with no episodes.
+    /// </summary>
+    public static string ViewingLine(EpisodeWatchSummary? season, EpisodeWatchSummary series)
+    {
+        ArgumentNullException.ThrowIfNull(series);
+        static string Going(EpisodeWatchSummary summary) => summary.InProgress > 0 && !summary.IsComplete ? $", {summary.InProgress} in progress" : "";
+        if (series.Total == 0)
+        {
+            return "";
+        }
+
+        if (season is null || season.Total == 0 || season.Total == series.Total)
+        {
+            var noun = series.Total == 1 ? "episode" : "episodes";
+            return (series.IsComplete ? $"All {series.Total} {noun} watched" : $"{series.Completed} of {series.Total} {noun} watched") + Going(series);
+        }
+
+        return ViewFacts.Join(
+            (season.IsComplete ? "Season watched" : $"{season.Completed} of {season.Total} watched this season") + Going(season),
+            $"{series.Completed} of {series.Total} in the series");
+    }
+
+    /// <summary>
+    /// What the page's Play button says: "Resume S01 E03", "Play S01 E01", "Play Special 2", or just "Play"
+    /// when the episode has no number to name (a bare "S01" would read as the whole season).
+    /// </summary>
     public static string PlayLabel(LibraryEntry? nextUp, bool resumes)
     {
         if (nextUp is null)
@@ -128,7 +146,7 @@ public static partial class ShowPage
         }
 
         var episode = LibraryViews.EpisodeOf(nextUp);
-        return (resumes ? "Resume" : "Play") + (episode is null ? "" : " " + episode.Badge);
+        return (resumes ? "Resume" : "Play") + (episode is null || (episode.Episode is null && episode.Season != 0) ? "" : " " + episode.Badge);
     }
 
     /// <summary>
@@ -184,7 +202,7 @@ public static partial class ShowPage
             : episode.Through is not null ? $"Episodes {Number(episode)}" : $"Episode {Number(episode)}";
     }
 
-    /// <summary>The line under an episode's title: its season and number, then where it was left or that it was watched.</summary>
+    /// <summary>The line under an episode's title: its season and number, how long it runs, then where it was left or that it was watched.</summary>
     public static string EpisodeDetail(LibraryEntry entry, VideoEpisode? episode, TimeSpan? leftAt)
     {
         ArgumentNullException.ThrowIfNull(entry);
@@ -195,21 +213,14 @@ public static partial class ShowPage
 
         var watched = leftAt is { } left ? "Stopped at " + TimeText.Format(left, entry.Duration ?? TimeSpan.Zero)
             : entry.Plays > 0 ? "Watched" : null;
-        return string.Join(" · ", new[] { episode?.Spoken, watched }.Where(part => part is not null));
+        return ViewFacts.Join(episode?.Spoken, StreamingBrowse.Length(entry.Duration), watched);
     }
 
     /// <summary>The page's subtitle: how many seasons and episodes, and how long the season shown lasts.</summary>
     public static string Subtitle(LibraryGroup show, LibraryGroup? season)
     {
         ArgumentNullException.ThrowIfNull(show);
-        var length = season is null ? "" : StreamingLength(season.Entries.Sum(entry => entry.Duration?.Ticks ?? 0));
-        return string.Join(" · ", new[] { show.Detail, length }.Where(part => !string.IsNullOrEmpty(part)));
-    }
-
-    private static string StreamingLength(long ticks)
-    {
-        var total = TimeSpan.FromTicks(ticks);
-        return ticks <= 0 ? "" : total.TotalHours >= 1 ? $"{(int)total.TotalHours} h {total.Minutes} min" : $"{Math.Max(1, total.Minutes)} min";
+        return ViewFacts.Join(show.Detail, season is null ? "" : ViewFacts.Length(season.Entries.Select(entry => entry.Duration)));
     }
 
     /// <summary>An episode mark: "S01E03", "S01E01-E02", "1x03", "Episode 3", "Ep 03", "E03", "S07X01", "S07 Special 1", "SP01", "OVA 2".</summary>

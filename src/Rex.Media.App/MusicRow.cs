@@ -49,6 +49,11 @@ public sealed partial class MusicRow(
     /// <summary>The plays as a bare number for the table's narrow column; empty for never played.</summary>
     public string PlaysNumber { get; init; } = "";
 
+    /// <summary>The width of the table's plays column: <see cref="PlaysColumn"/> while a song in the view was played, none otherwise.</summary>
+    public GridLength PlaysColumnWidth { get; init; } = new(PlaysColumn);
+
+    public const double PlaysColumn = 56;
+
     /// <summary>The first artist the song is by, which its artist link opens.</summary>
     public string? ArtistLink { get; init; }
 

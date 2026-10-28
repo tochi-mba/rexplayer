@@ -29,7 +29,7 @@ public sealed class LibrarySpokenWordScreenshots : IDisposable
         app.Visit("Podcasts");
         app.Open("Night Talk");
         Wait.For(() => app.Lines().SequenceEqual(["Ep 1"]) &&
-            app.Text("LibrarySubtitle").Contains("Local files only", StringComparison.Ordinal),
+            app.Text("LibrarySubtitle").Contains("unplayed", StringComparison.Ordinal),
             "the dark podcast detail layout to be stable");
         Screenshots.Match(app, "spoken-podcast-show-dark", "LibraryPane");
 
@@ -59,8 +59,8 @@ public sealed class LibrarySpokenWordScreenshots : IDisposable
         app.Visit("Podcasts");
         app.Open("Night Talk");
         Wait.For(() => app.Lines().SequenceEqual(["Ep 2", "Ep 1"])
-            && app.Text("LibraryOverview").Contains("Local episodes only", StringComparison.Ordinal),
-            "the show title, local-only description and two episode rows");
+            && !app.IsShown("LibraryOverview"),
+            "the show title and two episode rows, with no placeholder description for a show that has none");
         Screenshots.Match(app, "spoken-podcast-show", "LibraryPane");
 
         app.Visit("Recordings");

@@ -10,16 +10,16 @@
   <DataTemplate x:Key="LibraryEpisodeTemplate" x:DataType="local:LibraryRow">
     <Grid ColumnSpacing="16" Padding="4,8" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="44" />
+        <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="176" />
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
-      <TextBlock Text="{x:Bind Badge}" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"
+      <TextBlock Text="{x:Bind Badge}" Visibility="{x:Bind BadgeVisibility}" MinWidth="44" TextAlignment="Center" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"
                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
       <Border Grid.Column="1" Width="176" Height="99" CornerRadius="8" Background="{ThemeResource LayerFillColorDefaultBrush}">
         <Grid>
-          <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="30" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <FontIcon Glyph="{x:Bind PlaceholderGlyph}" FontSize="24" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
           <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" />
           <ProgressBar Value="{x:Bind Progress}" Maximum="1" Visibility="{x:Bind ProgressVisibility}" VerticalAlignment="Bottom" />
           <Border Visibility="{x:Bind PlayingVisibility, Mode=OneWay}" Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="9" Padding="8,3" Margin="6"

@@ -34,11 +34,15 @@ public sealed class LibraryEmptyStateTests
     [Capability("LIB-05")]
     public void FailedLibraryScanNeverClaimsThatTheDriveIsEmpty()
     {
-        const string problem = "A library folder could not be read. Reconnect its drive or check permissions, then rescan. Known history was kept.";
+        const string problem = @"E:\Music could not be read. Reconnect its drive or check its permissions, then scan again. What the library knew of it is kept.";
         var failure = LibraryEmptyState.For(LibraryEmptyView.Media,
             searching: false, hasFolders: true, filters: null, scanning: false, scanProblem: problem);
         Assert.Equal(problem, failure.Text);
         Assert.True(failure.OffersRescan, "An unavailable watched drive needs a direct recovery action.");
+        Assert.True(failure.IsProblem, "A folder out of reach shows a warning, not the library's mark.");
+        Assert.True(failure.OffersFolderList, "The folder list is the second way out.");
+        Assert.Equal("A library folder is out of reach", failure.Heading);
+        Assert.Equal(failure, LibraryEmptyState.For(LibraryEmptyView.Home, false, true, null, false, problem));
         Assert.False(LibraryEmptyState.For(LibraryEmptyView.Media, false, true, null, true, problem).OffersRescan,
             "Do not offer retry while the scan is already running.");
         Assert.False(LibraryEmptyState.For(LibraryEmptyView.Media, false, true, "Music", false, problem).OffersRescan,
@@ -57,8 +61,23 @@ public sealed class LibraryEmptyStateTests
     public void ALibraryWithoutFoldersOffersSomeAndAScanSaysItIsLooking()
     {
         var welcome = LibraryEmptyState.For(LibraryEmptyView.Media, false, hasFolders: false, filters: "Music", scanning: true);
-        Assert.Equal(new LibraryEmptyState("The library shows the music, videos and pictures in the folders you choose, and keeps up as files come and go.", true, false), welcome);
+        Assert.Equal(new LibraryEmptyState("The library shows the music, videos and pictures in the folders you choose, and keeps up as files come and go.", true, false)
+        {
+            Heading = "Add a folder to start your library",
+        }, welcome);
+        Assert.False(welcome.IsProblem);
         Assert.True(LibraryEmptyState.For(LibraryEmptyView.Folders, false, false, null, false).OffersFolders);
         Assert.Equal("Looking through your folders...", LibraryEmptyState.For(LibraryEmptyView.Media, false, true, null, scanning: true).Text);
+    }
+
+    [Fact]
+    [Capability("LIB-05")]
+    public void AnEmptyHomeAsksForAFolderInPlainWords()
+    {
+        var home = LibraryEmptyState.For(LibraryEmptyView.Home, false, hasFolders: true, filters: null, scanning: false);
+        Assert.Equal("Nothing in your library yet", home.Heading);
+        Assert.Equal("Add a folder that holds music, videos or pictures, or put some in a folder the library already watches.", home.Text);
+        Assert.True(home.OffersFolders, "An empty Home offers a folder to add right there.");
+        Assert.Equal("Looking through your folders...", LibraryEmptyState.For(LibraryEmptyView.Home, false, true, null, scanning: true).Text);
     }
 }

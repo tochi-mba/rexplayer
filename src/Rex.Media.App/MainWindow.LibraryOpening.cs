@@ -180,7 +180,15 @@ public sealed partial class MainWindow
 
         if (place.Anchor is not null && _libraryRows.FindIndex(row => string.Equals(SelectionIdentity(row), place.Anchor, StringComparison.OrdinalIgnoreCase)) is >= 0 and var anchor)
         {
-            LibraryList.ScrollIntoView(_libraryRows[anchor], ScrollIntoViewAlignment.Leading);
+            // The first line goes back to the very top, so headings above it (the Songs table's) show again.
+            if (anchor == 0)
+            {
+                ScrollLibraryListToTop();
+            }
+            else
+            {
+                LibraryList.ScrollIntoView(_libraryRows[anchor], ScrollIntoViewAlignment.Leading);
+            }
         }
 
         if (selected >= 0)

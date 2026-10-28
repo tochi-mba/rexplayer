@@ -401,6 +401,7 @@ VideoGeometry.cs
 VideoLayout.cs
 VideoLook.cs
 VideoStyleOptions.cs
+ViewFacts.cs
 VinylScene.cs
 VirtualKeys.cs
 VisionModel.cs

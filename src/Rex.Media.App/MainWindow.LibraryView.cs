@@ -81,6 +81,7 @@ public sealed partial class MainWindow
 
     private void WireLibraryView()
     {
+        WireLibraryLists();
         LibraryCardSize.Value = 180;
         _places = new LibraryPlaces(_settings.LibraryPlaces);
         WireLibraryHeaderScrolling();
@@ -124,7 +125,7 @@ public sealed partial class MainWindow
             {
                 if (!_closed && LibraryList.Visibility == Visibility.Visible && LibraryList.Items.Count > 0)
                 {
-                    LibraryList.ScrollIntoView(LibraryList.Items[0]);
+                    ScrollLibraryListToTop();
                 }
             });
         }
@@ -361,12 +362,13 @@ public sealed partial class MainWindow
                 }
                 else
                 {
+                    _songsShowPlays = ViewFacts.SongsShowPlays(list.Select(entry => entry.Plays));
                     sections = _librarySource == LibrarySource.Songs ? SongSections(list, choice) : EntrySections(list, choice);
                 }
 
                 kind = _librarySource switch { LibrarySource.Movies or LibrarySource.OtherVideos or LibrarySource.Videos or LibrarySource.ContinueWatching => LibraryKind.Video, LibrarySource.Pictures => LibraryKind.Picture, _ => LibraryKind.Music };
-                subtitle = Count(list.Count, _librarySource switch { LibrarySource.Pictures => "picture", LibrarySource.Movies => "movie", LibrarySource.OtherVideos or LibrarySource.Videos or LibrarySource.ContinueWatching => "video", _ => "item" })
-                    + (kind == LibraryKind.Picture ? "" : " \u00B7 " + Total(list));
+                subtitle = ViewFacts.Join(Count(list.Count, _librarySource switch { LibrarySource.Pictures => "picture", LibrarySource.Movies => "movie", LibrarySource.OtherVideos or LibrarySource.Videos or LibrarySource.ContinueWatching => "video", _ => "item" }),
+                    kind == LibraryKind.Picture ? null : Total(list));
             }
             else if (_librarySource is LibrarySource.Albums or LibrarySource.Artists or LibrarySource.Genres or LibrarySource.TvShows)
             {
@@ -413,9 +415,7 @@ public sealed partial class MainWindow
         else if (search.Length == 0 && _librarySource == LibrarySource.Podcasts
             && _libraryGroup is { } localPodcast)
         {
-            ShowTitleExtras(localPodcast.Detail is { Length: > 0 } creator
-                    ? "Artist tag: " + creator + " · Local episodes only"
-                    : "Local episodes only",
+            ShowTitleExtras(localPodcast.Detail is { Length: > 0 } creator ? "By " + creator : "",
                 synopsis: null, credit: null, trailer: null, poster: false, backdrop: null);
             ShowText(LibraryOverview, PodcastDescription(localPodcast));
         }
@@ -483,6 +483,7 @@ public sealed partial class MainWindow
         LibraryEnqueue.Visibility = noPlayback || authorDirectory
             ? Visibility.Collapsed : Visibility.Visible;
         ShowLibraryEmpty(rowsForView.Count == 0, search.Length > 0, source, options ? choice : null);
+        SetLibraryActionsPlayable(rowsForView);
 
         // Rebuild the scroll anchor only after the new layout is realized.
         var previousLook = _shownLook;
@@ -563,17 +564,11 @@ public sealed partial class MainWindow
 
     private static string FirstLetter(string name) => name.TrimStart().FirstOrDefault() is var first && char.IsLetter(first) ? char.ToUpper(first, CultureInfo.CurrentCulture).ToString() : "#";
 
-    /// <summary>How long it all lasts together: "48 min", "3 h 12 min".</summary>
-    private static string Total(IEnumerable<LibraryEntry> entries)
-    {
-        var total = TimeSpan.FromTicks(entries.Sum(entry => entry.Duration?.Ticks ?? 0));
-        return total.TotalHours >= 1 ? $"{(int)total.TotalHours} h {total.Minutes} min" : $"{Math.Max(total.Minutes, total > TimeSpan.Zero ? 1 : 0)} min";
-    }
-
     /// <summary>The banner: kicker, title and what the view holds, with the first item's picture in front and filling the banner behind.</summary>
     /// <summary>The layout, order and grouping menus, each ticking the choice in use, and the card size.</summary>
     private void ShowViewOptions(bool shown, LibraryViewChoice choice, bool groupsView, LibraryKind kind)
     {
+        _progressWatched = kind == LibraryKind.Video;
         foreach (var control in new FrameworkElement[] { LibraryLookButton, LibrarySortButton, LibraryGroupButton, LibraryFilterButton, LibrarySizePanel })
         {
             control.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
@@ -612,7 +607,7 @@ public sealed partial class MainWindow
                 _ => GroupingNames.Select(pair => pair.Grouping).ToArray(),
             };
         var sortName = SortNames.First(pair => pair.Sort == choice.Sort).Name;
-        LibrarySortButton.Content = (choice.Descending ? "\u2191 " : "\u2193 ") + sortName;
+        ShowSortButton(sortName, choice.Descending);
         var sortMenu = Choices("LibrarySort", [.. sorts.Select(sort => (sort, SortNames.First(pair => pair.Sort == sort).Name))], choice.Sort, sort => KeepViewChoice(choice with { Sort = sort }));
         sortMenu.Items.Add(new MenuFlyoutSeparator());
         var reverse = new ToggleMenuFlyoutItem { Text = "Reverse the order", IsChecked = choice.Descending };
@@ -640,8 +635,7 @@ public sealed partial class MainWindow
 
         var filterMenu = new MenuFlyout();
         filterMenu.Items.Add(FilterGroup("Progress", "LibraryFilterProgress",
-            [(LibraryFilter.All, "All progress"), (LibraryFilter.Unwatched, "Unwatched"),
-                (LibraryFilter.InProgress, "In progress"), (LibraryFilter.Finished, "Finished")],
+            [.. new[] { LibraryFilter.All, LibraryFilter.Unwatched, LibraryFilter.InProgress, LibraryFilter.Finished }.Select(value => (value, LibraryArrangement.ProgressName(value, _progressWatched)))],
             choice.Filter, value => KeepViewChoice(choice with { Filter = value })));
         filterMenu.Items.Add(FilterGroup("Media type", "LibraryFilterKind",
             [(LibraryKindFilter.Any, "All media"), (LibraryKindFilter.Video, "Videos"),
@@ -680,9 +674,9 @@ public sealed partial class MainWindow
         AutomationProperties.SetAutomationId(resetFilters, "LibraryFilterClear");
         resetFilters.Click += (_, _) => KeepViewChoice(choice.Unfiltered());
         filterMenu.Items.Add(resetFilters);
-        LibraryFilterButton.Content = LibraryArrangement.FilterLabel(choice);
-        // A screen reader hears which filters are on, as the button shows them.
-        AutomationProperties.SetName(LibraryFilterButton, choice.IsFiltered ? "Filter: " + LibraryArrangement.FilterLabel(choice) : "Filter by progress, type, folder or download");
+        LibraryFilterButton.Content = LibraryArrangement.FilterLabel(choice, _progressWatched);
+        ShowFilterActive(choice.IsFiltered);
+        AutomationProperties.SetName(LibraryFilterButton, choice.IsFiltered ? "Filter: " + LibraryArrangement.FilterLabel(choice, _progressWatched) : "Filter by progress, type, folder or download");
         LibraryFilterButton.Flyout = filterMenu;
 
         LibrarySizePanel.Visibility = choice.Look == LibraryLook.List ? Visibility.Collapsed : Visibility.Visible;
@@ -787,14 +781,13 @@ public sealed partial class MainWindow
     {
         var (music, videos, pictures) = LibraryMemo.Counts(entries);
         var recent = LibraryMemo.RecentlyAdded(entries);
-        ShowHero("YOUR LIBRARY", "Home", string.Join(" \u00B7 ", new[] { Count(music, "song"), Count(videos, "video"), Count(pictures, "picture") }), "\uE80F",
+        ShowHero("YOUR LIBRARY", "Home", HomeFacts(music, videos, pictures), "\uE80F",
             recent.FirstOrDefault(entry => entry.Kind != LibraryKind.Picture) ?? recent.FirstOrDefault());
         ShowViewOptions(false, ViewChoice("Home"), false, LibraryKind.Music);
         LibraryBack.Visibility = Visibility.Collapsed;
         LibraryFolderActions.Visibility = Visibility.Collapsed;
         LibraryPlay.Visibility = LibraryShuffle.Visibility = LibraryEnqueue.Visibility = Visibility.Collapsed;
         _libraryRows = [];
-        ShowLibraryEmpty(entries.Count == 0, false, LibrarySource.Home);
 
         var downloading = HomeShelves.Downloading(entries, 20);
         var albums = LibraryMemo.Albums(entries);
@@ -825,6 +818,8 @@ public sealed partial class MainWindow
             ("Videos", LibrarySource.Videos, [.. recent.Where(entry => entry.Kind == LibraryKind.Video).Take(20).Select(EntryRow)], true),
             ("Pictures", LibrarySource.Pictures, [.. recent.Where(entry => entry.Kind == LibraryKind.Picture).Take(24).Select(EntryRow)], false),
         ];
+        // Empty only when no shelf has a thing on it: a library of podcasts alone has no songs, yet is not empty.
+        ShowLibraryEmpty(shelves.All(shelf => shelf.Rows.Count == 0), false, LibrarySource.Home);
         // Background scanning or local tag edits can change an existing
         // album, file title or credit without changing its path identity.
         var shown = string.Join("\n", shelves.Select(shelf => shelf.Title + ":" + string.Join(",", shelf.Rows.Select(row =>

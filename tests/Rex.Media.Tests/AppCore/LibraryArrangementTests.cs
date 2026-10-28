@@ -299,6 +299,11 @@ public sealed class LibraryArrangementTests
         Assert.Equal("Filter", LibraryArrangement.FilterLabel(all));
         Assert.Equal("Unwatched \u00B7 Videos \u00B7 Shows", LibraryArrangement.FilterLabel(all with { Filter = LibraryFilter.Unwatched, Kinds = LibraryKindFilter.Video, Folder = Path.GetDirectoryName(video.Path) }));
         Assert.Equal("In progress \u00B7 Music", LibraryArrangement.FilterLabel(all with { Filter = LibraryFilter.InProgress, Kinds = LibraryKindFilter.Music }));
+        // A book or a podcast is not "unwatched"; what is listened to has not been started.
+        Assert.Equal("Not started", LibraryArrangement.FilterLabel(all with { Filter = LibraryFilter.Unwatched }, watched: false));
+        Assert.Equal(["All progress", "Not started", "In progress", "Finished"],
+            new[] { LibraryFilter.All, LibraryFilter.Unwatched, LibraryFilter.InProgress, LibraryFilter.Finished }.Select(filter => LibraryArrangement.ProgressName(filter, watched: false)));
+        Assert.Equal("Unwatched", LibraryArrangement.ProgressName(LibraryFilter.Unwatched));
         Assert.Equal("Finished \u00B7 Pictures \u00B7 D:" + Path.DirectorySeparatorChar, LibraryArrangement.FilterLabel(all with { Filter = LibraryFilter.Finished, Kinds = LibraryKindFilter.Picture, Folder = "D:" + Path.DirectorySeparatorChar }));
         Assert.True((all with { Folder = "x" }).IsFiltered);
         Assert.False((all with { Folder = "x" }).Unfiltered().IsFiltered);

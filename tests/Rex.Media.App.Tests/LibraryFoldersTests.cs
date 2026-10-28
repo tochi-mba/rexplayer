@@ -89,7 +89,7 @@ public sealed class LibraryFoldersTests : IDisposable
         Wait.For(() => app.IsShown("LibrarySeasonPicker") && app.Lines().Length == 2, "the show page on its first season",
             () => $"{app.Text("LibraryKicker")} / {app.Text("LibraryTitle")} / {string.Join(", ", app.Lines())}");
         Screenshots.PinViewport(app, 1000, 760);
-        Wait.For(() => app.Text("LibraryViewingProgress") == "Season: 0 of 2 episodes watched · Series: 0 of 3 episodes watched",
+        Wait.For(() => app.Text("LibraryViewingProgress") == "0 of 2 watched this season · 0 of 3 in the series",
             "season and series completion to remain independent and accessible");
         Screenshots.Match(app, "library-show-page", "LibraryPane");
         var picker = app.Find("LibrarySeasonPicker");
@@ -97,7 +97,7 @@ public sealed class LibraryFoldersTests : IDisposable
         var second = Wait.Until(() => picker.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Season 2")));
         ((SelectionItemPattern)second.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         Wait.For(() => app.Lines().Length == 1, "the second season's one episode", () => string.Join(", ", app.Lines()));
-        Wait.For(() => app.Text("LibraryViewingProgress") == "Season: 0 of 1 episode watched · Series: 0 of 3 episodes watched",
+        Wait.For(() => app.Text("LibraryViewingProgress") == "0 of 1 watched this season · 0 of 3 in the series",
             "the changed season to update without claiming the series is complete");
         Screenshots.Match(app, "library-show-season-two", "LibraryPane");
         Assert.Equal(0, app.Close());
@@ -119,13 +119,13 @@ public sealed class LibraryFoldersTests : IDisposable
         Wait.For(() => app.Lines().SequenceEqual(["Futurama"]),
             "the one show card to finish realizing", () => string.Join(", ", app.Lines()));
 
-        // The season-zero special is explicitly labelled in the picker, while its episode stays in Specials.
+        // Season zero is named by what it holds, Specials, in the picker as in the list.
         app.Open("Futurama");
         Wait.For(() => app.IsShown("LibrarySeasonPicker") && app.Lines().Length == 2, "the show page on season 7",
             () => $"{app.Text("LibraryTitle")} / {string.Join(", ", app.Lines())}");
         var picker = app.Find("LibrarySeasonPicker");
         ((ExpandCollapsePattern)picker.GetCurrentPattern(ExpandCollapsePattern.Pattern)).Expand();
-        var specials = Wait.Until(() => picker.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Season 0 (Specials)")));
+        var specials = Wait.Until(() => picker.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Specials")));
         ((SelectionItemPattern)specials.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
         Wait.For(() => app.Lines() is ["Simpsorama"], "the special in Specials", () => string.Join(", ", app.Lines()));
         Screenshots.PinViewport(app, 1000, 760);

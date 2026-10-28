@@ -65,7 +65,7 @@ public static class TitleFacts
         show is { Found: true } ? Join([show.Network, Years(show.Premiered, show.Ended), show.Status]) : "";
 
     /// <summary>
-    /// The years a show ran, from the catalogue's ISO dates: "2011-2019", or one year when it began
+    /// The years a show ran, from the catalogue's ISO dates: "2011\u20132019" (an en dash), or one year when it began
     /// and ended in the same one or has not ended; null when the year it began is unknown.
     /// </summary>
     public static string? Years(string? premiered, string? ended)
@@ -76,7 +76,7 @@ public static class TitleFacts
         }
 
         var start = from.ToString(CultureInfo.InvariantCulture);
-        return YearOf(ended) is { } to && to != from ? start + "-" + to.ToString(CultureInfo.InvariantCulture) : start;
+        return YearOf(ended) is { } to && to != from ? start + "\u2013" + to.ToString(CultureInfo.InvariantCulture) : start;
     }
 
     /// <summary>The year an ISO date ("2011-04-17") starts with, or null for one that does not.</summary>
