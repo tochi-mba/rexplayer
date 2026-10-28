@@ -146,7 +146,7 @@ public sealed class ScreenshotsTests
         Assert.Contains(scenes, scene => scene.Id == "caption-buffer-loading" && scene.State == "loading");
         Assert.Contains(scenes, scene => scene.Id == "library-incomplete-download-notice");
         Assert.Contains(scenes, scene => scene.Id == "player-corrupt-file-error"
-            && scene.State == "faulted-with-failure-notice");
+            && scene.State == "faulted-with-error-stage");
         Assert.Contains(scenes, scene => scene.Id == "library-long-title-compact");
         Assert.Contains(scenes, scene => scene.Id == "library-missing-artwork-wide");
         Assert.Contains(scenes, scene => scene.Id == "library-songs-high-dpi"
