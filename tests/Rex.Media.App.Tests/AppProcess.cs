@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Windows.Automation;
 using Rex.Media.TestKit;
@@ -440,8 +441,45 @@ internal sealed class AppProcess : IDisposable
         Assert.True(_process.WaitForExit(Patience), "rexplayer did not close. Its log ends:" + LogTail);
 
         // A crash on the way out says what the log saw last.
-        Assert.True(_process.ExitCode == 0, $"rexplayer closed with 0x{_process.ExitCode:X8}. Its log ends:" + LogTail);
+        Assert.True(_process.ExitCode == 0, $"rexplayer closed with 0x{_process.ExitCode:X8}. Its log ends:" + LogTail
+            + CrashReport(_process.Id, DateTime.UtcNow.AddMinutes(-5)));
         return _process.ExitCode;
+    }
+
+    /// <summary>
+    /// What Windows recorded about this process crashing (Application Error, .NET Runtime and
+    /// Windows Error Reporting events name the faulting module and the stowed exception), so a crash
+    /// after the log's last line still says where it happened.
+    /// </summary>
+    private static string CrashReport(int processId, DateTime started)
+    {
+        try
+        {
+            var since = started.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture);
+            var query = new System.Diagnostics.Eventing.Reader.EventLogQuery("Application", System.Diagnostics.Eventing.Reader.PathType.LogName,
+                $"*[System[(Provider[@Name='Application Error'] or Provider[@Name='.NET Runtime'] or Provider[@Name='Windows Error Reporting']) and TimeCreated[@SystemTime>='{since}']]]");
+            using var reader = new System.Diagnostics.Eventing.Reader.EventLogReader(query);
+            var found = new List<string>();
+            for (var record = reader.ReadEvent(); record is not null; record = reader.ReadEvent())
+            {
+                using (record)
+                {
+                    var text = record.FormatDescription() ?? string.Join(" | ", record.Properties.Select(property => property.Value));
+                    if (text.Contains("rexplayer", StringComparison.OrdinalIgnoreCase)
+                        && (text.Contains(processId.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
+                            || text.Contains(processId.ToString("x", CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)))
+                    {
+                        found.Add($"{record.ProviderName}: {text}");
+                    }
+                }
+            }
+
+            return found.Count == 0 ? "" : Environment.NewLine + "Windows recorded:" + Environment.NewLine + string.Join(Environment.NewLine, found);
+        }
+        catch (Exception error) when (error is System.Diagnostics.Eventing.Reader.EventLogException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            return Environment.NewLine + "The event log could not be read: " + error.Message;
+        }
     }
 
     private string LogTail => Environment.NewLine + string.Join(Environment.NewLine, LogText.Split(Environment.NewLine).TakeLast(15));
