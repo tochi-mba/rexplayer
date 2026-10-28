@@ -115,7 +115,14 @@ public sealed partial class MacAppSmokeTests
         }
     }
 
-    private static async Task CaptureLibraryScreenshot(string pipe, string name, string root)
+    private static void AssertNoScreenshotChanged(List<string> changedShots) =>
+        Assert.True(changedShots.Count == 0, string.Join(Environment.NewLine, changedShots));
+
+    private static async Task CaptureLibraryScreenshot(
+        string pipe,
+        string name,
+        string root,
+        List<string>? changedShots = null)
     {
         var directory = Environment.GetEnvironmentVariable("REXPLAYER_MAC_SCREENSHOTS") ?? root;
         var file = Path.Combine(directory, "mac-library-" + name + ".png");
@@ -137,9 +144,17 @@ public sealed partial class MacAppSmokeTests
                 .Select(line => line.Split(' ', 2)[0])
                 .Single();
             var actual = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();
-            Assert.True(string.Equals(baseline, actual, StringComparison.Ordinal),
-                "Native Mac screenshot " + target + " changed. Review the mac-library-screenshots CI artifact before approving a new baseline." +
-                Environment.NewLine + "Expected: " + baseline + Environment.NewLine + "Actual:   " + actual);
+            if (!string.Equals(baseline, actual, StringComparison.Ordinal))
+            {
+                var message = "Native Mac screenshot " + target + " changed. Review the mac-library-screenshots CI artifact before approving a new baseline." +
+                    Environment.NewLine + "Expected: " + baseline + Environment.NewLine + "Actual:   " + actual;
+                if (changedShots is null)
+                {
+                    Assert.Fail(message);
+                }
+
+                changedShots.Add(message);
+            }
         }
     }
 

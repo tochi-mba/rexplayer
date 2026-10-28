@@ -700,6 +700,7 @@ public sealed partial class MacAppSmokeTests
         // The library Play/Queue smoke assertions inspect queue contents below.
         start.Environment["REXPLAYER_MAC_QUEUE_TESTS"] = "1";
         using var app = Process.Start(start)!;
+        var changedShots = new List<string>();
         try
         {
             await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Ok: true }, app, root);
@@ -707,7 +708,7 @@ public sealed partial class MacAppSmokeTests
             var opened = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
             Assert.True(opened?.Ok == true, "Opening the populated Mac library failed: " + (opened?.Error ?? "no reply") + LogTail(root));
             Assert.True((await Ask(pipe, new AutomationRequest { Command = "status" }))?.Ok == true, "The populated Mac library stopped responding." + LogTail(root));
-            await CaptureLibraryScreenshot(pipe, "populated", root);
+            await CaptureLibraryScreenshot(pipe, "populated", root, changedShots);
             var keys = await Ask(pipe, new AutomationRequest { Command = "ui.keyboard" });
             Assert.True(keys?.Ok == true, "Mac library AppKit Tab/Shift-Tab loop failed: " + (keys?.Error ?? "no reply") + LogTail(root));
             var tree = await Ask(pipe, new AutomationRequest { Command = "ui.tree" });
@@ -749,15 +750,16 @@ public sealed partial class MacAppSmokeTests
                 "The Videos category did not restore after switching all six categories.");
             var small = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryWidth", Value = 590 });
             Assert.True(small?.Ok == true, "The native library could not use its minimum window size: " + (small?.Error ?? "no reply"));
-            await CaptureLibraryScreenshot(pipe, "minimum-width", root);
+            await CaptureLibraryScreenshot(pipe, "minimum-width", root, changedShots);
             var searched = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "known-video" });
             Assert.True(searched?.Ok == true && searched.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
                 "Searching the native library failed: " + (searched?.Text ?? searched?.Error ?? "no reply") + LogTail(root));
-            await CaptureLibraryScreenshot(pipe, "searched", root);
+            await CaptureLibraryScreenshot(pipe, "searched", root, changedShots);
             var noMatches = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "no-such-video-name" });
             Assert.True(noMatches?.Ok == true && noMatches.Text?.Contains("0 matching", StringComparison.Ordinal) == true,
                 "An unmatched native search did not clear the results: " + (noMatches?.Text ?? noMatches?.Error ?? "no reply") + LogTail(root));
-            await CaptureLibraryScreenshot(pipe, "no-matches", root);
+            await CaptureLibraryScreenshot(pipe, "no-matches", root, changedShots);
+            AssertNoScreenshotChanged(changedShots);
 
             // Invoke the actual AppKit result buttons, not PlayerController directly.
             // This exercises native Play -> player -> library -> Queue wiring.
