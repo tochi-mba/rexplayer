@@ -27,6 +27,9 @@ public sealed partial class MainWindow
     private bool _browseHeroPointerHeld;
     private bool _browseHeroFocusHeld;
 
+    /// <summary>How tall the band is where the billboard's ink fades in above its words.</summary>
+    private const double BillboardFade = 40;
+
     /// <summary>Whether the open view can be laid out as a streaming-style browse.</summary>
     private bool BrowseOffered => _libraryGroup is null && LibrarySearch.Text.Trim().Length == 0
         && _librarySource is not (LibrarySource.Home or LibrarySource.Music or LibrarySource.Playlists or LibrarySource.Folders);
@@ -336,7 +339,8 @@ public sealed partial class MainWindow
         var background = colors is null
             ? RexTheme.Brush("LayerFillColorDefaultBrush")
             : new SolidColorBrush(colors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Background));
-        var frame = new Grid { Height = 320, CornerRadius = new CornerRadius(12), Background = background };
+        // As tall as leaves the first shelf in view (FitBillboard keeps it so), and taller only when its words need it.
+        var frame = new Grid { MinHeight = LibraryHeaderLayout.BillboardHeight(LibraryHome.ActualHeight), CornerRadius = new CornerRadius(12), Background = background };
         AutomationProperties.SetAutomationId(frame, "LibraryBillboard");
         AutomationProperties.SetName(frame, title);
         frame.Tapped += (_, args) =>
@@ -393,24 +397,20 @@ public sealed partial class MainWindow
         }
         if (policy.DrawsBackdrop)
         {
-            // A system-colored solid frame is the correct fallback under high contrast.
-            var backdrop = new Image { Stretch = Stretch.UniformToFill };
-            frame.Children.Add(backdrop);
+            // A system-colored solid frame is the correct fallback under high contrast. The picture is a
+            // brush, so however tall it is it fills the frame without making it taller.
+            var backdrop = new ImageBrush { Stretch = Stretch.UniformToFill };
+            frame.Children.Add(new Microsoft.UI.Xaml.Shapes.Rectangle { Fill = backdrop });
             var token = _libraryPictures.Token;
-            Forget(ShowPictureAsync(art.Path, art.Kind, art.Duration, picture => backdrop.Source ??= picture, token));
+            Forget(ShowPictureAsync(art.Path, art.Kind, art.Duration, picture => backdrop.ImageSource ??= picture, token));
             if (wide is not null)
             {
                 // The backdrop, once it comes, takes the place of the artwork shown meanwhile.
-                ShowRemotePicture(wide, ShownWidth(LibraryShelves), picture => backdrop.Source = picture, token);
+                ShowRemotePicture(wide, ShownWidth(LibraryShelves), picture => backdrop.ImageSource = picture, token);
             }
-
-            var shade = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 1), EndPoint = new Windows.Foundation.Point(0.9, 0) };
-            shade.GradientStops.Add(new GradientStop { Color = RexTheme.Color(DesignTokens.WithAlpha(DesignTokens.DarkInk[0], 0xD8)), Offset = 0 });
-            shade.GradientStops.Add(new GradientStop { Color = RexTheme.Color(DesignTokens.WithAlpha(DesignTokens.DarkInk[0], 0x00)), Offset = 1 });
-            frame.Children.Add(new Microsoft.UI.Xaml.Shapes.Rectangle { Fill = shade });
         }
 
-        var words = new StackPanel { Spacing = 6, VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(28, 0, 28, 24), MaxWidth = 720 };
+        var words = new StackPanel { Spacing = 6, HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(28, 0, 28, 24), MaxWidth = 720 };
         words.Children.Add(new TextBlock
         {
             Text = kicker,
@@ -484,7 +484,7 @@ public sealed partial class MainWindow
         moreButton.Click += (_, _) => more();
         actions.Children.Add(moreButton);
         words.Children.Add(actions);
-        frame.Children.Add(words);
+        frame.Children.Add(BillboardShade(words, policy.DrawsBackdrop));
 
         if (_player.LeftAt(art.Path) is { } left && art.Duration is { TotalSeconds: > 0 } length)
         {
@@ -497,6 +497,44 @@ public sealed partial class MainWindow
         }
 
         return frame;
+    }
+
+    /// <summary>
+    /// The billboard's words on REX ink as opaque as the banner's plate, fading out above them, so they
+    /// read over any picture; the words, and Play and More info with them, take the dark theme. Under
+    /// high contrast they sit on the system's own colours instead.
+    /// </summary>
+    private static Grid BillboardShade(StackPanel words, bool shaded)
+    {
+        var shade = new Grid { VerticalAlignment = VerticalAlignment.Bottom };
+        shade.RowDefinitions.Add(new RowDefinition { Height = new GridLength(BillboardFade) });
+        shade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        if (shaded)
+        {
+            var ink = RexTheme.Color(DesignTokens.WithAlpha(DesignTokens.DarkInk[0], HeroPlateAlpha));
+            var fade = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 0), EndPoint = new Windows.Foundation.Point(0, 1) };
+            fade.GradientStops.Add(new GradientStop { Color = RexTheme.Color(DesignTokens.WithAlpha(DesignTokens.DarkInk[0], 0)), Offset = 0 });
+            fade.GradientStops.Add(new GradientStop { Color = ink, Offset = 1 });
+            shade.Children.Add(new Microsoft.UI.Xaml.Shapes.Rectangle { Fill = fade });
+            var plate = new Microsoft.UI.Xaml.Shapes.Rectangle { Fill = new SolidColorBrush(ink) };
+            Grid.SetRow(plate, 1);
+            shade.Children.Add(plate);
+            shade.RequestedTheme = ElementTheme.Dark;
+        }
+
+        Grid.SetRow(words, 1);
+        shade.Children.Add(words);
+        return shade;
+    }
+
+    /// <summary>The billboard keeps the first shelf in view as the shelves' viewport changes.</summary>
+    private void FitBillboard(double shelves)
+    {
+        if (LibraryShelves.Children.Count > 0 && LibraryShelves.Children[0] is Grid frame
+            && AutomationProperties.GetAutomationId(frame) == "LibraryBillboard")
+        {
+            frame.MinHeight = LibraryHeaderLayout.BillboardHeight(shelves);
+        }
     }
 
     /// <summary>Plays a show from the episode to go on with, resuming one left part-way.</summary>
