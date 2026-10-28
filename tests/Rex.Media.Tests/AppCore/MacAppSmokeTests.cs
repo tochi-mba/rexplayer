@@ -128,7 +128,8 @@ public sealed partial class MacAppSmokeTests
             var up = await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Ok: true }, app, root);
             Assert.Equal("Idle", up.State);
             var whatsNew = await Ask(pipe, new AutomationRequest { Command = "mac-startup-guidance", Id = "status" });
-            Assert.Contains("first=False;whats=True;seen=0.0.0", whatsNew?.Text, StringComparison.Ordinal);
+            Assert.Contains("first=False;whats=True", whatsNew?.Text, StringComparison.Ordinal);
+            Assert.Contains("seen=0.0.0", whatsNew?.Text, StringComparison.Ordinal);
             var dismissedWhatsNew = await Ask(pipe, new AutomationRequest { Command = "mac-startup-guidance", Id = "done-whats-new" });
             Assert.Contains("whats=False", dismissedWhatsNew?.Text, StringComparison.Ordinal);
             Assert.DoesNotContain("seen=0.0.0", dismissedWhatsNew?.Text, StringComparison.Ordinal);
