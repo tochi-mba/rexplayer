@@ -109,9 +109,8 @@ public sealed class DeviceProfileTests
         var changes = DeviceProfile.Changes(budget);
         Assert.Equal(11, changes.Count);
         Assert.Equal(35, DeviceProfile.HeavyEffects.Count);
-        Assert.Contains(
-            $"The heaviest picture effects stay off ({string.Join(", ", DeviceProfile.HeavyEffects.Select(VideoEffects.Name).Order(StringComparer.Ordinal))}). Choosing one says so.",
-            changes);
+        // A count, not a wall of 35 names: choosing one of them says so.
+        Assert.Contains("The 35 heaviest picture effects stay off. Choosing one says so.", changes);
         // The user's transcription quality is used as chosen; only when the library is transcribed changes.
         Assert.Contains("The library is transcribed only while nothing plays.", changes);
         Assert.Contains("Background transcription and intro or credit analysis pause while browsing the library.", changes);
