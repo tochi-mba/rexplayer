@@ -105,9 +105,9 @@ public sealed partial class MainWindow
             actions.Spacing = 10;
             var suggestions = NSStackView.FromViews(
             [
-                SuggestedLibraryFolder("Add Music", Environment.SpecialFolder.MyMusic),
-                SuggestedLibraryFolder("Add Videos", Environment.SpecialFolder.MyVideos),
-                SuggestedLibraryFolder("Add Pictures", Environment.SpecialFolder.MyPictures),
+                SuggestedLibraryFolder("Add music", "Music", Environment.SpecialFolder.MyMusic),
+                SuggestedLibraryFolder("Add videos", "Videos", Environment.SpecialFolder.MyVideos),
+                SuggestedLibraryFolder("Add pictures", "Pictures", Environment.SpecialFolder.MyPictures),
             ]);
             suggestions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             suggestions.Spacing = 8;
@@ -194,7 +194,7 @@ public sealed partial class MainWindow
         ShowChecks();
     }
 
-    private NSButton SuggestedLibraryFolder(string title, Environment.SpecialFolder specialFolder)
+    private NSButton SuggestedLibraryFolder(string title, string folder, Environment.SpecialFolder specialFolder)
     {
         var path = Environment.GetFolderPath(specialFolder);
         var button = NSButton.CreateButton(title, () =>
@@ -202,7 +202,7 @@ public sealed partial class MainWindow
             if (!string.IsNullOrWhiteSpace(path))
             {
                 var answer = AddLibraryFolders([path]);
-                Say(answer.Ok ? title[4..] + " is now watched." : answer.Error ?? "That folder could not be added.");
+                Say(answer.Ok ? folder + " is now watched." : answer.Error ?? "That folder could not be added.");
             }
         });
         button.Enabled = !string.IsNullOrWhiteSpace(path) && Directory.Exists(path);
