@@ -193,10 +193,23 @@ public sealed partial class MacAppSmokeTests
                 return reply!;
             }
 
-            Assert.True(clock.Elapsed < Patience, "rexplayer.app never got there; its last answer: " + (reply?.State ?? reply?.Error ?? "none") + ". Its log ends:" + LogTail(root));
+            Assert.True(clock.Elapsed < Patience, "rexplayer.app never got there; its last answer: " + Described(reply) + ". Its log ends:" + LogTail(root));
             await Task.Delay(200, TestContext.Current.CancellationToken);
         }
     }
+
+    /// <summary>
+    /// Every field a reply carries, as a failure quotes it: a wait on a library's title or a control's
+    /// text then says what it saw, not only the player's state.
+    /// </summary>
+    private static string Described(AutomationReply? reply) =>
+        reply is null ? "none" : string.Join(", ", new[]
+        {
+            reply.Ok ? "ok" : "not ok",
+            Field("state", reply.State), Field("title", reply.Title), Field("text", reply.Text), Field("error", reply.Error),
+        }.Where(part => part.Length > 0));
+
+    private static string Field(string name, string? value) => string.IsNullOrEmpty(value) ? "" : name + " \"" + value + "\"";
 
     private static string LogTail(string root)
     {
