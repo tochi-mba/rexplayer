@@ -19,4 +19,15 @@ public readonly record struct PictureDecodeLimit(int Width, int Height)
             ? new PictureDecodeLimit(0, side)
             : new PictureDecodeLimit(side, 0);
     }
+
+    /// <summary>
+    /// What a picture decoded at most <paramref name="side"/> pixels on its longer side costs: four
+    /// bytes a pixel, no more than its own size when that is known and smaller.
+    /// </summary>
+    public static long DecodedBytes(int side, int naturalWidth, int naturalHeight)
+    {
+        var bound = (long)Math.Max(1, side) * Math.Max(1, side) * 4;
+        var natural = naturalWidth > 0 && naturalHeight > 0 ? (long)naturalWidth * naturalHeight * 4 : bound;
+        return Math.Min(bound, natural);
+    }
 }

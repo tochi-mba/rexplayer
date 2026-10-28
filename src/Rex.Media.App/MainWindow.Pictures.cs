@@ -25,21 +25,19 @@ namespace Rex.Media.App;
 /// thumbnail only when rexplayer cannot read the file); the picture itself; or for music its cover,
 /// its folder's art or artwork drawn from its sound. A video's frame is cut free of the black or
 /// grey bars recorded into it, so a card filled by it shows picture. Made pictures are kept on disk
-/// until the file changes, and the latest few hundred in memory, so a list that redraws does not
-/// make them again. Two normal requests use bounded slots; a separate slot serves an urgent hovered
+/// until the file changes, and the most recently shown in memory up to the performance mode's
+/// byte budget, so a list that redraws does not make them again; changing view or closing the
+/// library lets most of them go. Two normal requests use bounded slots; a separate slot serves an urgent hovered
 /// or keyboard-focused row while those are occupied. Nothing else waits in these slots: background
 /// work (transcription, section analysis) runs on threads of its own below normal priority.
 /// </summary>
 public sealed partial class MainWindow
 {
-    private const int PicturesRemembered = 400;
-
     private readonly SemaphoreSlim _pictureSlots = new(2, 2);
     // A separate fast lane keeps one hovered or keyboard-focused thumbnail responsive while
     // the normal visible-card workers finish slower disk reads or video decodes.
     private readonly SemaphoreSlim _priorityPictureSlot = new(1, 1);
-    private readonly Dictionary<string, ImageSource> _pictureMemory = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Queue<string> _pictureOrder = new();
+    private readonly PictureMemory<ImageSource> _pictureMemory = new(new Rex.Media.AppCore.Performance.DeviceBudget().PictureMemoryBytes);
 
     /// <summary>A visible playlist line asks for its picture once; a file that is missing, or a stream, has none to give.</summary>
     private void OnPlaylistRowShown(Microsoft.UI.Xaml.Controls.ListViewBase sender, Microsoft.UI.Xaml.Controls.ContainerContentChangingEventArgs args)
@@ -102,7 +100,7 @@ public sealed partial class MainWindow
             // A picture already decoded for another performance tier must not keep the
             // old resolution when the budget changes.
             var memoryKey = key + ":" + decodeWidth.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            if (_pictureMemory.TryGetValue(memoryKey, out var known))
+            if (_pictureMemory.TryGet(memoryKey, out var known))
             {
                 show(known);
                 return;
@@ -129,7 +127,8 @@ public sealed partial class MainWindow
             {
                 return;
             }
-            Remember(memoryKey, image);
+            var natural = image is BitmapImage bitmap ? (bitmap.PixelWidth, bitmap.PixelHeight) : (0, 0);
+            _pictureMemory.Add(memoryKey, image, PictureDecodeLimit.DecodedBytes(decodeWidth, natural.Item1, natural.Item2));
             show(image);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -369,14 +368,20 @@ public sealed partial class MainWindow
         return Convert.ToHexStringLower(SHA256.HashData(identity));
     }
 
-    private void Remember(string key, ImageSource image)
+    /// <summary>
+    /// Lets decoded pictures go down to <paramref name="bytes"/>, the most recently shown kept. With
+    /// <paramref name="releaseRows"/> the library's rows let theirs go too (they ask again when shown),
+    /// so nothing but the cache holds a picture that was let go.
+    /// </summary>
+    private void TrimPictures(long bytes, bool releaseRows = false)
     {
-        if (_pictureMemory.TryAdd(key, image))
+        _pictureMemory.TrimTo(bytes);
+        if (releaseRows)
         {
-            _pictureOrder.Enqueue(key);
-            while (_pictureOrder.Count > PicturesRemembered)
+            foreach (var row in _libraryRows.Concat(_homeShelfRows))
             {
-                _pictureMemory.Remove(_pictureOrder.Dequeue());
+                row.Picture = null;
+                row.PictureAsked = false;
             }
         }
     }

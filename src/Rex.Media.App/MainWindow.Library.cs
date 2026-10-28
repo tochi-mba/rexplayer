@@ -278,6 +278,8 @@ public sealed partial class MainWindow
         else
         {
             CancelLibraryPictures();
+            // A closed library keeps only a few pictures for its next opening.
+            TrimPictures(_budget.PictureMemoryFloorBytes, releaseRows: true);
         }
     }
 
@@ -660,6 +662,8 @@ public sealed partial class MainWindow
         _libraryPictures.Cancel();
         _libraryPictures.Dispose();
         _libraryPictures = new CancellationTokenSource();
+        // A new view (or none) replaces the cards: what the old ones showed need not stay decoded.
+        TrimPictures(_budget.PictureMemoryIdleBytes);
     }
 
     /// <summary>Selection follows the active surface; library commands work in every layout.</summary>

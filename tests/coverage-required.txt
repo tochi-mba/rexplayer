@@ -273,6 +273,7 @@ PoliteHosts.cs
 PitchSpeed.cs
 PictureBorders.cs
 PictureDecodeLimit.cs
+PictureMemory.cs
 PngWriter.cs
 ProgressiveTranscript.cs
 PromptedMaskTracker.cs
@@ -443,3 +444,4 @@ AudiobookMemory.cs
 AudioRules.cs
 LibrarySections.cs
 ListeningViews.cs
+LazySections.cs

@@ -10,6 +10,8 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 - When the window's animations are off (Fastest, or Windows' own animation setting), the playing song's equaliser mark stands still instead of animating, while still marking the line.
 - The automation pipe's `status` reports `picturesPending`, the picture requests still queued or loading, so a script can wait for the pictures on screen to settle. The Windows screenshot tests wait on it, so a card's placeholder is never captured in place of its picture.
 - The library's navigation list no longer flashes grey placeholder boxes before its entries draw.
+- **Library artwork gives its memory back.** Decoded pictures are kept within a byte budget set by the performance mode (smaller on Fastest and while Energy Saver is on) instead of a flat 400, changing view lets most of them go, and closing the library keeps only a few.
+- **Preferences opens and cancels quickly.** Only the section shown is built; the others are built the first time they are chosen or searched, and Save reads only the sections that were opened.
 
 ### Fixed
 
