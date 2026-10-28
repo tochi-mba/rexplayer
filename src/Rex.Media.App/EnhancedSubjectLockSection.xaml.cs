@@ -44,7 +44,7 @@ public sealed partial class EnhancedSubjectLockSection : UserControl
         Status.Text = view.Status;
         Status.Foreground = view.IsError && Application.Current.Resources.TryGetValue("SystemFillColorCriticalBrush", out var brush) && brush is Brush critical
             ? critical
-            : (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
+            : RexTheme.Brush("TextFillColorPrimaryBrush");
         Download.Content = view.DownloadLabel;
         Download.IsEnabled = view.CanDownload;
         Stop.Visibility = view.CanCancel ? Visibility.Visible : Visibility.Collapsed;

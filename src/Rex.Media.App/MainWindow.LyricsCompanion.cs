@@ -50,7 +50,7 @@ public sealed partial class MainWindow
         var root = new Grid
         {
             Padding = new Thickness(16),
-            Background = (Brush)Application.Current.Resources["LayerFillColorDefaultBrush"],
+            Background = RexTheme.Brush("LayerFillColorDefaultBrush"),
         };
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -285,7 +285,7 @@ public sealed partial class MainWindow
                         TextWrapping = TextWrapping.Wrap,
                         FontSize = 20,
                         HorizontalAlignment = HorizontalAlignment.Stretch,
-                        Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+                        Foreground = RexTheme.Brush("TextFillColorSecondaryBrush"),
                     };
                     if (line.Words.Count > 0)
                     {
@@ -377,10 +377,10 @@ public sealed partial class MainWindow
             {
                 _lyricsCompanionTexts[_lyricsCompanionLine].FontWeight = FontWeights.Normal;
                 _lyricsCompanionTexts[_lyricsCompanionLine].Foreground =
-                    (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+                    RexTheme.Brush("TextFillColorSecondaryBrush");
                 if (_lyricsCompanionWords.TryGetValue(_lyricsCompanionLine, out var priorRuns))
                 {
-                    var neutral = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+                    var neutral = RexTheme.Brush("TextFillColorSecondaryBrush");
                     foreach (var run in priorRuns)
                     {
                         run.Foreground = neutral;
@@ -402,14 +402,14 @@ public sealed partial class MainWindow
 
         if (lyrics is not null && current >= 0 && current < _lyricsCompanionTexts.Count)
         {
-            var accent = (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"];
+            var accent = RexTheme.Brush("AccentTextFillColorPrimaryBrush");
             if (_lyricsCompanionWords.TryGetValue(current, out var runs))
             {
                 var word = Lyrics.WordIndexAt(lyrics.Lines[current], _player.Position);
                 if (_lyricsCompanionWord != word)
                 {
                     _lyricsCompanionWord = word;
-                    var neutral = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+                    var neutral = RexTheme.Brush("TextFillColorSecondaryBrush");
                     for (var i = 0; i < runs.Count; i++)
                     {
                         runs[i].Foreground = i <= word ? accent : neutral;

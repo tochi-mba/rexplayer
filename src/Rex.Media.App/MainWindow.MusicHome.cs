@@ -125,7 +125,7 @@ public sealed partial class MainWindow
             Width = 212,
             Height = 212,
             CornerRadius = new CornerRadius(pick.IsArtist ? 106 : 10),
-            Background = (Brush)Application.Current.Resources["LayerFillColorDefaultBrush"],
+            Background = RexTheme.Brush("LayerFillColorDefaultBrush"),
             VerticalAlignment = VerticalAlignment.Center,
         };
         var picture = new Image { Stretch = Stretch.UniformToFill, Opacity = 0, OpacityTransition = new ScalarTransition { Duration = TimeSpan.FromMilliseconds(200) } };

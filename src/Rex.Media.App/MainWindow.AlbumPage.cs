@@ -2,7 +2,6 @@ using System.Globalization;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
@@ -214,7 +213,7 @@ public sealed partial class MainWindow
         var footer = new StackPanel { Spacing = 4, Padding = new Thickness(6, 18, 6, 12) };
         AutomationProperties.SetAutomationId(footer, "AlbumFacts");
         AutomationProperties.SetName(footer, "About this album");
-        var secondary = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+        var secondary = RexTheme.Brush("TextFillColorSecondaryBrush");
         foreach (var line in new[] { AlbumPage.Released(facts, CultureInfo.CurrentCulture), AlbumPage.Phonographic(facts) }.OfType<string>())
         {
             footer.Children.Add(new TextBlock { Text = line, Foreground = secondary, FontSize = 12 });
@@ -230,7 +229,7 @@ public sealed partial class MainWindow
                 {
                     CornerRadius = new CornerRadius(11),
                     Padding = new Thickness(10, 3, 10, 3),
-                    Background = (Brush)Application.Current.Resources["LayerFillColorDefaultBrush"],
+                    Background = RexTheme.Brush("LayerFillColorDefaultBrush"),
                     Child = new TextBlock { Text = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(genre), FontSize = 12 },
                 });
             }
@@ -262,7 +261,7 @@ public sealed partial class MainWindow
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
         }
 
-        var secondary = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+        var secondary = RexTheme.Brush("TextFillColorSecondaryBrush");
         foreach (var (text, column, right) in new[] { ("Title", 1, false), ("Artist", 2, false), ("Album", 3, false), ("Plays", 4, true), ("Length", 6, true) })
         {
             var heading = new TextBlock { Text = text, Foreground = secondary, FontSize = 12, HorizontalAlignment = right ? HorizontalAlignment.Right : HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };

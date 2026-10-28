@@ -483,7 +483,7 @@ public sealed partial class MainWindow
         var presets = Enum.GetValues<CaptionPreset>().ToList();
         var preset = Choice("Look", [.. presets.Select(CaptionPresets.Name)], presets.IndexOf(k.Preset));
         AutomationProperties.SetAutomationId(preset, "CaptionPreset");
-        var about = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 440, Text = CaptionPresets.Describe(k.Preset), Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] };
+        var about = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 440, Text = CaptionPresets.Describe(k.Preset), Foreground = RexTheme.Brush("TextFillColorSecondaryBrush") };
         var font = Choice("Typeface (custom look)", ["Sans", "Serif", "Monospace", "Display", "Rounded", "Handwriting"], (int)k.Font);
         var wordCase = Choice("Case (custom look)", ["As said", "Lower case", "Capitals"], (int)k.Case);
         var motion = Choice("Arrival (custom look)", ["Pop", "Slide", "Typewriter", "Bounce", "Drop", "Fade", "Stamp"], (int)k.Motion);

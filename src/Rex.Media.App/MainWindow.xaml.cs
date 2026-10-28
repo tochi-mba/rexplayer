@@ -82,6 +82,7 @@ public sealed partial class MainWindow : Window
     {
         App.Milestones.Reach("window");
         InitializeComponent();
+        RexTheme.Follow(Root, RefreshThemedRows);
         App.Milestones.Reach("xaml");
         _settings = settings ?? SettingsStore.Load(SettingsPath);
         _startupCommand = startupCommand;
@@ -739,23 +740,6 @@ public sealed partial class MainWindow : Window
         OsdBox.Visibility = Visibility.Visible;
         _osdTimer.Stop();
         _osdTimer.Start();
-    }
-
-    /// <summary>Light, dark or Windows' choice; the title bar follows the content.</summary>
-    private void ApplyTheme()
-    {
-        Root.RequestedTheme = _settings.Theme switch
-        {
-            ThemeChoice.Light => ElementTheme.Light,
-            ThemeChoice.Dark => ElementTheme.Dark,
-            _ => ElementTheme.Default,
-        };
-        AppWindow.TitleBar.PreferredTheme = _settings.Theme switch
-        {
-            ThemeChoice.Light => TitleBarTheme.Light,
-            ThemeChoice.Dark => TitleBarTheme.Dark,
-            _ => TitleBarTheme.UseDefaultAppMode,
-        };
     }
 
     private void ApplySettingsToControls()

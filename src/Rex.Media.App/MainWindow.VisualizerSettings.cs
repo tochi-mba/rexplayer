@@ -25,7 +25,7 @@ public sealed partial class MainWindow
         AutomationProperties.SetAutomationId(which, "VisualizerChoice");
         AutomationProperties.SetName(which, "Visualisation");
         var panel = new StackPanel { Spacing = 10 };
-        var note = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 440, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] };
+        var note = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 440, Foreground = RexTheme.Brush("TextFillColorSecondaryBrush") };
         var reset = new Button { Content = "Back to how this one came" };
         AutomationProperties.SetAutomationId(reset, "VisualizerReset");
         AutomationProperties.SetName(reset, "Restore defaults for this visualisation");
