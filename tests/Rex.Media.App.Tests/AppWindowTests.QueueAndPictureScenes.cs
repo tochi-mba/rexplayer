@@ -109,8 +109,19 @@ public sealed partial class AppWindowTests
         Input.Focus(app);
         view.SetFocus();
         Input.Press("Ctrl+End");
+        // A key pressed before the list holds keyboard focus is lost; pressing it again is
+        // harmless once the queue is at its end, so ask again each second until it gets there.
+        var sincePress = System.Diagnostics.Stopwatch.StartNew();
         Wait.For(() =>
         {
+            if (sincePress.Elapsed > TimeSpan.FromSeconds(1))
+            {
+                Input.Focus(app);
+                view.SetFocus();
+                Input.Press("Ctrl+End");
+                sincePress.Restart();
+            }
+
             var last = view.FindFirst(TreeScope.Descendants, new AndCondition(
                 new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem),
                 new PropertyCondition(AutomationElement.NameProperty, "file-not-on-disk. Missing")));
