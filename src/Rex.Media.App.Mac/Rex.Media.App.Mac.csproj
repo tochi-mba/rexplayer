@@ -56,6 +56,32 @@
     <ReferenceNativeSymbol Include="whisper_full_get_token_data_from_state" SymbolType="Function" SymbolMode="Ignore" />
     <ReferenceNativeSymbol Include="whisper_full_get_token_p_from_state" SymbolType="Function" SymbolMode="Ignore" />
     <ReferenceNativeSymbol Include="whisper_full_get_token_text_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_lang_id_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_n_segments_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_n_tokens_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_with_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_init_from_buffer_with_params_no_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_init_from_file_with_params_no_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_init_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_lang_auto_detect_with_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_lang_id" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_lang_max_id" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_lang_str" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_log_set" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_pcm_to_mel_with_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_print_system_info" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_default_context_params" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_default_params" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_detect_speech" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_detect_speech_no_reset" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_free" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_free_segments" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_init_from_file_with_params" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_reset_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_segments_from_probs" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_segments_get_segment_t0" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_segments_get_segment_t1" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_segments_n_segments" SymbolType="Function" SymbolMode="Ignore" />
   </ItemGroup>
 
   <!-- Whisper's runtime package gives a plain net10.0 project (Rex.Media.Speech) native
