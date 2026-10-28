@@ -328,6 +328,7 @@ SpeechAudioReader.cs
 SpeechModels.cs
 SpeechPulse.cs
 SpotlightScene.cs
+StageLayout.cs
 StardustScene.cs
 StatsText.cs
 StreamingBrowse.cs

@@ -159,31 +159,17 @@ public sealed partial class MainWindow
 
     /// <summary>
     /// Shows the chosen visualisation while sound without pictures plays, and stops drawing
-    /// otherwise. Lyrics, when the song has them and they are wanted, show over it.
+    /// otherwise. The stage's layout gives it a band of its own under the title, and leaves it out
+    /// of a stage too small for both; lyrics, when the song has them and they are wanted, show over it.
     /// </summary>
     private void ApplyVisualizer()
     {
         var music = _player.Item is not null && _player.Info is not null && !HasVideo && _player.State is not (SessionState.Idle or SessionState.Faulted);
         var choice = ActiveVisualizer;
-        var show = music && choice != VisualizerChoice.Off;
-        Visualizer.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        var below = show || (music && _player.Lyrics is not null && _settings.ShowLyrics);
-        Idle.VerticalAlignment = below ? VerticalAlignment.Top : VerticalAlignment.Center;
-        Idle.Margin = below ? new Thickness(24, 24, 24, 0) : new Thickness(24);
-        if (show && _builtFor != choice)
-        {
-            BuildVisualizer();
-        }
-
-        if (show != _visualizing)
-        {
-            _visualizing = show;
-            if (!show)
-            {
-                StopVisualizing();
-            }
-        }
-
+        _visualizerChoice = choice;
+        _visualizerWanted = music && choice != VisualizerChoice.Off;
+        _visualizerFullBleed = VisualScene.Draws(choice);
+        LayOutStageContent();
         WakeVisualizer();
     }
 
@@ -388,7 +374,6 @@ public sealed partial class MainWindow
         _visualStage = null;
         _visualBitmap = null;
         SpectrogramImage.Source = null;
-        Visualizer.Margin = new Thickness(48, 120, 48, 48);
         StopCamera();
         switch (choice)
         {
@@ -450,10 +435,9 @@ public sealed partial class MainWindow
     /// <summary>The canvas size the stage wants now: its size on screen, at the quality the stage can keep up.</summary>
     private (int Width, int Height) StageSize(VisualStage? stage) => VisualStage.SizeFor(Visualizer.ActualWidth, Visualizer.ActualHeight, stage?.Quality ?? 1, StageScale(), _budget.VisualMaxSide);
 
-    /// <summary>The software stage, filling the picture area edge to edge, and a note for the camera's news.</summary>
+    /// <summary>The software stage, across the stage's whole width under the title, and a note for the camera's news.</summary>
     private void BuildStage(double height)
     {
-        Visualizer.Margin = new Thickness(0);
         var (across, down) = StageSize(_visualStage);
         if (_visualStage is null)
         {

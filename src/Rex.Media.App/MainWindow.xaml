@@ -204,8 +204,10 @@
         <!-- Scroll the presentation in tiny windows; never clip the only welcome actions. -->
         <ScrollViewer x:Name="IdleScroller" HorizontalScrollMode="Disabled" VerticalScrollMode="Auto"
                       VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
-        <!-- Before anything plays, a hint; while music plays, its picture and details (AU-19). -->
-        <Grid x:Name="Idle" HorizontalAlignment="Center" VerticalAlignment="Center" ColumnSpacing="32" Margin="32" AutomationProperties.AutomationId="Idle">
+        <!-- Before anything plays, a hint; while music plays, its picture and details (AU-19).
+             MainWindow.StageLayout.cs places it, and spaces the cover from the words only while
+             a cover shows, so the words stay centred without one. -->
+        <Grid x:Name="Idle" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="32" AutomationProperties.AutomationId="Idle">
           <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
           <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
           <Border x:Name="CoverBox" Grid.Column="0" Width="240" Height="240" CornerRadius="18" Visibility="Collapsed"
@@ -233,33 +235,42 @@
           </StackPanel>
         </Grid>
         </ScrollViewer>
-        <!-- Lyrics, the line being sung marked and kept in the middle (META-09). -->
-        <!-- Distinguish loading, unavailable, untimed and mixed lyric sources without
-             inventing timestamps. The status stays accessible when no scroll viewer exists. -->
-        <TextBlock x:Name="LyricsStatus" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Bottom"
-                   Margin="32,0,32,112" MaxWidth="560" Padding="12,8" TextWrapping="Wrap" TextAlignment="Center"
-                   Foreground="{StaticResource RexOverlayTextBrush}" AutomationProperties.AutomationId="LyricsStatus"
-                   AutomationProperties.LiveSetting="Polite" />
-        <Button x:Name="FindLyricsButton" Content="Find lyrics online" Visibility="Collapsed"
-                HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,55"
-                Canvas.ZIndex="6" Click="OnFindLyrics" AutomationProperties.AutomationId="FindLyrics"
-                ToolTipService.ToolTip="Send this song's title, artist and duration to LRCLIB to look for lyrics" />
-        <Button x:Name="SaveLyricsButton" Content="Save lyrics as LRC" Visibility="Collapsed"
-                HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,55"
-                Canvas.ZIndex="6" Click="OnSaveLyrics" AutomationProperties.AutomationId="SaveLyrics"
-                ToolTipService.ToolTip="Save the displayed lyrics, keeping only timestamps supplied by their source" />
-        <!-- Manual navigation pauses lyric autoscroll until the user explicitly resumes it. -->
-        <ScrollViewer x:Name="LyricsBox" Visibility="Collapsed" VerticalAlignment="Bottom" Margin="48,0,48,24" MaxWidth="720" CornerRadius="12"
-                      VerticalScrollBarVisibility="Auto" IsHitTestVisible="True" AutomationProperties.AutomationId="Lyrics" AutomationProperties.Name="Lyrics">
-          <StackPanel x:Name="LyricsLines" Spacing="6" Padding="0,8" />
-        </ScrollViewer>
-        <Button x:Name="LyricsFollowButton" Content="Follow current line" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,52,30"
-                Canvas.ZIndex="6" ToolTipService.ToolTip="Resume automatic lyric scrolling" AutomationProperties.AutomationId="LyricsFollow" AutomationProperties.Name="Return to current lyric line" />
-        <Button x:Name="LyricsDetachButton" Content="Open lyrics window" Visibility="Collapsed" HorizontalAlignment="Left" VerticalAlignment="Bottom"
-                Margin="48,0,0,30" Canvas.ZIndex="6" Click="OnOpenLyricsCompanion"
-                ToolTipService.ToolTip="Open a separately resizable lyrics window"
-                AutomationProperties.AutomationId="LyricsDetach"
-                AutomationProperties.Name="Open or focus the detached lyrics window" />
+        <!-- Lyrics (META-09) in one dock at the bottom of the stage, so no part of them can sit on
+             another: the lines, the one being sung marked and kept in the middle; then a status
+             that says how they follow the song, or why there are none, without inventing
+             timestamps (it stays accessible when no lines show); then one row of actions.
+             MainWindow.StageLayout.cs sizes the dock, and the visualisation's band stops above
+             the status and actions. -->
+        <StackPanel x:Name="LyricsDock" VerticalAlignment="Bottom" Margin="48,0,48,24" Spacing="8" Canvas.ZIndex="6">
+          <!-- Manual navigation pauses lyric autoscroll until the user explicitly resumes it. -->
+          <ScrollViewer x:Name="LyricsBox" Visibility="Collapsed" MaxWidth="720" CornerRadius="12"
+                        VerticalScrollBarVisibility="Auto" IsHitTestVisible="True" AutomationProperties.AutomationId="Lyrics" AutomationProperties.Name="Lyrics">
+            <StackPanel x:Name="LyricsLines" Spacing="6" Padding="0,8" />
+          </ScrollViewer>
+          <StackPanel x:Name="LyricsFooter" Spacing="8">
+            <!-- A pill of its own, so the status reads over a moving visualisation. -->
+            <Border x:Name="LyricsStatusPill" Visibility="Collapsed" HorizontalAlignment="Center" MaxWidth="560" Padding="12,6"
+                    CornerRadius="{StaticResource RexSmallRadius}" Background="{StaticResource RexOverlayBrush}">
+              <TextBlock x:Name="LyricsStatus" TextWrapping="Wrap" TextAlignment="Center"
+                         Foreground="{StaticResource RexOverlaySecondaryTextBrush}" AutomationProperties.AutomationId="LyricsStatus"
+                         AutomationProperties.LiveSetting="Polite" />
+            </Border>
+            <StackPanel x:Name="LyricsActions" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Visibility="Collapsed">
+              <Button x:Name="LyricsDetachButton" Content="Open lyrics window" Visibility="Collapsed" Click="OnOpenLyricsCompanion"
+                      ToolTipService.ToolTip="Open a separately resizable lyrics window"
+                      AutomationProperties.AutomationId="LyricsDetach"
+                      AutomationProperties.Name="Open or focus the detached lyrics window" />
+              <Button x:Name="FindLyricsButton" Content="Find lyrics online" Visibility="Collapsed"
+                      Click="OnFindLyrics" AutomationProperties.AutomationId="FindLyrics"
+                      ToolTipService.ToolTip="Send this song's title, artist and duration to LRCLIB to look for lyrics" />
+              <Button x:Name="SaveLyricsButton" Content="Save lyrics as LRC" Visibility="Collapsed"
+                      Click="OnSaveLyrics" AutomationProperties.AutomationId="SaveLyrics"
+                      ToolTipService.ToolTip="Save the displayed lyrics, keeping only timestamps supplied by their source" />
+              <Button x:Name="LyricsFollowButton" Content="Follow current line" Visibility="Collapsed"
+                      ToolTipService.ToolTip="Resume automatic lyric scrolling" AutomationProperties.AutomationId="LyricsFollow" AutomationProperties.Name="Return to current lyric line" />
+            </StackPanel>
+          </StackPanel>
+        </StackPanel>
         <!-- A held viewer should not have to infer from the small timeline rail that captions are
              being prepared. Keep the explanation central and offer an immediate, explicit escape. -->
         <Border x:Name="CaptionBufferOverlay" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"
