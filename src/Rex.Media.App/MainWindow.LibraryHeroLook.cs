@@ -18,17 +18,19 @@ namespace Rex.Media.App;
 /// </summary>
 public sealed partial class MainWindow
 {
-    /// <summary>The side of square banner artwork, and of a poster's frame.</summary>
+    /// <summary>The side of square banner artwork, and a poster's frame: as wide, so every banner's words start in the same place.</summary>
     private const double HeroCoverSide = 150;
-    private const double HeroPosterWidth = 140;
-    private const double HeroPosterHeight = 210;
+    private const double HeroPosterWidth = 150;
+    private const double HeroPosterHeight = 225;
 
     /// <summary>How tall the band is where a plate fades into the page: under the expanded banner, then the compact one.</summary>
     private const double HeroFadeBand = 28;
     private const double CompactHeroFadeBand = 16;
 
-    /// <summary>How opaque the ink plate is: just enough for secondary light words over a white picture.</summary>
-    private static readonly byte HeroPlateAlpha = Legibility.ScrimAlpha(DesignTokens.DarkInk[0], Legibility.LightWords, Legibility.BodyContrast);
+    private static byte? s_heroPlateAlpha;
+
+    /// <summary>How opaque the ink plate is: just enough for secondary light words over a white picture. Worked out on first use.</summary>
+    private static byte HeroPlateAlpha => s_heroPlateAlpha ??= Legibility.ScrimAlpha(DesignTokens.DarkInk[0], Legibility.LightWords, Legibility.BodyContrast);
 
     /// <summary>Whether the banner shows a picture (artwork or a photo), and so has a plate under its words.</summary>
     private bool _heroPictured;
