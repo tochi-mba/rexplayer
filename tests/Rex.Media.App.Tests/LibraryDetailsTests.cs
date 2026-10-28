@@ -158,7 +158,8 @@ public sealed class LibraryDetailsTests : IDisposable
         app.Press("LibraryBack");
         Wait.For(() => app.Text("LibraryKicker") == "MOVIE" && app.Text("LibraryTitle") == "The Matrix", "Back to the movie's page");
         app.Press("LibraryBack");
-        Wait.For(() => app.IsShown("LibraryBillboard") && !app.IsShown("LibraryHero"), "Back to Browse");
+        // Browse has no banner of its own, only its name as a compact header over the billboard.
+        Wait.For(() => app.IsShown("LibraryBillboard") && app.Text("LibraryTitle") == "Movies" && !app.IsShown("LibraryKicker"), "Back to Browse");
         Assert.Equal(0, app.Close());
     }
 
