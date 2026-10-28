@@ -97,10 +97,10 @@
           <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" Opacity="{x:Bind PictureOpacity, Mode=OneWay}">
             <Image.OpacityTransition><ScalarTransition Duration="0:0:0.2" /></Image.OpacityTransition>
           </Image>
-          <Border Background="#8C000000" Visibility="{x:Bind PlayingVisibility, Mode=OneWay}" />
-          <local:PlayingBars Visibility="{x:Bind PlayingVisibility, Mode=OneWay}" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <Border Background="{StaticResource RexScrimBrush}" Visibility="{x:Bind PlayingVisibility, Mode=OneWay}" />
+          <local:PlayingBars Visibility="{x:Bind PlayingVisibility, Mode=OneWay}" Foreground="{StaticResource RexOverlayTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
           <ProgressRing Visibility="{x:Bind DownloadVisibility, Mode=OneWay}" Value="{x:Bind DownloadPercent, Mode=OneWay}" IsIndeterminate="False" Maximum="100" Width="18" Height="18" Margin="2"
-                        HorizontalAlignment="Right" VerticalAlignment="Top" Foreground="White" Background="#C0181818" IsHitTestVisible="False"
+                        HorizontalAlignment="Right" VerticalAlignment="Top" Foreground="{StaticResource RexOverlayTextBrush}" Background="{StaticResource RexOverlayBrush}" IsHitTestVisible="False"
                         ToolTipService.ToolTip="{x:Bind DownloadText, Mode=OneWay}" AutomationProperties.AutomationId="LibraryDownloadBadge" AutomationProperties.Name="{x:Bind DownloadText, Mode=OneWay}" />
         </Grid>
       </Border>
@@ -131,9 +131,9 @@
           <ColumnDefinition Width="72" />
           <ColumnDefinition Width="52" />
         </Grid.ColumnDefinitions>
-        <Button Width="40" Height="40" Padding="0" CornerRadius="4" VerticalAlignment="Center" Background="#99000000" BorderThickness="0" Click="OnRowPlay" IsTabStop="False" AllowFocusOnInteraction="False"
+        <Button Width="40" Height="40" Padding="0" CornerRadius="4" VerticalAlignment="Center" Background="{StaticResource RexScrimBrush}" BorderThickness="0" Click="OnRowPlay" IsTabStop="False" AllowFocusOnInteraction="False"
                 AutomationProperties.AutomationId="MusicSongArtPlay" AutomationProperties.Name="Play" ToolTipService.ToolTip="Play this, with the rest of the view after it">
-          <FontIcon Glyph="&#xE768;" FontSize="14" Foreground="White" />
+          <FontIcon Glyph="&#xE768;" FontSize="14" Foreground="{StaticResource RexOverlayTextBrush}" />
         </Button>
         <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Right" VerticalAlignment="Center">
           <Button Padding="7" Background="Transparent" BorderThickness="0" Click="OnRowPlay" IsTabStop="False" AllowFocusOnInteraction="False"

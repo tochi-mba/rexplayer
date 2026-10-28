@@ -153,7 +153,7 @@ public sealed partial class MainWindow
             FontSize = 12,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             CharacterSpacing = 80,
-            Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xDC, 0xE3, 0xED)),
+            Foreground = RexTheme.Brush("RexOverlaySecondaryTextBrush"),
         });
         var name = new TextBlock { Text = group.Name, Style = (Style)Application.Current.Resources["TitleLargeTextBlockStyle"], TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 2, TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(Microsoft.UI.Colors.White) };
         AutomationProperties.SetAutomationId(name, "MusicHeroTitle");
@@ -161,7 +161,7 @@ public sealed partial class MainWindow
         var line = pick.IsArtist
             ? string.Join(" · ", Count(LibraryViews.Albums(group.Entries).Count, "album"), Count(group.Entries.Count, "song"))
             : string.Join(" · ", new[] { ArtistNames.Display(group.Detail), AlbumPage.Line(group, AlbumPage.Kind(group, MetadataAlbum(group.Detail, group.Name)), AlbumPage.Year(group, MetadataAlbum(group.Detail, group.Name))) }.Where(part => !string.IsNullOrEmpty(part)));
-        var facts = new TextBlock { Text = line, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xDC, 0xE3, 0xED)), TextTrimming = TextTrimming.CharacterEllipsis };
+        var facts = new TextBlock { Text = line, Foreground = RexTheme.Brush("RexOverlaySecondaryTextBrush"), TextTrimming = TextTrimming.CharacterEllipsis };
         AutomationProperties.SetAutomationId(facts, "MusicHeroLine");
         words.Children.Add(facts);
 

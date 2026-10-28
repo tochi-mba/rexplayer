@@ -3,7 +3,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
 using Rex.Media.AppCore;
 using Rex.Media.AppCore.Captions;
@@ -845,7 +844,7 @@ public sealed partial class MainWindow
                 {
                     Padding = new Thickness(10, 8, 10, 8),
                     CornerRadius = new CornerRadius(8),
-                    Background = new SolidColorBrush(Microsoft.UI.Colors.Gray) { Opacity = 0.10 },
+                    Background = RexTheme.Brush("RexToolFillBrush"),
                     Child = item,
                 };
                 AutomationProperties.SetName(back, $"{i + 1}. {name.Text}");
@@ -868,7 +867,7 @@ public sealed partial class MainWindow
                 {
                     Text = $"{paths.Count - TranscriptionQueueRowsLimit} more files will follow.",
                     Margin = new Thickness(10, 4, 10, 2),
-                    Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray),
+                    Foreground = RexTheme.Brush("RexTextTertiaryBrush"),
                 });
             }
         }

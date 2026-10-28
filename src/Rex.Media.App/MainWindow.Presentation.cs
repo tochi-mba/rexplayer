@@ -1,3 +1,4 @@
+using Rex.Media.AppCore.Design;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Microsoft.UI.Text;
@@ -46,7 +47,7 @@ public sealed partial class MainWindow
     // High contrast takes precedence over translucent white lyric text and dark chips.
     private Brush LyricNeutralBrush() => _lyricAccessibility.HighContrast
         ? new SolidColorBrush(_lyricSystemColors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Foreground))
-        : new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
+        : new SolidColorBrush(RexTheme.Color(DesignTokens.WithAlpha(DesignTokens.DarkText[0], 0xB0)));
 
     private Brush LyricAccentBrush() => _lyricAccessibility.HighContrast
         ? LyricNeutralBrush()
@@ -54,7 +55,7 @@ public sealed partial class MainWindow
 
     private Brush LyricChipBrush() => _lyricAccessibility.HighContrast
         ? new SolidColorBrush(_lyricSystemColors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Background))
-        : new SolidColorBrush(Windows.UI.Color.FromArgb(0x98, 0x0B, 0x10, 0x19));
+        : new SolidColorBrush(RexTheme.Color(DesignTokens.WithAlpha(DesignTokens.DarkInk[0], 0x98)));
 
     private void RepaintLyricPalette()
     {
@@ -64,7 +65,7 @@ public sealed partial class MainWindow
         }
 
         LyricsStatus.Foreground = _lyricAccessibility.HighContrast
-            ? LyricNeutralBrush() : new SolidColorBrush(Microsoft.UI.Colors.White);
+            ? LyricNeutralBrush() : RexTheme.Brush("RexOverlayTextBrush");
         foreach (var child in LyricsLines.Children)
         {
             switch (child)

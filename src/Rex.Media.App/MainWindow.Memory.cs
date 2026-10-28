@@ -124,7 +124,7 @@ public sealed partial class MainWindow
                 Width = 3,
                 Height = 16,
                 CornerRadius = new CornerRadius(2),
-                Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 124, 96)),
+                Background = RexTheme.Brush("RexAttentionBrush"),
                 IsHitTestVisible = false,
             };
             var button = new Button

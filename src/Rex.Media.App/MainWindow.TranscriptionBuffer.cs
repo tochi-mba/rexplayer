@@ -1,7 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
 using Rex.Media.AppCore.Captions;
 using Rex.Media.AppCore.Commands;
@@ -35,7 +34,7 @@ public sealed partial class MainWindow
                     Height = 6,
                     RadiusX = 3,
                     RadiusY = 3,
-                    Fill = new SolidColorBrush(Microsoft.UI.Colors.MediumTurquoise),
+                    Fill = RexTheme.Brush("RexToolBrush"),
                     IsHitTestVisible = false,
                 };
                 SubtitleBuffer.Children.Add(mark);

@@ -1,3 +1,4 @@
+using Rex.Media.AppCore.Design;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
@@ -109,7 +110,7 @@ public sealed partial class MainWindow
     private static Brush TintBrush(Tint tint)
     {
         var colour = Windows.UI.Color.FromArgb(0xFF, tint.R, tint.G, tint.B);
-        var page = Application.Current.Resources["SolidBackgroundFillColorBase"] is Windows.UI.Color background ? background : Windows.UI.Color.FromArgb(0xFF, 0x20, 0x20, 0x20);
+        var page = Application.Current.Resources["SolidBackgroundFillColorBase"] is Windows.UI.Color background ? background : RexTheme.Color(DesignTokens.DarkInk[2]);
         var brush = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 0), EndPoint = new Windows.Foundation.Point(0, 1) };
         brush.GradientStops.Add(new GradientStop { Color = colour, Offset = 0 });
         brush.GradientStops.Add(new GradientStop { Color = Windows.UI.Color.FromArgb(0xFF, (byte)((colour.R + page.R) / 2), (byte)((colour.G + page.G) / 2), (byte)((colour.B + page.B) / 2)), Offset = 0.6 });

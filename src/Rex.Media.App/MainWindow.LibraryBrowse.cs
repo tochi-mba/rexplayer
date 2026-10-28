@@ -1,3 +1,4 @@
+using Rex.Media.AppCore.Design;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -330,8 +331,8 @@ public sealed partial class MainWindow
         var policy = BrowseHeroPresentation.For(highContrast, _budget.Animations);
         var colors = policy.UsesSystemColors ? new Windows.UI.ViewManagement.UISettings() : null;
         var systemText = colors is null ? null : new SolidColorBrush(colors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Foreground));
-        var standardLabel = systemText ?? new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xDC, 0xE3, 0xED));
-        var standardTitle = systemText ?? new SolidColorBrush(Microsoft.UI.Colors.White);
+        var standardLabel = systemText ?? RexTheme.Brush("RexOverlaySecondaryTextBrush");
+        var standardTitle = systemText ?? RexTheme.Brush("RexOverlayTextBrush");
         var background = colors is null
             ? (Brush)Application.Current.Resources["LayerFillColorDefaultBrush"]
             : new SolidColorBrush(colors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Background));
@@ -404,8 +405,8 @@ public sealed partial class MainWindow
             }
 
             var shade = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 1), EndPoint = new Windows.Foundation.Point(0.9, 0) };
-            shade.GradientStops.Add(new GradientStop { Color = Windows.UI.Color.FromArgb(0xD8, 0x10, 0x14, 0x1B), Offset = 0 });
-            shade.GradientStops.Add(new GradientStop { Color = Windows.UI.Color.FromArgb(0x00, 0x10, 0x14, 0x1B), Offset = 1 });
+            shade.GradientStops.Add(new GradientStop { Color = RexTheme.Color(DesignTokens.WithAlpha(DesignTokens.DarkInk[0], 0xD8)), Offset = 0 });
+            shade.GradientStops.Add(new GradientStop { Color = RexTheme.Color(DesignTokens.WithAlpha(DesignTokens.DarkInk[0], 0x00)), Offset = 1 });
             frame.Children.Add(new Microsoft.UI.Xaml.Shapes.Rectangle { Fill = shade });
         }
 
