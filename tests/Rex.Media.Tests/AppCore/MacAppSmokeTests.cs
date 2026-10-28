@@ -232,7 +232,7 @@ public sealed partial class MacAppSmokeTests
             await Library(pipe, "add-folder", libraryFixture);
             var populated = await Until(
                 () => Ask(pipe, new AutomationRequest { Command = "mac-library", Id = "status" }),
-                reply => reply?.Title?.Contains("2 items", StringComparison.Ordinal) == true,
+                reply => reply?.Title?.Contains("3 items", StringComparison.Ordinal) == true,
                 app, root);
             Assert.Contains("1 folder", populated.Title, StringComparison.Ordinal);
             await Library(pipe, "capture-populated");
@@ -243,7 +243,7 @@ public sealed partial class MacAppSmokeTests
             Assert.Contains("Search: No fixture with this name", missing.Title, StringComparison.Ordinal);
             await Library(pipe, "capture-search-empty");
             var restored = await Library(pipe, "clear-search");
-            Assert.Contains("2 items", restored.Title, StringComparison.Ordinal);
+            Assert.Contains("3 items", restored.Title, StringComparison.Ordinal);
             var songs = await Library(pipe, "songs");
             Assert.Contains("1 item", songs.Title, StringComparison.Ordinal);
             var onlyVideos = await Library(pipe, "videos");
