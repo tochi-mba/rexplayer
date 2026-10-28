@@ -26,6 +26,11 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 - The line under the lyrics shows only for songs, in plain words ("The lyrics follow the song line by line."), in a softer colour and on a backing that reads over a visualisation.
 - A file that cannot be played gets a clear error screen: a warning sign, the reason once, the technical details behind Details, and an Open another file button.
 - A paused spectrum rests on a quiet line instead of a dashed one; the title pill no longer repeats a title the stage already shows; the caption wait says what it is doing once, on a panel nothing shows through.
+- **Library banners read in a light window.** A banner with artwork puts its words on a plate of REX ink (an album's on its cover's own colour) made just deep enough for the dimmest line to read over any picture, and the words, links and buttons take the colours that read there. The artwork behind them is a soft blur instead of a stretched, blocky frame, and the banner fades into the page under its buttons instead of stopping in a hard line at the search box.
+- **More of the library fits a short window.** A short library shows the compact header on every page, not only after a scroll, and the compact header puts Back, the title and Play, Shuffle and Add on one line when they fit. Search and the view options sit at an even distance under the banner, empty rows take no room, and Browse pages and the music Home show their name at the top.
+- A page about one thing (an album, an artist, a show, a movie's details) leaves out the library-wide search box.
+- The Browse billboard leaves the first shelf in view, its words sit on a shade that keeps them readable, and More info looks like the banner's other buttons; the music Home's featured album keeps its facts readable in a light window.
+- Back sits above the banner's artwork, so the kicker lines up with the title, and a TV show's page wears its poster like a movie's.
 
 ### Fixed
 
@@ -43,6 +48,7 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 - Clear playlist can be undone with Undo removal in the queue.
 - In full screen, pressing a key brings the controls back, as moving the pointer does.
 - Leaving full screen no longer leaves the playback controls with a see-through background.
+- A library banner no longer keeps the height of a taller page it showed before, which left an empty band over Recordings after a podcast's page.
 - **The Mac app builds again, so new versions can publish.** Speech recognition's Linux and Windows libraries were being packed into rexplayer.app, where the Mac's tools refused them and stopped every build since 0.31.0; only the Mac's own libraries go in now.
 
 ## 0.31.0 - 2026-10-25
