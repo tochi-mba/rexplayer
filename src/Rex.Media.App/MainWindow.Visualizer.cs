@@ -381,6 +381,11 @@ public sealed partial class MainWindow
                 var count = (int)Option("bars");
                 Bands(count);
                 var slot = width / count;
+                // One quiet line under the bars, so a silent or paused spectrum is a still baseline
+                // rather than a row of one-pixel bars and their caps (which read as a dashed rule).
+                var baseline = new Rectangle { Width = width, Height = 1, Fill = RexTheme.Brush("RexOverlayHairlineBrush") };
+                Canvas.SetTop(baseline, OptionOn("mirrored") ? Math.Floor(height / 2) : height - 1);
+                VisualCanvas.Children.Add(baseline);
                 for (var i = 0; i < count; i++)
                 {
                     var bar = new Rectangle { Width = Math.Max(1, slot * 0.7), Fill = Brush((double)i / count), RadiusX = 2, RadiusY = 2 };
@@ -769,12 +774,14 @@ public sealed partial class MainWindow
         var mirrored = OptionOn("mirrored");
         for (var i = 0; i < _barShapes.Count && i < _bands.Levels.Count; i++)
         {
-            var bar = Math.Max(1, _bands.Levels[i] * height * (mirrored ? 0.95 : 1));
+            // A silent band draws nothing; the baseline under the bars stands for it.
+            var bar = _bands.Levels[i] * height * (mirrored ? 0.95 : 1);
             _barShapes[i].Height = bar;
             Canvas.SetTop(_barShapes[i], mirrored ? (height - bar) / 2 : height - bar);
             if (i < _peakShapes.Count)
             {
                 var peak = _bands.Peaks[i] * height;
+                _peakShapes[i].Opacity = peak < 1 ? 0 : 1;
                 Canvas.SetTop(_peakShapes[i], mirrored ? Math.Max(0, ((height - peak) / 2) - 4) : Math.Max(0, height - peak - 4));
             }
         }
