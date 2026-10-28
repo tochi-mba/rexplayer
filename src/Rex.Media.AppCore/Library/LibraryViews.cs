@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
@@ -65,7 +66,11 @@ public static partial class LibraryViews
     /// <summary>How many entries the "lately" views list.</summary>
     public const int Lately = 50;
 
-    private static readonly CompareInfo Compare = CultureInfo.CurrentCulture.CompareInfo;
+    // What a file's name says, worked out once per entry: entries are immutable and outlive many views.
+    private static readonly ConditionalWeakTable<LibraryEntry, StrongBox<VideoEpisode?>> Episodes = [];
+    private static readonly ConditionalWeakTable<LibraryEntry, string> MovieTitles = [];
+    private static readonly ConditionalWeakTable<LibraryEntry, StrongBox<int?>> MovieYears = [];
+
     private static readonly StringComparer ByName = StringComparer.Create(CultureInfo.CurrentCulture, CompareOptions.IgnoreCase);
 
     /// <summary>
@@ -373,6 +378,11 @@ public static partial class LibraryViews
     public static string MovieTitleOf(LibraryEntry entry)
     {
         ArgumentNullException.ThrowIfNull(entry);
+        return MovieTitles.GetValue(entry, ParseMovieTitle);
+    }
+
+    private static string ParseMovieTitle(LibraryEntry entry)
+    {
         if (entry.Title != MediaLibrary.TitleOf(entry.Path))
         {
             return entry.Title;
@@ -401,6 +411,12 @@ public static partial class LibraryViews
             return year;
         }
 
+        return MovieYears.GetValue(entry, unknown => new StrongBox<int?>(ParseMovieYear(unknown))).Value;
+    }
+
+    private static int? ParseMovieYear(LibraryEntry entry)
+    {
+        int year;
         var name = MovieReleaseName(entry.Path);
         var match = MovieYearPattern().Match(name);
         return match.Success && int.TryParse(match.Groups["year"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out year) ? year : null;
@@ -521,7 +537,7 @@ public static partial class LibraryViews
     public static VideoEpisode? EpisodeOf(LibraryEntry entry)
     {
         ArgumentNullException.ThrowIfNull(entry);
-        return EpisodeNames.Parse(entry.Path);
+        return Episodes.GetValue(entry, unknown => new StrongBox<VideoEpisode?>(EpisodeNames.Parse(unknown.Path))).Value;
     }
 
     /// <summary>
@@ -608,29 +624,9 @@ public static partial class LibraryViews
     /// view's order; nothing for blank text.
     /// </summary>
     public static IReadOnlyList<LibraryEntry> Search(IEnumerable<LibraryEntry> entries, string? text,
-        Func<LibraryEntry, IEnumerable<string?>>? extraFields = null)
-    {
-        var words = (text ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (words.Length == 0)
-        {
-            return [];
-        }
-
-        var found = entries.Where(entry => words.All(word => Matches(entry, word)
-            || (extraFields?.Invoke(entry) ?? []).Any(field => Matches(field, word)))).ToList();
-        return [.. Songs(found), .. Videos(found), .. Pictures(found)];
-    }
-
-    private static bool Matches(LibraryEntry entry, string word) =>
-        Matches(entry.Title, word) || Matches(entry.Artist, word)
-        || Matches(entry.AlbumArtist, word) || Matches(entry.Album, word)
-        || Matches(entry.Genre, word) || Matches(Path.GetFileName(entry.Path), word);
-
-    private static bool Matches(string? field, string word)
-    {
-        const CompareOptions Loose = CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace | CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth;
-        return field is not null && Compare.IndexOf(field, word, Loose) >= 0;
-    }
+        Func<LibraryEntry, IEnumerable<string?>>? extraFields = null) =>
+        LibrarySearchIndex.For(entries as IReadOnlyList<LibraryEntry> ?? [.. entries]).Search(text,
+            extraFields is null ? null : entry => string.Join('\n', extraFields(entry).OfType<string>()));
 
     [GeneratedRegex(@"^(?<title>.+)[ ._(\-]+(?<year>19\d{2}|20\d{2})(?=[ ._)\-]|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex MovieYearPattern();

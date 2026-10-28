@@ -356,6 +356,7 @@ public sealed partial class MainWindow
         }
 
         QueueLibrarySections();
+        WarmLibraryViews();
         ShowLibrary();
         if (_focusLibraryAfterUndoRefresh)
         {

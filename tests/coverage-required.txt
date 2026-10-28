@@ -158,10 +158,12 @@ LibraryActions.cs
 LibraryArrangement.cs
 LibraryBackup.cs
 LibraryEmptyState.cs
+LibraryMemo.cs
 LibraryOpening.cs
 LibraryPageSlice.cs
 LibraryPlaces.cs
 LibraryScanner.cs
+LibrarySearchIndex.cs
 LibrarySearchText.cs
 LibraryViewDefaults.cs
 LibraryViews.cs

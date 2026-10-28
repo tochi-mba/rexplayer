@@ -12,6 +12,7 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 - The library's navigation list no longer flashes grey placeholder boxes before its entries draw.
 - **Library artwork gives its memory back.** Decoded pictures are kept within a byte budget set by the performance mode (smaller on Fastest and while Energy Saver is on) instead of a flat 400, changing view lets most of them go, and closing the library keeps only a few.
 - **Preferences opens and cancels quickly.** Only the section shown is built; the others are built the first time they are chosen or searched, and Save reads only the sections that were opened.
+- Home and the library views are worked out once per library change, ahead in the background, and Home keeps its shelves, so returning to it no longer rebuilds them; search waits for a pause in typing and filters a prepared index off the window thread.
 
 ### Fixed
 

@@ -137,7 +137,7 @@ public sealed partial class MainWindow
     }
 
     /// <summary>What "More by" depends on beyond the album: how many albums the library holds.</summary>
-    private string MoreByKey() => LibraryViews.Albums(_library?.Entries ?? []).Count.ToString(CultureInfo.InvariantCulture);
+    private string MoreByKey() => LibraryMemo.Albums(_library?.Entries ?? []).Count.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>Each of the album's artists as a link under its title, opening their page.</summary>
     private void ShowHeroArtists(IReadOnlyList<string> artists)
@@ -202,7 +202,7 @@ public sealed partial class MainWindow
     private void OpenArtistNamed(string name)
     {
         var key = ArtistNames.Key(name);
-        if (_library is not null && LibraryViews.Artists(_library.Entries).FirstOrDefault(artist => ArtistNames.Key(artist.Name) == key) is { } artist)
+        if (_library is not null && LibraryMemo.Artists(_library.Entries).FirstOrDefault(artist => ArtistNames.Key(artist.Name) == key) is { } artist)
         {
             OpenMusicGroup(artist, artist: true);
         }
@@ -238,7 +238,7 @@ public sealed partial class MainWindow
             footer.Children.Add(chips);
         }
 
-        var all = LibraryViews.Albums(_library?.Entries ?? []);
+        var all = LibraryMemo.Albums(_library?.Entries ?? []);
         if (AlbumPage.MoreBy(album, all, names) is { Count: > 0 } more && AlbumPage.Artists(album, names) is [var first, ..])
         {
             var shelf = MusicShelf("More by " + first, "MoreBy", [.. more.Take(MusicHome.RowSize).Select(AlbumCard)]);
@@ -289,7 +289,7 @@ public sealed partial class MainWindow
     internal void OnMusicAlbumLink(object sender)
     {
         if (sender is FrameworkElement { DataContext: MusicRow { Item: LibraryEntry { Album: { } name } song } } && _library is not null
-            && LibraryViews.Albums(_library.Entries).FirstOrDefault(album => album.Entries.Any(entry => LibraryViews.SameLocation(entry.Path, song.Path))) is { } found)
+            && LibraryMemo.Albums(_library.Entries).FirstOrDefault(album => album.Entries.Any(entry => LibraryViews.SameLocation(entry.Path, song.Path))) is { } found)
         {
             OpenMusicGroup(found, artist: false);
         }

@@ -348,7 +348,7 @@ public sealed partial class MainWindow
         {
             KeepPlace();
             _places.RememberSearch(_librarySource.ToString(), LibrarySearch.Text);
-            ShowLibraryAtPlace();
+            SearchAfterPause();
         }
     }
 
