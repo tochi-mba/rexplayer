@@ -66,8 +66,9 @@ public sealed partial class MainWindow
             return;
         }
 
+        // A remark about the lyrics, not the song: below the title and artist in emphasis.
         LyricsStatus.Foreground = _lyricAccessibility.HighContrast
-            ? LyricNeutralBrush() : RexTheme.Brush("RexOverlayTextBrush");
+            ? LyricNeutralBrush() : RexTheme.Brush("RexOverlaySecondaryTextBrush");
         LyricsStatusPill.Background = _lyricAccessibility.HighContrast
             ? LyricChipBrush() : RexTheme.Brush("RexOverlayBrush");
         foreach (var child in LyricsLines.Children)
@@ -296,21 +297,10 @@ public sealed partial class MainWindow
         }
 
         var lyrics = stage.ShowLyrics ? _player.Lyrics : null;
-        var lyricStatus = !_settings.ShowLyrics || _player.Item is null || HasVideo ? null
-            : _player.Info is null ? "Loading lyrics from local media..."
-            : lyrics?.DisplayMode switch
-            {
-                LyricsDisplayMode.Plain => "Untimed lyrics; no line or word times were supplied.",
-                LyricsDisplayMode.LineTimed => "Timed lyrics; only line starts were supplied.",
-                LyricsDisplayMode.WordTimed => "Word-timed lyrics; highlights follow exact source timestamps.",
-                LyricsDisplayMode.MixedTimed => "Partly word-timed lyrics; untimed words are shown without invented timing.",
-                _ => _onlineLyricsStatus ?? _player.LyricsProblem ?? "No lyrics found in this song or beside it.",
-            };
-        if (lyrics is not null && _onlineLyricsStatus == "Lyrics from LRCLIB." && ReferenceEquals(_onlineLyricsItem, item))
-        {
-            lyricStatus = "Lyrics from LRCLIB. " + lyricStatus;
-        }
-
+        // Only a song's stage says anything about lyrics, and nothing while it opens or once it failed.
+        var lyricStatus = LyricsStatusText.For(stage, _settings.ShowLyrics, lyrics?.DisplayMode,
+            _onlineLyricsItem is null || ReferenceEquals(_onlineLyricsItem, item) ? _onlineLyricsStatus : null,
+            _player.LyricsProblem, _settings.MinimalInterface);
         if (LyricsStatus.Text != lyricStatus)
         {
             LyricsStatus.Text = lyricStatus ?? "";

@@ -77,7 +77,7 @@ public sealed partial class MainWindow
                 var result = JsonSerializer.Deserialize<OnlineLyricsResult>(json, LyricsSerializerOptions);
                 var lyrics = result?.Match(title, artist!, duration);
                 _onlineLyricsStatus = lyrics is null ? "No reliable lyrics match was found online."
-                    : _player.UseOnlineLyrics(item, lyrics) ? "Lyrics from LRCLIB."
+                    : _player.UseOnlineLyrics(item, lyrics) ? LyricsStatusText.FromLrclib
                     : null;
             }
         }

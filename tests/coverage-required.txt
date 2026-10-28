@@ -170,6 +170,7 @@ LibraryViews.cs
 LightningScene.cs
 LightPaintingScene.cs
 Lyrics.cs
+LyricsStatusText.cs
 M3u.cs
 MachineEnvelope.cs
 MandalaScene.cs
