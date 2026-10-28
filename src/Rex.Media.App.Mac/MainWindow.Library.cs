@@ -414,15 +414,15 @@ public sealed partial class MainWindow
                 play.Alignment = NSTextAlignment.Left;
                 play.LineBreakMode = NSLineBreakMode.TruncatingTail;
                 play.WidthAnchor.ConstraintGreaterThanOrEqualTo(250).Active = true;
-                // Very long titles must not push Queue out of the 590-point window.
-                play.WidthAnchor.ConstraintLessThanOrEqualTo(390).Active = true;
+                // Very long titles must not push Queue out of the minimum-width viewport.
+                play.WidthAnchor.ConstraintLessThanOrEqualTo(370).Active = true;
                 var detail = NSTextField.CreateLabel(secondary);
                 detail.TextColor = NSColor.SecondaryLabel;
                 detail.Font = NSFont.SystemFontOfSize(11, NSFontWeight.Regular)!;
                 detail.LineBreakMode = NSLineBreakMode.TruncatingTail;
                 // A very long artist/album/folder name must not widen the metadata
                 // column beyond Play, or the separate Queue action is pushed offscreen.
-                detail.WidthAnchor.ConstraintLessThanOrEqualTo(390).Active = true;
+                detail.WidthAnchor.ConstraintLessThanOrEqualTo(370).Active = true;
                 var words = NSStackView.FromViews([play, detail]);
                 words.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
                 words.Alignment = NSLayoutAttribute.Leading;
