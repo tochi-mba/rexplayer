@@ -28,6 +28,9 @@ public sealed record MediaInfo
     public long? DeclaredLength { get; init; }
 
     public TrackInfo? FirstTrack(MediaKind kind) => Tracks.FirstOrDefault(track => track.Kind == kind);
+
+    /// <summary>The first video track with moving pictures; a cover kept as a one-frame video track is not one (<see cref="TrackInfo.IsStill"/>).</summary>
+    public TrackInfo? FirstMovingVideo() => Tracks.FirstOrDefault(track => track.Kind == MediaKind.Video && !track.IsStill);
 }
 
 /// <summary>A named point in the timeline.</summary>

@@ -1,3 +1,4 @@
+using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Transcription;
 using Rex.Media.Library;
 using Rex.Media.Primitives;
@@ -18,6 +19,7 @@ public sealed class TranscriptionPolicyTests
         Kind = kind,
         Title = Path.GetFileNameWithoutExtension(path),
         Probed = probed,
+        TagReading = MediaLibrary.TagReading,
         Duration = TimeSpan.FromMinutes(minutes),
         Added = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(added),
         Size = size,
@@ -93,6 +95,16 @@ public sealed class TranscriptionPolicyTests
         Assert.Equal(TranscriptionSkip.NotReadYet, Of(Entry(@"D:\Videos\c.mkv", probed: false)));
         Assert.Equal(TranscriptionSkip.TooShort, Of(Entry(@"D:\Videos\d.mkv", minutes: 0.05)));
         Assert.Equal(TranscriptionSkip.None, Of(Entry(@"D:\Videos\e.mkv") with { Duration = null }));
+
+        // A video read before covers were told from moving pictures may be a song: it waits to be read again.
+        Assert.Equal(TranscriptionSkip.NotReadYet, Of(Entry(@"D:\Videos\f.mp4") with { TagReading = MediaLibrary.TagReading - 1 }));
+        Assert.Equal(TranscriptionSkip.Music, Of(Entry(@"D:\Videos\Asake - Terminator.m4a", LibraryKind.Music) with { TagReading = 0 }));
+
+        // A file still downloading waits until it is whole, whether the library saw it arrive or a downloader's name marks it.
+        Assert.Equal(TranscriptionSkip.Downloading, Of(Entry(@"D:\Videos\Show - 801 - Episode.avi.!qB")));
+        Assert.Equal(TranscriptionSkip.Downloading, Of(Entry(@"D:\Videos\g.mkv") with { Downloading = true }));
+        Assert.Equal(TranscriptionSkip.Downloading, TranscriptionEligibility.Of(audiobook with { Downloading = true },
+            settings with { IncludeAudiobooks = true }, Folders, null, audiobook: true));
         Assert.Throws<ArgumentNullException>(() => TranscriptionEligibility.Of(null!, settings, Folders, null));
 
         foreach (var skip in Enum.GetValues<TranscriptionSkip>())
@@ -103,13 +115,83 @@ public sealed class TranscriptionPolicyTests
 
     [Fact]
     [Capability("SUB-20")]
-    public void WhatPlaysDoesNotAutomaticallyTranscribeMusic()
+    public void WhatPlaysTranscribesVideosAudiobooksAndPodcastsButNeverSongsOrRecordingsUnasked()
     {
-        Assert.True(TranscriptionEligibility.Playing(asked: true, hasPictures: false, whatPlays: false, backgroundEligible: false));
-        Assert.True(TranscriptionEligibility.Playing(asked: false, hasPictures: true, whatPlays: true, backgroundEligible: false));
-        Assert.True(TranscriptionEligibility.Playing(asked: false, hasPictures: false, whatPlays: false, backgroundEligible: true));
-        Assert.False(TranscriptionEligibility.Playing(asked: false, hasPictures: false, whatPlays: true, backgroundEligible: false));
-        Assert.False(TranscriptionEligibility.Playing(asked: false, hasPictures: true, whatPlays: false, backgroundEligible: false));
+        bool Playing(SpeechSource source, bool asked = false, bool whatPlays = true, bool background = false, bool downloading = false) =>
+            TranscriptionEligibility.Playing(asked, source, whatPlays, background, downloading);
+
+        Assert.True(Playing(SpeechSource.Video));
+        Assert.True(Playing(SpeechSource.Audiobook));
+        Assert.True(Playing(SpeechSource.Podcast));
+        Assert.False(Playing(SpeechSource.Other));
+        Assert.False(Playing(SpeechSource.Recording));
+        Assert.False(Playing(SpeechSource.Video, whatPlays: false));
+        Assert.True(Playing(SpeechSource.Audiobook, whatPlays: false, background: true));
+        Assert.False(Playing(SpeechSource.Other, whatPlays: false, background: true));
+        Assert.False(Playing(SpeechSource.Video, downloading: true));
+        Assert.False(Playing(SpeechSource.Video, background: true, downloading: true));
+
+        // Asking always wins: the request itself was checked when it was made.
+        Assert.True(Playing(SpeechSource.Recording, asked: true, whatPlays: false));
+        Assert.True(Playing(SpeechSource.Other, asked: true, whatPlays: false));
+    }
+
+    [Fact]
+    [Capability("SUB-20")]
+    public void ASongsCoverIsNotAVideoAndTheShelfOrTagsSayWhatSoundHolds()
+    {
+        var sound = new TrackInfo { Id = 2, Codec = CodecId.Aac };
+        var cover = new TrackInfo { Id = 1, Codec = CodecId.Mjpeg, Video = new VideoTrackInfo { Width = 600, Height = 600, Still = true } };
+        var film = new TrackInfo { Id = 1, Codec = CodecId.H264, Video = new VideoTrackInfo { Width = 1920, Height = 1080 } };
+        MediaInfo Info(IReadOnlyDictionary<string, string>? tags = null, params TrackInfo[] tracks) =>
+            new() { FormatName = "MP4", Tracks = tracks, Metadata = tags ?? new Dictionary<string, string>() };
+
+        Assert.Equal(SpeechSource.Video, TranscriptionEligibility.SourceOf(Info(null, film, sound), AudioShelf.Music));
+        Assert.Equal(SpeechSource.Other, TranscriptionEligibility.SourceOf(Info(null, cover, sound), AudioShelf.Music));
+        Assert.Equal(SpeechSource.Other, TranscriptionEligibility.SourceOf(Info(null, cover, sound), null));
+        Assert.Equal(SpeechSource.Audiobook, TranscriptionEligibility.SourceOf(Info(null, cover, sound), AudioShelf.Audiobooks));
+        Assert.Equal(SpeechSource.Podcast, TranscriptionEligibility.SourceOf(Info(null, sound), AudioShelf.Podcasts));
+        Assert.Equal(SpeechSource.Recording, TranscriptionEligibility.SourceOf(Info(null, sound), AudioShelf.Recordings));
+        Assert.Equal(SpeechSource.Other, TranscriptionEligibility.SourceOf(Info(null, sound), AudioShelf.Sounds));
+
+        // From outside the library, the file's own tags say what it is.
+        var podcast = new Dictionary<string, string> { [MetadataKeys.MediaType] = MetadataKeys.Podcast };
+        Assert.Equal(SpeechSource.Podcast, TranscriptionEligibility.SourceOf(Info(podcast, cover, sound), null));
+        Assert.Equal(SpeechSource.Audiobook, TranscriptionEligibility.SourceOf(Info(new Dictionary<string, string> { [MetadataKeys.Genre] = "Audiobook" }, sound), null));
+        Assert.Equal(SpeechSource.Other, TranscriptionEligibility.SourceOf(null, null));
+
+        foreach (var source in Enum.GetValues<SpeechSource>())
+        {
+            Assert.Equal(source is SpeechSource.Video or SpeechSource.Audiobook or SpeechSource.Podcast, TranscriptionEligibility.HeardOnItsOwn(source));
+        }
+    }
+
+    [Fact]
+    [Capability("SUB-20")]
+    public void TranscribeTurnsAwaySongsAndFilesStillDownloading()
+    {
+        Assert.Null(TranscriptionEligibility.Refusal(SpeechSource.Video, downloading: false));
+        Assert.Null(TranscriptionEligibility.Refusal(SpeechSource.Recording, downloading: false));
+        Assert.StartsWith("Songs are not transcribed", TranscriptionEligibility.Refusal(SpeechSource.Other, downloading: false), StringComparison.Ordinal);
+        Assert.StartsWith("This file is still downloading", TranscriptionEligibility.Refusal(SpeechSource.Video, downloading: true), StringComparison.Ordinal);
+
+        Assert.True(TranscriptionEligibility.StillDownloading(@"D:\Videos\film.avi.!qB", null));
+        Assert.True(TranscriptionEligibility.StillDownloading(@"D:\Videos\film.mp4.part", null));
+        Assert.True(TranscriptionEligibility.StillDownloading(@"D:\Videos\film.mp4", Entry(@"D:\Videos\film.mp4") with { Downloading = true }));
+        Assert.False(TranscriptionEligibility.StillDownloading(@"D:\Videos\film.mp4", Entry(@"D:\Videos\film.mp4")));
+        Assert.False(TranscriptionEligibility.StillDownloading(@"D:\Videos\film.mp4", null));
+        Assert.Throws<ArgumentNullException>(() => TranscriptionEligibility.StillDownloading(null!, null));
+
+        var song = Entry(@"D:\Music\Asake - Sungba.mp3", LibraryKind.Music);
+        Assert.True(TranscriptionEligibility.MayAsk(Entry(@"D:\Videos\a.mkv"), null));
+        Assert.False(TranscriptionEligibility.MayAsk(Entry(@"D:\Videos\a.mkv.part"), null));
+        Assert.False(TranscriptionEligibility.MayAsk(song, AudioShelf.Music));
+        Assert.False(TranscriptionEligibility.MayAsk(song, null));
+        Assert.True(TranscriptionEligibility.MayAsk(song, AudioShelf.Recordings));
+        Assert.True(TranscriptionEligibility.MayAsk(song, AudioShelf.Audiobooks));
+        Assert.False(TranscriptionEligibility.MayAsk(song with { Downloading = true }, AudioShelf.Audiobooks));
+        Assert.False(TranscriptionEligibility.MayAsk(Entry(@"D:\Videos\p.jpg", LibraryKind.Picture), null));
+        Assert.Throws<ArgumentNullException>(() => TranscriptionEligibility.MayAsk(null!, null));
     }
 
     [Fact]
@@ -127,7 +209,9 @@ public sealed class TranscriptionPolicyTests
         var song = Entry(@"D:\Videos\Asake - Terminator.mp3", LibraryKind.Music, size: 9);
         var twin = Entry(@"D:\Videos\twin.mkv", added: 1, size: 10);
         var picture = Entry(@"D:\Videos\p.jpg", LibraryKind.Picture, size: 11);
-        LibraryEntry[] entries = [old, newest, middle, partial, watching, done, failed, outside, song, twin, picture];
+        var arriving = Entry(@"D:\Videos\Show - 801 - Episode.avi.!qB", added: 20, size: 12);
+        var growing = Entry(@"D:\Videos\growing.mkv", added: 21, size: 13) with { Downloading = true };
+        LibraryEntry[] entries = [old, newest, middle, partial, watching, done, failed, outside, song, twin, picture, arriving, growing];
         var records = new Dictionary<TranscriptSignature, TranscriptRecord>
         {
             [TranscriptionOrder.Sign(partial)] = Record(partial, TranscriptState.Partial, 0.25),
@@ -138,7 +222,8 @@ public sealed class TranscriptionPolicyTests
         IReadOnlyList<QueuedFile> Order(TranscriptionSettings with, params string[] asked) =>
             TranscriptionOrder.Order(entries, asked, with, Folders, records.GetValueOrDefault, path => path == watching.Path, Now);
 
-        var queue = Order(settings, outside.Path, done.Path, song.Path, picture.Path, @"D:\Videos\unknown.mkv", outside.Path);
+        // Asked or not, a song, a picture and a file still downloading are never queued.
+        var queue = Order(settings, outside.Path, done.Path, song.Path, picture.Path, @"D:\Videos\unknown.mkv", outside.Path, arriving.Path, growing.Path);
         Assert.Equal([outside.Path, partial.Path, watching.Path, newest.Path, middle.Path, old.Path, twin.Path], queue.Select(file => file.Path));
         Assert.Equal([true, false, false, false, false, false, false], queue.Select(file => file.Asked));
         Assert.Equal(0.25, queue[1].Share);

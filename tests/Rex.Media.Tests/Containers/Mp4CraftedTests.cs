@@ -127,6 +127,9 @@ public sealed class Mp4CraftedTests
         Assert.Equal(new ColorInfo(ColorMatrix.Bt2020NonConstant, ColorTransfer.Pq, ColorPrimaries.Bt2020, true), video.Color);
         Assert.Equal(new Rational(25, 1), video.FrameRate);
         Assert.Null(Track(File([Video(VideoEntry("avc1", 64, 48), Samples(5))])).Video!.FrameRate);
+        // One picture is a still (a song's cover kept as a track), more are moving pictures.
+        Assert.True(Track(File([Video(VideoEntry("jpeg", 64, 48), Samples(5))])).Video!.Still);
+        Assert.False(video.Still);
         Assert.Equal(new Rational(1, 1), Track(File([Video(VideoEntry("avc1", 64, 48, Box("pasp", U32(0), U32(1))))])).Video!.PixelAspect);
     }
 
