@@ -698,12 +698,9 @@ public sealed partial class MainWindow : Window
             _playlistRows[current].SetProgress(_player.Position, _player.Duration);
         }
 
-        PlaylistQueueCount.Text = rows.Count == 1 ? "1 item" : $"{rows.Count} items";
         ShowQueuePlaybackState();
-        PlaylistEmpty.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         var paneVisible = PlaylistPane.Visibility == Visibility.Visible;
-        PlaylistJumpNow.IsEnabled = current >= 0;
         PlaylistUndoReorder.IsEnabled = _queueUndoOrder is { } previous && _player.Playlist.CanRestoreOrder(previous);
 
         if (QueueScrollPolicy.ShouldFollow(paneVisible, !_queuePaneWasVisible, _queueLastFollowed, _player.Playlist.Current))
@@ -719,12 +716,8 @@ public sealed partial class MainWindow : Window
     /// <summary>Titles and reversible actions follow engine state even when the queue itself did not change.</summary>
     private void ShowQueuePlaybackState()
     {
-        var active = _player.Item is not null && _player.State is not (SessionState.Idle or SessionState.Ended or SessionState.Faulted);
-        PlaylistQueueNow.Text = _player.Playlist.Current is { } playing && active
-            ? "Now playing: " + playing.Title
-            : active ? "Current media outside the queue" : "Nothing playing";
-        PlaylistQueueNext.Text = _player.Playlist.PeekNext(automatic: true) is { } next
-            ? "Up next: " + next.Title : "No upcoming items";
+        ShowQueueHeader(QueuePresentation.Of(_player.Playlist.Items.Count, _player.Playlist.Current,
+            _player.Playlist.PeekNext(automatic: true), _player.Item, _player.State));
         PlaylistUndoRemoval.IsEnabled = _undoQueueRemoval is { } removed
             && ReferenceEquals(_undoQueuePlayerItem, _player.Item)
             && _player.Playlist.CanUndoRemoval(removed);
