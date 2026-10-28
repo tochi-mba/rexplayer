@@ -31,6 +31,7 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 - A page about one thing (an album, an artist, a show, a movie's details) leaves out the library-wide search box.
 - The Browse billboard leaves the first shelf in view, its words sit on a shade that keeps them readable, and More info looks like the banner's other buttons; the music Home's featured album keeps its facts readable in a light window.
 - Back sits above the banner's artwork, so the kicker lines up with the title, and a TV show's page wears its poster like a movie's.
+- **A tidier queue panel.** An empty queue says so once, without a count, a now and next line or a drag hint beside it. Undo reorder, Undo removal and Jump to the playing item appear only when they can act, at the normal size, and the count, now and next fit on two short lines. The playing line says Paused while paused, its progress shows only once there is some, and a missing file is marked with a warning and readable "Missing" where its length would be.
 
 ### Fixed
 
