@@ -20,9 +20,16 @@ public sealed partial class AppWindowTests
         Wait.For(() => Math.Abs(app.Window.Current.BoundingRectangle.Width - 1000) < 2 &&
             Math.Abs(app.Window.Current.BoundingRectangle.Height - 700) < 2,
             "the pinned corrupt-media error viewport");
-        Wait.For(() => app.Status().State == "Faulted" && app.IsShown("Osd") &&
-            app.Text("Osd").Contains("could not be played", StringComparison.Ordinal),
+        // The stage itself is the notice: the reason in a sentence, a way on, and the rest of the
+        // reason behind Details. It is said once, so no passing message repeats it over the stage.
+        Wait.For(() => app.Status().State == "Faulted"
+            && app.Find("Stage").Current.Name == "PLAYBACK ERROR playback stage"
+            && app.IsShown("ErrorOpenFile")
+            && app.Text("IdleHint").Contains("does not recognise", StringComparison.Ordinal),
             "the actual damaged-file failure notice to appear");
+        Assert.False(app.IsShown("Osd"), "The stage already says why the file could not be played.");
+        Assert.False(app.IsShown("LyricsStatus"), "A failed file has no lyrics to talk about.");
+        Assert.True(app.IsShown("ErrorDetails"), "The bytes the file starts with are kept for whoever asks.");
         Screenshots.Match(app, "player-corrupt-file-error");
         Assert.Equal(0, app.Close());
     }
