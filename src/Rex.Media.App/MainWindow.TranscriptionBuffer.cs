@@ -119,9 +119,12 @@ public sealed partial class MainWindow
         var view = Rex.Media.AppCore.Transcription.SubtitleBuffer.View(coverage, duration, _player.Position, DisplayedHearing);
         var ahead = coverage is null ? TimeSpan.Zero : Rex.Media.AppCore.Transcription.SubtitleBuffer.Ahead(coverage, _player.Position);
         // While a new quality's coverage loads during a wait, nothing is known yet to count.
-        var label = _holdingForSubtitles && coverage is null ? "Preparing captions"
+        var progress = _holdingForSubtitles && coverage is not null
+            ? $"{Math.Round(ahead.TotalMinutes):0}/{Math.Ceiling(Rex.Media.AppCore.Transcription.SubtitleBuffer.ReleaseTarget(_worker?.Speed.SafeFactor, _player.Speed, _player.Position, duration).TotalMinutes):0} min"
+            : null;
+        var label = _holdingForSubtitles && progress is null ? "Preparing captions"
             : _holdingForSubtitles
-            ? $"Preparing captions · {Math.Round(ahead.TotalMinutes):0}/{Math.Ceiling(Rex.Media.AppCore.Transcription.SubtitleBuffer.ReleaseTarget(_worker?.Speed.SafeFactor, _player.Speed, _player.Position, duration).TotalMinutes):0} min"
+            ? $"Preparing captions · {progress}"
             : state switch
             {
                 BufferState.Ahead => $"{Math.Max(1, (int)Math.Ceiling(ahead.TotalSeconds))}s ahead",
@@ -137,8 +140,9 @@ public sealed partial class MainWindow
         }
 
         CaptionBufferOverlay.Visibility = _holdingForSubtitles ? Visibility.Visible : Visibility.Collapsed;
+        // The overlay's heading already says captions are being prepared: its words say how far.
         CaptionBufferOverlayText.Text = _holdingForSubtitles
-            ? label + ". Playback will start automatically when enough captions are ready."
+            ? (progress is null ? "" : progress + " ready. ") + "Playback will start automatically when enough captions are ready."
             : "";
 
         if (AutomationProperties.GetName(TranscriptRail) != view.ToolTip)
@@ -192,7 +196,8 @@ public sealed partial class MainWindow
         {
             case HoldAction.Hold:
                 _player.Pause();
-                Say("Preparing enough subtitles to play through without interruptions. This may take a while on slower computers.");
+                // The overlay explains the wait; a banner over it would only say it again.
+                App.Log.Info(LogSource, "Waiting for enough captions to play through without interruptions.");
                 ShowSubtitleBufferState(force: true);
                 break;
             case HoldAction.Release:

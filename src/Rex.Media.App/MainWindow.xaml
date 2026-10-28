@@ -294,9 +294,10 @@
           </StackPanel>
         </StackPanel>
         <!-- A held viewer should not have to infer from the small timeline rail that captions are
-             being prepared. Keep the explanation central and offer an immediate, explicit escape. -->
+             being prepared. Keep the explanation central and offer an immediate, explicit escape.
+             Opaque, so the stage's title does not show through the wait's own heading. -->
         <Border x:Name="CaptionBufferOverlay" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"
-                MaxWidth="420" Margin="24" Padding="22,18" CornerRadius="16" Background="{StaticResource RexStrongOverlayBrush}"
+                MaxWidth="420" Margin="24" Padding="22,18" CornerRadius="16" Background="{StaticResource RexStageSurfaceBrush}"
                 BorderBrush="{StaticResource RexOverlayHairlineBrush}" BorderThickness="1" Canvas.ZIndex="30" AutomationProperties.AutomationId="CaptionBufferOverlay" AutomationProperties.Name="Preparing captions">
           <StackPanel Spacing="12" HorizontalAlignment="Center">
             <ProgressRing IsActive="True" Width="34" Height="34" HorizontalAlignment="Center" AutomationProperties.AccessibilityView="Raw" />
@@ -311,7 +312,7 @@
         <!-- A growing local file can temporarily run out of downloaded bytes without being over.
              Make that recoverable wait explicit instead of leaving a frozen picture on screen. -->
         <Border x:Name="DownloadBufferOverlay" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"
-                MaxWidth="420" Margin="24" Padding="22,18" CornerRadius="16" Background="{StaticResource RexStrongOverlayBrush}"
+                MaxWidth="420" Margin="24" Padding="22,18" CornerRadius="16" Background="{StaticResource RexStageSurfaceBrush}"
                 BorderBrush="{StaticResource RexOverlayHairlineBrush}" BorderThickness="1" Canvas.ZIndex="30" AutomationProperties.AutomationId="DownloadBufferOverlay" AutomationProperties.Name="Waiting for download">
           <StackPanel Spacing="12" HorizontalAlignment="Center">
             <ProgressRing x:Name="DownloadBufferProgress" IsActive="True" Width="34" Height="34" HorizontalAlignment="Center" AutomationProperties.AccessibilityView="Raw" />

@@ -92,6 +92,7 @@ public sealed class DesignTokensTests
         Assert.Equal(DesignTokens.Hex(DesignTokens.Attention), Shared("RexAttentionBrush"));
         Assert.Equal(DesignTokens.Hex(DesignTokens.WithAlpha(DesignTokens.DarkInk[0], DesignTokens.OverlayAlpha)), Shared("RexOverlayBrush"));
         Assert.Equal(DesignTokens.Hex(DesignTokens.WithAlpha(DesignTokens.DarkInk[0], DesignTokens.StrongOverlayAlpha)), Shared("RexStrongOverlayBrush"));
+        Assert.Equal(DesignTokens.Hex(DesignTokens.DarkInk[0]), Shared("RexStageSurfaceBrush"));
         Assert.Equal(DesignTokens.Hex(DesignTokens.DarkText[0]), Shared("RexOverlayTextBrush"));
         Assert.Equal(DesignTokens.Hex(DesignTokens.DarkText[1]), Shared("RexOverlaySecondaryTextBrush"));
         Assert.Equal(DesignTokens.Hex(DesignTokens.DarkText[2]), Shared("RexOverlayTertiaryTextBrush"));
