@@ -329,6 +329,8 @@ public sealed partial class MainWindow
                 break;
         }
     }
+    private Microsoft.UI.Xaml.Media.Brush? _windowedControlsBackground;
+
     private void SetFullScreen(bool fullScreen)
     {
         if (fullScreen == IsFullScreen)
@@ -341,7 +343,9 @@ public sealed partial class MainWindow
 
         // In full screen the controls float over the bottom of the picture instead of taking a row of their own.
         Grid.SetRow(Controls, fullScreen ? 1 : 2);
-        Controls.Background = fullScreen ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(0xC0, 0x08, 0x0A, 0x09)) : null;
+        // Keep the bar's own brush to put back: clearing it would leave the windowed bar see-through.
+        _windowedControlsBackground ??= Controls.Background;
+        Controls.Background = fullScreen ? RexTheme.Brush("RexOverlayBrush") : _windowedControlsBackground;
         Controls.RequestedTheme = fullScreen ? ElementTheme.Dark : ElementTheme.Default;
         if (fullScreen)
         {
@@ -823,7 +827,7 @@ public sealed partial class MainWindow
             IsReadOnly = true,
             AcceptsReturn = true,
             TextWrapping = TextWrapping.NoWrap,
-            FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas"),
+            FontFamily = (Microsoft.UI.Xaml.Media.FontFamily)Application.Current.Resources["RexMonoFontFamily"],
             FontSize = 12,
             Height = 420,
             MinWidth = 720,

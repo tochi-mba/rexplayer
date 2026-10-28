@@ -6,6 +6,7 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 
 ### Improved
 
+- **One set of REX colours.** Overlays, badges, scrims and text on the picture now draw from shared ink and signal colours, defined once with light, dark and high-contrast versions, instead of about forty separate colours in three clashing shades. Both the Windows and Mac apps can read the same values.
 - The Fastest performance mode decodes page banner artwork at up to 960 pixels across (about a third of the memory of the full 1600), and Preferences says so.
 - When the window's animations are off (Fastest, or Windows' own animation setting), the playing song's equaliser mark stands still instead of animating, while still marking the line.
 - The automation pipe's `status` reports `picturesPending`, the picture requests still queued or loading, so a script can wait for the pictures on screen to settle. The Windows screenshot tests wait on it, so a card's placeholder is never captured in place of its picture.
@@ -16,6 +17,7 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 
 ### Fixed
 
+- Leaving full screen no longer leaves the playback controls with a see-through background.
 - **The Mac app builds again, so new versions can publish.** Speech recognition's Linux and Windows libraries were being packed into rexplayer.app, where the Mac's tools refused them and stopped every build since 0.31.0; only the Mac's own libraries go in now.
 
 ## 0.31.0 - 2026-10-25

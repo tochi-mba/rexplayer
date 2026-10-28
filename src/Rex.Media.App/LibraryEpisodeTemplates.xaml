@@ -27,9 +27,9 @@
             <TextBlock Text="NOW PLAYING" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
           </Border>
             <ProgressRing Visibility="{x:Bind DownloadVisibility, Mode=OneWay}" Value="{x:Bind DownloadPercent, Mode=OneWay}" IsIndeterminate="False" Maximum="100" Width="22" Height="22" Margin="6"
-                          HorizontalAlignment="Right" VerticalAlignment="Top" Foreground="White" Background="#C0181818" IsHitTestVisible="False"
+                          HorizontalAlignment="Right" VerticalAlignment="Top" Foreground="{StaticResource RexOverlayTextBrush}" Background="{StaticResource RexOverlayBrush}" IsHitTestVisible="False"
                           ToolTipService.ToolTip="{x:Bind DownloadText, Mode=OneWay}" AutomationProperties.AutomationId="LibraryDownloadBadge" AutomationProperties.Name="{x:Bind DownloadText, Mode=OneWay}" />
-            <FontIcon Glyph="&#xE896;" Visibility="{x:Bind DownloadVisibility, Mode=OneWay}" FontSize="9" Foreground="White" Width="22" Height="22" Margin="6" HorizontalAlignment="Right" VerticalAlignment="Top" />
+            <FontIcon Glyph="&#xE896;" Visibility="{x:Bind DownloadVisibility, Mode=OneWay}" FontSize="9" Foreground="{StaticResource RexOverlayTextBrush}" Width="22" Height="22" Margin="6" HorizontalAlignment="Right" VerticalAlignment="Top" />
         </Grid>
       </Border>
       <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
@@ -44,7 +44,7 @@
         <FontIcon Glyph="{x:Bind TranscriptGlyph, Mode=OneWay}" Visibility="{x:Bind TranscriptVisibility, Mode=OneWay}" FontSize="13"
                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" ToolTipService.ToolTip="{x:Bind TranscriptText, Mode=OneWay}"
                   AutomationProperties.AutomationId="LibraryTranscriptBadge" AutomationProperties.Name="{x:Bind TranscriptText, Mode=OneWay}" />
-        <TextBlock Text="{x:Bind Extra}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="Cascadia Mono, Consolas" />
+        <TextBlock Text="{x:Bind Extra}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="{StaticResource RexMonoFontFamily}" />
       </StackPanel>
     </Grid>
   </DataTemplate>

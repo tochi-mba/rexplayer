@@ -1,3 +1,4 @@
+using Rex.Media.AppCore.Design;
 using System.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
@@ -147,7 +148,7 @@ public partial class LibraryRow(
         }
     }
 
-    private static Brush DefaultTile => s_defaultTile ??= new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x20, 0x25, 0x2D));
+    private static Brush DefaultTile => s_defaultTile ??= new SolidColorBrush(RexTheme.Color(DesignTokens.DarkInk[3]));
 
     public ImageSource? Picture
     {

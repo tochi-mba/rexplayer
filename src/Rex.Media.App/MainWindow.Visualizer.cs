@@ -482,7 +482,7 @@ public sealed partial class MainWindow
             return;
         }
 
-        _visualNote = new TextBlock { Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(200, 255, 255, 255)), TextWrapping = TextWrapping.Wrap, MaxWidth = 460 };
+        _visualNote = new TextBlock { Foreground = RexTheme.Brush("RexOverlaySecondaryTextBrush"), TextWrapping = TextWrapping.Wrap, MaxWidth = 460 };
         Canvas.SetLeft(_visualNote, 24);
         Canvas.SetTop(_visualNote, Math.Max(24, height - 72));
         VisualCanvas.Children.Add(_visualNote);

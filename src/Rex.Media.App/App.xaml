@@ -8,17 +8,39 @@
         <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
       </ResourceDictionary.MergedDictionaries>
       <ResourceDictionary.ThemeDictionaries>
+        <!-- The REX ink and signal, one set per theme. Values come from DesignTokens; a test keeps them equal. -->
         <ResourceDictionary x:Key="Light">
-          <SolidColorBrush x:Key="LibraryCanvasBrush" Color="#F2F5F0" />
-          <SolidColorBrush x:Key="LibrarySurfaceBrush" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="LibraryCanvasBrush" Color="#FFF2F5F0" />
+          <SolidColorBrush x:Key="LibrarySurfaceBrush" Color="#FFFFFFFF" />
+          <SolidColorBrush x:Key="RexRaisedBrush" Color="#FFE6EBE4" />
+          <SolidColorBrush x:Key="RexHairlineBrush" Color="#FFD3DAD1" />
+          <SolidColorBrush x:Key="RexTextPrimaryBrush" Color="#FF0B0F0C" />
+          <SolidColorBrush x:Key="RexTextSecondaryBrush" Color="#FF3F4A42" />
+          <SolidColorBrush x:Key="RexTextTertiaryBrush" Color="#FF66716A" />
+          <SolidColorBrush x:Key="RexSignalBrush" Color="#FFD7FF3F" />
+          <SolidColorBrush x:Key="RexOnSignalBrush" Color="#FF0B0F0C" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
-          <SolidColorBrush x:Key="LibraryCanvasBrush" Color="#101713" />
-          <SolidColorBrush x:Key="LibrarySurfaceBrush" Color="#19221C" />
+          <SolidColorBrush x:Key="LibraryCanvasBrush" Color="#FF101713" />
+          <SolidColorBrush x:Key="LibrarySurfaceBrush" Color="#FF19221C" />
+          <SolidColorBrush x:Key="RexRaisedBrush" Color="#FF232E26" />
+          <SolidColorBrush x:Key="RexHairlineBrush" Color="#FF232E26" />
+          <SolidColorBrush x:Key="RexTextPrimaryBrush" Color="#FFF2F5F0" />
+          <SolidColorBrush x:Key="RexTextSecondaryBrush" Color="#FFB8C4BC" />
+          <SolidColorBrush x:Key="RexTextTertiaryBrush" Color="#FF8A968E" />
+          <SolidColorBrush x:Key="RexSignalBrush" Color="#FFD7FF3F" />
+          <SolidColorBrush x:Key="RexOnSignalBrush" Color="#FF0B0F0C" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="HighContrast">
           <SolidColorBrush x:Key="LibraryCanvasBrush" Color="{ThemeResource SystemColorWindowColor}" />
           <SolidColorBrush x:Key="LibrarySurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+          <SolidColorBrush x:Key="RexRaisedBrush" Color="{ThemeResource SystemColorWindowColor}" />
+          <SolidColorBrush x:Key="RexHairlineBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+          <SolidColorBrush x:Key="RexTextPrimaryBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+          <SolidColorBrush x:Key="RexTextSecondaryBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+          <SolidColorBrush x:Key="RexTextTertiaryBrush" Color="{ThemeResource SystemColorGrayTextColor}" />
+          <SolidColorBrush x:Key="RexSignalBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+          <SolidColorBrush x:Key="RexOnSignalBrush" Color="{ThemeResource SystemColorHighlightTextColor}" />
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
       <!-- Reusable Windows library layout tokens: one source for both XAML and adaptive code. -->
@@ -29,9 +51,48 @@
       <x:Double x:Key="LibraryBrandFontSize">20</x:Double>
       <Thickness x:Key="LibraryNavigationItemMargin">8,2</Thickness>
       <CornerRadius x:Key="LibraryNavigationItemRadius">10</CornerRadius>
-      <!-- The REX signal colour, for the playing entry and the seek bar's progress. -->
-      <Color x:Key="SignalColor">#D7FF3F</Color>
+      <!-- Colours that stay the same in every theme: they sit on the picture, which is always dark. -->
+      <Color x:Key="SignalColor">#FFD7FF3F</Color>
       <SolidColorBrush x:Key="SignalBrush" Color="{StaticResource SignalColor}" />
+      <SolidColorBrush x:Key="RexToolBrush" Color="#FF45ECD2" />
+      <SolidColorBrush x:Key="RexAttentionBrush" Color="#FFFF7C60" />
+      <SolidColorBrush x:Key="RexOverlayBrush" Color="#C00B0F0C" />
+      <SolidColorBrush x:Key="RexStrongOverlayBrush" Color="#F20B0F0C" />
+      <SolidColorBrush x:Key="RexOverlayTextBrush" Color="#FFF2F5F0" />
+      <SolidColorBrush x:Key="RexOverlaySecondaryTextBrush" Color="#FFB8C4BC" />
+      <SolidColorBrush x:Key="RexOverlayTertiaryTextBrush" Color="#FF8A968E" />
+      <SolidColorBrush x:Key="RexOverlayFillBrush" Color="#22FFFFFF" />
+      <SolidColorBrush x:Key="RexOverlayHairlineBrush" Color="#40FFFFFF" />
+      <SolidColorBrush x:Key="RexToolFillBrush" Color="#2645ECD2" />
+      <Color x:Key="RexScrimClearColor">#000B0F0C</Color>
+      <Color x:Key="RexScrimSoftColor">#400B0F0C</Color>
+      <Color x:Key="RexScrimColor">#990B0F0C</Color>
+      <Color x:Key="RexScrimStrongColor">#E50B0F0C</Color>
+      <SolidColorBrush x:Key="RexScrimBrush" Color="#990B0F0C" />
+      <!-- Shape, space, type and motion. -->
+      <CornerRadius x:Key="RexChipRadius">4</CornerRadius>
+      <CornerRadius x:Key="RexSmallRadius">8</CornerRadius>
+      <CornerRadius x:Key="RexCardRadius">12</CornerRadius>
+      <CornerRadius x:Key="RexPageRadius">16</CornerRadius>
+      <x:Double x:Key="RexSpace1">4</x:Double>
+      <x:Double x:Key="RexSpace2">8</x:Double>
+      <x:Double x:Key="RexSpace3">12</x:Double>
+      <x:Double x:Key="RexSpace4">16</x:Double>
+      <x:Double x:Key="RexSpace5">24</x:Double>
+      <x:Double x:Key="RexMicroFontSize">10</x:Double>
+      <x:Double x:Key="RexCaptionFontSize">12</x:Double>
+      <x:Double x:Key="RexBodyFontSize">14</x:Double>
+      <x:Double x:Key="RexSectionFontSize">16</x:Double>
+      <x:Double x:Key="RexTitleFontSize">20</x:Double>
+      <x:Double x:Key="RexDisplayFontSize">26</x:Double>
+      <FontFamily x:Key="RexMonoFontFamily">Cascadia Mono, Consolas</FontFamily>
+      <x:Int32 x:Key="RexKickerTracking">120</x:Int32>
+      <Style x:Key="RexKickerTextStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="CharacterSpacing" Value="120" />
+        <Setter Property="Foreground" Value="{ThemeResource RexTextSecondaryBrush}" />
+      </Style>
     </ResourceDictionary>
   </Application.Resources>
 </Application>

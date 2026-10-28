@@ -15,7 +15,7 @@
             PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited">
         <Grid.ColumnDefinitions><ColumnDefinition Width="32" /><ColumnDefinition Width="54" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
         <TextBlock Text="{x:Bind Badge}" Visibility="{x:Bind BadgeVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center"
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="Cascadia Mono, Consolas" />
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="{StaticResource RexMonoFontFamily}" />
         <Border Grid.Column="1" Width="54" Height="54" CornerRadius="5" Background="{ThemeResource LayerFillColorDefaultBrush}">
           <Grid>
             <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="22" Opacity="0.38" HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -23,9 +23,9 @@
               <Image.OpacityTransition><ScalarTransition Duration="0:0:0.2" /></Image.OpacityTransition>
             </Image>
             <ProgressRing Visibility="{x:Bind DownloadVisibility, Mode=OneWay}" Value="{x:Bind DownloadPercent, Mode=OneWay}" IsIndeterminate="False" Maximum="100" Width="22" Height="22" Margin="3"
-                          HorizontalAlignment="Right" VerticalAlignment="Top" Foreground="White" Background="#C0181818" IsHitTestVisible="False"
+                          HorizontalAlignment="Right" VerticalAlignment="Top" Foreground="{StaticResource RexOverlayTextBrush}" Background="{StaticResource RexOverlayBrush}" IsHitTestVisible="False"
                           ToolTipService.ToolTip="{x:Bind DownloadText, Mode=OneWay}" AutomationProperties.AutomationId="LibraryDownloadBadge" AutomationProperties.Name="{x:Bind DownloadText, Mode=OneWay}" />
-            <FontIcon Glyph="&#xE896;" Visibility="{x:Bind DownloadVisibility, Mode=OneWay}" FontSize="9" Foreground="White" Width="22" Height="22" Margin="3" HorizontalAlignment="Right" VerticalAlignment="Top" />
+            <FontIcon Glyph="&#xE896;" Visibility="{x:Bind DownloadVisibility, Mode=OneWay}" FontSize="9" Foreground="{StaticResource RexOverlayTextBrush}" Width="22" Height="22" Margin="3" HorizontalAlignment="Right" VerticalAlignment="Top" />
           </Grid>
         </Border>
         <StackPanel Grid.Column="2" VerticalAlignment="Center">
@@ -47,7 +47,7 @@
           <FontIcon Glyph="{x:Bind TranscriptGlyph, Mode=OneWay}" Visibility="{x:Bind TranscriptVisibility, Mode=OneWay}" FontSize="13"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" ToolTipService.ToolTip="{x:Bind TranscriptText, Mode=OneWay}"
                     AutomationProperties.AutomationId="LibraryTranscriptBadge" AutomationProperties.Name="{x:Bind TranscriptText, Mode=OneWay}" />
-          <TextBlock Text="{x:Bind Extra}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="Cascadia Mono, Consolas" />
+          <TextBlock Text="{x:Bind Extra}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="{StaticResource RexMonoFontFamily}" />
         </StackPanel>
         <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center" Visibility="{x:Bind PlayingVisibility, Mode=OneWay}">
           <FontIcon Glyph="&#xE768;" FontSize="12" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
@@ -94,15 +94,15 @@
         <!-- Subject Lock is separate from the Ghostwire visual effect. The overlay shows the
              deliberately selected region and whether tracking is still confident. -->
         <Canvas x:Name="SubjectCanvas" IsHitTestVisible="False" Visibility="Collapsed">
-          <Border x:Name="SubjectOutline" BorderBrush="#FF45ECD2" BorderThickness="2" CornerRadius="3"
-                  Background="#2045ECD2" Width="1" Height="1" />
+          <Border x:Name="SubjectOutline" BorderBrush="{StaticResource RexToolBrush}" BorderThickness="2" CornerRadius="3"
+                  Background="{StaticResource RexToolFillBrush}" Width="1" Height="1" />
         </Canvas>
         <!-- The Subject Lock panel: a header with the state and the primary action, then
              collapsible sections. It docks to a side of the stage so it never covers the middle
              of the picture, and its content scrolls on short windows. -->
         <Border x:Name="SubjectToolbar" Visibility="Collapsed" VerticalAlignment="Top"
                 HorizontalAlignment="Right" Margin="12" Width="320" CornerRadius="12"
-                Background="#F0121822" BorderBrush="#605FFFFF" BorderThickness="1" RequestedTheme="Dark" AutomationProperties.AutomationId="SubjectToolbar" AutomationProperties.Name="Subject Lock">
+                Background="{StaticResource RexStrongOverlayBrush}" BorderBrush="{StaticResource RexOverlayHairlineBrush}" BorderThickness="1" RequestedTheme="Dark" AutomationProperties.AutomationId="SubjectToolbar" AutomationProperties.Name="Subject Lock">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
                         VerticalScrollMode="Enabled">
             <StackPanel Spacing="8" Padding="12,10,12,12">
@@ -110,10 +110,10 @@
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                 <StackPanel Spacing="4" VerticalAlignment="Center">
-                  <TextBlock Text="Subject Lock" FontWeight="SemiBold" Foreground="White" FontSize="15" />
+                  <TextBlock Text="Subject Lock" FontWeight="SemiBold" Foreground="{StaticResource RexOverlayTextBrush}" FontSize="15" />
                   <Border x:Name="SubjectStatePill" CornerRadius="10" Padding="8,2" HorizontalAlignment="Left"
-                          Background="#3045ECD2" AutomationProperties.AutomationId="SubjectStatePill">
-                    <TextBlock x:Name="SubjectConfidenceText" Foreground="#FF45ECD2" FontSize="12" AutomationProperties.AutomationId="SubjectConfidenceText" AutomationProperties.Name="Tracking state"
+                          Background="{StaticResource RexToolFillBrush}" AutomationProperties.AutomationId="SubjectStatePill">
+                    <TextBlock x:Name="SubjectConfidenceText" Foreground="{StaticResource RexToolBrush}" FontSize="12" AutomationProperties.AutomationId="SubjectConfidenceText" AutomationProperties.Name="Tracking state"
                                AutomationProperties.LiveSetting="Polite"
                                TextWrapping="Wrap" Text="Waiting for selection" />
                   </Border>
@@ -124,7 +124,7 @@
                 <Button Grid.Column="1" Content="Close" VerticalAlignment="Top" Click="OnSubjectClose" ToolTipService.ToolTip="Close Subject Lock (Escape)" AutomationProperties.AutomationId="SubjectClose"
                         AutomationProperties.Name="Close Subject Lock" />
               </Grid>
-              <TextBlock x:Name="SubjectStatusText" Foreground="#FFE0EAF0" TextWrapping="Wrap" FontSize="13" AutomationProperties.AutomationId="SubjectStatusText" AutomationProperties.LiveSetting="Polite"
+              <TextBlock x:Name="SubjectStatusText" Foreground="{StaticResource RexOverlayTextBrush}" TextWrapping="Wrap" FontSize="13" AutomationProperties.AutomationId="SubjectStatusText" AutomationProperties.LiveSetting="Polite"
                          Text="Click the object you want to follow, or drag a box around it." />
               <Grid ColumnSpacing="6" RowSpacing="6">
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
@@ -149,7 +149,7 @@
                                 OnContent="Shown" OffContent="Hidden; tracking continues"
                                 Toggled="OnSubjectShowBoxChanged" AutomationProperties.AutomationId="SubjectShowBox" AutomationProperties.Name="Show the tracking box; tracking continues when hidden" />
                   <TextBlock Text="Zooming or panning by hand switches auto-follow off until you turn it on again."
-                             Foreground="#FFC2C9D4" FontSize="11" TextWrapping="Wrap" />
+                             Foreground="{StaticResource RexOverlaySecondaryTextBrush}" FontSize="11" TextWrapping="Wrap" />
                 </StackPanel>
               </Expander>
               <Expander x:Name="SubjectRemovalSection" Header="Removal preview" IsExpanded="True"
@@ -157,37 +157,37 @@
                         Expanding="OnSubjectExpanding" Collapsed="OnSubjectCollapsed" AutomationProperties.AutomationId="SubjectRemovalSection" AutomationProperties.Name="Removal preview">
                 <StackPanel Spacing="4">
                   <RadioButtons x:Name="SubjectRemovalMode" MaxColumns="2" SelectionChanged="OnSubjectRemovalModeChanged" AutomationProperties.AutomationId="SubjectRemovalMode" AutomationProperties.Name="Removal mode">
-                    <RadioButton x:Name="SubjectRemovalModeRemove" Content="Remove" Foreground="#FFE0EAF0" AutomationProperties.AutomationId="SubjectRemovalModeRemove" />
-                    <RadioButton x:Name="SubjectRemovalModeBlend" Content="Blend" Foreground="#FFE0EAF0" AutomationProperties.AutomationId="SubjectRemovalModeBlend" />
+                    <RadioButton x:Name="SubjectRemovalModeRemove" Content="Remove" Foreground="{StaticResource RexOverlayTextBrush}" AutomationProperties.AutomationId="SubjectRemovalModeRemove" />
+                    <RadioButton x:Name="SubjectRemovalModeBlend" Content="Blend" Foreground="{StaticResource RexOverlayTextBrush}" AutomationProperties.AutomationId="SubjectRemovalModeBlend" />
                   </RadioButtons>
-                  <TextBlock x:Name="SubjectRemovalDescription" Foreground="#FFC2C9D4" FontSize="12" TextWrapping="Wrap" AutomationProperties.AutomationId="SubjectRemovalDescription" />
+                  <TextBlock x:Name="SubjectRemovalDescription" Foreground="{StaticResource RexOverlaySecondaryTextBrush}" FontSize="12" TextWrapping="Wrap" AutomationProperties.AutomationId="SubjectRemovalDescription" />
                   <Button x:Name="SubjectEraseButton" Content="Preview removal" HorizontalAlignment="Stretch"
                           Click="OnSubjectErase" IsEnabled="False" AutomationProperties.AutomationId="SubjectErase" AutomationProperties.Name="Preview removing the subject; the file is not changed" />
-                  <TextBlock x:Name="SubjectFillText" Foreground="#FF45ECD2" FontSize="12" TextWrapping="Wrap" AutomationProperties.AutomationId="SubjectFillText" AutomationProperties.LiveSetting="Polite"
+                  <TextBlock x:Name="SubjectFillText" Foreground="{StaticResource RexToolBrush}" FontSize="12" TextWrapping="Wrap" AutomationProperties.AutomationId="SubjectFillText" AutomationProperties.LiveSetting="Polite"
                              AutomationProperties.Name="Where the removal fill comes from" />
                   <Grid ColumnSpacing="8">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                    <TextBlock x:Name="SubjectToleranceLabel" Foreground="#FFE0EAF0" FontSize="13" VerticalAlignment="Bottom" />
-                    <TextBlock x:Name="SubjectToleranceText" Grid.Column="1" Text="50%, balanced" Foreground="#FF45ECD2" FontSize="13"
+                    <TextBlock x:Name="SubjectToleranceLabel" Foreground="{StaticResource RexOverlayTextBrush}" FontSize="13" VerticalAlignment="Bottom" />
+                    <TextBlock x:Name="SubjectToleranceText" Grid.Column="1" Text="50%, balanced" Foreground="{StaticResource RexToolBrush}" FontSize="13"
                                VerticalAlignment="Bottom" AutomationProperties.AutomationId="SubjectToleranceText" AutomationProperties.Name="Subject coverage value" />
                   </Grid>
                   <Slider x:Name="SubjectTolerance" Minimum="0" Maximum="100" Value="50" StepFrequency="5"
                           ValueChanged="OnSubjectMaskChanged" AutomationProperties.AutomationId="SubjectTolerance" AutomationProperties.Name="Subject coverage" />
                   <Grid ColumnSpacing="8">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                    <TextBlock x:Name="SubjectFeatherLabel" Foreground="#FFE0EAF0" FontSize="13" VerticalAlignment="Bottom" />
-                    <TextBlock x:Name="SubjectFeatherText" Grid.Column="1" Text="3 px" Foreground="#FF45ECD2" FontSize="13"
+                    <TextBlock x:Name="SubjectFeatherLabel" Foreground="{StaticResource RexOverlayTextBrush}" FontSize="13" VerticalAlignment="Bottom" />
+                    <TextBlock x:Name="SubjectFeatherText" Grid.Column="1" Text="3 px" Foreground="{StaticResource RexToolBrush}" FontSize="13"
                                VerticalAlignment="Bottom" AutomationProperties.AutomationId="SubjectFeatherText" AutomationProperties.Name="Edge softness value" />
                   </Grid>
                   <Slider x:Name="SubjectFeather" Minimum="0" Maximum="12" Value="3" StepFrequency="1"
                           ValueChanged="OnSubjectMaskChanged" AutomationProperties.AutomationId="SubjectFeather" AutomationProperties.Name="Edge softness" />
-                  <TextBlock x:Name="SubjectRemovalNote" Foreground="#FFC2C9D4" FontSize="11" TextWrapping="Wrap" />
+                  <TextBlock x:Name="SubjectRemovalNote" Foreground="{StaticResource RexOverlaySecondaryTextBrush}" FontSize="11" TextWrapping="Wrap" />
                 </StackPanel>
               </Expander>
               <Expander x:Name="SubjectHelpSection" Header="Help" IsExpanded="False"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                         Expanding="OnSubjectExpanding" Collapsed="OnSubjectCollapsed" AutomationProperties.AutomationId="SubjectHelpSection" AutomationProperties.Name="Help">
-                <TextBlock x:Name="SubjectHelpText" Foreground="#FFC2C9D4" FontSize="12" TextWrapping="Wrap" AutomationProperties.AutomationId="SubjectHelpText" AutomationProperties.Name="Subject Lock help" />
+                <TextBlock x:Name="SubjectHelpText" Foreground="{StaticResource RexOverlaySecondaryTextBrush}" FontSize="12" TextWrapping="Wrap" AutomationProperties.AutomationId="SubjectHelpText" AutomationProperties.Name="Subject Lock help" />
               </Expander>
             </StackPanel>
           </ScrollViewer>
@@ -207,26 +207,26 @@
           <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
           <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
           <Border x:Name="CoverBox" Grid.Column="0" Width="240" Height="240" CornerRadius="18" Visibility="Collapsed"
-                  Background="#20FFFFFF" BorderBrush="#24FFFFFF" BorderThickness="1">
+                  Background="{StaticResource RexOverlayFillBrush}" BorderBrush="{StaticResource RexOverlayFillBrush}" BorderThickness="1">
             <Image x:Name="CoverImage" Stretch="UniformToFill" AutomationProperties.AutomationId="Cover" AutomationProperties.Name="Cover" />
           </Border>
           <StackPanel x:Name="IdleText" Grid.Column="1" VerticalAlignment="Center" Spacing="7" MaxWidth="560">
             <TextBlock x:Name="IdleKicker" Text="WELCOME" FontSize="11" FontWeight="SemiBold" CharacterSpacing="120" AutomationProperties.LiveSetting="Polite"
                        Foreground="{ThemeResource AccentFillColorDefaultBrush}" HorizontalAlignment="Center" TextAlignment="Center" AutomationProperties.AutomationId="IdleKicker" />
-            <TextBlock x:Name="IdleTitle" AutomationProperties.AutomationId="IdleTitle" Text="rexplayer" FontSize="44" FontWeight="SemiBold" Foreground="White"
+            <TextBlock x:Name="IdleTitle" AutomationProperties.AutomationId="IdleTitle" Text="rexplayer" FontSize="44" FontWeight="SemiBold" Foreground="{StaticResource RexOverlayTextBrush}"
                        HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" MaxLines="2" TextTrimming="CharacterEllipsis" />
-            <TextBlock x:Name="IdleHint" Text="Drop media here, or press Ctrl+O to open a file." Foreground="#D0D8CE" HorizontalAlignment="Center"
+            <TextBlock x:Name="IdleHint" Text="Drop media here, or press Ctrl+O to open a file." Foreground="{StaticResource RexOverlaySecondaryTextBrush}" HorizontalAlignment="Center"
                        TextWrapping="Wrap" TextAlignment="Center" AutomationProperties.AutomationId="IdleHint" />
-            <TextBlock x:Name="IdleAlbum" Foreground="#A0A8A0" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
+            <TextBlock x:Name="IdleAlbum" Foreground="{StaticResource RexOverlayTertiaryTextBrush}" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
                        Visibility="Collapsed" AutomationProperties.AutomationId="IdleAlbum" />
-            <TextBlock x:Name="IdleMeta" Foreground="#90FFFFFF" FontSize="12" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
+            <TextBlock x:Name="IdleMeta" Foreground="{StaticResource RexOverlayTertiaryTextBrush}" FontSize="12" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
                        Visibility="Collapsed" AutomationProperties.AutomationId="IdleMeta" />
             <StackPanel x:Name="WelcomeActions" Spacing="14" Margin="0,18,0,0" RequestedTheme="Dark">
               <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
                 <Button Content="Open file" Click="OnWelcomeOpen" Style="{StaticResource AccentButtonStyle}" Padding="22,12" AutomationProperties.AutomationId="WelcomeOpen" ToolTipService.ToolTip="Open a file (Ctrl+O)" />
                 <Button Content="Browse library" Click="OnToggleLibrary" Padding="22,12" AutomationProperties.AutomationId="WelcomeLibrary" />
               </StackPanel>
-              <TextBlock Text="Your music. Your films. Your space." FontSize="12" Foreground="#B8C4BC" HorizontalAlignment="Center" />
+              <TextBlock Text="Your music. Your films. Your space." FontSize="12" Foreground="{StaticResource RexOverlaySecondaryTextBrush}" HorizontalAlignment="Center" />
             </StackPanel>
           </StackPanel>
         </Grid>
@@ -236,7 +236,7 @@
              inventing timestamps. The status stays accessible when no scroll viewer exists. -->
         <TextBlock x:Name="LyricsStatus" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Bottom"
                    Margin="32,0,32,112" MaxWidth="560" Padding="12,8" TextWrapping="Wrap" TextAlignment="Center"
-                   Foreground="White" AutomationProperties.AutomationId="LyricsStatus"
+                   Foreground="{StaticResource RexOverlayTextBrush}" AutomationProperties.AutomationId="LyricsStatus"
                    AutomationProperties.LiveSetting="Polite" />
         <Button x:Name="FindLyricsButton" Content="Find lyrics online" Visibility="Collapsed"
                 HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,55"
@@ -261,13 +261,13 @@
         <!-- A held viewer should not have to infer from the small timeline rail that captions are
              being prepared. Keep the explanation central and offer an immediate, explicit escape. -->
         <Border x:Name="CaptionBufferOverlay" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"
-                MaxWidth="420" Margin="24" Padding="22,18" CornerRadius="16" Background="#F20B0D0C"
-                BorderBrush="#40FFFFFF" BorderThickness="1" Canvas.ZIndex="30" AutomationProperties.AutomationId="CaptionBufferOverlay" AutomationProperties.Name="Preparing captions">
+                MaxWidth="420" Margin="24" Padding="22,18" CornerRadius="16" Background="{StaticResource RexStrongOverlayBrush}"
+                BorderBrush="{StaticResource RexOverlayHairlineBrush}" BorderThickness="1" Canvas.ZIndex="30" AutomationProperties.AutomationId="CaptionBufferOverlay" AutomationProperties.Name="Preparing captions">
           <StackPanel Spacing="12" HorizontalAlignment="Center">
             <ProgressRing IsActive="True" Width="34" Height="34" HorizontalAlignment="Center" AutomationProperties.AccessibilityView="Raw" />
-            <TextBlock Text="Preparing captions" FontSize="18" FontWeight="SemiBold" Foreground="White"
+            <TextBlock Text="Preparing captions" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource RexOverlayTextBrush}"
                        HorizontalAlignment="Center" />
-            <TextBlock x:Name="CaptionBufferOverlayText" Foreground="#FFD6DAD7" TextAlignment="Center"
+            <TextBlock x:Name="CaptionBufferOverlayText" Foreground="{StaticResource RexOverlaySecondaryTextBrush}" TextAlignment="Center"
                        TextWrapping="Wrap" AutomationProperties.AutomationId="CaptionBufferOverlayText" AutomationProperties.LiveSetting="Polite" />
             <Button Content="Play now" HorizontalAlignment="Center" Click="OnPlayWithoutCaptionBuffer" AutomationProperties.AutomationId="CaptionBufferPlayNow"
                     AutomationProperties.Name="Play now without waiting for more captions" />
@@ -276,22 +276,22 @@
         <!-- A growing local file can temporarily run out of downloaded bytes without being over.
              Make that recoverable wait explicit instead of leaving a frozen picture on screen. -->
         <Border x:Name="DownloadBufferOverlay" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"
-                MaxWidth="420" Margin="24" Padding="22,18" CornerRadius="16" Background="#F20B0D0C"
-                BorderBrush="#40FFFFFF" BorderThickness="1" Canvas.ZIndex="30" AutomationProperties.AutomationId="DownloadBufferOverlay" AutomationProperties.Name="Waiting for download">
+                MaxWidth="420" Margin="24" Padding="22,18" CornerRadius="16" Background="{StaticResource RexStrongOverlayBrush}"
+                BorderBrush="{StaticResource RexOverlayHairlineBrush}" BorderThickness="1" Canvas.ZIndex="30" AutomationProperties.AutomationId="DownloadBufferOverlay" AutomationProperties.Name="Waiting for download">
           <StackPanel Spacing="12" HorizontalAlignment="Center">
             <ProgressRing x:Name="DownloadBufferProgress" IsActive="True" Width="34" Height="34" HorizontalAlignment="Center" AutomationProperties.AccessibilityView="Raw" />
-            <TextBlock Text="Waiting for the download" FontSize="18" FontWeight="SemiBold" Foreground="White"
+            <TextBlock Text="Waiting for the download" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource RexOverlayTextBrush}"
                        HorizontalAlignment="Center" />
             <TextBlock x:Name="DownloadBufferOverlayText" Text="Playback will continue automatically when more of the file is available."
-                       Foreground="#FFD6DAD7" TextAlignment="Center" TextWrapping="Wrap" AutomationProperties.AutomationId="DownloadBufferOverlayText" AutomationProperties.LiveSetting="Polite" />
+                       Foreground="{StaticResource RexOverlaySecondaryTextBrush}" TextAlignment="Center" TextWrapping="Wrap" AutomationProperties.AutomationId="DownloadBufferOverlayText" AutomationProperties.LiveSetting="Polite" />
           </StackPanel>
         </Border>
         <InfoBar x:Name="Notice" VerticalAlignment="Bottom" Margin="16" IsOpen="False" IsClosable="True" MaxWidth="720" AutomationProperties.AutomationId="Notice" />
         <!-- The navigator: the presenter draws the whole picture here while zoomed; this frames it, marks the view and takes the pointer. -->
         <Grid x:Name="Navigator" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed" Background="Transparent"
-              BorderBrush="#E0FFFFFF" BorderThickness="1" AutomationProperties.AutomationId="Navigator" AutomationProperties.Name="Navigator">
+              BorderBrush="{StaticResource RexOverlayTextBrush}" BorderThickness="1" AutomationProperties.AutomationId="Navigator" AutomationProperties.Name="Navigator">
           <Canvas>
-            <Rectangle x:Name="NavigatorView" Stroke="{ThemeResource AccentFillColorDefaultBrush}" StrokeThickness="2" Fill="#22FFFFFF" />
+            <Rectangle x:Name="NavigatorView" Stroke="{ThemeResource AccentFillColorDefaultBrush}" StrokeThickness="2" Fill="{StaticResource RexOverlayFillBrush}" />
           </Canvas>
         </Grid>
         <!-- Skip intro / Skip credits / Next episode, bottom right above the controls. The options
@@ -313,12 +313,12 @@
                   Click="OnSkipEpisodeSection" AutomationProperties.AutomationId="EpisodeSkipButton" AutomationProperties.Name="Skip intro" />
         </StackPanel>
         <Border x:Name="StatsBox" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="16" Padding="12,8" CornerRadius="8"
-                Background="#C0080A09" Visibility="Collapsed" IsHitTestVisible="False">
-          <TextBlock x:Name="Stats" Foreground="White" FontFamily="Cascadia Mono, Consolas" FontSize="12" AutomationProperties.AutomationId="Stats" />
+                Background="{StaticResource RexOverlayBrush}" Visibility="Collapsed" IsHitTestVisible="False">
+          <TextBlock x:Name="Stats" Foreground="{StaticResource RexOverlayTextBrush}" FontFamily="{StaticResource RexMonoFontFamily}" FontSize="12" AutomationProperties.AutomationId="Stats" />
         </Border>
         <Border x:Name="OsdBox" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="16" Padding="12,6" CornerRadius="8"
-                Background="#B0080A09" Visibility="Collapsed" IsHitTestVisible="False">
-          <TextBlock x:Name="Osd" Foreground="White" FontSize="18" AutomationProperties.AutomationId="Osd" AutomationProperties.LiveSetting="Polite" />
+                Background="{StaticResource RexOverlayBrush}" Visibility="Collapsed" IsHitTestVisible="False">
+          <TextBlock x:Name="Osd" Foreground="{StaticResource RexOverlayTextBrush}" FontSize="18" AutomationProperties.AutomationId="Osd" AutomationProperties.LiveSetting="Polite" />
         </Border>
       </Grid>
       <!-- The media library (LIB-05), over the picture while it is open; playback follows the library preference. -->
@@ -369,7 +369,7 @@
             <Rectangle>
               <Rectangle.Fill>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                  <GradientStop Color="#40000000" Offset="0" />
+                  <GradientStop Color="{StaticResource RexScrimSoftColor}" Offset="0" />
                   <GradientStop Color="{ThemeResource SolidBackgroundFillColorBase}" Offset="1" />
                 </LinearGradientBrush>
               </Rectangle.Fill>
@@ -714,7 +714,7 @@
         <Button x:Name="StartOverButton" Content="Start over" Click="OnStartOver" IsEnabled="False"
                 ToolTipService.ToolTip="Start this media from the beginning"
                 AutomationProperties.AutomationId="StartOverButton" AutomationProperties.Name="Start this media from the beginning" />
-        <TextBlock x:Name="Elapsed" Text="0:00" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas"
+        <TextBlock x:Name="Elapsed" Text="0:00" VerticalAlignment="Center" FontFamily="{StaticResource RexMonoFontFamily}"
                    AutomationProperties.AutomationId="Elapsed" />
       </StackPanel>
       <Grid x:Name="SeekArea" Grid.Row="0" Grid.Column="1" Background="Transparent" SizeChanged="OnSeekAreaSizeChanged"
@@ -764,15 +764,15 @@
         <Canvas x:Name="BookmarkMarkers" Height="28" VerticalAlignment="Center" AutomationProperties.AutomationId="BookmarkMarkers"
                 AutomationProperties.Name="Bookmarks on the timeline" />
         <Border x:Name="SeekPreview" Width="192" Padding="6" CornerRadius="8" HorizontalAlignment="Left" VerticalAlignment="Bottom"
-                Margin="0,0,0,30" Background="#E6101110" BorderBrush="#55FFFFFF" BorderThickness="1" Visibility="Collapsed"
+                Margin="0,0,0,30" Background="{StaticResource RexStrongOverlayBrush}" BorderBrush="{StaticResource RexOverlayHairlineBrush}" BorderThickness="1" Visibility="Collapsed"
                 IsHitTestVisible="False" Canvas.ZIndex="20" AutomationProperties.AutomationId="SeekPreview" AutomationProperties.Name="Timeline preview">
           <StackPanel Spacing="5">
             <Border x:Name="SeekPreviewPicture" Width="178" Height="100" CornerRadius="5" Background="Black" Visibility="Collapsed">
               <Image x:Name="SeekPreviewImage" Stretch="UniformToFill" />
             </Border>
-            <TextBlock x:Name="SeekPreviewTime" Foreground="White" FontFamily="Cascadia Mono, Consolas" FontWeight="SemiBold"
+            <TextBlock x:Name="SeekPreviewTime" Foreground="{StaticResource RexOverlayTextBrush}" FontFamily="{StaticResource RexMonoFontFamily}" FontWeight="SemiBold"
                        HorizontalAlignment="Center" AutomationProperties.AutomationId="SeekPreviewTime" />
-            <TextBlock x:Name="SeekPreviewSubtitles" Foreground="#C8FFFFFF" FontSize="11" HorizontalAlignment="Center" Visibility="Collapsed"
+            <TextBlock x:Name="SeekPreviewSubtitles" Foreground="{StaticResource RexOverlayTextBrush}" FontSize="11" HorizontalAlignment="Center" Visibility="Collapsed"
                        AutomationProperties.AutomationId="SeekPreviewSubtitles" />
           </StackPanel>
         </Border>
@@ -797,7 +797,7 @@
             </MenuFlyout>
           </DropDownButton.Flyout>
         </DropDownButton>
-        <TextBlock x:Name="Remaining" Text="0:00" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas"
+        <TextBlock x:Name="Remaining" Text="0:00" VerticalAlignment="Center" FontFamily="{StaticResource RexMonoFontFamily}"
                    Tapped="OnRemainingTapped" AutomationProperties.AutomationId="Remaining" />
       </StackPanel>
       <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" ColumnSpacing="12">
