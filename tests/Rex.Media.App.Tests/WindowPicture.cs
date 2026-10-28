@@ -114,6 +114,18 @@ internal static partial class WindowPicture
         return new System.Windows.Rect(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top);
     }
 
+    /// <summary>
+    /// Where the window's own content is on the screen, in pixels: inside its borders and below
+    /// the title bar Windows draws, which shows its text even while the content is not drawn yet.
+    /// </summary>
+    public static System.Windows.Rect ClientBounds(nint window)
+    {
+        Assert.True(GetClientRect(window, out var client), "The window has no client area.");
+        var origin = default(Point);
+        Assert.True(ClientToScreen(window, ref origin), "The window's client area has no place on the screen.");
+        return new System.Windows.Rect(origin.X, origin.Y, client.Right - client.Left, client.Bottom - client.Top);
+    }
+
     /// <summary>How bright a part of a picture is on average, 0 to 1.</summary>
     public static double Brightness((int Width, int Height, byte[] Bgra) picture, System.Windows.Rect area)
     {
@@ -172,6 +184,13 @@ internal static partial class WindowPicture
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    private struct Point
+    {
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     private struct BitmapInfoHeader
     {
         public uint Size;
@@ -190,6 +209,14 @@ internal static partial class WindowPicture
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool GetWindowRect(nint window, out Rect rect);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetClientRect(nint window, out Rect rect);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ClientToScreen(nint window, ref Point point);
 
     [LibraryImport("user32.dll")]
     private static partial int GetSystemMetrics(int index);

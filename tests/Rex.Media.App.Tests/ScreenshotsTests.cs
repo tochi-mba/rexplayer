@@ -53,6 +53,62 @@ public sealed class ScreenshotsTests
         Assert.True(Screenshots.HasVisibleVariation(picture));
     }
 
+    private static void Fill((int Width, int Height, byte[] Bgra) picture, int left, int top, int width, int height, byte shade)
+    {
+        for (var y = top; y < top + height; y++)
+        {
+            Array.Fill(picture.Bgra, shade, ((y * picture.Width) + left) * 4, width * 4);
+        }
+    }
+
+    [Fact]
+    public void AnUnpaintedWindowLooksVariedOnlyThroughItsBordersAndTitleBar()
+    {
+        // As CI captured it: black resize borders, a dark title bar with its caption, and a client
+        // area that is still the plain backdrop the window shows before WinUI draws into it.
+        var window = Plain(1000, 700, 0);
+        Fill(window, 8, 0, 984, 31, 0x20);
+        Fill(window, 30, 10, 60, 12, 0xF0);
+        Fill(window, 8, 31, 984, 661, 0xD8);
+        Assert.True(Screenshots.HasVisibleVariation(window));
+
+        var client = Screenshots.Crop(window, new System.Windows.Rect(8, 8, 1000, 700), new System.Windows.Rect(16, 39, 984, 661));
+        Assert.False(Screenshots.HasVisibleVariation(client));
+        Assert.Equal((0xD8, 0xD8, 0xD8), Screenshots.MostCommonColour(client));
+    }
+
+    [Fact]
+    public void AShortLabelShowsInkWhereAnUndrawnBoxDoesNot()
+    {
+        var label = Plain(318, 16, 0xF3);
+        Assert.False(Screenshots.HasInk(label, pixelThreshold: 40));
+        Fill(label, 4, 4, 7, 1, 0x1B);
+        Assert.False(Screenshots.HasInk(label, pixelThreshold: 40));
+        Fill(label, 4, 5, 6, 8, 0x1B);
+        Assert.True(Screenshots.HasInk(label, pixelThreshold: 40));
+        Assert.False(Screenshots.HasInk((0, 16, []), pixelThreshold: 40));
+    }
+
+    [Fact]
+    public void TheMostCommonColourIsTheBackgroundNotTheFirstPixel()
+    {
+        var picture = Plain(100, 80, 0x20);
+        Fill(picture, 0, 0, 3, 3, 0xFF);
+        Assert.Equal((0x20, 0x20, 0x20), Screenshots.MostCommonColour(picture));
+    }
+
+    [Fact]
+    public void AFadeStillUnderWayIsAChangeBetweenFramesThoughNotABaselineDifference()
+    {
+        var before = Plain(4, 4, 100);
+        var after = Plain(4, 4, 100);
+        after.Bgra[0] = 120;
+        after.Bgra[(5 * 4) + 1] = 160;
+        Assert.Equal(2, Screenshots.Changed(before, after, Screenshots.SettledPixelThreshold));
+        Assert.Equal(1, Screenshots.Changed(before, after, Screenshots.DefaultPixelThreshold));
+        Assert.Equal(0, Screenshots.Changed(before, Plain(4, 4, 100), Screenshots.SettledPixelThreshold));
+    }
+
     [Fact]
     public void NoiseUnderTheThresholdIsNotADifference()
     {
