@@ -631,12 +631,10 @@
           <Grid ColumnSpacing="8">
             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
             <TextBlock Text="Playlist" Style="{ThemeResource SubtitleTextBlockStyle}" VerticalAlignment="Center" AutomationProperties.HeadingLevel="Level2" />
-            <TextBlock x:Name="PlaylistQueueCount" Grid.Column="1" Text="0 items" Visibility="Collapsed" VerticalAlignment="Center" Margin="0,4,0,0"
-                       FontSize="{StaticResource RexCaptionFontSize}" Foreground="{ThemeResource RexTextSecondaryBrush}"
+            <TextBlock x:Name="PlaylistQueueCount" Grid.Column="1" Text="0 items" Visibility="Collapsed" VerticalAlignment="Center" Margin="0,4,0,0" FontSize="{StaticResource RexCaptionFontSize}" Foreground="{ThemeResource RexTextSecondaryBrush}"
                        AutomationProperties.AutomationId="PlaylistQueueCount" />
             <Button x:Name="PlaylistJumpNow" Grid.Column="2" IsEnabled="False" Visibility="Collapsed" Click="OnPlaylistJumpNow" IsEnabledChanged="OnQueueActionUsableChanged"
-                    ToolTipService.ToolTip="Jump to the playing item"
-                    AutomationProperties.AutomationId="PlaylistJumpNow" AutomationProperties.Name="Jump to the playing item">
+                    ToolTipService.ToolTip="Jump to the playing item" AutomationProperties.AutomationId="PlaylistJumpNow" AutomationProperties.Name="Jump to the playing item">
               <FontIcon Glyph="&#xE819;" FontSize="16" />
             </Button>
           </Grid>
@@ -644,23 +642,19 @@
             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
             <TextBlock x:Name="PlaylistQueueNow" Text="Nothing playing" MaxWidth="170" TextTrimming="CharacterEllipsis"
                        FontSize="{StaticResource RexCaptionFontSize}" AutomationProperties.AutomationId="PlaylistQueueNow" />
-            <TextBlock Grid.Column="1" Text=" · " FontSize="{StaticResource RexCaptionFontSize}" Foreground="{ThemeResource RexTextSecondaryBrush}"
-                       AutomationProperties.AccessibilityView="Raw" />
+            <TextBlock Grid.Column="1" Text=" · " FontSize="{StaticResource RexCaptionFontSize}" Foreground="{ThemeResource RexTextSecondaryBrush}" AutomationProperties.AccessibilityView="Raw" />
             <TextBlock x:Name="PlaylistQueueNext" Grid.Column="2" Text="No upcoming items" TextTrimming="CharacterEllipsis"
                        FontSize="{StaticResource RexCaptionFontSize}" Foreground="{ThemeResource RexTextSecondaryBrush}"
                        AutomationProperties.AutomationId="PlaylistQueueNext" />
           </Grid>
           <StackPanel Orientation="Horizontal">
-            <Button x:Name="PlaylistUndoReorder" Content="Undo reorder" Margin="0,8,8,0" IsEnabled="False" Visibility="Collapsed"
-                    Click="OnPlaylistUndoReorder" IsEnabledChanged="OnQueueActionUsableChanged"
+            <Button x:Name="PlaylistUndoReorder" Content="Undo reorder" Margin="0,8,8,0" IsEnabled="False" Visibility="Collapsed" Click="OnPlaylistUndoReorder" IsEnabledChanged="OnQueueActionUsableChanged"
                     AutomationProperties.AutomationId="PlaylistUndoReorder" AutomationProperties.Name="Undo last queue reorder" />
-            <Button x:Name="PlaylistUndoRemoval" Content="Undo removal" Margin="0,8,8,0" IsEnabled="False" Visibility="Collapsed"
-                    Click="OnPlaylistUndoRemoval" IsEnabledChanged="OnQueueActionUsableChanged"
+            <Button x:Name="PlaylistUndoRemoval" Content="Undo removal" Margin="0,8,8,0" IsEnabled="False" Visibility="Collapsed" Click="OnPlaylistUndoRemoval" IsEnabledChanged="OnQueueActionUsableChanged"
                     AutomationProperties.AutomationId="PlaylistUndoRemoval" AutomationProperties.Name="Restore removed queue entries" />
           </StackPanel>
           <TextBlock x:Name="PlaylistDragHint" Text="Drag to reorder · Alt+Up/Down to move selection" Visibility="Collapsed" Margin="0,6,0,0"
-                     TextWrapping="Wrap" FontSize="{StaticResource RexCaptionFontSize}" Foreground="{ThemeResource RexTextSecondaryBrush}"
-                     AutomationProperties.AutomationId="PlaylistDragHint" />
+                     TextWrapping="Wrap" FontSize="{StaticResource RexCaptionFontSize}" Foreground="{ThemeResource RexTextSecondaryBrush}" AutomationProperties.AutomationId="PlaylistDragHint" />
         </StackPanel>
         <Grid Grid.Row="1">
         <ListView x:Name="PlaylistView" SelectionMode="Extended" IsItemClickEnabled="False" IsTabStop="True"
