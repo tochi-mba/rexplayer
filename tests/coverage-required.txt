@@ -388,6 +388,7 @@ TranscriptFileExport.cs
 TextDirection.cs
 TransferMeter.cs
 TransportAvailability.cs
+TransportFit.cs
 TvMaze.cs
 UpdateCheck.cs
 UpdateDownloader.cs

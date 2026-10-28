@@ -742,243 +742,245 @@
         </StackPanel>
       </Border>
     </Grid>
-    <!-- An opaque bar, so a dark window never washes out over a light backdrop. -->
-    <Grid x:Name="Controls" Grid.Row="2" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Padding="20,12,20,14" ColumnSpacing="12" RowSpacing="8" VerticalAlignment="Bottom"
+    <!-- An opaque bar, so a dark window never washes out over a light backdrop. MainWindow.Transport.cs sets its padding and lines. -->
+    <Grid x:Name="Controls" Grid.Row="2" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Padding="16,12,16,12" RowSpacing="8" VerticalAlignment="Bottom"
           Background="{ThemeResource LibrarySurfaceBrush}">
-      <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="Auto" />
-      </Grid.ColumnDefinitions>
-      <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-        <Button x:Name="StartOverButton" Content="Start over" Click="OnStartOver" IsEnabled="False"
-                ToolTipService.ToolTip="Start this media from the beginning"
-                AutomationProperties.AutomationId="StartOverButton" AutomationProperties.Name="Start this media from the beginning" />
-        <TextBlock x:Name="Elapsed" Text="0:00" VerticalAlignment="Center" FontFamily="{StaticResource RexMonoFontFamily}"
-                   AutomationProperties.AutomationId="Elapsed" />
-      </StackPanel>
-      <Grid x:Name="SeekArea" Grid.Row="0" Grid.Column="1" Background="Transparent" SizeChanged="OnSeekAreaSizeChanged"
-            PointerEntered="OnSeekAreaPointerMoved" PointerExited="OnSeekAreaPointerExited">
-        <!-- Fix the seek-row height: the preview is an overlay and must not
-             remeasure the rail when it appears under the pointer. -->
-        <Grid.RowDefinitions><RowDefinition Height="32" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-        <Slider x:Name="SeekBar" Minimum="0" Maximum="1" StepFrequency="0.1" IsEnabled="False" IsThumbToolTipEnabled="False" MinHeight="32"
-                ValueChanged="OnSeekBarChanged" IsTabStop="True" AutomationProperties.AutomationId="SeekBar" AutomationProperties.Name="Position" />
-        <!-- A second rail for transcript coverage, end to end with the track and shown only while there is
-             coverage to show (SubtitleBuffer.RailShown); labels are on their own row and never shift the spans. -->
-        <Grid x:Name="TranscriptRail" Grid.Row="1" Margin="0,2,0,4" Visibility="Collapsed"
-              AutomationProperties.AutomationId="TranscriptRail" AutomationProperties.Name="Transcript coverage">
-          <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-          <Grid Height="6" VerticalAlignment="Center" IsHitTestVisible="False">
-            <Border CornerRadius="3" Background="{ThemeResource ControlFillColorSecondaryBrush}" />
-            <Canvas x:Name="SubtitleBuffer" Height="6" IsHitTestVisible="False"
-                    AutomationProperties.AutomationId="SubtitleBuffer" AutomationProperties.Name="Subtitles ready" />
-          </Grid>
-          <Grid Grid.Row="1" Margin="0,4,0,0">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <TextBlock Text="Captions" FontSize="{StaticResource RexCaptionFontSize}" VerticalAlignment="Center"
+      <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+      <!-- The timeline on its own line: elapsed, the track and remaining centred on the track, whatever opens under it. -->
+      <Grid x:Name="SeekRow" ColumnSpacing="12">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Top" MinHeight="32">
+          <Button x:Name="StartOverButton" Content="Start over" Click="OnStartOver" IsEnabled="False" VerticalAlignment="Center"
+                  ToolTipService.ToolTip="Start this media from the beginning"
+                  AutomationProperties.AutomationId="StartOverButton" AutomationProperties.Name="Start this media from the beginning" />
+          <TextBlock x:Name="Elapsed" Text="--:--" VerticalAlignment="Center" Typography.NumeralAlignment="Tabular"
+                     AutomationProperties.AutomationId="Elapsed" />
+        </StackPanel>
+        <Grid x:Name="SeekArea" Grid.Column="1" Background="Transparent" SizeChanged="OnSeekAreaSizeChanged"
+              PointerEntered="OnSeekAreaPointerMoved" PointerExited="OnSeekAreaPointerExited">
+          <!-- Fix the seek-row height: the preview is an overlay and must not
+               remeasure the rail when it appears under the pointer. -->
+          <Grid.RowDefinitions><RowDefinition Height="32" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+          <Slider x:Name="SeekBar" Minimum="0" Maximum="1" StepFrequency="0.1" IsEnabled="False" IsThumbToolTipEnabled="False" MinHeight="32"
+                  ValueChanged="OnSeekBarChanged" IsTabStop="True" AutomationProperties.AutomationId="SeekBar" AutomationProperties.Name="Position" />
+          <!-- A second rail for transcript coverage, end to end with the track and shown only while there is
+               coverage to show (SubtitleBuffer.RailShown); labels are on their own row and never shift the spans. -->
+          <Grid x:Name="TranscriptRail" Grid.Row="1" Margin="0,2,0,4" Visibility="Collapsed"
+                AutomationProperties.AutomationId="TranscriptRail" AutomationProperties.Name="Transcript coverage">
+            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+            <Grid Height="6" VerticalAlignment="Center" IsHitTestVisible="False">
+              <Border CornerRadius="3" Background="{ThemeResource ControlFillColorSecondaryBrush}" />
+              <Canvas x:Name="SubtitleBuffer" Height="6" IsHitTestVisible="False"
+                      AutomationProperties.AutomationId="SubtitleBuffer" AutomationProperties.Name="Subtitles ready" />
+            </Grid>
+            <Grid Grid.Row="1" Margin="0,4,0,0">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="Captions" FontSize="{StaticResource RexCaptionFontSize}" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           AutomationProperties.AccessibilityView="Raw" />
+                <DropDownButton x:Name="TranscriptModelButton" Content="Default"
+                                AutomationProperties.AutomationId="TranscriptModelButton" AutomationProperties.Name="Transcription quality">
+                  <DropDownButton.Flyout>
+                    <MenuFlyout>
+                      <ToggleMenuFlyoutItem x:Name="TranscriptModelFast" AutomationProperties.AutomationId="TranscriptModelFast" Text="Fast · quickest, may miss more words" Tag="0" Click="OnTranscriptModelClick" />
+                      <ToggleMenuFlyoutItem x:Name="TranscriptModelDefault" AutomationProperties.AutomationId="TranscriptModelDefault" Text="Default · balanced speed and accuracy" Tag="1" Click="OnTranscriptModelClick" />
+                      <ToggleMenuFlyoutItem x:Name="TranscriptModelBest" AutomationProperties.AutomationId="TranscriptModelBest" Text="Best · most accurate, longer preparation" Tag="2" Click="OnTranscriptModelClick" />
+                    </MenuFlyout>
+                  </DropDownButton.Flyout>
+                </DropDownButton>
+              </StackPanel>
+              <TextBlock x:Name="SubtitleBufferState" HorizontalAlignment="Right" VerticalAlignment="Center" TextAlignment="Right"
+                         FontSize="{StaticResource RexCaptionFontSize}" FontWeight="SemiBold"
                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                         AutomationProperties.AccessibilityView="Raw" />
-              <DropDownButton x:Name="TranscriptModelButton" Content="Default"
-                              AutomationProperties.AutomationId="TranscriptModelButton" AutomationProperties.Name="Transcription quality">
-                <DropDownButton.Flyout>
-                  <MenuFlyout>
-                    <ToggleMenuFlyoutItem x:Name="TranscriptModelFast" AutomationProperties.AutomationId="TranscriptModelFast" Text="Fast · quickest, may miss more words" Tag="0" Click="OnTranscriptModelClick" />
-                    <ToggleMenuFlyoutItem x:Name="TranscriptModelDefault" AutomationProperties.AutomationId="TranscriptModelDefault" Text="Default · balanced speed and accuracy" Tag="1" Click="OnTranscriptModelClick" />
-                    <ToggleMenuFlyoutItem x:Name="TranscriptModelBest" AutomationProperties.AutomationId="TranscriptModelBest" Text="Best · most accurate, longer preparation" Tag="2" Click="OnTranscriptModelClick" />
-                  </MenuFlyout>
-                </DropDownButton.Flyout>
-              </DropDownButton>
-            </StackPanel>
-            <TextBlock x:Name="SubtitleBufferState" HorizontalAlignment="Right" VerticalAlignment="Center" TextAlignment="Right"
-                       FontSize="{StaticResource RexCaptionFontSize}" FontWeight="SemiBold"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       AutomationProperties.AutomationId="SubtitleBufferState" AutomationProperties.LiveSetting="Off" />
+                         AutomationProperties.AutomationId="SubtitleBufferState" AutomationProperties.LiveSetting="Off" />
+            </Grid>
           </Grid>
+          <!-- Intro and credits as bands on the rail: filled when saved, outlined when detected. -->
+          <Canvas x:Name="SectionMarkers" Height="28" VerticalAlignment="Center" IsHitTestVisible="False"
+                  AutomationProperties.AutomationId="SectionMarkers" AutomationProperties.Name="No intro or credits marked" />
+          <!-- Bookmark buttons sit above the rail. Their transparent 16-pixel hit targets are much
+               easier to point at than their precise 3-pixel marks. -->
+          <Canvas x:Name="BookmarkMarkers" Height="28" VerticalAlignment="Center" AutomationProperties.AutomationId="BookmarkMarkers"
+                  AutomationProperties.Name="Bookmarks on the timeline" />
+          <Border x:Name="SeekPreview" Width="192" Padding="6" CornerRadius="8" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                  Margin="0,0,0,30" Background="{StaticResource RexStrongOverlayBrush}" BorderBrush="{StaticResource RexOverlayHairlineBrush}" BorderThickness="1" Visibility="Collapsed"
+                  IsHitTestVisible="False" Canvas.ZIndex="20" AutomationProperties.AutomationId="SeekPreview" AutomationProperties.Name="Timeline preview">
+            <StackPanel Spacing="5">
+              <Border x:Name="SeekPreviewPicture" Width="178" Height="100" CornerRadius="5" Background="Black" Visibility="Collapsed">
+                <Image x:Name="SeekPreviewImage" Stretch="UniformToFill" />
+              </Border>
+              <TextBlock x:Name="SeekPreviewTime" Foreground="{StaticResource RexOverlayTextBrush}" Typography.NumeralAlignment="Tabular" FontWeight="SemiBold"
+                         HorizontalAlignment="Center" AutomationProperties.AutomationId="SeekPreviewTime" />
+              <TextBlock x:Name="SeekPreviewSubtitles" Foreground="{StaticResource RexOverlayTextBrush}" FontSize="11" HorizontalAlignment="Center" Visibility="Collapsed"
+                         AutomationProperties.AutomationId="SeekPreviewSubtitles" />
+            </StackPanel>
+          </Border>
         </Grid>
-        <!-- Intro and credits as bands on the rail: filled when saved, outlined when detected. -->
-        <Canvas x:Name="SectionMarkers" Height="28" VerticalAlignment="Center" IsHitTestVisible="False"
-                AutomationProperties.AutomationId="SectionMarkers" AutomationProperties.Name="No intro or credits marked" />
-        <!-- Bookmark buttons sit above the rail. Their transparent 16-pixel hit targets are much
-             easier to point at than their precise 3-pixel marks. -->
-        <Canvas x:Name="BookmarkMarkers" Height="28" VerticalAlignment="Center" AutomationProperties.AutomationId="BookmarkMarkers"
-                AutomationProperties.Name="Bookmarks on the timeline" />
-        <Border x:Name="SeekPreview" Width="192" Padding="6" CornerRadius="8" HorizontalAlignment="Left" VerticalAlignment="Bottom"
-                Margin="0,0,0,30" Background="{StaticResource RexStrongOverlayBrush}" BorderBrush="{StaticResource RexOverlayHairlineBrush}" BorderThickness="1" Visibility="Collapsed"
-                IsHitTestVisible="False" Canvas.ZIndex="20" AutomationProperties.AutomationId="SeekPreview" AutomationProperties.Name="Timeline preview">
-          <StackPanel Spacing="5">
-            <Border x:Name="SeekPreviewPicture" Width="178" Height="100" CornerRadius="5" Background="Black" Visibility="Collapsed">
-              <Image x:Name="SeekPreviewImage" Stretch="UniformToFill" />
-            </Border>
-            <TextBlock x:Name="SeekPreviewTime" Foreground="{StaticResource RexOverlayTextBrush}" FontFamily="{StaticResource RexMonoFontFamily}" FontWeight="SemiBold"
-                       HorizontalAlignment="Center" AutomationProperties.AutomationId="SeekPreviewTime" />
-            <TextBlock x:Name="SeekPreviewSubtitles" Foreground="{StaticResource RexOverlayTextBrush}" FontSize="11" HorizontalAlignment="Center" Visibility="Collapsed"
-                       AutomationProperties.AutomationId="SeekPreviewSubtitles" />
-          </StackPanel>
+        <Border Grid.Column="2" VerticalAlignment="Top" MinHeight="32">
+          <TextBlock x:Name="Remaining" Text="--:--" VerticalAlignment="Center" Typography.NumeralAlignment="Tabular"
+                     Tapped="OnRemainingTapped" AutomationProperties.AutomationId="Remaining" />
         </Border>
       </Grid>
-      <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-        <DropDownButton x:Name="MovieVersionButton" Visibility="Collapsed" Content="Versions" Padding="10,8" MinWidth="44" MinHeight="44"
-                        AutomationProperties.AutomationId="MovieVersionButton" AutomationProperties.Name="Choose movie resolution">
-          <DropDownButton.Flyout>
-            <MenuFlyout x:Name="MovieVersionMenu" />
-          </DropDownButton.Flyout>
-        </DropDownButton>
-        <DropDownButton x:Name="PictureIntervalButton" Visibility="Collapsed" Content="Slideshow · 5 s" Padding="10,8" MinWidth="44" MinHeight="44"
-                        AutomationProperties.AutomationId="PictureIntervalButton" AutomationProperties.Name="Slideshow interval"
-                        ToolTipService.ToolTip="Choose how long each picture stays; Play/Pause and Previous/Next control the slideshow">
-          <DropDownButton.Flyout>
-            <MenuFlyout x:Name="PictureIntervalMenu">
-              <MenuFlyoutItem Text="2 seconds" Tag="2" MinWidth="48" MinHeight="48" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-2" />
-              <MenuFlyoutItem Text="5 seconds" Tag="5" MinWidth="48" MinHeight="48" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-5" />
-              <MenuFlyoutItem Text="10 seconds" Tag="10" MinWidth="48" MinHeight="48" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-10" />
-              <MenuFlyoutItem Text="30 seconds" Tag="30" MinWidth="48" MinHeight="48" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-30" />
-              <MenuFlyoutItem Text="60 seconds" Tag="60" MinWidth="48" MinHeight="48" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-60" />
-            </MenuFlyout>
-          </DropDownButton.Flyout>
-        </DropDownButton>
-        <TextBlock x:Name="Remaining" Text="0:00" VerticalAlignment="Center" FontFamily="{StaticResource RexMonoFontFamily}"
-                   Tapped="OnRemainingTapped" AutomationProperties.AutomationId="Remaining" />
-      </StackPanel>
-      <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" ColumnSpacing="12">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="3*" />
-          <ColumnDefinition Width="2*" />
-        </Grid.ColumnDefinitions>
-        <!-- Keep every transport command keyboard/touch reachable instead of clipping it in narrow windows. -->
-        <ScrollViewer x:Name="TransportScroller" Grid.Column="0" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled" ZoomMode="Disabled">
-        <StackPanel Orientation="Horizontal" Spacing="4">
-          <Button x:Name="MinimalInterfaceButton" Visibility="Collapsed" Click="OnRestoreFullInterface"
+      <Grid x:Name="TransportRow" Grid.Row="1" ColumnSpacing="12">
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+        <!-- Every button takes its full width first and the title what is left. Buttons that do not fit move into
+             More (MainWindow.Transport.cs), so none is cut off or scrolled away. Every control here is 44 tall. -->
+        <StackPanel x:Name="TransportButtons" Orientation="Horizontal" Spacing="4">
+          <Button x:Name="MinimalInterfaceButton" Visibility="Collapsed" Click="OnRestoreFullInterface" Width="44" Height="44"
                   AutomationProperties.AutomationId="MinimalInterfaceButton" AutomationProperties.Name="Restore full interface"
                   ToolTipService.ToolTip="Restore the full interface">
             <FontIcon Glyph="&#xE8A7;" />
           </Button>
-          <Button x:Name="PreviousButton" ToolTipService.ToolTip="Previous item" VerticalAlignment="Center" Click="OnPrevious" AutomationProperties.AutomationId="PreviousButton" AutomationProperties.Name="Previous">
+          <Button x:Name="PreviousButton" ToolTipService.ToolTip="Previous item" VerticalAlignment="Center" Width="44" Height="44" Click="OnPrevious" AutomationProperties.AutomationId="PreviousButton" AutomationProperties.Name="Previous">
             <FontIcon Glyph="&#xE892;" />
           </Button>
           <Button x:Name="PlayPauseButton" ToolTipService.ToolTip="Play or pause (Space)" VerticalAlignment="Center" Style="{StaticResource AccentButtonStyle}" CornerRadius="22" Width="44" Height="44" Click="OnPlayPause" AutomationProperties.AutomationId="PlayPauseButton" AutomationProperties.Name="Play">
             <FontIcon x:Name="PlayPauseIcon" Glyph="&#xE768;" />
           </Button>
-          <!-- Chapter jumps stay reachable without scrolling the transport horizontally. -->
+          <!-- Chapter jumps stay on the line with Play and never move into More. -->
           <DropDownButton x:Name="StageChaptersButton" Content="Chapters" MinHeight="44" Visibility="Collapsed" AutomationProperties.AutomationId="StageChaptersButton" AutomationProperties.Name="Chapters">
             <DropDownButton.Flyout><MenuFlyout x:Name="StageChapterMenu" /></DropDownButton.Flyout>
           </DropDownButton>
-          <Button x:Name="StopButton" ToolTipService.ToolTip="Stop playback" VerticalAlignment="Center" Click="OnStop" AutomationProperties.AutomationId="StopButton" AutomationProperties.Name="Stop">
+          <Button x:Name="StopButton" ToolTipService.ToolTip="Stop playback" VerticalAlignment="Center" Width="44" Height="44" Click="OnStop" AutomationProperties.AutomationId="StopButton" AutomationProperties.Name="Stop">
             <FontIcon Glyph="&#xE71A;" />
           </Button>
-          <Button x:Name="NextButton" ToolTipService.ToolTip="Next item" VerticalAlignment="Center" Click="OnNext" AutomationProperties.AutomationId="NextButton" AutomationProperties.Name="Next">
+          <Button x:Name="NextButton" ToolTipService.ToolTip="Next item" VerticalAlignment="Center" Width="44" Height="44" Click="OnNext" AutomationProperties.AutomationId="NextButton" AutomationProperties.Name="Next">
             <FontIcon Glyph="&#xE893;" />
           </Button>
           <AppBarSeparator x:Name="TransportSeparator" />
-          <ToggleButton x:Name="ShuffleButton" ToolTipService.ToolTip="Shuffle the queue" VerticalAlignment="Center" Click="OnShuffle" AutomationProperties.AutomationId="ShuffleButton" AutomationProperties.Name="Shuffle">
+          <ToggleButton x:Name="ShuffleButton" ToolTipService.ToolTip="Shuffle the queue" VerticalAlignment="Center" Width="44" Height="44" Click="OnShuffle" AutomationProperties.AutomationId="ShuffleButton" AutomationProperties.Name="Shuffle">
             <FontIcon Glyph="&#xE8B1;" />
           </ToggleButton>
-          <ToggleButton x:Name="RepeatButton" ToolTipService.ToolTip="Change repeat mode" VerticalAlignment="Center" Click="OnRepeat" AutomationProperties.AutomationId="RepeatButton" AutomationProperties.Name="Repeat off">
+          <ToggleButton x:Name="RepeatButton" ToolTipService.ToolTip="Change repeat mode" VerticalAlignment="Center" Width="44" Height="44" Click="OnRepeat" AutomationProperties.AutomationId="RepeatButton" AutomationProperties.Name="Repeat off">
             <FontIcon x:Name="RepeatIcon" Glyph="&#xE8EE;" />
           </ToggleButton>
-          <ToggleButton x:Name="PlaylistButton" ToolTipService.ToolTip="Show the queue" VerticalAlignment="Center" Click="OnTogglePlaylist" AutomationProperties.AutomationId="PlaylistButton" AutomationProperties.Name="Playlist">
+          <ToggleButton x:Name="PlaylistButton" ToolTipService.ToolTip="Show the queue" VerticalAlignment="Center" Width="44" Height="44" Click="OnTogglePlaylist" AutomationProperties.AutomationId="PlaylistButton" AutomationProperties.Name="Playlist">
             <FontIcon Glyph="&#xE8FD;" />
           </ToggleButton>
-          <ToggleButton x:Name="LibraryButton" ToolTipService.ToolTip="Browse your library" VerticalAlignment="Center" Click="OnToggleLibrary" AutomationProperties.AutomationId="LibraryButton" AutomationProperties.Name="Library">
+          <ToggleButton x:Name="LibraryButton" ToolTipService.ToolTip="Browse your library" VerticalAlignment="Center" Width="44" Height="44" Click="OnToggleLibrary" AutomationProperties.AutomationId="LibraryButton" AutomationProperties.Name="Library">
             <FontIcon Glyph="&#xE8F1;" />
           </ToggleButton>
-          <Button x:Name="FullScreenButton" ToolTipService.ToolTip="Toggle full screen" VerticalAlignment="Center" Click="OnFullScreen" AutomationProperties.AutomationId="FullScreenButton" AutomationProperties.Name="Full screen">
+          <Button x:Name="FullScreenButton" ToolTipService.ToolTip="Toggle full screen" VerticalAlignment="Center" Width="44" Height="44" Click="OnFullScreen" AutomationProperties.AutomationId="FullScreenButton" AutomationProperties.Name="Full screen">
             <FontIcon x:Name="FullScreenIcon" Glyph="&#xE740;" />
           </Button>
+          <Button x:Name="TransportMoreButton" Visibility="Collapsed" VerticalAlignment="Center" Width="44" Height="44" ToolTipService.ToolTip="More playback controls"
+                  AutomationProperties.AutomationId="TransportMoreButton" AutomationProperties.Name="More playback controls">
+            <FontIcon Glyph="&#xE712;" />
+            <Button.Flyout><MenuFlyout x:Name="TransportMoreMenu" Placement="TopEdgeAlignedLeft" Opening="OnTransportMoreOpening" /></Button.Flyout>
+          </Button>
         </StackPanel>
-        </ScrollViewer>
-        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1" MaxWidth="480" HorizontalAlignment="Stretch">
+        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1" MaxWidth="480" HorizontalAlignment="Left">
           <TextBlock x:Name="NowPlaying" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
                      AutomationProperties.AutomationId="NowPlaying" />
           <TextBlock x:Name="NowPlayingContext" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                      TextTrimming="CharacterEllipsis" Visibility="Collapsed"
                      AutomationProperties.AutomationId="NowPlayingContext" />
         </StackPanel>
-      </Grid>
-      <StackPanel x:Name="AudioControlStrip" Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="4">
-        <!-- Updates (TOOL-09): a quiet indicator while a download runs in the background or an update
-             waits; it opens the update panel with the live state. -->
-        <Button x:Name="UpdateIndicator" Visibility="Collapsed" VerticalAlignment="Center" Padding="7,5"
-                AutomationProperties.AutomationId="UpdateIndicator" AutomationProperties.Name="Update">
-          <Grid Width="22" Height="22">
-            <ProgressRing x:Name="UpdateIndicatorRing" Width="22" Height="22" IsActive="False" IsIndeterminate="False" Maximum="100"
-                          IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw" />
-            <FontIcon x:Name="UpdateIndicatorIcon" Glyph="&#xE896;" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                      AutomationProperties.AccessibilityView="Raw" />
-            <InfoBadge x:Name="UpdateBadgeAttention" Style="{StaticResource AttentionDotInfoBadgeStyle}" Visibility="Collapsed"
-                       HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-2,-4,0" AutomationProperties.AccessibilityView="Raw" />
-            <InfoBadge x:Name="UpdateBadgeSuccess" Style="{StaticResource SuccessIconInfoBadgeStyle}" Visibility="Collapsed"
-                       HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-6,0" AutomationProperties.AccessibilityView="Raw" />
-            <InfoBadge x:Name="UpdateBadgeCritical" Style="{StaticResource CriticalIconInfoBadgeStyle}" Visibility="Collapsed"
-                       HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-6,0" AutomationProperties.AccessibilityView="Raw" />
-          </Grid>
-          <Button.Flyout>
-            <Flyout x:Name="UpdateFlyout" Placement="TopEdgeAlignedRight" Opened="OnUpdateFlyoutOpened" Closed="OnUpdateFlyoutClosed">
-              <StackPanel Width="360" Spacing="10" AutomationProperties.AutomationId="UpdatePanel" AutomationProperties.Name="Update">
-                <TextBlock x:Name="UpdatePanelTitle" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap"
-                           AutomationProperties.AutomationId="UpdatePanelTitle" AutomationProperties.HeadingLevel="Level1" />
-                <Grid>
-                  <Border x:Name="UpdatePanelErrorBack" Visibility="Collapsed" CornerRadius="4"
-                          Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}" />
-                  <Grid x:Name="UpdatePanelStatusBox" ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="Auto" />
-                      <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <FontIcon x:Name="UpdatePanelErrorIcon" Visibility="Collapsed" Glyph="&#xEA39;" FontSize="16" VerticalAlignment="Top" Margin="0,2,0,0"
-                              Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.AccessibilityView="Raw" />
-                    <TextBlock x:Name="UpdatePanelStatus" Grid.Column="1" TextWrapping="Wrap" AutomationProperties.AutomationId="UpdatePanelStatus" />
+        <!-- The media's own pickers, speed and sound: beside the title, or on a line of their own when the buttons need the room. -->
+        <StackPanel x:Name="AudioControlStrip" Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+          <DropDownButton x:Name="MovieVersionButton" Visibility="Collapsed" Content="Versions" Padding="10,8" MinWidth="44" MinHeight="44"
+                          AutomationProperties.AutomationId="MovieVersionButton" AutomationProperties.Name="Choose movie resolution">
+            <DropDownButton.Flyout>
+              <MenuFlyout x:Name="MovieVersionMenu" />
+            </DropDownButton.Flyout>
+          </DropDownButton>
+          <DropDownButton x:Name="PictureIntervalButton" Visibility="Collapsed" Content="Slideshow · 5 s" Padding="10,8" MinWidth="44" MinHeight="44"
+                          AutomationProperties.AutomationId="PictureIntervalButton" AutomationProperties.Name="Slideshow interval"
+                          ToolTipService.ToolTip="Choose how long each picture stays; Play/Pause and Previous/Next control the slideshow">
+            <DropDownButton.Flyout>
+              <MenuFlyout x:Name="PictureIntervalMenu">
+                <MenuFlyoutItem Text="2 seconds" Tag="2" MinWidth="48" MinHeight="48" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-2" />
+                <MenuFlyoutItem Text="5 seconds" Tag="5" MinWidth="48" MinHeight="48" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-5" />
+                <MenuFlyoutItem Text="10 seconds" Tag="10" MinWidth="48" MinHeight="48" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-10" />
+                <MenuFlyoutItem Text="30 seconds" Tag="30" MinWidth="48" MinHeight="48" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-30" />
+                <MenuFlyoutItem Text="60 seconds" Tag="60" MinWidth="48" MinHeight="48" Click="OnPictureIntervalClick" AutomationProperties.AutomationId="PictureInterval-60" />
+              </MenuFlyout>
+            </DropDownButton.Flyout>
+          </DropDownButton>
+          <!-- Updates (TOOL-09): a quiet indicator while a download runs in the background or an update
+               waits; it opens the update panel with the live state. -->
+          <Button x:Name="UpdateIndicator" Visibility="Collapsed" VerticalAlignment="Center" Padding="7,5" MinWidth="44" MinHeight="44"
+                  AutomationProperties.AutomationId="UpdateIndicator" AutomationProperties.Name="Update">
+            <Grid Width="22" Height="22">
+              <ProgressRing x:Name="UpdateIndicatorRing" Width="22" Height="22" IsActive="False" IsIndeterminate="False" Maximum="100"
+                            IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw" />
+              <FontIcon x:Name="UpdateIndicatorIcon" Glyph="&#xE896;" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                        AutomationProperties.AccessibilityView="Raw" />
+              <InfoBadge x:Name="UpdateBadgeAttention" Style="{StaticResource AttentionDotInfoBadgeStyle}" Visibility="Collapsed"
+                         HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-2,-4,0" AutomationProperties.AccessibilityView="Raw" />
+              <InfoBadge x:Name="UpdateBadgeSuccess" Style="{StaticResource SuccessIconInfoBadgeStyle}" Visibility="Collapsed"
+                         HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-6,0" AutomationProperties.AccessibilityView="Raw" />
+              <InfoBadge x:Name="UpdateBadgeCritical" Style="{StaticResource CriticalIconInfoBadgeStyle}" Visibility="Collapsed"
+                         HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-6,0" AutomationProperties.AccessibilityView="Raw" />
+            </Grid>
+            <Button.Flyout>
+              <Flyout x:Name="UpdateFlyout" Placement="TopEdgeAlignedRight" Opened="OnUpdateFlyoutOpened" Closed="OnUpdateFlyoutClosed">
+                <StackPanel Width="360" Spacing="10" AutomationProperties.AutomationId="UpdatePanel" AutomationProperties.Name="Update">
+                  <TextBlock x:Name="UpdatePanelTitle" Style="{ThemeResource BodyStrongTextBlockStyle}" TextWrapping="Wrap"
+                             AutomationProperties.AutomationId="UpdatePanelTitle" AutomationProperties.HeadingLevel="Level1" />
+                  <Grid>
+                    <Border x:Name="UpdatePanelErrorBack" Visibility="Collapsed" CornerRadius="4"
+                            Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}" />
+                    <Grid x:Name="UpdatePanelStatusBox" ColumnSpacing="8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <FontIcon x:Name="UpdatePanelErrorIcon" Visibility="Collapsed" Glyph="&#xEA39;" FontSize="16" VerticalAlignment="Top" Margin="0,2,0,0"
+                                Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.AccessibilityView="Raw" />
+                      <TextBlock x:Name="UpdatePanelStatus" Grid.Column="1" TextWrapping="Wrap" AutomationProperties.AutomationId="UpdatePanelStatus" />
+                    </Grid>
                   </Grid>
-                </Grid>
-                <ProgressBar x:Name="UpdatePanelProgress" Maximum="100" Visibility="Collapsed"
-                             AutomationProperties.AutomationId="UpdatePanelProgress" AutomationProperties.Name="Download progress" />
-                <TextBlock x:Name="UpdatePanelNote" TextWrapping="Wrap" Visibility="Collapsed" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                           AutomationProperties.AutomationId="UpdatePanelNote" />
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Button x:Name="UpdateDownloadButton" Content="Download" Click="OnUpdateDownloadClick" Visibility="Collapsed"
-                          AutomationProperties.AutomationId="UpdateDownloadButton"
-                          ToolTipService.ToolTip="Download in the background, then choose when to install" />
-                  <Button x:Name="UpdateResumeButton" Content="Resume download" Click="OnUpdateResumeClick" Visibility="Collapsed"
-                          AutomationProperties.AutomationId="UpdateResumeButton" />
-                  <Button x:Name="UpdateRetryButton" Content="Retry" Click="OnUpdateResumeClick" Visibility="Collapsed"
-                          AutomationProperties.AutomationId="UpdateRetryButton" AutomationProperties.Name="Retry the download" />
-                  <Button x:Name="UpdateRestartButton" Content="Restart now" Click="OnUpdateRestartClick" Visibility="Collapsed"
-                          AutomationProperties.AutomationId="UpdateRestartButton"
-                          ToolTipService.ToolTip="Install now; rexplayer reopens with your queue and place, paused" />
-                  <Button x:Name="UpdateCheckAgainButton" Content="Check again" Click="OnUpdateCheckAgainClick" Visibility="Collapsed"
-                          AutomationProperties.AutomationId="UpdateCheckAgainButton" />
-                  <Button x:Name="UpdatePauseButton" Content="Pause download" Click="OnUpdatePauseClick" Visibility="Collapsed"
-                          AutomationProperties.AutomationId="UpdatePauseButton" />
-                  <DropDownButton x:Name="UpdateLaterButton" Content="Later" Visibility="Collapsed" AutomationProperties.AutomationId="UpdateLaterButton"
-                                  ToolTipService.ToolTip="Remind me later, install at another time, or skip this version" />
-                  <Button x:Name="UpdateCancelButton" Content="Cancel download" Click="OnUpdateCancelClick" Visibility="Collapsed"
-                          AutomationProperties.AutomationId="UpdateCancelButton" />
-                </StackPanel>
-                <Expander x:Name="UpdateWhatsNew" Header="What's new" IsExpanded="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                          AutomationProperties.AutomationId="UpdateWhatsNew">
-                  <StackPanel Spacing="6">
-                    <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto">
-                      <RichTextBlock x:Name="UpdateNotes" IsTextSelectionEnabled="True" AutomationProperties.AutomationId="UpdateNotes"
-                                     AutomationProperties.Name="What's new" />
-                    </ScrollViewer>
-                    <HyperlinkButton x:Name="UpdateReleasePage" Content="Open the release page" Click="OnUpdateReleasePageClick"
-                                     AutomationProperties.AutomationId="UpdateReleasePage" />
+                  <ProgressBar x:Name="UpdatePanelProgress" Maximum="100" Visibility="Collapsed"
+                               AutomationProperties.AutomationId="UpdatePanelProgress" AutomationProperties.Name="Download progress" />
+                  <TextBlock x:Name="UpdatePanelNote" TextWrapping="Wrap" Visibility="Collapsed" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                             AutomationProperties.AutomationId="UpdatePanelNote" />
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="UpdateDownloadButton" Content="Download" Click="OnUpdateDownloadClick" Visibility="Collapsed"
+                            AutomationProperties.AutomationId="UpdateDownloadButton"
+                            ToolTipService.ToolTip="Download in the background, then choose when to install" />
+                    <Button x:Name="UpdateResumeButton" Content="Resume download" Click="OnUpdateResumeClick" Visibility="Collapsed"
+                            AutomationProperties.AutomationId="UpdateResumeButton" />
+                    <Button x:Name="UpdateRetryButton" Content="Retry" Click="OnUpdateResumeClick" Visibility="Collapsed"
+                            AutomationProperties.AutomationId="UpdateRetryButton" AutomationProperties.Name="Retry the download" />
+                    <Button x:Name="UpdateRestartButton" Content="Restart now" Click="OnUpdateRestartClick" Visibility="Collapsed"
+                            AutomationProperties.AutomationId="UpdateRestartButton"
+                            ToolTipService.ToolTip="Install now; rexplayer reopens with your queue and place, paused" />
+                    <Button x:Name="UpdateCheckAgainButton" Content="Check again" Click="OnUpdateCheckAgainClick" Visibility="Collapsed"
+                            AutomationProperties.AutomationId="UpdateCheckAgainButton" />
+                    <Button x:Name="UpdatePauseButton" Content="Pause download" Click="OnUpdatePauseClick" Visibility="Collapsed"
+                            AutomationProperties.AutomationId="UpdatePauseButton" />
+                    <DropDownButton x:Name="UpdateLaterButton" Content="Later" Visibility="Collapsed" AutomationProperties.AutomationId="UpdateLaterButton"
+                                    ToolTipService.ToolTip="Remind me later, install at another time, or skip this version" />
+                    <Button x:Name="UpdateCancelButton" Content="Cancel download" Click="OnUpdateCancelClick" Visibility="Collapsed"
+                            AutomationProperties.AutomationId="UpdateCancelButton" />
                   </StackPanel>
-                </Expander>
-              </StackPanel>
-            </Flyout>
-          </Button.Flyout>
-        </Button>
-        <Button x:Name="SpeedButton" Content="1×" MinWidth="52" Click="OnSpeedButton" VerticalAlignment="Center"
-                AutomationProperties.AutomationId="SpeedButton" AutomationProperties.Name="Playback speed, 1×"
-                ToolTipService.ToolTip="Choose playback speed" />
-        <Button x:Name="MuteButton" ToolTipService.ToolTip="Mute or unmute" VerticalAlignment="Center" Click="OnMute" AutomationProperties.AutomationId="MuteButton" AutomationProperties.Name="Mute">
-          <FontIcon x:Name="MuteIcon" Glyph="&#xE767;" />
-        </Button>
-        <Slider x:Name="VolumeBar" Width="120" Minimum="0" Maximum="200" StepFrequency="1" VerticalAlignment="Center" ValueChanged="OnVolumeChanged"
-                AutomationProperties.AutomationId="VolumeBar" AutomationProperties.Name="Volume" />
-      </StackPanel>
+                  <Expander x:Name="UpdateWhatsNew" Header="What's new" IsExpanded="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                            AutomationProperties.AutomationId="UpdateWhatsNew">
+                    <StackPanel Spacing="6">
+                      <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto">
+                        <RichTextBlock x:Name="UpdateNotes" IsTextSelectionEnabled="True" AutomationProperties.AutomationId="UpdateNotes"
+                                       AutomationProperties.Name="What's new" />
+                      </ScrollViewer>
+                      <HyperlinkButton x:Name="UpdateReleasePage" Content="Open the release page" Click="OnUpdateReleasePageClick"
+                                       AutomationProperties.AutomationId="UpdateReleasePage" />
+                    </StackPanel>
+                  </Expander>
+                </StackPanel>
+              </Flyout>
+            </Button.Flyout>
+          </Button>
+          <Button x:Name="SpeedButton" Content="1×" MinWidth="52" MinHeight="44" Click="OnSpeedButton" VerticalAlignment="Center"
+                  AutomationProperties.AutomationId="SpeedButton" AutomationProperties.Name="Playback speed, 1×"
+                  ToolTipService.ToolTip="Choose playback speed" />
+          <Button x:Name="MuteButton" ToolTipService.ToolTip="Mute or unmute" VerticalAlignment="Center" Width="44" Height="44" Click="OnMute" AutomationProperties.AutomationId="MuteButton" AutomationProperties.Name="Mute">
+            <FontIcon x:Name="MuteIcon" Glyph="&#xE767;" />
+          </Button>
+          <Slider x:Name="VolumeBar" Width="120" Minimum="0" Maximum="200" StepFrequency="1" VerticalAlignment="Center" ValueChanged="OnVolumeChanged"
+                  AutomationProperties.AutomationId="VolumeBar" AutomationProperties.Name="Volume" />
+        </StackPanel>
+      </Grid>
     </Grid>
   </Grid>
 </Window>
