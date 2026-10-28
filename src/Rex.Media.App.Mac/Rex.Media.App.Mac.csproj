@@ -40,29 +40,34 @@
     <Content Include="..\\..\\CHANGELOG.md" Link="CHANGELOG.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- Whisper's runtime package gives a plain net10.0 project (Rex.Media.Speech) its native
-       libraries for every platform, and they reach this app through that reference. The
-       macOS SDK's _ComputePublishLocation, which runs on build as well as publish, turns each
-       library in the publish list into a native reference and runs install_name_tool on it,
-       which fails on Linux ELF files and has no use for Windows DLLs. So every runtime that is
-       not the Mac's is taken out of the list just before that target, matched on its
-       RelativePath ("runtimes/linux-arm64/libwhisper.so"): the item itself is the package's own
-       path (".../build/linux-arm64/libwhisper.so"), which carries no "runtimes" folder. The
-       macOS libraries (runtimes/macos-*) stay, but are bundled without being linked into the
-       executable (LinkToExecutable=false): Whisper loads them itself at run time from
-       runtimes/macos-*, and linking them would make the Apple Silicon build resolve every
-       function Whisper declares, some of which (the OpenVINO encoder) the Mac library lacks. -->
-  <Target Name="KeepOtherPlatformsNativeLibrariesOutOfTheBundle" BeforeTargets="_ComputePublishLocation">
+  <!-- Whisper's runtime package gives a plain net10.0 project (Rex.Media.Speech) native
+       libraries for every platform, and they reach this app through that reference. The macOS
+       SDK treats native files present during _ComputePublishLocation as link inputs. Remove every
+       packaged runtime library before that step: foreign libraries do not belong in the app, and
+       Whisper loads the matching Mac libraries itself at run time. Add only those Mac libraries
+       back afterwards, before bundle resource paths are assigned, so they are copied into
+       runtimes/macos-* without entering the native link. -->
+  <Target Name="KeepPackagedRuntimeLibrariesOutOfTheNativeLink"
+          BeforeTargets="_ComputePublishLocation">
     <ItemGroup>
-      <_OtherPlatformNativeLibrary Include="@(ResolvedFileToPublish)"
-          Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').Contains('runtimes/linux-')) Or $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').Contains('runtimes/win-'))" />
-      <ResolvedFileToPublish Remove="@(_OtherPlatformNativeLibrary)" />
-      <ResolvedFileToPublish Update="@(ResolvedFileToPublish)"
-          Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').Contains('runtimes/macos-'))"
-          LinkToExecutable="false" />
+      <_PackagedRuntimeLibrary Include="@(ResolvedFileToPublish)"
+          Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\\', '/').Contains('runtimes/linux-')) Or $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\\', '/').Contains('runtimes/win-')) Or $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\\', '/').Contains('runtimes/macos-'))" />
+      <_MacRuntimeLibrary Include="@(_PackagedRuntimeLibrary)"
+          Condition="$([System.String]::Copy('%(_PackagedRuntimeLibrary.RelativePath)').Replace('\\', '/').Contains('runtimes/macos-'))" />
+      <ResolvedFileToPublish Remove="@(_PackagedRuntimeLibrary)" />
     </ItemGroup>
-    <Message Importance="high" Condition="'@(_OtherPlatformNativeLibrary)' != ''"
-        Text="Left out of rexplayer.app, being for other platforms: @(_OtherPlatformNativeLibrary->'%(RelativePath)', ', ')" />
+    <Message Importance="high" Condition="'@(_PackagedRuntimeLibrary)' != ''"
+        Text="Kept packaged runtime libraries out of the native link: @(_PackagedRuntimeLibrary->'%(RelativePath)', ', ')" />
+  </Target>
+
+  <Target Name="PutMacRuntimeLibrariesInTheBundle"
+          AfterTargets="_ComputePublishLocation"
+          BeforeTargets="_ComputeBundleResourceOutputPaths">
+    <ItemGroup>
+      <ResolvedFileToPublish Include="@(_MacRuntimeLibrary)" />
+    </ItemGroup>
+    <Message Importance="high" Condition="'@(_MacRuntimeLibrary)' != ''"
+        Text="Put Mac runtime libraries in rexplayer.app for run-time loading: @(_MacRuntimeLibrary->'%(RelativePath)', ', ')" />
   </Target>
 
 
