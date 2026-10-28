@@ -3,6 +3,7 @@ using System.Windows.Automation;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.Primitives;
 using Rex.Media.TestKit;
+using LyricsStatusText = Rex.Media.AppCore.Player.LyricsStatusText;
 namespace Rex.Media.App.Tests;
 /// <summary>
 /// The window's own features, each driven through the menus or the automation pipe and checked
@@ -396,11 +397,11 @@ public sealed partial class AppWindowTests : IDisposable
 
     [Theory]
     [Capability("META-09")]
-    [InlineData(null, "No lyrics found in this song or beside it.")]
-    [InlineData("A line without source timings", "Untimed lyrics; no line or word times were supplied.")]
-    [InlineData("[00:01.00]Line one\n[00:02.00]Line two", "Timed lyrics; only line starts were supplied.")]
-    [InlineData("[00:01.00]<00:01.00>First <00:01.40>word\n[00:02.00]Line two", "Partly word-timed lyrics; untimed words are shown without invented timing.")]
-    [InlineData("[00:01.00]<00:01.00>First <00:01.40>word\n[00:02.00]<00:02.00>Last", "Word-timed lyrics; highlights follow exact source timestamps.")]
+    [InlineData(null, LyricsStatusText.None)]
+    [InlineData("A line without source timings", LyricsStatusText.Untimed)]
+    [InlineData("[00:01.00]Line one\n[00:02.00]Line two", LyricsStatusText.LineTimed)]
+    [InlineData("[00:01.00]<00:01.00>First <00:01.40>word\n[00:02.00]Line two", LyricsStatusText.PartlyWordTimed)]
+    [InlineData("[00:01.00]<00:01.00>First <00:01.40>word\n[00:02.00]<00:02.00>Last", LyricsStatusText.WordTimed)]
     public void PlayerAnnouncesTheActualLyricsMode(string? lrc, string expected)
     {
         var song = Song(30);
@@ -478,7 +479,7 @@ public sealed partial class AppWindowTests : IDisposable
         app.Run(CommandCatalog.Faster);
         app.Run(CommandCatalog.PlayPause);
         Assert.True(app.Find("LyricLine-0").Current.HasKeyboardFocus);
-        Assert.Equal("Timed lyrics; only line starts were supplied.", app.Text("LyricsStatus"));
+        Assert.Equal(LyricsStatusText.LineTimed, app.Text("LyricsStatus"));
         app.Run(CommandCatalog.PlayPause);
         app.Run(CommandCatalog.Next);
         Wait.For(() => app.Text("NowPlaying") == "Next", "the next song to load");

@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows.Automation;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.TestKit;
+using LyricsStatusText = Rex.Media.AppCore.Player.LyricsStatusText;
 
 namespace Rex.Media.App.Tests;
 
@@ -14,11 +15,11 @@ public sealed partial class AppWindowTests
     /// </summary>
     [Theory]
     [Capability("META-09")]
-    [InlineData("none", null, "No lyrics found in this song or beside it.")]
-    [InlineData("untimed", "No timings were supplied", "Untimed lyrics; no line or word times were supplied.")]
-    [InlineData("line", "[00:00.00]First line\\n[00:20.00]Second line", "Timed lyrics; only line starts were supplied.")]
-    [InlineData("partial", "[00:00.00]<00:00.00>First <00:00.50>word\\n[00:20.00]Second line", "Partly word-timed lyrics; untimed words are shown without invented timing.")]
-    [InlineData("word", "[00:00.00]<00:00.00>First <00:00.50>word\\n[00:20.00]<00:20.00>Last", "Word-timed lyrics; highlights follow exact source timestamps.")]
+    [InlineData("none", null, LyricsStatusText.None)]
+    [InlineData("untimed", "No timings were supplied", LyricsStatusText.Untimed)]
+    [InlineData("line", "[00:00.00]First line\\n[00:20.00]Second line", LyricsStatusText.LineTimed)]
+    [InlineData("partial", "[00:00.00]<00:00.00>First <00:00.50>word\\n[00:20.00]Second line", LyricsStatusText.PartlyWordTimed)]
+    [InlineData("word", "[00:00.00]<00:00.00>First <00:00.50>word\\n[00:20.00]<00:20.00>Last", LyricsStatusText.WordTimed)]
     public void ActualLyricsModesHaveNativeStageCaptures(string mode, string? text, string expectedStatus)
     {
         var song = Song(40);
@@ -75,7 +76,7 @@ public sealed partial class AppWindowTests
         using var app = AppProcess.Start([song], RootShowing("Off"));
         var transform = (TransformPattern)app.Window.GetCurrentPattern(TransformPattern.Pattern);
         transform.Resize(900, 700);
-        Wait.For(() => app.Text("LyricsStatus") == "Timed lyrics; only line starts were supplied.",
+        Wait.For(() => app.Text("LyricsStatus") == LyricsStatusText.LineTimed,
             "the line-timed mode from its real LRC source");
         app.Run(CommandCatalog.PlayPause);
         Wait.For(() => app.IsShown("LyricLine-1"), "the line-start action to be available");
@@ -84,7 +85,7 @@ public sealed partial class AppWindowTests
         app.Press("LyricLine-1");
         Wait.For(() => Math.Abs(app.Position - 20) < 1,
             "the player's seek position to follow the real source timestamp");
-        Assert.Equal("Timed lyrics; only line starts were supplied.", app.Text("LyricsStatus"));
+        Assert.Equal(LyricsStatusText.LineTimed, app.Text("LyricsStatus"));
         Screenshots.Match(app, "lyrics-line-seek-action", "Stage");
         Assert.Equal(0, app.Close());
     }
