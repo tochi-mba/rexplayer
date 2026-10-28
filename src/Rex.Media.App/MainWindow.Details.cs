@@ -166,6 +166,7 @@ public sealed partial class MainWindow
         var sections = TitleSections.Movie(facts, alike.Count, mates.Count);
         var left = _player.LeftAt(movie.Path);
         LibraryPlay.Visibility = Visibility.Visible;
+        SetLibraryActionsPlayable(null);
         LibraryPlayText.Text = left is null ? "Play" : "Resume";
         ShowHero("MOVIE", LibraryViews.MovieTitleOf(movie), TitleFacts.Movie(movie, facts), "", movie);
         ShowTitleExtras(sections.Crew, sections.Synopsis, credit: null, sections.Trailer, poster: true, sections.Backdrop);

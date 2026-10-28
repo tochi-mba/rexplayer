@@ -81,6 +81,22 @@ public partial class LibraryRow(
 
     public string PicturePlaceholder { get; } = picturePlaceholder;
 
+    /// <summary>
+    /// The icon a missing picture shows in its tile, drawn from Segoe Fluent Icons at a size that reads, where a
+    /// small text character looked like a stray mark: MusicNote, Dictionary (a book), Streaming (a podcast),
+    /// Microphone (a recording), Contact2 (an author), else Picture; nothing for a line with no placeholder.
+    /// </summary>
+    public string PlaceholderGlyph => PicturePlaceholder switch
+    {
+        "" => "",
+        "♪" => "\uEC4F",
+        "▤" => "\uE82D",
+        "◉" => "\uE93E",
+        "●" => "\uE720",
+        "✎" => "\uE8D4",
+        _ => "\uE8B9",
+    };
+
     /// <summary>A compact piece of media-native context: a track number or episode mark.</summary>
     public string Badge { get; } = badge;
 

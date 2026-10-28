@@ -69,8 +69,10 @@ public sealed partial class LibraryFixtureVisualTests
         using var app = scene.Ready().Start();
         SetViewport(app, 1000, 760);
         Wait.For(() => app.IsShown("LibraryEmptyText") &&
-            app.Text("LibraryEmptyText") == "There is nothing of this kind in the library's folders.",
+            app.Text("LibraryEmptyText") == "Add a folder that holds music, videos or pictures, or put some in a folder the library already watches."
+            && app.Text("LibraryEmptyHeading") == "Nothing in your library yet",
             "the empty library to finish indexing and explain what is missing");
+        Assert.True(app.IsShown("LibraryEmptyAddFolder"), "An empty Home offers a folder to add right there.");
         Assert.True(app.IsShown("LibraryQuickAddFolder"), "A folder can be added without opening a menu.");
         Screenshots.Match(app, "library-home-empty", "LibraryPane");
         Assert.Equal(0, app.Close());
@@ -98,6 +100,8 @@ public sealed partial class LibraryFixtureVisualTests
             "the inaccessible folder to show a recovery action rather than claiming no media exists");
         Assert.DoesNotContain("There is nothing of this kind", app.Text("LibraryEmptyText"), StringComparison.Ordinal);
         Assert.Equal("Try scanning the library folder again", app.Find("LibraryEmptyRetryScan").Current.Name);
+        Assert.Equal("A library folder is out of reach", app.Text("LibraryEmptyHeading"));
+        Assert.True(app.IsShown("LibraryEmptyShowFolders"), "The folder list is a second way out.");
         Screenshots.Match(app, "library-home-disconnected-folder-error", "LibraryPane");
         app.Press("LibraryEmptyRetryScan");
         Wait.For(() => app.IsShown("LibraryEmptyRetryScan") &&

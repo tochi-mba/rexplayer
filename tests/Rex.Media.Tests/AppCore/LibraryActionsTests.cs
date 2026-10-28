@@ -40,6 +40,17 @@ public sealed class LibraryActionsTests
     {
         Assert.Equal("1 item", LibraryActions.Count(1, "item"));
         Assert.Equal("3 files", LibraryActions.Count(3, "file"));
+        var culture = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            // A long book reads "10,001 chapters", never "10001 chapters".
+            System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+            Assert.Equal("10,001 chapters", LibraryActions.Count(10001, "chapter"));
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = culture;
+        }
         Assert.Equal("Play", LibraryActions.MenuText("Play", 1));
         Assert.Equal("Play", LibraryActions.MenuText("Play", 0));
         Assert.Equal("Play 3 items", LibraryActions.MenuText("Play", 3));

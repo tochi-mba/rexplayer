@@ -16,7 +16,7 @@
       <Grid>
         <Border CornerRadius="{x:Bind PictureCorners}" Background="{ThemeResource LayerFillColorDefaultBrush}">
           <Grid>
-            <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="44" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <FontIcon Glyph="{x:Bind PlaceholderGlyph}" FontSize="35" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
             <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" Opacity="{x:Bind PictureOpacity, Mode=OneWay}">
               <Image.OpacityTransition><ScalarTransition Duration="0:0:0.2" /></Image.OpacityTransition>
             </Image>
@@ -78,7 +78,7 @@
   </DataTemplate>
   <!-- The Songs table: 40 px art (dimmed under the equaliser while the song plays, Play over it on hover), the title (in the accent
        colour while it plays), the artist and album as links to their pages, plays as a number and the length, both right-aligned
-       in tabular figures. The columns match SongsTableHeader in MainWindow.AlbumPage.cs exactly. -->
+       in tabular figures; the plays column closes when nothing has been played. The columns match SongsTableHeader in MainWindow.AlbumPage.cs exactly. -->
   <DataTemplate x:Key="MusicSongRowTemplate" x:DataType="local:MusicRow">
     <Grid ColumnSpacing="14" MinHeight="52" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}"
           PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited">
@@ -87,13 +87,13 @@
         <ColumnDefinition Width="2*" />
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="56" />
+        <ColumnDefinition Width="{x:Bind PlaysColumnWidth}" />
         <ColumnDefinition Width="72" />
         <ColumnDefinition Width="52" />
       </Grid.ColumnDefinitions>
-      <Border Width="40" Height="40" CornerRadius="4" VerticalAlignment="Center" Background="{ThemeResource LayerFillColorDefaultBrush}">
+      <Border Width="40" Height="40" CornerRadius="4" VerticalAlignment="Center" Background="{ThemeResource RexRaisedBrush}">
         <Grid>
-          <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="16" Opacity="0.38" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <FontIcon Glyph="{x:Bind PlaceholderGlyph}" FontSize="18" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
           <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" Opacity="{x:Bind PictureOpacity, Mode=OneWay}">
             <Image.OpacityTransition><ScalarTransition Duration="0:0:0.2" /></Image.OpacityTransition>
           </Image>
@@ -127,7 +127,7 @@
           <ColumnDefinition Width="2*" />
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="*" />
-          <ColumnDefinition Width="56" />
+          <ColumnDefinition Width="{x:Bind PlaysColumnWidth}" />
           <ColumnDefinition Width="72" />
           <ColumnDefinition Width="52" />
         </Grid.ColumnDefinitions>

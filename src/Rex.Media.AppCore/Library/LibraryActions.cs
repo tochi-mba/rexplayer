@@ -24,7 +24,7 @@ public static class LibraryActions
     public static string Count(int count, string noun)
     {
         ArgumentNullException.ThrowIfNull(noun);
-        return count == 1 ? "1 " + noun : count.ToString(CultureInfo.CurrentCulture) + " " + noun + "s";
+        return count == 1 ? "1 " + noun : count.ToString("N0", CultureInfo.CurrentCulture) + " " + noun + "s";
     }
 
     /// <summary>A menu action's words: just the verb for one item, the count after it for many ("Play next", "Play 3 items next").</summary>

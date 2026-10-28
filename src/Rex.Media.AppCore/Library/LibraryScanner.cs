@@ -248,7 +248,7 @@ public sealed class LibraryScanner : IDisposable
             _log.Warning(LogSource, $"{folder} could not be looked in, so what is known of it stays: {ex.Message}");
             lock (_gate)
             {
-                _problem = "A library folder could not be read. Reconnect its drive or check permissions, then rescan. Known history was kept.";
+                _problem = $"{watched} could not be read. Reconnect its drive or check its permissions, then scan again. What the library knew of it is kept.";
             }
 
             StatusChanged?.Invoke(this, EventArgs.Empty);

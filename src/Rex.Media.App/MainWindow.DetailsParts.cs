@@ -147,9 +147,8 @@ public sealed partial class MainWindow
         var cast = TitleSections.CastRow(facts?.Cast ?? []);
         // A completed season must not suggest the whole series was watched.
         // Aggregate from the locally saved per-episode history, never from online metadata.
-        var seasonProgress = season is null ? null : ShowPage.WatchSummary(season.Entries, _player.LeftAt).Describe("Season");
-        var seriesProgress = ShowPage.WatchSummary(show.Entries, _player.LeftAt).Describe("Series");
-        var viewing = string.Join(" · ", new[] { seasonProgress, seriesProgress }.Where(value => !string.IsNullOrWhiteSpace(value)));
+        var viewing = ShowPage.ViewingLine(season is null ? null : ShowPage.WatchSummary(season.Entries, _player.LeftAt),
+            ShowPage.WatchSummary(show.Entries, _player.LeftAt));
         var key = show.Name + "\n" + overview + "\n" + viewing + "\n" + string.Join("|", cast.Select(member => member.Name + member.Character + member.PhotoUrl));
         if (key == _shownShowHeader)
         {

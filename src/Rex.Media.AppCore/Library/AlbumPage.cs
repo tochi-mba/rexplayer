@@ -97,8 +97,7 @@ public static class AlbumPage
         ArgumentNullException.ThrowIfNull(album);
         var count = album.Entries.Count == 1 ? "1 song" : album.Entries.Count.ToString(CultureInfo.CurrentCulture) + " songs";
         var length = StreamingBrowse.Length(TimeSpan.FromTicks(album.Entries.Sum(song => song.Duration?.Ticks ?? 0)));
-        return string.Join(" · ", new[] { KindName(kind), year?.ToString(CultureInfo.CurrentCulture), length.Length > 0 ? count + ", " + length : count }
-            .Where(part => !string.IsNullOrEmpty(part)));
+        return ViewFacts.Join(KindName(kind), year?.ToString(CultureInfo.CurrentCulture), count, length);
     }
 
     /// <summary>

@@ -78,7 +78,7 @@ public sealed class LibraryListeningTests : IDisposable
         app.Open("Night Talk");
         Wait.For(() => app.Lines().SequenceEqual(["Ep 2", "Ep 1"]),
             "episodes within the chosen local show");
-        Assert.Contains("Local files only", app.Text("LibrarySubtitle"), StringComparison.Ordinal);
+        Assert.Contains("unplayed", app.Text("LibrarySubtitle"), StringComparison.Ordinal);
         Pointer.RightClick(app, app.Line("Ep 2"));
         Wait.For(() => app.IsShown("LibraryMenuPlayUnplayed"), "the unplayed queue action");
         app.Press("LibraryMenuPlayUnplayed");
@@ -276,8 +276,8 @@ public sealed class LibraryListeningTests : IDisposable
         Wait.For(() => app.Text("LibraryOverview").Contains("Independent local show notes.", StringComparison.Ordinal),
             "the show description from its explicit local sidecar");
         Assert.Contains("<script>", app.Text("LibraryOverview"), StringComparison.Ordinal);
-        Assert.Contains("Artist tag:", app.Text("LibraryFacts"), StringComparison.Ordinal);
-        Assert.Contains("Local files only", app.Text("LibrarySubtitle"), StringComparison.Ordinal);
+        Assert.Equal("By Host", app.Text("LibraryFacts"));
+        Assert.Contains("unplayed", app.Text("LibrarySubtitle"), StringComparison.Ordinal);
         Pointer.RightClick(app, app.Line("Ep 1"));
         Wait.For(() => app.IsShown("LibraryMenuShowNotes"), "safe full-show local notes action");
         app.Press("LibraryMenuShowNotes");

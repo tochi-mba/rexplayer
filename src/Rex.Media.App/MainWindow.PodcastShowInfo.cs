@@ -72,12 +72,12 @@ public sealed partial class MainWindow
     private string PodcastDescription(LibraryGroup show)
     {
         static string Preview(string? notes) => notes is null
-            ? "Local episodes only · No show description is saved with these files."
+            ? ""
             : notes.Length > 750 ? notes[..750] + "… (Open show notes to read the rest.)" : notes;
         var folder = LocalShowNotesFolder(show);
         if (folder is null)
         {
-            return "Local episodes only · A show-wide description cannot safely be attributed across these folders.";
+            return "";
         }
 
         var hasCached = _podcastShowNotes.TryGetValue(folder, out var known);

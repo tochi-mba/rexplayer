@@ -37,6 +37,7 @@ public sealed partial class MainWindow
             LibrarySource.RecentlyPlayed => LibraryEmptyView.RecentlyPlayed,
             LibrarySource.Playlists => LibraryEmptyView.Playlists,
             LibrarySource.Folders => LibraryEmptyView.Folders,
+            LibrarySource.Home => LibraryEmptyView.Home,
             _ => LibraryEmptyView.Media,
         };
         var state = LibraryEmptyState.For(view, searching, _library!.Folders.Count > 0,
@@ -50,6 +51,11 @@ public sealed partial class MainWindow
 
         _shownEmpty = state;
         LibraryEmptyText.Text = state.Text;
+        LibraryEmptyHeading.Text = state.Heading ?? "";
+        LibraryEmptyHeading.Visibility = state.Heading is null ? Visibility.Collapsed : Visibility.Visible;
+        // A folder out of reach is a problem, not an empty shelf: a warning sign in the critical colour.
+        LibraryEmptyGlyph.Glyph = state.IsProblem ? "\uE7BA" : "\uE8F1";
+        LibraryEmptyGlyph.Foreground = RexTheme.Brush(state.IsProblem ? "SystemFillColorCriticalBrush" : "AccentTextFillColorPrimaryBrush");
         LibraryFolderButtons.Children.Clear();
         if (searching)
         {
@@ -86,12 +92,27 @@ public sealed partial class MainWindow
             LibraryFolderButtons.Children.Add(retry);
         }
 
+        if (state.OffersFolderList)
+        {
+            var list = new Button { Content = "Show folders" };
+            AutomationProperties.SetAutomationId(list, "LibraryEmptyShowFolders");
+            AutomationProperties.SetName(list, "Show the library's folders");
+            list.Click += (_, _) => LibrarySources.SelectedIndex = Array.FindIndex(LibrarySourceItems, pair => pair.Source == LibrarySource.Folders);
+            LibraryFolderButtons.Children.Add(list);
+        }
+
         if (!state.OffersFolders)
         {
             return;
         }
 
-        var add = new Button { Content = "Add folders..." };
+        var add = new Button { Content = "Add a folder" };
+        if (state.Heading is not null)
+        {
+            // Where adding a folder is the way forward (an empty library), it is the primary action.
+            add.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
+        }
+
         AutomationProperties.SetAutomationId(add, "LibraryEmptyAddFolder");
         add.Click += OnLibraryAddFolder;
         LibraryFolderButtons.Children.Add(add);

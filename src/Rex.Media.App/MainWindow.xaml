@@ -13,12 +13,12 @@
     <DataTemplate x:Key="LibrarySongTemplate" x:DataType="local:LibraryRow">
       <Grid ColumnSpacing="12" Padding="2,5" MinHeight="64" AutomationProperties.Name="{x:Bind AccessibilityName, Mode=OneWay}" AutomationProperties.HelpText="{x:Bind TranscriptText, Mode=OneWay}"
             PointerEntered="OnCardPointerEntered" PointerExited="OnCardPointerExited">
-        <Grid.ColumnDefinitions><ColumnDefinition Width="32" /><ColumnDefinition Width="54" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-        <TextBlock Text="{x:Bind Badge}" Visibility="{x:Bind BadgeVisibility}" HorizontalAlignment="Center" VerticalAlignment="Center"
+        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="54" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+        <TextBlock Text="{x:Bind Badge}" Visibility="{x:Bind BadgeVisibility}" MinWidth="32" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="{StaticResource RexMonoFontFamily}" />
-        <Border Grid.Column="1" Width="54" Height="54" CornerRadius="5" Background="{ThemeResource LayerFillColorDefaultBrush}">
+        <Border Grid.Column="1" Width="54" Height="54" CornerRadius="5" Background="{ThemeResource RexRaisedBrush}">
           <Grid>
-            <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="22" Opacity="0.38" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <FontIcon Glyph="{x:Bind PlaceholderGlyph}" FontSize="18" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
             <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" Opacity="{x:Bind PictureOpacity, Mode=OneWay}">
               <Image.OpacityTransition><ScalarTransition Duration="0:0:0.2" /></Image.OpacityTransition>
             </Image>
@@ -579,8 +579,8 @@
             <DropDownButton x:Name="LibrarySortButton" Grid.Column="1" AutomationProperties.AutomationId="LibrarySort" ToolTipService.ToolTip="What the view is ordered by" />
             <DropDownButton x:Name="LibraryGroupButton" Grid.Column="2" AutomationProperties.AutomationId="LibraryGroup" ToolTipService.ToolTip="What the view is gathered under" />
             <DropDownButton x:Name="LibraryFilterButton" Grid.Column="3" AutomationProperties.AutomationId="LibraryFilter" AutomationProperties.Name="Filter by progress, type, folder or download" ToolTipService.ToolTip="Filter this view by progress, media type, folder or download" />
-            <StackPanel x:Name="LibrarySizePanel" Grid.Column="4" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="8,0,0,0">
-              <FontIcon Glyph="&#xE71E;" FontSize="12" Opacity="0.7" />
+            <StackPanel x:Name="LibrarySizePanel" Grid.Column="4" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="8,0,0,0" ToolTipService.ToolTip="Card size">
+              <FontIcon Glyph="&#xECA5;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
               <Slider x:Name="LibraryCardSize" Width="110" Minimum="120" Maximum="360" StepFrequency="10" VerticalAlignment="Center"
                       ValueChanged="OnLibraryCardSizeChanged" AutomationProperties.AutomationId="LibraryCardSize" AutomationProperties.Name="Card size" />
             </StackPanel>
@@ -606,20 +606,24 @@
                          AutomationProperties.AutomationId="LibraryHome">
             <StackPanel x:Name="LibraryShelves" Spacing="22" Padding="24,4,24,24" />
           </ScrollViewer>
+          <!-- The panel centres itself rather than relying on the scroller to centre it: a scroller centres its content by
+               the width it asked for, and a wrapping line asks for less than it is then given, so a short line sat right of the middle. -->
           <ScrollViewer x:Name="LibraryEmpty" Grid.Row="2" Visibility="Collapsed" AutomationProperties.AutomationId="LibraryEmpty"
-                        VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
-          <StackPanel Spacing="18" MaxWidth="440" Margin="24">
-            <Border Width="64" Height="64" CornerRadius="20" Background="{ThemeResource LayerFillColorDefaultBrush}" HorizontalAlignment="Center">
-              <FontIcon Glyph="&#xE8F1;" FontSize="28" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled"
+                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center" SizeChanged="OnLibraryEmptySized">
+          <StackPanel Spacing="12" MaxWidth="440" Margin="24,16" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border x:Name="LibraryEmptyIcon" Width="64" Height="64" CornerRadius="20" Margin="0,0,0,6" Background="{ThemeResource RexRaisedBrush}" HorizontalAlignment="Center">
+              <FontIcon x:Name="LibraryEmptyGlyph" Glyph="&#xE8F1;" FontSize="28" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
             </Border>
+            <TextBlock x:Name="LibraryEmptyHeading" Visibility="Collapsed" FontSize="{StaticResource RexTitleFontSize}" FontWeight="SemiBold" TextWrapping="Wrap"
+                       TextAlignment="Center" AutomationProperties.AutomationId="LibraryEmptyHeading" AutomationProperties.HeadingLevel="Level2" />
             <TextBlock x:Name="LibraryEmptyText" FontSize="16" TextWrapping="Wrap" TextAlignment="Center" AutomationProperties.AutomationId="LibraryEmptyText" />
-            <StackPanel x:Name="LibraryFolderButtons" Orientation="Vertical" HorizontalAlignment="Center" Spacing="8" />
+            <StackPanel x:Name="LibraryFolderButtons" Orientation="Vertical" HorizontalAlignment="Center" Spacing="8" Margin="0,6,0,0" />
           </StackPanel>
           </ScrollViewer>
         </Grid>
         <!-- Words for what the library cannot do yet (a file still downloading): the player's own messages sit under the open library. -->
-        <InfoBar x:Name="LibraryNotice" Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="16" MaxWidth="560"
+        <InfoBar x:Name="LibraryNotice" Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="16,16,16,28" MaxWidth="560"
                  IsOpen="False" IsClosable="True" Severity="Informational" AutomationProperties.AutomationId="LibraryNotice" />
       </Grid>
       <Grid x:Name="PlaylistPane" Grid.Column="1" Width="344" Visibility="Collapsed" Padding="10,8"

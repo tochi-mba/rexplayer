@@ -119,6 +119,7 @@ public static class StreamingBrowse
     public static string Length(TimeSpan? duration) => duration switch
     {
         null or { Ticks: <= 0 } => "",
+        { TotalHours: >= 1, Minutes: 0 } time => $"{(int)time.TotalHours} h",
         { TotalHours: >= 1 } time => $"{(int)time.TotalHours} h {time.Minutes} min",
         { } time => $"{Math.Max(1, time.Minutes)} min",
     };

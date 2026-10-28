@@ -56,14 +56,26 @@ public static class LibraryArrangement
         return choice.IsFiltered ? [.. entries.Where(entry => Keeps(entry, choice, leftAt))] : entries;
     }
 
+    /// <summary>
+    /// A progress filter's name for what the view holds: videos are "Unwatched", what is listened to
+    /// (songs, books, podcasts) is "Not started", rather than a book being called unwatched.
+    /// </summary>
+    public static string ProgressName(LibraryFilter filter, bool watched = true) => filter switch
+    {
+        LibraryFilter.All => "All progress",
+        LibraryFilter.Unwatched => watched ? "Unwatched" : "Not started",
+        LibraryFilter.InProgress => "In progress",
+        _ => "Finished",
+    };
+
     /// <summary>The quick filters in use, as the window's button says them: "Filter", or "Unwatched · Videos · Music".</summary>
-    public static string FilterLabel(LibraryViewChoice choice)
+    public static string FilterLabel(LibraryViewChoice choice, bool watched = true)
     {
         ArgumentNullException.ThrowIfNull(choice);
         var parts = new List<string>();
         if (choice.Filter != LibraryFilter.All)
         {
-            parts.Add(choice.Filter switch { LibraryFilter.Unwatched => "Unwatched", LibraryFilter.InProgress => "In progress", _ => "Finished" });
+            parts.Add(ProgressName(choice.Filter, watched));
         }
 
         if (choice.Kinds != LibraryKindFilter.Any)

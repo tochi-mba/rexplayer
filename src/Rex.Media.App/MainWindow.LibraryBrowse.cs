@@ -105,9 +105,8 @@ public sealed partial class MainWindow
                 play = () => PlayShowFromNextUp(featured);
                 if (StreamingBrowse.NextUp(featured, _player.LeftAt) is { } next)
                 {
-                    var episode = LibraryViews.EpisodeOf(next);
-                    var context = episode is null ? "" : $" S{episode.Season:00} E{episode.Episode:00}";
-                    playLabel = (_player.LeftAt(next.Path) is null ? "Play" : "Resume") + context;
+                    // The page's own wording: "Resume S01 E03", or just "Play" for an episode with no number (never "Play S01 E").
+                    playLabel = ShowPage.PlayLabel(next, _player.LeftAt(next.Path) is not null);
                 }
                 more = () => OpenShow(featured);
             }

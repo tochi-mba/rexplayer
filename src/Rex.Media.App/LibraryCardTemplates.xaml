@@ -12,7 +12,7 @@
       <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
       <Border CornerRadius="10" Background="{ThemeResource LayerFillColorDefaultBrush}">
         <Grid>
-          <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="48" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <FontIcon Glyph="{x:Bind PlaceholderGlyph}" FontSize="38" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
           <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" Opacity="{x:Bind PictureOpacity, Mode=OneWay}">
             <Image.OpacityTransition><ScalarTransition Duration="0:0:0.2" /></Image.OpacityTransition>
           </Image>
@@ -42,7 +42,7 @@
       <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
       <Border CornerRadius="10" Background="{ThemeResource LayerFillColorDefaultBrush}">
         <Grid>
-          <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="42" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <FontIcon Glyph="{x:Bind PlaceholderGlyph}" FontSize="34" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
           <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" Opacity="{x:Bind PictureOpacity, Mode=OneWay}">
             <Image.OpacityTransition><ScalarTransition Duration="0:0:0.2" /></Image.OpacityTransition>
           </Image>
@@ -83,7 +83,7 @@
       <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
       <Border CornerRadius="12" Background="{x:Bind TileBackground, Mode=OneWay}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
         <Grid>
-          <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="54" Opacity="0.36" Foreground="{StaticResource RexOverlayTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <FontIcon Glyph="{x:Bind PlaceholderGlyph}" FontSize="43" Foreground="{StaticResource RexOverlaySecondaryTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
           <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Top" Opacity="{x:Bind PictureOpacity, Mode=OneWay}">
             <Image.OpacityTransition><ScalarTransition Duration="0:0:0.2" /></Image.OpacityTransition>
           </Image>
@@ -130,7 +130,7 @@
         <Border CornerRadius="9" Background="{x:Bind TileBackground, Mode=OneWay}">
           <Grid>
             <Image Source="{x:Bind Backdrop, Mode=OneWay}" Stretch="UniformToFill" Opacity="0.45" />
-            <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="44" FontWeight="SemiBold" Foreground="{StaticResource RexOverlayTextBrush}" Opacity="0.55" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <FontIcon Glyph="{x:Bind PlaceholderGlyph}" FontSize="35" Foreground="{StaticResource RexOverlaySecondaryTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
             <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="UniformToFill" Opacity="{x:Bind PictureOpacity, Mode=OneWay}">
               <Image.OpacityTransition><ScalarTransition Duration="0:0:0.2" /></Image.OpacityTransition>
             </Image>
@@ -173,7 +173,7 @@
       </Grid.RowDefinitions>
       <Border Grid.Row="0" CornerRadius="8" Background="{ThemeResource LayerFillColorDefaultBrush}">
         <Grid>
-          <TextBlock Text="{x:Bind PicturePlaceholder}" FontSize="42" Opacity="0.3" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <FontIcon Glyph="{x:Bind PlaceholderGlyph}" FontSize="34" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
           <Image Source="{x:Bind Picture, Mode=OneWay}" Stretch="Uniform" />
           <Border x:Name="CardPlay" Opacity="0" VerticalAlignment="Bottom" Padding="10,6" IsHitTestVisible="False">
             <Border.Background>
