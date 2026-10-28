@@ -32,248 +32,8 @@ public sealed partial class MainWindow
         bool saved;
         try
         {
-            var scroll = new ScrollViewer
-            {
-                Content = sections.Page(0),
-                MaxHeight = 560,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            };
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(scroll, "PreferencesScroll");
-            var section = Choice("Settings section", [.. names], 0);
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(section, "PreferencesSection");
-            section.HorizontalAlignment = HorizontalAlignment.Stretch;
-            // Keep every section directly reachable when the picker reopens near the end. Once
-            // Metadata made this the eleventh item, the default-height popup virtualized Playback
-            // above the viewport instead of exposing it to keyboard and UI Automation selection.
-            section.MaxDropDownHeight = 560;
-            var offsets = new double[sections.Count];
-            var shownSection = 0;
-            section.SelectionChanged += (_, _) =>
-            {
-                if (section.SelectedIndex < 0)
-                {
-                    return;
-                }
-
-                offsets[shownSection] = scroll.VerticalOffset;
-                shownSection = section.SelectedIndex;
-                scroll.Content = sections.Page(shownSection);
-                scroll.UpdateLayout();
-                // A view already at its saved place is left alone: a redundant change lands after
-                // layout and would undo a scroll the user starts straight after switching.
-                if (Math.Abs(scroll.VerticalOffset - offsets[shownSection]) > 0.5)
-                {
-                    scroll.ChangeView(null, offsets[shownSection], null, disableAnimation: true);
-                }
-            };
-            // The compact section picker remains available on small windows and for automation.
-            // Larger windows also offer a persistent, searchable category rail.
-            var categorySearch = new TextBox
-            {
-                PlaceholderText = "Search settings and categories",
-            };
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(categorySearch, "PreferencesCategorySearch");
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(categorySearch, "Search settings and categories");
-            var categories = new ListView
-            {
-                SelectionMode = ListViewSelectionMode.Single,
-                ItemsSource = names.ToList(),
-                SelectedIndex = 0,
-                MaxHeight = 480,
-                MinWidth = 170,
-            };
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(categories, "PreferencesCategoryList");
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(categories, "Matching settings categories");
-            categories.SelectionChanged += (_, _) =>
-            {
-                if (categories.SelectedItem is string name)
-                {
-                    var index = sections.IndexOf(name);
-                    if (index >= 0 && section.SelectedIndex != index)
-                    {
-                        section.SelectedIndex = index;
-                    }
-                }
-            };
-            section.SelectionChanged += (_, _) =>
-            {
-                if (section.SelectedIndex >= 0 && categories.ItemsSource is IEnumerable<string> listed)
-                {
-                    var name = names[section.SelectedIndex];
-                    if (listed.Contains(name) && !Equals(categories.SelectedItem, name))
-                    {
-                        categories.SelectedItem = name;
-                    }
-                }
-            };
-            // Match the labels inside each page as well as the category name. A search builds
-            // the pages not yet shown, so no setting values or state need to be duplicated.
-            // WrapLabels changes long CheckBox contents from strings into TextBlocks; search
-            // must read their text, not the TextBlock type name. Include automation labels and
-            // available choice items (including the contents of closed optional expanders).
-            static bool Says(object? value, string query)
-            {
-                var label = value is TextBlock block ? block.Text : value?.ToString();
-                return label is not null && System.Globalization.CultureInfo.CurrentCulture.CompareInfo.IndexOf(
-                    label, query, System.Globalization.CompareOptions.IgnoreCase | System.Globalization.CompareOptions.IgnoreNonSpace) >= 0;
-            }
-
-            static bool HasSettingText(UIElement node, string query)
-            {
-                if (node is FrameworkElement element
-                    && (Says(Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(element), query)
-                        || Says(Microsoft.UI.Xaml.Automation.AutomationProperties.GetHelpText(element), query)))
-                {
-                    return true;
-                }
-
-                if (node is TextBlock text && Says(text.Text, query)
-                    || node is CheckBox check && Says(check.Content, query)
-                    || node is ToggleSwitch toggle && Says(toggle.Header, query)
-                    || node is ComboBox choice && (Says(choice.Header, query)
-                        || choice.Items.Any(item => Says(item is ComboBoxItem option ? option.Content : item, query)))
-                    || node is NumberBox number && Says(number.Header, query)
-                    || node is TextBox input && Says(input.Header, query)
-                    || node is Button button && Says(button.Content, query))
-                {
-                    return true;
-                }
-
-                if (node is Expander expander
-                    && (Says(expander.Header, query)
-                        || expander.Content is UIElement expanded && HasSettingText(expanded, query)))
-                {
-                    return true;
-                }
-
-                if (node is Panel panel)
-                {
-                    return panel.Children.Any(child => HasSettingText(child, query));
-                }
-
-                if (node is Border { Child: UIElement child })
-                {
-                    return HasSettingText(child, query);
-                }
-
-                return node is ContentControl { Content: UIElement content }
-                    && HasSettingText(content, query);
-            }
-
-            var searchResult = new TextBlock
-            {
-                Text = "No matching settings. Try a different word.",
-                TextWrapping = TextWrapping.Wrap,
-                Opacity = 0.75,
-                Visibility = Visibility.Collapsed,
-            };
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(searchResult, "PreferencesSearchEmpty");
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetLiveSetting(searchResult, Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Polite);
-            categorySearch.TextChanged += (_, _) =>
-            {
-                var query = categorySearch.Text.Trim();
-                var matches = query.Length == 0 ? [.. names] : sections.All()
-                    .Where(item => Says(item.Name, query) || HasSettingText(item.Page, query))
-                    .Select(item => item.Name).ToList();
-                categories.ItemsSource = matches;
-                // Updating the ListView's items can clear its selection without raising a
-                // reliable SelectionChanged for a newly assigned SelectedItem. Navigate
-                // through the authoritative section picker first, so recovering from an
-                // empty result never leaves the old section visible.
-                if (matches.Count > 0)
-                {
-                    // A direct category match outranks incidental matches in controls on
-                    // other pages. For example, searching "subtitle" must land on
-                    // Subtitles, not on an earlier page that happens to mention subtitles.
-                    var directCategory = names.FirstOrDefault(name => Says(name, query));
-                    var selectedName = directCategory ?? (matches.Contains(names[shownSection])
-                        ? names[shownSection] : matches[0]);
-                    var index = sections.IndexOf(selectedName);
-                    if (section.SelectedIndex != index)
-                    {
-                        section.SelectedIndex = index;
-                    }
-
-                    categories.SelectedItem = selectedName;
-                }
-                else
-                {
-                    categories.SelectedItem = null;
-                }
-
-                searchResult.Visibility = matches.Count == 0 && categories.Visibility == Visibility.Visible
-                    ? Visibility.Visible : Visibility.Collapsed;
-            };
-            var navigation = new StackPanel { Spacing = 8 };
-            navigation.Children.Add(section);
-            navigation.Children.Add(categorySearch);
-            navigation.Children.Add(categories);
-            navigation.Children.Add(searchResult);
-            var saveHint = new TextBlock
-            {
-                Text = "Setting changes across all sections apply on Save. Cancel keeps your current settings. Downloads, update checks and transcript cleanup run when selected.",
-                TextWrapping = TextWrapping.Wrap,
-                Opacity = 0.75,
-            };
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(saveHint, "PreferencesSaveHint");
-            navigation.Children.Add(saveHint);
-            var panel = new Grid { ColumnSpacing = 20, RowSpacing = 12 };
-            panel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(190) });
-            panel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            panel.Children.Add(navigation);
-            Grid.SetColumn(scroll, 1);
-            panel.Children.Add(scroll);
-            var dialog = new ContentDialog
-            {
-                Title = "Preferences",
-                Content = panel,
-                MaxWidth = 960,
-                PrimaryButtonText = "Save",
-                CloseButtonText = "Cancel",
-                DefaultButton = ContentDialogButton.Primary,
-                XamlRoot = Content.XamlRoot,
-            };
-            var root = Content.XamlRoot;
-            void FitPreferences(XamlRoot sender, XamlRootChangedEventArgs args)
-            {
-                var wide = root.Size.Width >= 860;
-                panel.Width = Math.Clamp(root.Size.Width - 96, 280, 840);
-                panel.ColumnDefinitions[0].Width = wide ? new GridLength(190) : new GridLength(1, GridUnitType.Star);
-                panel.ColumnDefinitions[1].Width = wide ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
-                categorySearch.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
-                categories.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
-                categories.MaxHeight = Math.Clamp(root.Size.Height - 360, 100, 480);
-                // Search is hidden in compact mode, so do not leave a hidden filter
-                // governing the category rail when the user widens the window again.
-                if (!wide && categorySearch.Text.Length > 0)
-                {
-                    categorySearch.Text = "";
-                }
-
-                searchResult.Visibility = wide && categories.Items.Count == 0
-                    ? Visibility.Visible : Visibility.Collapsed;
-                navigation.Visibility = Visibility.Visible;
-                // Small windows retain the original single-column section picker.
-                if (!wide)
-                {
-                    Grid.SetColumn(scroll, 0);
-                    Grid.SetRow(navigation, 0);
-                    Grid.SetRow(scroll, 1);
-                    panel.RowDefinitions.Clear();
-                    panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                    panel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-                }
-                else
-                {
-                    Grid.SetRow(scroll, 0);
-                    Grid.SetColumn(scroll, 1);
-                    panel.RowDefinitions.Clear();
-                }
-                scroll.MaxHeight = Math.Clamp(root.Size.Height - 300, 100, 560);
-            }
-            FitPreferences(root, null!);
-            root.Changed += FitPreferences;
+            // The frame: the sections, the search, the page shown and the dialog, fitted to the window.
+            var (dialog, stopFitting) = PreferencesDialog(sections, names);
             try
             {
                 do
@@ -289,7 +49,7 @@ public sealed partial class MainWindow
             }
             finally
             {
-                root.Changed -= FitPreferences;
+                stopFitting();
             }
         }
         finally
@@ -380,7 +140,7 @@ public sealed partial class MainWindow
             // Network access is an explicit choice; merely completing the welcome does not opt in.
             var updates = Check("Look for new versions every day and download them in the background", false);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(updates, "WelcomeUpdates");
-            var welcome = new StackPanel { Spacing = 12, MaxWidth = 480 };
+            var welcome = new StackPanel { Spacing = 12, Width = DialogWidth(Rex.Media.AppCore.Shell.DialogLayout.OrdinaryWidth) };
             welcome.Children.Add(new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
@@ -389,12 +149,14 @@ public sealed partial class MainWindow
             var privacy = new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Text = "rexplayer needs no account and plays local files offline. Optional metadata lookups and update checks contact online services only when enabled. This update choice starts turned off.",
+                Text = "rexplayer needs no account and plays local files offline. Optional metadata lookups and update checks contact online services only when enabled.",
             };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(privacy, "WelcomePrivacy");
             welcome.Children.Add(privacy);
             welcome.Children.Add(updates);
-            await Ask("Welcome to rexplayer", welcome, null, "Start");
+            WrapLabels(welcome);
+            // Start is the one way on, so it is the dialog's own action, not a way out of it.
+            await Ask("Welcome to rexplayer", welcome, "Start", close: "");
             _settings = _settings with { FirstRunDone = true, UpdateChecks = updates.IsChecked == true ? UpdateCadence.Daily : UpdateCadence.Off, LastSeenVersion = Version };
             SaveSettings();
             return;
@@ -425,17 +187,25 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>A group's heading: with the space above it, groups stand 24 apart while their lines stand 8 apart.</summary>
     private static TextBlock Heading(string text) =>
-        new() { Text = text, Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"], Margin = new Thickness(0, 12, 0, 0) };
+        new() { Text = text, Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"], Margin = new Thickness(0, 16, 0, 0) };
+
+    /// <summary>A note that explains the setting above it, in the one small, quieter style every such line has.</summary>
+    private static TextBlock Note(string text) => new()
+    {
+        Text = text,
+        TextWrapping = TextWrapping.Wrap,
+        FontSize = (double)Application.Current.Resources["RexCaptionFontSize"],
+        Foreground = RexTheme.Brush("TextFillColorSecondaryBrush"),
+    };
 
     /// <summary>A jump length, described by the keys that make that jump so the two can be matched.</summary>
     private NumberBox Jump(string label, int seconds, string back, string forward)
     {
         var box = Number(label, seconds, 1, 3600);
         var keys = string.Join(" and ", new[] { _keymap.Label(back), _keymap.Label(forward) }.Where(key => key.Length > 0));
-        var help = keys.Length > 0 ? "Keys: " + keys : "No keys; set them in Keyboard and mouse";
-        box.Description = help;
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(box, help);
+        Describe(box, keys.Length > 0 ? "Keys: " + keys : "No keys; set them in Keyboard and mouse");
         return box;
     }
 
@@ -457,11 +227,10 @@ public sealed partial class MainWindow
     /// The visualisations, grouped under headings that cannot be chosen, so the long list is easy to
     /// scan; each choice carries its <see cref="VisualizerChoice"/>, which is what is saved.
     /// </summary>
-    private static ComboBox VisualizerChoices(VisualizerChoice selected)
+    private static ComboBox VisualizerChoices(VisualizerChoice selected, string header)
     {
-        const string Label = "While music plays, show";
-        var box = new ComboBox { Header = Label, MinWidth = 220, MaxDropDownHeight = 480 };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(box, Label);
+        var box = new ComboBox { Header = header, MinWidth = 220, MaxDropDownHeight = 480 };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(box, header);
         box.Items.Add(new ComboBoxItem { Content = Rex.Media.AppCore.Player.VisualizerGroups.Nothing, Tag = VisualizerChoice.Off });
         foreach (var (heading, choices) in Rex.Media.AppCore.Player.VisualizerGroups.All)
         {
@@ -487,16 +256,22 @@ public sealed partial class MainWindow
         return box;
     }
 
-    /// <summary>A line under a control that says what a less obvious choice does, read out with it too.</summary>
+    /// <summary>
+    /// A line under a control that says what a less obvious choice does, read out with it too. It
+    /// is a <see cref="Note"/>, so it wraps within the control's width instead of widening it.
+    /// </summary>
     private static void Describe(Control control, string help)
     {
         switch (control)
         {
             case NumberBox number:
-                number.Description = help;
+                number.Description = Note(help);
                 break;
             case ComboBox choice:
-                choice.Description = help;
+                choice.Description = Note(help);
+                break;
+            case TextBox words:
+                words.Description = Note(help);
                 break;
         }
 
@@ -508,7 +283,7 @@ public sealed partial class MainWindow
     private static readonly (string Name, int Rgb)[] Colors =
     [
         ("White", 0xFFFFFF), ("Yellow", 0xFFFF00), ("Light grey", 0xC0C0C0), ("Grey", 0x808080), ("Black", 0x000000),
-        ("Red", 0xFF0000), ("Green", 0x00FF00), ("Cyan", 0x00FFFF), ("Blue", 0x0000FF), ("Magenta", 0xFF00FF),
+        ("Red", 0xFF0000), ("Scarlet", 0xFF3B30), ("Green", 0x00FF00), ("Cyan", 0x00FFFF), ("Blue", 0x0000FF), ("Magenta", 0xFF00FF),
     ];
 
     /// <summary>A choice of colours; one set by hand in the settings file stays on offer as it is.</summary>
@@ -517,7 +292,7 @@ public sealed partial class MainWindow
         var options = Colors.ToList();
         if (!options.Any(option => option.Rgb == rgb))
         {
-            options.Insert(0, ($"#{rgb:X6}", rgb));
+            options.Insert(0, ($"Custom (#{rgb:X6})", rgb));
         }
 
         var box = Choice(label, [.. options.Select(option => option.Name)], options.FindIndex(option => option.Rgb == rgb));

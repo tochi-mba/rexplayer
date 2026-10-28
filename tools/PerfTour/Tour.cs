@@ -399,7 +399,7 @@ public sealed class Tour(AttachedApp app, bool openPages = false)
             {
                 throw new TourStepException("The player refused the Preferences command.");
             }
-        }, () => app.IsShown("PreferencesSection"));
+        }, () => app.IsShown("PreferencesCategorySearch"));
         if (!opened)
         {
             return;
@@ -415,7 +415,7 @@ public sealed class Tour(AttachedApp app, bool openPages = false)
         finally
         {
             // Always cancelled, never saved: the tour must leave the person's settings alone.
-            Step("close Preferences without saving", () => app.Press("CloseButton"), () => !app.IsShown("PreferencesSection"));
+            Step("close Preferences without saving", () => app.Press("CloseButton"), () => !app.IsShown("PreferencesCategorySearch"));
         }
     }
 

@@ -100,6 +100,8 @@ public sealed partial class MainWindow
             context.Items.Add(sub);
         }
 
+        // Kept inside the window: opened low on the picture it moves up rather than running off the bottom.
+        context.ShouldConstrainToRootBounds = true;
         Stage.ContextFlyout = context;
         AddPictureLooks(Menu.Items.First(item => item.Title == "Video").Items, "VideoLook-");
         AddPictureEffects(Menu.Items.First(item => item.Title == "Video").Items, "VideoEffect-");
@@ -130,7 +132,7 @@ public sealed partial class MainWindow
 
             var command = CommandCatalog.Find(id)!;
             MenuFlyoutItem item = MenuBarLayout.IsOnOff(id) ? new ToggleMenuFlyoutItem { IsChecked = IsOn(id) } : new MenuFlyoutItem();
-            (item.Text, item.KeyboardAcceleratorTextOverride) = (CommandCatalog.TitleOf(command, _settings), _keymap.Label(id));
+            (item.Text, item.KeyboardAcceleratorTextOverride) = (MenuTitle(command), _keymap.Label(id));
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(item, prefix + id);
             item.Click += (_, _) => Run(id);
             items.Add(item);
@@ -140,6 +142,10 @@ public sealed partial class MainWindow
             }
         }
     }
+    /// <summary>A command's menu title: the repeat item says the mode it is in now, as the playback controls do.</summary>
+    private string MenuTitle(Command command) =>
+        command.Id == CommandCatalog.CycleRepeat ? CommandCatalog.RepeatTitle(_player.Playlist.Repeat) : CommandCatalog.TitleOf(command, _settings);
+
     // Menu items that are on or off, ticked to match.
     private readonly List<(ToggleMenuFlyoutItem Item, string Command)> _menuChecks = [];
     /// <summary>Whether what <paramref name="command"/> switches is on now.</summary>
@@ -167,6 +173,10 @@ public sealed partial class MainWindow
         foreach (var (item, command) in _menuChecks)
         {
             item.IsChecked = IsOn(command);
+            if (command == CommandCatalog.CycleRepeat && CommandCatalog.RepeatTitle(_player.Playlist.Repeat) is var repeat && item.Text != repeat)
+            {
+                item.Text = repeat;
+            }
         }
     }
     /// <summary>Runs a command: playback commands go to the player, the rest are the window's own.</summary>
@@ -662,29 +672,6 @@ public sealed partial class MainWindow
         }
     }
 
-    private async Task OpenLocationAsync()
-    {
-        var box = new TextBox { PlaceholderText = @"A local file or folder, such as C:\Music\Album", MinWidth = 420 };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(box, "LocationBox");
-        if (await Ask("Open a local location", box, "Open") && box.Text.Trim().Trim('"') is { Length: > 0 } location)
-        {
-            var (supported, _) = MediaFiles.FilterClipboardPaths([location], Directory.Exists);
-            if (supported.Count == 0)
-            {
-                Say("Only local media files and folders can be opened. Network streams and remote locations are not supported.");
-                return;
-            }
-
-            if (!File.Exists(location) && !Directory.Exists(location))
-            {
-                Say("That local file or folder could not be found.");
-                return;
-            }
-
-            _player.Open(supported);
-        }
-    }
-
     /// <summary>Plays files copied in Explorer, or a path copied as text.</summary>
     private async Task PasteAsync()
     {
@@ -760,23 +747,6 @@ public sealed partial class MainWindow
                 Say($"\"{box.Text}\" is not a time. Try 1:23 or 1:02:03.");
             }
         }
-    }
-
-    private async Task ShowShortcutsAsync()
-    {
-        var list = new StackPanel { Spacing = 2 };
-        foreach (var group in CommandCatalog.All.GroupBy(command => command.Group))
-        {
-            list.Children.Add(new TextBlock { Text = group.Key, Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"], Margin = new Thickness(0, 8, 0, 2) });
-            foreach (var command in group)
-            {
-                var keys = string.Join(", ", _keymap.ShortcutsFor(command.Id));
-                var title = CommandCatalog.TitleOf(command, _settings);
-                list.Children.Add(new TextBlock { Text = keys.Length > 0 ? $"{title}: {keys}" : title });
-            }
-        }
-
-        await Ask("Keyboard shortcuts", new ScrollViewer { Content = list, MaxHeight = 480 }, null);
     }
 
     private async Task ShowMediaInformationAsync()

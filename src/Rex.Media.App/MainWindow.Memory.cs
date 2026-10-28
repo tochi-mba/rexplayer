@@ -15,6 +15,9 @@ public sealed partial class MainWindow
 {
     private MenuFlyoutSubItem? _recentMenu;
     private MenuFlyoutSubItem? _bookmarksMenu;
+
+    // The bookmarks listed after the Bookmarks group's own commands, so they can be replaced alone.
+    private readonly List<MenuFlyoutItemBase> _bookmarkEntries = [];
     private string _shownMemory = "";
     private string _shownBookmarkMarkers = "";
     private readonly List<(Button Button, Bookmark Bookmark)> _bookmarkMarkerButtons = [];
@@ -48,11 +51,13 @@ public sealed partial class MainWindow
         var media = Menu.Items.First(item => item.Title == "Media");
         media.Items.Insert(Math.Max(0, media.Items.Count - 2), _recentMenu);
 
-        _bookmarksMenu = new MenuFlyoutSubItem { Text = "Bookmarks" };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(_bookmarksMenu, "BookmarksMenu");
+        // The Playback menu's Bookmarks group holds its commands (add one, go back to where I left
+        // off); the bookmarks kept follow them. It keeps the id scripts already know it by.
         var playback = Menu.Items.First(item => item.Title == "Playback");
-        playback.Items.Add(new MenuFlyoutSeparator());
-        playback.Items.Add(_bookmarksMenu);
+        var bookmarksId = "Submenu-" + Rex.Media.AppCore.Commands.MenuBarLayout.SubMenuId(Rex.Media.AppCore.Commands.MenuBarLayout.Bookmarks);
+        _bookmarksMenu = playback.Items.OfType<MenuFlyoutSubItem>().First(item => AutomationProperties.GetAutomationId(item) == bookmarksId);
+        AutomationProperties.SetAutomationId(_bookmarksMenu, "BookmarksMenu");
+        _bookmarkEntries.Clear();
         _shownMemory = "";
     }
 
@@ -80,7 +85,17 @@ public sealed partial class MainWindow
         }
 
         _recentMenu.IsEnabled = recent.Count > 0;
-        _bookmarksMenu.Items.Clear();
+        foreach (var entry in _bookmarkEntries)
+        {
+            _bookmarksMenu.Items.Remove(entry);
+        }
+
+        _bookmarkEntries.Clear();
+        if (bookmarks.Count > 0)
+        {
+            _bookmarkEntries.Add(new MenuFlyoutSeparator());
+        }
+
         for (var i = 0; i < bookmarks.Count; i++)
         {
             var index = i;
@@ -94,10 +109,13 @@ public sealed partial class MainWindow
             bookmark.Items.Add(go);
             bookmark.Items.Add(rename);
             bookmark.Items.Add(delete);
-            _bookmarksMenu.Items.Add(bookmark);
+            _bookmarkEntries.Add(bookmark);
         }
 
-        _bookmarksMenu.IsEnabled = bookmarks.Count > 0;
+        foreach (var entry in _bookmarkEntries)
+        {
+            _bookmarksMenu.Items.Add(entry);
+        }
     }
 
     private void OnStartOver(object sender, RoutedEventArgs e) => _player.StartOver();
@@ -138,7 +156,7 @@ public sealed partial class MainWindow
             };
             AutomationProperties.SetAutomationId(button, $"BookmarkMarker-{i}");
             AutomationProperties.SetName(button, $"{bookmark.Name}, bookmark at {time}. Go there");
-            ToolTipService.SetToolTip(button, $"{bookmark.Name} · {time}");
+            ToolTipService.SetToolTip(button, $"{bookmark.Name} \u00B7 {time}");
             button.Click += (_, _) => _player.GoToBookmark(index);
             BookmarkMarkers.Children.Add(button);
             _bookmarkMarkerButtons.Add((button, bookmark));
