@@ -25,7 +25,8 @@ namespace Rex.Media.App.Tests;
 /// over a faded copy of the baseline) beside it.
 /// </para>
 /// <para>
-/// A shot is evidence only of a window that has finished drawing. Before capturing, the scene's UI
+/// A shot is evidence only of a window that has finished drawing. Before capturing, the pointer
+/// is moved off the window (no hover fill or tooltip from the test's last click), the scene's UI
 /// Automation contract must hold, the window must have painted its content (its client area is
 /// not the backdrop's one flat colour and the readiness control's box shows something drawn), and
 /// two frames taken <see cref="SettleInterval"/> apart must agree, no pixel changing by more than
@@ -100,10 +101,9 @@ internal static class Screenshots
         var scene = ScreenshotScenes.Find(name);
         Assert.True(scene.RequiredLane == "ci-windows" || scene.RequiredLane == Lane,
             $"Scene {name} requires the real {scene.RequiredLane} desktop, not {Lane}.");
-        if (scene.Owner is "LibraryFixtureVisualTests" or "LibraryEvidenceEdgeTests")
-        {
-            Pointer.ParkOutsideWindow(app);
-        }
+        // The test's last click left the pointer over a control: its hover fill, pressed look or
+        // tooltip is not part of the scene.
+        var pointerParked = Pointer.ParkOutsideWindow(app);
         // WinUI exposes UIA elements before they have been painted. Require the
         // scene's semantic contract first, then independently inspect pixels.
         var ready = Wait.Within(AppProcess.Patience, () =>
@@ -283,7 +283,7 @@ internal static class Screenshots
         WriteCaptureMetadata(scene, app, picture, automationId, pixelThreshold,
             maxDifferingRatio, true, rendered, needsPixelWitness && HasVisibleVariation(witness),
             repeatable, repeatDifference,
-            new { painted = unpainted is null, unpainted, settled, changedPixels,
+            new { pointerParked, painted = unpainted is null, unpainted, settled, changedPixels,
                 settleMilliseconds = (int)settleTime.TotalMilliseconds,
                 settleIntervalMilliseconds = (int)SettleInterval.TotalMilliseconds });
         Save(Path.Combine(Output, "actual", name + ".png"), picture);
@@ -358,8 +358,8 @@ internal static class Screenshots
             witnessVisiblyVaried = witnessVaried,
             repeatabilityAchieved = repeatable,
             repeatedDifferingRatio = repeatDifference,
-            // Whether the window had painted, and whether two frames SettleInterval apart agreed
-            // (or how many pixels were still changing).
+            // Whether the pointer was moved off the window, the window had painted, and two frames
+            // SettleInterval apart agreed (or how many pixels were still changing).
             capture,
             expectedAutomationIds = scene.ExpectedAutomationIds,
             observedAutomationIds = scene.ExpectedAutomationIds.Select(id => ObserveControl(app, id)).ToArray(),
