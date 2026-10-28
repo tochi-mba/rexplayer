@@ -159,6 +159,7 @@ LibraryActions.cs
 LibraryArrangement.cs
 LibraryBackup.cs
 LibraryEmptyState.cs
+LibraryKinds.cs
 LibraryMemo.cs
 LibraryOpening.cs
 LibraryPageSlice.cs

@@ -106,6 +106,33 @@ public sealed class LibraryScannerTests
     }
 
     [Fact]
+    [Capability("LIB-05")]
+    [Capability("META-06")]
+    public void AnAlbumsCoverIsItsArtWhileAPhotoOfTheSameNameIsAPicture()
+    {
+        var library = new MediaLibrary(RexStore.InMemory());
+        library.AddFolder(Music);
+        var song = Path.Combine(Music, "Lungu Boy", "Sungba.mp3");
+        var cover = Path.Combine(Music, "Lungu Boy", "cover.jpg");
+        var photo = Path.Combine(Music, "Photos", "cover.jpg");
+
+        // An earlier version filed the album's cover as a picture of its own; the next scan lets it go.
+        library.Scan(Music, [new LibraryFile(cover, 10, Monday)], _ => LibraryKind.Picture);
+        var log = RexLog.InMemory();
+        using var scanner = new LibraryScanner(library, _ => [new LibraryFile(song, 10, Monday), new LibraryFile(cover, 10, Monday), new LibraryFile(photo, 10, Monday)],
+            (path, _) => null, log, background: false);
+
+        scanner.Request(Music);
+        scanner.RunPending(TestContext.Current.CancellationToken);
+
+        Assert.Equal(new[] { song, photo }.Order(StringComparer.Ordinal), library.Entries.Select(entry => entry.Path).Order(StringComparer.Ordinal));
+        Assert.Equal(LibraryKind.Music, library.Entry(song)!.Kind);
+        Assert.Equal(LibraryKind.Picture, library.Entry(photo)!.Kind);
+        Assert.Null(library.Entry(cover));
+        Assert.Contains(log.Tail(100), entry => entry.Message.Contains("2 new, 0 changed, 1 gone", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void AListingCutShortForgetsNothing()
     {
         var library = new MediaLibrary(RexStore.InMemory());

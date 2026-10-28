@@ -239,7 +239,9 @@ public sealed class LibraryScanner : IDisposable
                 return;
             }
 
-            var result = _library.Scan(folder, files, MediaFiles.LibraryKindOf, ReadMarker, _inspect);
+            // An album's cover or a show's poster is its music's or video's art, not a picture of its own.
+            var kinds = LibraryKinds.Of(files.Select(file => file.Path));
+            var result = _library.Scan(folder, files, kinds.KindOf, ReadMarker, _inspect);
             _log.Info(LogSource, $"Scanned {folder} (watched as {watched}): {result.Added} new, {result.Changed} changed, {result.Removed} gone.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

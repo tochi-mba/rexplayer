@@ -262,9 +262,35 @@ public sealed class PresentationTests
         Assert.Equal(chosen, found is null ? null : Path.GetFileName(found));
     }
 
+    [Theory]
+    [Capability("META-06")]
+    [InlineData("cover.jpg", true)]
+    [InlineData("Folder.PNG", true)]
+    [InlineData("FRONT.webp", true)]
+    [InlineData("front.jpeg", true)]
+    [InlineData("AlbumArt_{X}_Large.jpg", true)]
+    [InlineData("AlbumArtSmall.jpg", true)]
+    [InlineData("cover.gif", false)]
+    [InlineData("cover.mp3", false)]
+    [InlineData("covers.jpg", false)]
+    [InlineData("Lagos.jpg", false)]
+    [InlineData("poster.jpg", false)]
+    public void AnAlbumsArtIsKnownByTheNamesItIsLookedForBy(string name, bool art)
+    {
+        var path = Path.Combine("music", "album", name);
+
+        Assert.Equal(art, FolderArt.IsArtName(path));
+        if (art)
+        {
+            // Every name it knows is one the album's picture is found by.
+            Assert.Equal(path, FolderArt.Find(Path.Combine("music", "album", "song.mp3"), _ => [path]));
+        }
+    }
+
     [Fact]
     public void NoFolderNoUrlAndAnUnreadableFolderHaveNoPicture()
     {
+        Assert.Throws<ArgumentNullException>(() => FolderArt.IsArtName(null!));
         Assert.Null(FolderArt.Find("song.mp3", _ => ["cover.jpg"]));
         Assert.Null(FolderArt.Find("https://example.com/a/song.mp3", _ => ["cover.jpg"]));
         Assert.Null(FolderArt.Find(Path.Combine("a", "song.mp3"), _ => throw new UnauthorizedAccessException()));

@@ -45,7 +45,26 @@ public sealed class ArtworkChoiceTests
     {
         var art = Path.Combine(Show, name);
         Assert.Equal(art, ArtworkChoice.ShowPoster(Pilot, 1, null, Files(art)).Path);
+        Assert.True(ArtworkChoice.IsFolderArtName(art));
     }
+
+    [Theory]
+    [Capability("LIB-05")]
+    [InlineData("POSTER.JPG", true)]
+    [InlineData("Season02-Poster.webp", true)]
+    [InlineData("season12.png", true)]
+    [InlineData("season00-poster.jpg", true)]
+    [InlineData("season-specials.jpg", true)]
+    [InlineData("poster.gif", false)]
+    [InlineData("poster.mkv", false)]
+    [InlineData("front.jpg", false)]
+    [InlineData("posters.jpg", false)]
+    [InlineData("season two.jpg", false)]
+    [InlineData("season 1234.jpg", false)]
+    [InlineData("Harbour.Lights.S01E01.jpg", false)]
+    [InlineData("Lagos.jpg", false)]
+    public void FolderArtIsKnownByItsNameAlone(string name, bool art) =>
+        Assert.Equal(art, ArtworkChoice.IsFolderArtName(Path.Combine(Show, name)));
 
     [Theory]
     [Capability("LIB-05")]
@@ -58,6 +77,7 @@ public sealed class ArtworkChoiceTests
     {
         var art = Path.Combine(Show, name);
         Assert.Equal(new ArtworkSource(ArtworkSourceKind.SeasonArt, art), ArtworkChoice.ShowPoster(Pilot, season, null, Files(art)));
+        Assert.True(ArtworkChoice.IsFolderArtName(art));
     }
 
     [Theory]
@@ -176,5 +196,6 @@ public sealed class ArtworkChoiceTests
         Assert.Throws<ArgumentNullException>(() => ArtworkChoice.MoviePoster(null!, null, Files()));
         Assert.Throws<ArgumentNullException>(() => ArtworkChoice.MoviePoster(Pilot, null, null!));
         Assert.Throws<ArgumentNullException>(() => ArtworkChoice.Folders(null!));
+        Assert.Throws<ArgumentNullException>(() => ArtworkChoice.IsFolderArtName(null!));
     }
 }

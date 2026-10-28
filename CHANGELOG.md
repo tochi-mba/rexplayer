@@ -49,6 +49,7 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 - In full screen, pressing a key brings the controls back, as moving the pointer does.
 - Leaving full screen no longer leaves the playback controls with a see-through background.
 - A library banner no longer keeps the height of a taller page it showed before, which left an empty band over Recordings after a podcast's page.
+- **An album's cover is its music's art, not one of your pictures.** The library on Windows and Mac no longer files a cover, folder, front or AlbumArt picture sitting with songs, or a poster, folder, show or season picture sitting with a film or above a show's season folders, under Pictures, Home or Recently added. A picture of the same name among photos alone is still a picture, and covers filed by earlier versions go at the next scan.
 - **The Mac app builds again, so new versions can publish.** Speech recognition's Linux and Windows libraries were being packed into rexplayer.app, where the Mac's tools refused them and stopped every build since 0.31.0; only the Mac's own libraries go in now.
 
 ## 0.31.0 - 2026-10-25
