@@ -51,6 +51,7 @@ long, which also proves the gapless trim.
 | `tests/fixtures/mp4/h264-aac.aac.reference.wav`, `tests/fixtures/mkv/h264-aac-subtitles.aac.reference.wav` | The AAC in those two files decoded by FFmpeg to 24-bit PCM, for checking the decoder Windows supplies | `scripts/make-fixtures.ps1` |
 | `tests/fixtures/mp4/h264-aac-fragmented.mp4` | The same as a fragmented MP4 | `scripts/make-fixtures.ps1` |
 | `tests/fixtures/mp4/h264-rotated.mov` | 0.2 s of the pattern with a display matrix turning it 90 degrees anticlockwise | `scripts/make-fixtures.ps1` |
+| `tests/fixtures/mp4/h264-aac-minute.mp4` | 60 s of the pattern at 128x72 and 2 fps with a 440 Hz AAC tone, so window tests can work a playing film's controls before it ends | `scripts/make-fixtures.ps1` (FFmpeg with x264, SEI removed) |
 | `tests/fixtures/mp4/h264-letterboxed.mp4` | 0.4 s of the pattern at 256x108 letterboxed into a 256x144 frame with black bars above and below, for thumbnails cut free of their bars | `scripts/make-fixtures.ps1` (FFmpeg with x264, SEI removed) |
 | `tests/fixtures/mkv/flac-mp3-pcm.mkv` | The two tones three times over, as FLAC, MP3 (with codec delay and end padding) and 16-bit PCM tracks | `scripts/make-fixtures.ps1` (FFmpeg with LAME) |
 | `tests/fixtures/mkv/flac-mp3-pcm.audio0.reference.wav` to `audio2` | Each of those tracks decoded by FFmpeg to 24-bit PCM | `scripts/make-fixtures.ps1` |
