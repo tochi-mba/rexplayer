@@ -69,7 +69,8 @@ internal static class MacUpdateInstaller
         var helper = Path.Combine(updateFolder, "install-mac-update-" + Guid.NewGuid().ToString("N") + ".sh");
         var log = Path.Combine(updateFolder, "install-mac-update.log");
         var record = Path.Combine(updateFolder, UpdateFlow.InstallRecordName);
-        File.WriteAllText(helper, Script, new UTF8Encoding(false));
+        // .cs files check out with CRLF on every machine, and so does this literal; /bin/sh needs LF.
+        File.WriteAllText(helper, Script.ReplaceLineEndings("\n"), new UTF8Encoding(false));
         File.Delete(record);
         var start = new ProcessStartInfo("/bin/sh")
         {
@@ -122,7 +123,8 @@ while kill -0 "$pid" 2>/dev/null; do sleep 1; done
     printf 'failed: could not install staged app\n' > "$record"
     exit 1
   fi
-  # Preserve the previous app so an interrupted launch remains recoverable.
+  # The new bundle is in place; the old one would otherwise linger beside it as a second app.
+  rm -rf "$backup"
   printf 'success\n' > "$record"
   if [ "$mode" = 'relaunch' ]; then /usr/bin/open "$current"; fi
 } >> "$log" 2>&1

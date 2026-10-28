@@ -365,20 +365,29 @@ public sealed partial class MainWindow
         RefreshMacUpdateControls();
     }
 
+    /// <summary>
+    /// Installs a scheduled or automatic update only when the shared rule says rexplayer is idle:
+    /// nothing playing, not full screen, no sheet or update window open, and no input for a while.
+    /// </summary>
     private void InstallScheduledMacUpdate()
     {
-        if (_installHandedOff || _player.IsPlaying || _macPending is not { Stage: UpdateStage.Ready } pending)
-        {
-            return;
-        }
-
-        var due = pending.Timing == UpdateTiming.Scheduled && pending.InstallAt <= DateTimeOffset.UtcNow;
-        var automatic = UpdateFlow.InstallsUnasked(pending, _settings.UpdateMode);
-        if (due || automatic)
+        if (!_installHandedOff
+            && UpdateFlow.InstallWhileOpen(_macPending, _settings.UpdateMode, MacUpdateMoment(), DateTimeOffset.UtcNow))
         {
             InstallMacUpdate(relaunch: true);
         }
     }
+
+    private UpdateMoment MacUpdateMoment() => new(
+        Playing: _player.IsPlaying || _player.State == Rex.Media.Engine.SessionState.Opening,
+        Video: false,
+        FullScreen: IsFullScreen,
+        DialogOpen: NSApplication.SharedApplication.ModalWindow is not null || _window.AttachedSheet is not null,
+        Editing: false,
+        NoticeOpen: false,
+        PanelOpen: _updatesWindow?.IsVisible == true,
+        IdleFor: TimeSpan.FromSeconds(CGEventSource.GetSecondsSinceLastEventType(
+            CGEventSourceStateID.CombinedSession, unchecked((CGEventType)uint.MaxValue))));
 
     private void InstallMacUpdate(bool relaunch)
     {
@@ -421,9 +430,7 @@ public sealed partial class MainWindow
 
     private void DisposeMacUpdates()
     {
-        if (!_installHandedOff && _macPending is { Stage: UpdateStage.Ready } pending
-            && (pending.Timing is UpdateTiming.OnClose or UpdateTiming.Scheduled
-                || UpdateFlow.InstallsUnasked(pending, _settings.UpdateMode)))
+        if (!_installHandedOff && UpdateFlow.InstallOnClose(_macPending, _settings.UpdateMode, null, DateTimeOffset.UtcNow))
         {
             InstallMacUpdate(relaunch: false);
         }
