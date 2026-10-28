@@ -106,12 +106,15 @@ public sealed class VisualPartsTests
         Assert.Equal(1, stage.Quality);
         Assert.False(stage.WantsResize);
 
+        // The first frame builds the scene's caches and does not count.
+        stage.Took(80);
+        Assert.False(stage.WantsResize);
         stage.Took(80);
         Assert.True(stage.WantsResize);
         Assert.Equal(0.85, stage.Quality, 3);
         Assert.Equal((1632, 918), VisualStage.SizeFor(1920, 1080, stage.Quality));
 
-        for (var i = 0; i < 200; i++)
+        for (var i = 0; i < 400; i++)
         {
             stage.Took(80);
         }
