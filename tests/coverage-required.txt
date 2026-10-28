@@ -17,6 +17,7 @@ ContextMenuLayout.cs
 DataRoots.cs
 MenuBarLayout.cs
 MacKeyEquivalents.cs
+KeyNames.cs
 AtomicFile.cs
 AudioArtwork.cs
 BookCredits.cs
@@ -432,6 +433,8 @@ WikidataFacts.cs
 Wikipedia.cs
 WindowClocks.cs
 WindowPlacementFit.cs
+DialogLayout.cs
+SettingsSearch.cs
 WindowTeardown.cs
 WordAligner.cs
 Wpl.cs

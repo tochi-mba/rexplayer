@@ -77,6 +77,22 @@ public sealed class VisualizerOptionsTests
         Assert.Throws<ArgumentNullException>(() => VisualizerOptions.Number(null!, VisualizerChoice.Halo, "rays"));
     }
 
+    [Fact]
+    [Capability("AU-18")]
+    public void ItsOwnColourIsOfferedOnlyWithOneColour()
+    {
+        // Spectrum starts in Windows' accent, where a colour of its own does nothing.
+        Assert.False(VisualizerOptions.Applies(None, VisualizerChoice.Spectrum, VisualizerOptions.Color));
+        var one = VisualizerOptions.With(None, VisualizerChoice.Spectrum, VisualizerOptions.Colors, (int)VisualPalette.OneColor);
+        Assert.True(VisualizerOptions.Applies(one, VisualizerChoice.Spectrum, VisualizerOptions.Color));
+        Assert.Equal("Colour", VisualizerOptions.For(VisualizerChoice.Spectrum).Single(option => option.Key == VisualizerOptions.Color).Label);
+
+        // Every other setting always counts.
+        Assert.True(VisualizerOptions.Applies(None, VisualizerChoice.Spectrum, "bars"));
+        Assert.True(VisualizerOptions.Applies(None, VisualizerChoice.Spectrum, VisualizerOptions.Colors));
+        Assert.Throws<ArgumentException>(() => VisualizerOptions.Applies(None, VisualizerChoice.Spectrum, "no-such"));
+    }
+
     [Theory]
     [Capability("AU-18")]
     [InlineData(VisualPalette.Accent, 0.5, 0, 255, 10, 20, 30)]

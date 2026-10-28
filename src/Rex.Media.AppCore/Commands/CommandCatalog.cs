@@ -141,9 +141,9 @@ public static class CommandCatalog
         New(Previous, "Previous item", Playback, "P", "MediaPrevious"),
         New(SkipSection, "Skip intro or credits", Playback, "I"),
         New(NextEpisode, "Next episode", Playback, "Shift+N"),
-        New(ShowPosition, "Show the position", Playback, "T"),
+        New(ShowPosition, "Show elapsed time", Playback, "T"),
         New(GoToTime, "Go to a time", Playback, "Ctrl+T"),
-        New(CycleRepeat, "Repeat: off, all, one", Playback, "L"),
+        New(CycleRepeat, "Repeat (off, all, one)", Playback, "L"),
         New(ToggleShuffle, "Shuffle", Playback, "R"),
         New(JumpForwardVeryShort, "Jump forward 3 seconds", Playback, "Shift+Right"),
         New(JumpBackVeryShort, "Jump back 3 seconds", Playback, "Shift+Left"),
@@ -286,6 +286,17 @@ public static class CommandCatalog
             : seconds > 0 && seconds % 60 == 0 ? Count(seconds / 60, "minute")
             : Count(seconds, "second");
     }
+
+    /// <summary>
+    /// The repeat command as a menu item shows it: the mode it is in now ("Repeat all"), in the
+    /// words the playback controls use, so the menu says what pressing L has done.
+    /// </summary>
+    public static string RepeatTitle(Rex.Media.Settings.RepeatMode mode) => mode switch
+    {
+        Rex.Media.Settings.RepeatMode.All => "Repeat all",
+        Rex.Media.Settings.RepeatMode.One => "Repeat one",
+        _ => "Repeat off",
+    };
 
     /// <summary>The minutes a sleep timer command is for, or null for any other command.</summary>
     public static int? SleepMinutesOf(string id)

@@ -272,7 +272,7 @@ public static class DeviceProfile
 
         if (budget.HeavyEffectsOff)
         {
-            changes.Add($"The heaviest picture effects stay off ({string.Join(", ", HeavyEffects.Select(VideoEffects.Name).Order(StringComparer.Ordinal))}). Choosing one says so.");
+            changes.Add(string.Create(CultureInfo.InvariantCulture, $"The {HeavyEffects.Count} heaviest picture effects stay off. Choosing one says so."));
         }
 
         if (budget.SubjectStep > 1)

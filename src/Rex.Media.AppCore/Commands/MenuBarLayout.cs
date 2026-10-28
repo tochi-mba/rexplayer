@@ -5,13 +5,16 @@ namespace Rex.Media.AppCore.Commands;
 /// same groups. Each menu is a title and its entries: a command id, a <see cref="SubMenuPrefix"/>
 /// id for a group of related commands one level in, or null for a separator. Groups keep each menu
 /// short enough to read at a glance: the commands people reach for stay on top, their finer
-/// variants one level in. A shell adds its own dynamic items (picture looks, bookmarks, named
-/// playlists) after these.
+/// variants one level in. A shell adds its own dynamic items (picture looks, named playlists)
+/// after these, and the bookmarks kept to the end of <see cref="Bookmarks"/>.
 /// </summary>
 public static class MenuBarLayout
 {
     /// <summary>Marks a menu entry that opens one of <see cref="SubMenus"/>.</summary>
     public const string SubMenuPrefix = "submenu:";
+
+    /// <summary>The bookmarks group: its commands, then the bookmarks the shell lists after them.</summary>
+    public const string Bookmarks = SubMenuPrefix + "bookmarks";
 
     /// <summary>The menus, in order, each with its entries.</summary>
     public static IReadOnlyList<(string Title, string?[] Commands)> Menus { get; } =
@@ -20,9 +23,8 @@ public static class MenuBarLayout
         ("Playback", [CommandCatalog.PlayPause, CommandCatalog.Stop, CommandCatalog.Previous, CommandCatalog.Next, null,
             CommandCatalog.SkipSection, CommandCatalog.NextEpisode, null,
             SubMenuPrefix + "jump", CommandCatalog.GoToTime, SubMenuPrefix + "speed", null,
-            CommandCatalog.CycleRepeat, CommandCatalog.ToggleShuffle, CommandCatalog.ShowPosition, null,
-            CommandCatalog.AddBookmark, CommandCatalog.Resume, null,
-            SubMenuPrefix + "sleep"]),
+            CommandCatalog.CycleRepeat, CommandCatalog.ToggleShuffle, null,
+            Bookmarks, SubMenuPrefix + "sleep"]),
         ("Audio", [CommandCatalog.CycleAudioTrack, null, CommandCatalog.VolumeUp, CommandCatalog.VolumeDown, CommandCatalog.Mute, SubMenuPrefix + "audio-timing", null,
             CommandCatalog.Effects, CommandCatalog.CycleVisualizer, CommandCatalog.VisualizerSettings, CommandCatalog.ToggleLyrics]),
         ("Subtitles", [CommandCatalog.AddSubtitles, null, CommandCatalog.CycleSubtitles, CommandCatalog.ToggleSubtitles, CommandCatalog.CycleSecondarySubtitles, null,
@@ -31,7 +33,7 @@ public static class MenuBarLayout
         ("Video", [CommandCatalog.ToggleFullScreen, null, CommandCatalog.CycleAspectRatio, CommandCatalog.CustomAspectRatio, CommandCatalog.CycleCrop, null,
             CommandCatalog.ZoomIn, CommandCatalog.ZoomOut, CommandCatalog.ResetZoom, CommandCatalog.ToggleNavigator, null, SubMenuPrefix + "window-size", null,
             CommandCatalog.Snapshot, CommandCatalog.ToggleStats, CommandCatalog.ToggleAlwaysOnTop]),
-        ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ToggleLibrary, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, null,
+        ("View", [CommandCatalog.TogglePlaylist, CommandCatalog.ToggleLibrary, CommandCatalog.MinimalInterface, null, CommandCatalog.MediaInformation, CommandCatalog.ShowPosition, null,
             CommandCatalog.Preferences, CommandCatalog.KeyboardAndMouse, null,
             SubMenuPrefix + "library-backup", CommandCatalog.ClearPlaylist, CommandCatalog.ClearHistory]),
         ("Help", [CommandCatalog.ShortcutSheet, CommandCatalog.Help, null, CommandCatalog.ShowLog, CommandCatalog.OpenLogFolder, CommandCatalog.SaveDiagnostics, null, CommandCatalog.CheckForUpdates, CommandCatalog.WhatsNew, null, CommandCatalog.About]),
@@ -45,6 +47,7 @@ public static class MenuBarLayout
             CommandCatalog.JumpForwardMedium, CommandCatalog.JumpBackMedium, null,
             CommandCatalog.JumpForwardLong, CommandCatalog.JumpBackLong]),
         [SubMenuPrefix + "speed"] = ("Speed", [CommandCatalog.Faster, CommandCatalog.Slower, CommandCatalog.SlightlyFaster, CommandCatalog.SlightlySlower, null, CommandCatalog.NormalSpeed]),
+        [Bookmarks] = ("Bookmarks", [CommandCatalog.AddBookmark, CommandCatalog.Resume]),
         [SubMenuPrefix + "sleep"] = ("Sleep timer", [CommandCatalog.StopAfterCurrent, CommandCatalog.PauseAfterCurrent, null,
             CommandCatalog.SleepPrefix + "15", CommandCatalog.SleepPrefix + "30", CommandCatalog.SleepPrefix + "60", CommandCatalog.SleepAtEndOfItem, null, CommandCatalog.SleepOff]),
         [SubMenuPrefix + "audio-timing"] = ("Sound timing", [CommandCatalog.AudioEarlier, CommandCatalog.AudioLater, CommandCatalog.ResetAudioDelay]),

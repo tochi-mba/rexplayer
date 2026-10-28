@@ -74,7 +74,8 @@ public static class VisualizerOptions
         List<VisualOption> options =
         [
             new(Colors, "Colours", VisualOptionKind.Choice, (int)DefaultPalette(choice), Choices: PaletteNames),
-            new(Color, "Its own colour (with One colour)", VisualOptionKind.Color, 0xFF3B30),
+            // Offered only while the colours are One colour: see Applies.
+            new(Color, "Colour", VisualOptionKind.Color, 0xFF3B30),
             new(Sensitivity, "Sensitivity", VisualOptionKind.Number, 1, 0.25, 4),
         ];
         if (Visuals.VisualScene.Draws(choice))
@@ -409,6 +410,16 @@ public static class VisualizerOptions
     /// <summary>A colour as RGB.</summary>
     public static int Rgb(IReadOnlyDictionary<string, string> options, VisualizerChoice choice, string key) =>
         (int)(Read(options, choice, key) ?? Find(choice, key).Default) & 0xFFFFFF;
+
+    /// <summary>
+    /// Whether a setting does anything with the others as they are, so is worth offering: a
+    /// visualisation's own colour counts only while its colours are One colour.
+    /// </summary>
+    public static bool Applies(IReadOnlyDictionary<string, string> options, VisualizerChoice choice, string key)
+    {
+        _ = Find(choice, key);
+        return key != Color || Choice(options, choice, Colors) == (int)VisualPalette.OneColor;
+    }
 
     /// <summary>The settings with one changed.</summary>
     public static IReadOnlyDictionary<string, string> With(IReadOnlyDictionary<string, string> options, VisualizerChoice choice, string key, double value)

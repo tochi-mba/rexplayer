@@ -83,6 +83,24 @@ public sealed class MenuBarLayoutTests
     }
 
     [Fact]
+    [Capability("UI-02")]
+    public void ThePlaybackMenuStaysShortEnoughToReadAtAGlance()
+    {
+        var playback = MenuBarLayout.Menus.Single(menu => menu.Title == "Playback").Commands.OfType<string>().ToList();
+
+        // Over a small window a long menu covers the playback controls: finer commands go one level in.
+        Assert.InRange(playback.Count, 1, 13);
+        Assert.Contains(MenuBarLayout.Bookmarks, playback);
+        var (title, bookmarks) = MenuBarLayout.SubMenus[MenuBarLayout.Bookmarks];
+        Assert.Equal("Bookmarks", title);
+        Assert.Equal([CommandCatalog.AddBookmark, CommandCatalog.Resume], bookmarks);
+
+        // Showing the time played is something to look at, beside the media's information.
+        var view = MenuBarLayout.Menus.Single(menu => menu.Title == "View").Commands;
+        Assert.Equal(Array.IndexOf(view, CommandCatalog.MediaInformation) + 1, Array.IndexOf(view, CommandCatalog.ShowPosition));
+    }
+
+    [Fact]
     public void OnOffCommandsAreRealAndOfferedWhereTheTickCanBeSeen()
     {
         var onOff = CommandCatalog.All.Select(command => command.Id).Where(MenuBarLayout.IsOnOff).ToList();
