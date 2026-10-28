@@ -48,6 +48,23 @@ public sealed class ModelTests
     }
 
     [Fact]
+    public void ACoverKeptAsAOneFrameVideoTrackIsNotMovingPictures()
+    {
+        var cover = new TrackInfo { Id = 1, Codec = CodecId.Mjpeg, Video = new VideoTrackInfo { Width = 600, Height = 600, Still = true } };
+        var picture = new TrackInfo { Id = 2, Codec = CodecId.Picture };
+        var film = new TrackInfo { Id = 3, Codec = CodecId.H264, Video = new VideoTrackInfo { Width = 1920, Height = 1080 } };
+        var sound = new TrackInfo { Id = 4, Codec = CodecId.Aac };
+
+        Assert.True(cover.IsStill);
+        Assert.True(picture.IsStill);
+        Assert.False(film.IsStill);
+        Assert.False(new TrackInfo { Id = 5, Codec = CodecId.H264 }.IsStill);
+        Assert.Null(new MediaInfo { FormatName = "MP4", Tracks = [cover, sound] }.FirstMovingVideo());
+        Assert.Null(new MediaInfo { FormatName = "PNG", Tracks = [picture] }.FirstMovingVideo());
+        Assert.Same(film, new MediaInfo { FormatName = "MP4", Tracks = [sound, cover, film] }.FirstMovingVideo());
+    }
+
+    [Fact]
     public void MediaInfoFindsTheFirstTrackOfAKind()
     {
         var info = new MediaInfo

@@ -16,7 +16,7 @@ public sealed record QueuedFile(string Path, TranscriptSignature Signature, Time
 /// The order the library is heard in (SUB-20). What the user asked for comes first, in the order
 /// asked; then the background: files already part-heard (so no work is wasted), then videos left
 /// part-way through (the likeliest to be watched next), then the newest, then by name. Done files,
-/// files that cannot be heard, and failed ones not due again are left out. What plays is not here:
+/// files that cannot be heard, files still downloading, and failed ones not due again are left out. What plays is not here:
 /// it is always heard first, ahead of the whole queue.
 /// </summary>
 public static class TranscriptionOrder
@@ -48,9 +48,8 @@ public static class TranscriptionOrder
         var audioContext = AudioContext.Of(entries);
         foreach (var path in asked)
         {
-            if (byPath.TryGetValue(path, out var entry) && (entry.Kind == LibraryKind.Video
-                    || entry.Kind == LibraryKind.Music && AudioRules.Judge(entry, MusicLookup.NotSearched, audioContext)?.Shelf
-                        is AudioShelf.Audiobooks or AudioShelf.Podcasts or AudioShelf.Recordings)
+            if (byPath.TryGetValue(path, out var entry)
+                && TranscriptionEligibility.MayAsk(entry, AudioRules.Judge(entry, MusicLookup.NotSearched, audioContext)?.Shelf)
                 && find(Sign(entry)) is var record && record?.State is not (TranscriptState.Done or TranscriptState.NoSound) && taken.Add(path))
             {
                 queue.Add(Queued(entry, record) with { Asked = true });

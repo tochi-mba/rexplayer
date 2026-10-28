@@ -180,10 +180,11 @@ public sealed class MediaLibrary
 
     /// <summary>
     /// The current metadata reader version: 3 adds complete music tags, 4 picture dimensions
-    /// in display orientation, and 5 video dimensions in display orientation. Previously read
+    /// in display orientation, 5 video dimensions in display orientation, and 6 tells a song whose
+    /// cover is kept as a one-frame video track from a video, so it is music. Previously read
     /// entries are re-probed only when their own media kind gained new fields.
     /// </summary>
-    public const int TagReading = 5;
+    public const int TagReading = 6;
 
     // Release 3 already captured all music tag fields. Revision 4 adds only picture
     // dimensions, so do not rescan large music libraries when upgrading.
@@ -881,8 +882,9 @@ public sealed class MediaLibrary
             Downloading = downloading,
             FinalSize = finalSize,
             TagReading = TagReading,
-            // A video file with only sound in it (an .mp4 of a song) is music.
-            Kind = info.FirstTrack(MediaKind.Video) is null && info.FirstTrack(MediaKind.Audio) is not null ? LibraryKind.Music : entry.Kind,
+            // A video file with only sound in it (an .mp4 of a song, perhaps with its cover as a
+            // one-frame video track) is music.
+            Kind = info.FirstMovingVideo() is null && info.FirstTrack(MediaKind.Audio) is not null ? LibraryKind.Music : entry.Kind,
             Title = Tag(MetadataKeys.Title) ?? TitleOf(entry.Path),
             Artist = Tag(MetadataKeys.Artist),
             Artists = Tag(MetadataKeys.Artists),

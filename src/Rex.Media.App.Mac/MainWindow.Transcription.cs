@@ -233,7 +233,13 @@ public sealed partial class MainWindow
         }
 
         var installed = _macModels.IsInstalled(model);
-        var wantsPlayback = _macAsked == item || _settings.Transcription.WhatPlays;
+        // Songs (a cover kept as a one-frame video track included) and files still downloading are
+        // never heard unasked: only videos, audiobooks and podcasts are.
+        var entry = item is null ? null : _mediaLibrary?.Entry(item);
+        var wantsPlayback = item is not null && TranscriptionEligibility.Playing(_macAsked == item,
+            TranscriptionEligibility.SourceOf(_player.Info, entry is null ? null
+                : Rex.Media.AppCore.Library.AudioRules.Judge(entry, Rex.Media.AppCore.Library.MusicLookup.NotSearched)?.Shelf),
+            _settings.Transcription.WhatPlays, backgroundEligible: false, TranscriptionEligibility.StillDownloading(item, entry));
         if (!installed || !wantsPlayback && !_settings.Transcription.Library)
         {
             _macWorker?.SetPlaying(null, false, TimeSpan.Zero);

@@ -330,23 +330,19 @@ public sealed partial class MainWindow
         var model = SpeechModels.For(modelChoice);
         var settings = _settings.Transcription;
         var asked = _askedPlaying == item;
-        var hasVideo = HasVideo;
         var entry = _library?.Entry(item);
         var folders = _library?.Folders ?? [];
         var audiobook = entry is not null && Listening().Audiobooks.Any(book => book.Entries.Any(part =>
             string.Equals(part.Path, entry.Path, StringComparison.OrdinalIgnoreCase)));
-        var speechAudio = entry is not null && ShelfOf(entry) is AudioShelf.Audiobooks or AudioShelf.Podcasts or AudioShelf.Recordings
-            || entry is null && MediaStagePolicy.ShelfFromTags(
-                _player.Info?.Metadata.GetValueOrDefault(MetadataKeys.MediaType),
-                _player.Info?.Metadata.GetValueOrDefault(MetadataKeys.Genre)) is AudioShelf.Audiobooks or AudioShelf.Podcasts;
+        var source = SpeechSourceOfWhatPlays(entry);
+        var downloading = TranscriptionEligibility.StillDownloading(item, entry);
         Forget(Task.Run(() =>
         {
             var full = _transcripts.Load(item, model.Id);
             var partial = full is null ? _transcripts.LoadPartial(item, model.Id) : null;
             var backgroundEligible = settings.Library && entry is not null
                 && TranscriptionEligibility.Of(entry, settings, folders, _ledger.Find(TranscriptionOrder.Sign(entry)), audiobook) == TranscriptionSkip.None;
-            var wanted = full is null && (hasVideo || speechAudio)
-                && TranscriptionEligibility.Playing(asked, hasVideo, settings.WhatPlays, backgroundEligible);
+            var wanted = full is null && TranscriptionEligibility.Playing(asked, source, settings.WhatPlays, backgroundEligible, downloading);
             var track = full is not null ? full.ToTrack(TranscriptionWorker.TrackName(model.Id))
                 : !wanted && partial is not null ? partial.ToTranscript().ToTrack(TranscriptionWorker.TrackName(model.Id)) : null;
             return (full, track, partial?.Done, partial?.Duration, wanted);
@@ -423,13 +419,9 @@ public sealed partial class MainWindow
         }
 
         var entry = _library?.Entry(item);
-        var speechAudio = entry is not null && ShelfOf(entry) is AudioShelf.Audiobooks or AudioShelf.Podcasts or AudioShelf.Recordings
-            || entry is null && MediaStagePolicy.ShelfFromTags(
-                _player.Info?.Metadata.GetValueOrDefault(MetadataKeys.MediaType),
-                _player.Info?.Metadata.GetValueOrDefault(MetadataKeys.Genre)) is AudioShelf.Audiobooks or AudioShelf.Podcasts;
-        if (!HasVideo && !speechAudio)
+        if (TranscriptionEligibility.Refusal(SpeechSourceOfWhatPlays(entry), TranscriptionEligibility.StillDownloading(item, entry)) is { } refusal)
         {
-            Say("Songs are not transcribed. Find or save lyrics instead; audiobooks can still be transcribed.");
+            Say(refusal);
             return;
         }
 
@@ -628,8 +620,11 @@ public sealed partial class MainWindow
         }
     }
 
-    private bool SpeechEntry(LibraryEntry entry) => entry.Kind == LibraryKind.Video
-        || entry.Kind == LibraryKind.Music && ShelfOf(entry) is AudioShelf.Audiobooks or AudioShelf.Podcasts or AudioShelf.Recordings;
+    private bool SpeechEntry(LibraryEntry entry) => TranscriptionEligibility.MayAsk(entry, entry.Kind == LibraryKind.Music ? ShelfOf(entry) : null);
+
+    /// <summary>What plays holds, for transcription: moving pictures (a song's cover is not), else its shelf in the library, else its tags.</summary>
+    private SpeechSource SpeechSourceOfWhatPlays(LibraryEntry? entry) =>
+        TranscriptionEligibility.SourceOf(_player.Info, entry is { Kind: LibraryKind.Music } ? ShelfOf(entry) : null);
 
     private void LeaveOutFolder(string folder, bool leaveOut)
     {

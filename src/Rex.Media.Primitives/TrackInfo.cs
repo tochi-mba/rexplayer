@@ -13,6 +13,12 @@ public sealed record TrackInfo
 
     public MediaKind Kind => Codec.Kind();
 
+    /// <summary>
+    /// Whether this is one still picture rather than moving pictures: a picture file, or a song's
+    /// cover kept as a video track of a single frame. A file whose only video is still is heard as sound.
+    /// </summary>
+    public bool IsStill => Codec == CodecId.Picture || Video is { Still: true };
+
     /// <summary>Decoder configuration from the container (avcC, ASC, FLAC STREAMINFO, ...), or empty.</summary>
     public byte[] CodecPrivate { get; init; } = [];
 
@@ -80,6 +86,9 @@ public sealed record VideoTrackInfo
 
     /// <summary>Clockwise rotation the picture should be displayed with: 0, 90, 180 or 270.</summary>
     public int Rotation { get; init; }
+
+    /// <summary>The container says the track holds a single frame: a cover or a still, not moving pictures.</summary>
+    public bool Still { get; init; }
 
     public ColorInfo Color { get; init; } = ColorInfo.Unspecified;
 }

@@ -39,6 +39,9 @@ public sealed class MediaLibraryTests
         }.Where(pair => pair.Value is not null).ToDictionary(pair => pair.Key, pair => pair.Value!),
     };
 
+    /// <summary>How a stored entry spells its tag reading version.</summary>
+    private static string Reading(int version) => "\"TagReading\":" + version.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
     [Theory]
     [InlineData(1600, 900, 0, 1600, 900)]
     [InlineData(1600, 900, 90, 900, 1600)]
@@ -144,7 +147,7 @@ public sealed class MediaLibraryTests
         library.SetDetails(video, Song("Movie", video: true));
         foreach (var (key, json) in store.WithPrefix("entry/").ToArray())
         {
-            store.Set(key, json.Replace("\"TagReading\":5", "\"TagReading\":4", StringComparison.Ordinal));
+            store.Set(key, json.Replace(Reading(MediaLibrary.TagReading), Reading(MediaLibrary.TagReading - 1), StringComparison.Ordinal));
         }
 
         var upgraded = new MediaLibrary(store);
@@ -175,7 +178,7 @@ public sealed class MediaLibraryTests
         // Both kinds were read by the previous release, before oriented dimensions.
         foreach (var (key, json) in store.WithPrefix("entry/").ToList())
         {
-            store.Set(key, json.Replace("\"TagReading\":5", "\"TagReading\":3", StringComparison.Ordinal));
+            store.Set(key, json.Replace(Reading(MediaLibrary.TagReading), Reading(3), StringComparison.Ordinal));
         }
 
         var upgraded = new MediaLibrary(store);
@@ -446,13 +449,15 @@ public sealed class MediaLibraryTests
     {
         var library = new MediaLibrary(RexStore.InMemory());
         library.AddFolder(Music);
-        library.Scan(Music, [File(In("a.mp3")), File(In("b.mp4")), File(In("c.mp4")), File(In("d.mp3"))], KindOf);
+        library.Scan(Music, [File(In("a.mp3")), File(In("b.mp4")), File(In("c.mp4")), File(In("d.mp3")), File(In("e.mp4"))], KindOf);
 
+        var covered = Song("Lonely At The Top");
         library.SetDetails([
             (In("a.mp3"), Song("Sungba")),
             (In("b.mp4"), Song("Terminator", video: false)),
             (In("c.mp4"), Song("Video", video: true, track: "", date: "1")),
             (In("d.mp3"), new MediaInfo { FormatName = "MP3", Tracks = [], Metadata = new Dictionary<string, string> { [MetadataKeys.Title] = "  " } }),
+            (In("e.mp4"), covered with { Tracks = [new TrackInfo { Id = 1, Codec = CodecId.Mjpeg, Video = new VideoTrackInfo { Width = 600, Height = 600, Still = true } }, .. covered.Tracks] }),
         ]);
 
         var a = library.Entry(In("a.mp3"))!;
@@ -462,6 +467,8 @@ public sealed class MediaLibraryTests
 
         // An .mp4 of only sound is music; one with pictures stays a video.
         Assert.Equal(LibraryKind.Music, library.Entry(In("b.mp4"))!.Kind);
+        // Its cover kept as a one-frame video track does not make a song a video.
+        Assert.Equal(LibraryKind.Music, library.Entry(In("e.mp4"))!.Kind);
         var c = library.Entry(In("c.mp4"))!;
         Assert.Equal((LibraryKind.Video, (int?)null, (int?)null), (c.Kind, c.Track, c.Year));
         var d = library.Entry(In("d.mp3"))!;

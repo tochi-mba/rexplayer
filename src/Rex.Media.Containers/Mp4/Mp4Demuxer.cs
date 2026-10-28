@@ -621,6 +621,8 @@ public sealed class Mp4Demuxer : IDemuxer
                     FrameRate = FrameRate(track),
                     Rotation = track.Rotation,
                     Color = track.Color,
+                    // One sample is one picture: a song's cover kept as a video track, not a film.
+                    Still = track.SampleCount == 1,
                 },
             };
         }
