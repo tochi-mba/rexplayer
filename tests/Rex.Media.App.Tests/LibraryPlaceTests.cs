@@ -1,3 +1,5 @@
+using System.IO;
+using Rex.Media.AppCore.Captions;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.TestKit;
 
@@ -31,6 +33,14 @@ public sealed class LibraryPlaceTests : IDisposable
     {
         _scene.WithAsake();
         _scene.Picture("still.jpg");
+        // The rail shows coverage there is, never an empty track: both songs have a saved transcript.
+        var transcripts = new TranscriptCache(TranscriptCache.DefaultRoot(_scene.Root));
+        foreach (var title in new[] { "Sungba", "Terminator" })
+        {
+            transcripts.Save(Path.Combine(_scene.Media, title + ".wav"),
+                new Transcript("en", "base.en", [new TranscriptWord(title, TimeSpan.Zero, TimeSpan.FromSeconds(1))]));
+        }
+
         using var app = _scene.Ready().Start();
         app.Visit("Songs");
         app.Choose("Sungba");

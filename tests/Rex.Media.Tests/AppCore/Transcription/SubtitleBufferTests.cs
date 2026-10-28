@@ -227,13 +227,16 @@ public sealed class SubtitleBufferTests
     }
 
     [Theory]
-    [InlineData(true, false, BufferState.None, true)]
-    [InlineData(false, false, BufferState.Ahead, true)]
-    [InlineData(false, false, BufferState.None, false)]
-    [InlineData(true, true, BufferState.None, false)]
-    [InlineData(true, true, BufferState.Complete, false)]
-    public void TheRailShowsForSoundAndVideoAndNeverForAPicture(bool open, bool picture, BufferState state, bool shown)
+    [InlineData(false, BufferState.Complete, false, true)]
+    [InlineData(false, BufferState.Ahead, false, true)]
+    [InlineData(false, BufferState.CatchingUp, false, true)]
+    [InlineData(false, BufferState.Stalled, false, true)]
+    [InlineData(false, BufferState.None, false, false)]
+    [InlineData(true, BufferState.None, false, false)]
+    [InlineData(true, BufferState.Complete, false, false)]
+    [InlineData(false, BufferState.Complete, true, false)]
+    public void TheRailShowsOnlyCoverageThereIsForSoundAndVideoWithRoomForIt(bool picture, BufferState state, bool compact, bool shown)
     {
-        Assert.Equal(shown, SubtitleBuffer.RailShown(open, picture, state));
+        Assert.Equal(shown, SubtitleBuffer.RailShown(picture, state, compact));
     }
 }
