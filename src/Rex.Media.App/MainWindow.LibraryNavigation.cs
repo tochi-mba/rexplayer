@@ -103,7 +103,12 @@ public sealed partial class MainWindow
         LibraryBrand.Visibility = LibraryQuickAddText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         LibraryNavigationColumn.Width = new GridLength(LibraryLayoutToken(compact ? "LibraryNavigationCompactWidth" : "LibraryNavigationExpandedWidth"));
         LibraryNavigationToggle.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Right;
-        LibraryNavigationToggle.Margin = compact ? new Thickness(0, 8, 0, 0) : new Thickness(8, 8, 8, 0);
+        LibraryNavigationToggle.Margin = compact ? new Thickness(0, 8, 0, 0) : new Thickness(12, 8, 12, 0);
+        // On the icon rail the add button is the toggle's twin: 40 px square, centred on the same line as every glyph.
+        LibraryQuickAdd.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
+        LibraryQuickAdd.Width = LibraryQuickAdd.Height = compact ? 40 : double.NaN;
+        LibraryQuickAdd.Padding = compact ? new Thickness(0) : new Thickness(11, 5, 11, 6);
+        LibraryQuickAdd.Margin = compact ? new Thickness(0, 8, 0, 4) : new Thickness(12, 8, 12, 4);
         LibraryNavigationToggleIcon.Glyph = compact ? "\uE76C" : "\uE76B";
         var action = compact ? "Expand library navigation" : "Collapse library navigation";
         ToolTipService.SetToolTip(LibraryNavigationToggle, action);

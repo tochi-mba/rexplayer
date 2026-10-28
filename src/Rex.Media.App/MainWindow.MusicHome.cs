@@ -166,12 +166,12 @@ public sealed partial class MainWindow
         words.Children.Add(facts);
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 10, 0, 0) };
-        actions.Children.Add(HeroButton("Play", "", "MusicHeroPlay", accent: true, () => PlayGroup(group, shuffle: false)));
-        actions.Children.Add(HeroButton("Shuffle", "", "MusicHeroShuffle", accent: false, () => PlayGroup(group, shuffle: true)));
-        actions.Children.Add(HeroButton(pick.IsArtist ? "Go to artist" : "Open album", "", "MusicHeroOpen", accent: false, () => OpenMusicGroup(group, pick.IsArtist)));
+        actions.Children.Add(HeroButton("Play", "\uE768", "MusicHeroPlay", accent: true, () => PlayGroup(group, shuffle: false)));
+        actions.Children.Add(HeroButton("Shuffle", "\uE8B1", "MusicHeroShuffle", accent: false, () => PlayGroup(group, shuffle: true)));
+        actions.Children.Add(HeroButton(pick.IsArtist ? "Go to artist" : "Open album", pick.IsArtist ? "\uE77B" : "\uE93C", "MusicHeroOpen", accent: false, () => OpenMusicGroup(group, pick.IsArtist)));
         if (!pick.IsArtist)
         {
-            actions.Children.Add(HeroButton(AlbumIsPinned(group) ? "Unpin album" : "Pin album", "",
+            actions.Children.Add(HeroButton(AlbumIsPinned(group) ? "Unpin album" : "Pin album", AlbumIsPinned(group) ? "\uE77A" : "\uE718",
                 "MusicHeroPin", accent: false, () => ToggleAlbumPin(group)));
         }
         words.Children.Add(actions);
