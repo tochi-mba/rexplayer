@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Input;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Transcription;
+using Rex.Media.Engine;
 
 namespace Rex.Media.App;
 
@@ -202,14 +203,26 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>A picture has nothing to speed up or hear, so a slideshow shows no speed or volume.</summary>
+    /// <summary>
+    /// What the transport can act on: with nothing loaded or queued, Previous, Play, Stop and Next are
+    /// dimmed, as they are on the taskbar, and Stop is dimmed once stopped. A picture has nothing to speed
+    /// up or hear, so a slideshow shows no speed or volume. The clocks and the rail follow the state as
+    /// well, since an item can end or fail without a new position.
+    /// </summary>
     private void ShowTransportState()
     {
+        var anything = _player.Item is not null || _player.Playlist.Items.Count > 0;
+        PreviousButton.IsEnabled = anything;
+        PlayPauseButton.IsEnabled = anything;
+        NextButton.IsEnabled = anything;
+        StopButton.IsEnabled = anything && _player.State != SessionState.Idle;
         if (ItemIsPicture != _transportPicture)
         {
             _transportPicture = ItemIsPicture;
             LayOutTransport();
         }
+
+        ShowPosition();
     }
 
     /// <summary>The coverage rail shows only coverage there is, and only where the bar has room for it.</summary>
