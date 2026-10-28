@@ -82,6 +82,15 @@ public sealed record DeviceBudget
     /// <summary>The longest side, in pixels, at which a page banner's artwork or backdrop is decoded.</summary>
     public int HeroPictureSide { get; init; } = 1600;
 
+    /// <summary>The most decoded library pictures may take in memory, in bytes.</summary>
+    public long PictureMemoryBytes { get; init; } = 160L * 1024 * 1024;
+
+    /// <summary>What decoded pictures keep once the view changes: the pictures on screen, not every view visited.</summary>
+    public long PictureMemoryIdleBytes => PictureMemoryBytes / 4;
+
+    /// <summary>What decoded pictures keep while the library is closed.</summary>
+    public long PictureMemoryFloorBytes => PictureMemoryBytes / 16;
+
     /// <summary>The timeline shows a preview picture under the pointer when the user allows it.</summary>
     public bool SeekPreview { get; init; } = true;
 
@@ -109,6 +118,7 @@ public sealed record DeviceBudget
 public static class DeviceProfile
 {
     private const long Gigabyte = 1024L * 1024 * 1024;
+    private const long EnergySaverPictureMemory = 64L * 1024 * 1024;
 
     /// <summary>
     /// The picture effects measured above 100 ms per full-HD frame in the supplied Windows CI
@@ -188,6 +198,7 @@ public static class DeviceProfile
                 VisualFrameMilliseconds = 33,
                 PauseBackgroundWorkWhileBrowsing = true,
                 VideoQueueCapacity = 24,
+                PictureMemoryBytes = 96L * 1024 * 1024,
             },
             PerformanceTier.Fastest => new DeviceBudget
             {
@@ -201,6 +212,7 @@ public static class DeviceProfile
                 LeanLaunch = true,
                 LibraryPictureSide = 240,
                 HeroPictureSide = 960,
+                PictureMemoryBytes = 32L * 1024 * 1024,
                 SeekPreview = false,
                 Animations = false,
                 VideoQueueCapacity = 12,
@@ -208,6 +220,12 @@ public static class DeviceProfile
             },
             _ => new DeviceBudget { Tier = PerformanceTier.BestQuality },
         };
+        // Energy Saver holds picture memory down whatever mode was chosen.
+        if (facts.EnergySaver && budget.PictureMemoryBytes > EnergySaverPictureMemory)
+        {
+            budget = budget with { PictureMemoryBytes = EnergySaverPictureMemory };
+        }
+
         return facts.SystemAnimations ? budget : budget with { Animations = false };
     }
 

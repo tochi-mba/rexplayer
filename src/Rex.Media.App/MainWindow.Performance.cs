@@ -133,8 +133,9 @@ public sealed partial class MainWindow
             // Drop the old tier's decoded pictures; the on-disk originals remain
             // available to decode at the new width when rows next request them.
             _pictureMemory.Clear();
-            _pictureOrder.Clear();
         }
+
+        _pictureMemory.Ceiling = budget.PictureMemoryBytes;
 
         App.Log.Info(LogSource, $"Performance: {_energy.Describe(_facts)} {string.Join(" ", DeviceProfile.Changes(budget))}");
         OnPresenterThread(presenter => presenter.SubjectStep = budget.SubjectStep);
