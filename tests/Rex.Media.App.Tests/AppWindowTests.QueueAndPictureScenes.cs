@@ -52,10 +52,16 @@ public sealed partial class AppWindowTests
     {
         using var app = AppStartedAt(width, height, theme);
         app.Run(CommandCatalog.TogglePlaylist);
-        Wait.For(() => app.IsShown("PlaylistPane") && app.Text("PlaylistQueueCount") == "0 items",
-            "the empty queue to be visible");
-        Assert.Equal("Nothing playing", app.Text("PlaylistQueueNow"));
-        Assert.False(app.Find("PlaylistUndoRemoval").Current.IsEnabled);
+        Wait.For(() => app.IsShown("PlaylistPane") && app.IsShown("PlaylistEmpty"), "the empty queue to be visible");
+        Assert.Equal("Your playlist is empty", app.Text("PlaylistEmpty"));
+        // The empty state says it once: no count, no now and next, no drag hint, and none of the
+        // undo and jump buttons, which have nothing to act on.
+        foreach (var id in new[] { "PlaylistQueueCount", "PlaylistQueueNow", "PlaylistQueueNext", "PlaylistDragHint",
+            "PlaylistUndoReorder", "PlaylistUndoRemoval", "PlaylistJumpNow" })
+        {
+            Assert.False(app.IsShown(id), id + " shows in an empty queue.");
+        }
+
         Screenshots.Match(app, "queue-empty-" + scene, "PlaylistPane");
         Assert.Equal(0, app.Close());
     }
@@ -86,6 +92,16 @@ public sealed partial class AppWindowTests
             && app.Text("PlaylistQueueNext") == "Up next: Terminator"
             && app.Text("PlaylistQueueNow") == "Now playing: Sungba",
             "the populated queue summary");
+        // Paused, the playing line says so, and at the start its progress draws no stray line.
+        var list = app.Find("PlaylistView");
+        Wait.For(() => list.FindFirst(TreeScope.Descendants, new AndCondition(
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem),
+            new PropertyCondition(AutomationElement.NameProperty, "Paused. Sungba"))) is not null,
+            "the paused song's line to say it is paused");
+        Assert.True(app.IsShown("PlaylistJumpNow"), "Jump to the playing item is missing while an entry is current.");
+        Assert.True(app.IsShown("PlaylistDragHint"), "The drag hint is missing with two entries to reorder.");
+        Assert.False(app.IsShown("PlaylistUndoReorder"), "Undo reorder shows with nothing to undo.");
+        Assert.False(app.IsShown("QueuePlaybackProgress"), "An empty progress bar shows under the playing line.");
         Screenshots.Match(app, "queue-populated-" + scene, "PlaylistPane");
         Assert.Equal(0, app.Close());
     }

@@ -119,7 +119,8 @@ public sealed partial class AppWindowTests
         Assert.Equal("Now playing: Sungba", app.Text("PlaylistQueueNow"));
         app.Press("PlaylistUndoReorder");
         Wait.For(() => app.Text("PlaylistQueueNext") == "Up next: Terminator", "original queue order to return");
-        Assert.False(app.Find("PlaylistUndoReorder").Current.IsEnabled);
+        // Spent, the button goes rather than staying on screen greyed out.
+        Wait.For(() => !app.IsShown("PlaylistUndoReorder"), "undo reorder to go once used");
         Assert.Equal("3 items", app.Text("PlaylistQueueCount"));
         Assert.Equal(0, app.Close());
     }
