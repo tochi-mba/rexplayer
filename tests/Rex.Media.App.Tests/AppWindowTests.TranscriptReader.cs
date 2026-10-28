@@ -97,7 +97,7 @@ public sealed partial class AppWindowTests
         menu.Expand();
         app.Press("ReadTranscript");
         Wait.For(() => app.Text("TranscriptReaderCoverage").Contains("Partial transcript", StringComparison.Ordinal)
-            && app.Text("TranscriptReaderCoverage").Contains("Transcription error: Model unavailable", StringComparison.Ordinal)
+            && app.Text("TranscriptReaderProblem") == "Transcription stopped: Model unavailable"
             && app.IsShown("TranscriptReaderCue-0"),
             "partial speech to remain readable with a clearly labeled failed transcription job");
         // Actual WinUI capture; CI artifacts provide the first review image. No mock is substituted.
