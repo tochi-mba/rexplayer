@@ -55,9 +55,10 @@ public sealed partial class MainWindow
         ? LyricNeutralBrush()
         : RexTheme.Brush("AccentFillColorDefaultBrush", ElementTheme.Dark);
 
+    // The same ink as every other overlay on the stage, one shared brush for every line.
     private Brush LyricChipBrush() => _lyricAccessibility.HighContrast
         ? new SolidColorBrush(_lyricSystemColors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Background))
-        : new SolidColorBrush(RexTheme.Color(DesignTokens.WithAlpha(DesignTokens.DarkInk[0], 0x98)));
+        : RexTheme.Brush("RexOverlayBrush");
 
     private void RepaintLyricPalette()
     {
@@ -69,8 +70,7 @@ public sealed partial class MainWindow
         // A remark about the lyrics, not the song: below the title and artist in emphasis.
         LyricsStatus.Foreground = _lyricAccessibility.HighContrast
             ? LyricNeutralBrush() : RexTheme.Brush("RexOverlaySecondaryTextBrush");
-        LyricsStatusPill.Background = _lyricAccessibility.HighContrast
-            ? LyricChipBrush() : RexTheme.Brush("RexOverlayBrush");
+        LyricsStatusPill.Background = LyricChipBrush();
         foreach (var child in LyricsLines.Children)
         {
             switch (child)
