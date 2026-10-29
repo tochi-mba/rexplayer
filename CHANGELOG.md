@@ -2,6 +2,12 @@
 
 Every version of rexplayer that reaches users, newest first. CI publishes a version when its number reaches `main`.
 
+## Unreleased
+
+### Fixed
+
+- Opus sound on a Mac starts in step: the first 2.5 ms the Mac's decoder keeps back no longer pull the sound after it early, with a short silence in its place.
+
 ## 0.32.0 - 2026-10-28
 
 ### Added

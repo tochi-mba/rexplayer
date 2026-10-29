@@ -44,6 +44,18 @@ public sealed record AudioToolboxSetup(AudioToolboxFormat Format, int CodedRate,
     /// <summary>The samples in one packet as the decoder must be told, or zero where the format fixes it.</summary>
     public int SamplesIn(ReadOnlySpan<byte> packet) => Format == AudioToolboxFormat.Opus ? OpusPacket.Samples(packet) : 0;
 
+    /// <summary>
+    /// When the <paramref name="frames"/> samples AudioToolbox gave for a packet of
+    /// <paramref name="packetSamples"/> starting at <paramref name="packetStart"/> begin. Its Opus
+    /// decoder keeps back the first samples of the first packet after it opens or is reset (its own
+    /// 2.5 ms delay) and gives the rest, so what comes out ends where the packet ends: timed from
+    /// the packet's start, every sample after would play that much early. AAC packets come out whole.
+    /// </summary>
+    public MediaTime OutputStart(MediaTime packetStart, int packetSamples, int frames) =>
+        Format == AudioToolboxFormat.Opus && packetStart.IsKnown && packetSamples > 0
+            ? packetStart + MediaTime.FromSamples(packetSamples - frames, OutputRate)
+            : packetStart;
+
     private static AudioToolboxSetup Aac(TrackInfo track)
     {
         if (!AacConfig.TryParse(track.CodecPrivate, out var config))

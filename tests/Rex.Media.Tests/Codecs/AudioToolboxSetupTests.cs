@@ -77,6 +77,29 @@ public sealed class AudioToolboxSetupTests
     }
 
     [Fact]
+    public void OpusThatComesOutShortOfItsPacketIsTimedToEndWhereThePacketEnds()
+    {
+        var opus = AudioToolboxSetup.For(Track(CodecId.Opus, OpusHead(2)));
+        var start = MediaTime.FromSamples(-312, 48_000);
+
+        // The decoder's 2.5 ms delay kept back from the first packet: the rest starts 120 samples in.
+        Assert.Equal(MediaTime.FromSamples(-192, 48_000), opus.OutputStart(start, 960, 840));
+        Assert.Equal(start, opus.OutputStart(start, 960, 960));
+        Assert.Equal(MediaTime.FromSamples(-360, 48_000), opus.OutputStart(start, 960, 1008));
+        Assert.Equal(MediaTime.Unknown, opus.OutputStart(MediaTime.Unknown, 960, 840));
+        Assert.Equal(start, opus.OutputStart(start, 0, 840));
+    }
+
+    [Fact]
+    public void AacComesOutWholeSoItIsTimedFromItsPacket()
+    {
+        var aac = AudioToolboxSetup.For(Track(CodecId.Aac, [0x11, 0x90]));
+        var start = MediaTime.FromSamples(1024, 48_000);
+
+        Assert.Equal(start, aac.OutputStart(start, 0, 512));
+    }
+
+    [Fact]
     public void MonoOpusAndMappingFamilyOneAreTakenButSurroundIsLeftAlone()
     {
         Assert.Equal(1, AudioToolboxSetup.For(Track(CodecId.Opus, OpusHead(1), channels: 1)).Channels);
