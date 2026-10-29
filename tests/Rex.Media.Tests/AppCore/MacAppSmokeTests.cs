@@ -146,7 +146,9 @@ public sealed partial class MacAppSmokeTests
             Assert.Contains("first=False", firstRunDone?.Text, StringComparison.Ordinal);
             Assert.Contains("metadata=True", firstRunDone?.Text, StringComparison.Ordinal);
             Assert.Contains("updates=Off", firstRunDone?.Text, StringComparison.Ordinal);
-            var handedOverVideo = RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac.mp4");
+            // Keep playback active through the crash-checkpoint assertions below. The tiny
+            // conformance clip can finish before the automation round trip on a fast runner.
+            var handedOverVideo = RepoPaths.Combine("tests", "fixtures", "mp4", "h264-aac-minute.mp4");
             var secondStart = new ProcessStartInfo(Path.Combine(bundle!, "Contents", "MacOS", "rexplayer"))
             {
                 UseShellExecute = false,
