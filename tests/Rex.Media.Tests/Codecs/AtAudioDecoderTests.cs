@@ -1,4 +1,5 @@
 using Rex.Media.AppCore;
+using Rex.Media.Codecs;
 using Rex.Media.Codecs.Apple;
 using Rex.Media.Engine;
 using Rex.Media.IO;
@@ -15,20 +16,81 @@ namespace Rex.Media.Tests.Codecs;
 [System.Runtime.Versioning.SupportedOSPlatform("macos")]
 public sealed class AtAudioDecoderTests
 {
-    private static async Task<float[][]> Play(string fixture, int channels)
+    private static async Task<(float[][] Played, string Frames)> Play(string fixture, int channels)
     {
         var sink = new RecordingAudioSink(channels: channels, sampleRate: 48_000);
+        var factory = new Recording(new AppleDecoderFactory());
         var options = new EngineOptions
         {
             Demuxers = MediaRegistries.Demuxers(),
-            Decoders = MediaRegistries.Decoders(new AppleDecoderFactory()),
+            Decoders = MediaRegistries.Decoders(factory),
             AudioSinkFactory = () => sink,
             AutoPlay = true,
         };
         using var session = new MediaSession(options, _ => { });
         await session.OpenAsync(new MemoryByteSource(File.ReadAllBytes(RepoPaths.Combine($"tests/fixtures/{fixture}")), fixture));
         await session.WaitForFinishAsync().WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
-        return [.. Enumerable.Range(0, channels).Select(c => sink.Channel(c).ToArray())];
+        var log = factory.Frames;
+        var frames = $"{log.Count} frames, first {string.Join(", ", log.Take(3))}, last {string.Join(", ", log.TakeLast(2))}";
+        return ([.. Enumerable.Range(0, channels).Select(c => sink.Channel(c).ToArray())], frames);
+    }
+
+    /// <summary>The Mac's decoders, noting each audio frame's start (in samples) and length, to say why a decode differs.</summary>
+    private sealed class Recording(IDecoderFactory inner) : IDecoderFactory
+    {
+        public List<string> Frames { get; } = [];
+
+        public string Name => inner.Name;
+
+        public DecoderSource Source => inner.Source;
+
+        public int Rank => inner.Rank;
+
+        public bool CanDecode(TrackInfo track) => inner.CanDecode(track);
+
+        public IAudioDecoder CreateAudio(TrackInfo track) => new Noting(inner.CreateAudio(track), Frames);
+
+        public IVideoDecoder CreateVideo(TrackInfo track) => inner.CreateVideo(track);
+    }
+
+    private sealed class Noting(IAudioDecoder inner, List<string> frames) : IAudioDecoder
+    {
+        private readonly List<AudioFrame> _decoded = [];
+
+        public string Name => inner.Name;
+
+        public DecoderSource Source => inner.Source;
+
+        public void Decode(Packet packet, ICollection<AudioFrame> output)
+        {
+            inner.Decode(packet, _decoded);
+            Pass($"{packet.Pts.ToSamples(48_000)}/{packet.DiscardSamples}", output);
+        }
+
+        public void Drain(ICollection<AudioFrame> output)
+        {
+            inner.Drain(_decoded);
+            Pass("drain", output);
+        }
+
+        public void Flush() => inner.Flush();
+
+        public void Dispose() => inner.Dispose();
+
+        private void Pass(string packet, ICollection<AudioFrame> output)
+        {
+            foreach (var frame in _decoded)
+            {
+                lock (frames)
+                {
+                    frames.Add($"packet {packet} -> {frame.Pts.ToSamples(48_000)}+{frame.SampleCount}");
+                }
+
+                output.Add(frame);
+            }
+
+            _decoded.Clear();
+        }
     }
 
     [Theory]
@@ -75,14 +137,15 @@ public sealed class AtAudioDecoderTests
         Assert.SkipUnless(OperatingSystem.IsMacOS(), "AudioToolbox exists only on a Mac.");
         var expected = ReferenceAudio.Read(RepoPaths.Combine($"tests/fixtures/{reference}"));
 
-        var played = await Play(fixture, expected.Length);
+        var (played, frames) = await Play(fixture, expected.Length);
 
         // The pre-skip is left out and the last page trims the end, by the demuxers, as on Windows.
         for (var c = 0; c < expected.Length; c++)
         {
-            Assert.Equal(expected[c].Length, played[c].Length);
+            var why = $"channel {c}: {played[c].Length} samples for {expected[c].Length}, late by {ReferenceAudio.BestLag(played[c], expected[c], 1_000)}; {frames}";
+            Assert.True(expected[c].Length == played[c].Length, why);
             var difference = ReferenceAudio.Difference(played[c], expected[c]);
-            Assert.True(difference.Rms < ReferenceAudio.LimitedAccuracyRms, $"channel {c}: RMS difference {difference.Rms}, peak {difference.Peak}");
+            Assert.True(difference.Rms < ReferenceAudio.LimitedAccuracyRms, $"RMS difference {difference.Rms}, peak {difference.Peak}; {why}");
         }
     }
 

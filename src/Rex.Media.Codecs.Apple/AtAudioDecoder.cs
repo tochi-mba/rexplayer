@@ -41,9 +41,10 @@ public sealed class AtAudioDecoder : IAudioDecoder
         ArgumentNullException.ThrowIfNull(packet);
         ArgumentNullException.ThrowIfNull(output);
         int frames;
+        var samples = _setup.SamplesIn(packet.Data.Span);
         try
         {
-            frames = _converter.Decode(packet.Data.Span, _interleaved, _setup.SamplesIn(packet.Data.Span));
+            frames = _converter.Decode(packet.Data.Span, _interleaved, samples);
         }
         catch (IOException ex)
         {
@@ -52,7 +53,7 @@ public sealed class AtAudioDecoder : IAudioDecoder
 
         if (packet.Pts.IsKnown)
         {
-            _next = packet.Pts;
+            _next = _setup.OutputStart(packet.Pts, samples, frames);
         }
 
         if (frames == 0)
