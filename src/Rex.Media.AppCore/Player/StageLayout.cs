@@ -165,7 +165,8 @@ public static class StageLayout
 
     /// <summary>
     /// The visualisation's band: under the title block and above the lyrics status and actions. A
-    /// software stage spans the whole width; the shapes keep a margin. A band squeezed shorter than
+    /// software stage is a backdrop: it spans the whole width and reaches up behind the title, so it
+    /// fills the stage as it always has; the shapes keep a margin. A band squeezed shorter than
     /// <see cref="ShortestBand"/> reaches down behind the status first, then up behind the title's
     /// last lines, never shorter.
     /// </summary>
@@ -173,7 +174,7 @@ public static class StageLayout
     {
         double side = fullBleed ? 0 : tiny ? 8 : compact ? 20 : 48;
         double resting = fullBleed ? 0 : tiny ? 8 : compact ? 12 : 48;
-        var top = titleBottom + Gap;
+        var top = fullBleed ? 0 : titleBottom + Gap;
         var bottom = footer > 0 ? footer + Gap : resting;
         if (height - top - bottom < ShortestBand)
         {
