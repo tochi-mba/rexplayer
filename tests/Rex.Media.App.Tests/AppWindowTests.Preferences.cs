@@ -264,10 +264,30 @@ public sealed partial class AppWindowTests
     /// </summary>
     private static void ChoosePreferencesSection(AppProcess app, string name)
     {
-        Wait.For(() => app.IsShown("PreferencesCategoryList") || app.IsShown("PreferencesSection"), "Preferences' sections");
-        if (app.IsShown("PreferencesCategoryList"))
+        var navigation = Wait.Until(() =>
         {
-            var entry = Wait.Until(() => app.Find("PreferencesCategoryList").FindFirst(TreeScope.Descendants, new AndCondition(
+            try
+            {
+                foreach (var id in new[] { "PreferencesCategoryList", "PreferencesSection" })
+                {
+                    var control = app.Window.FindFirst(TreeScope.Descendants,
+                        new PropertyCondition(AutomationElement.AutomationIdProperty, id));
+                    if (control is not null && !control.Current.IsOffscreen)
+                    {
+                        return control;
+                    }
+                }
+            }
+            catch (ElementNotAvailableException)
+            {
+                // The responsive dialog replaced its navigator while it was read; try again.
+            }
+
+            return null;
+        });
+        if (navigation.Current.AutomationId == "PreferencesCategoryList")
+        {
+            var entry = Wait.Until(() => navigation.FindFirst(TreeScope.Descendants, new AndCondition(
                 new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem),
                 new PropertyCondition(AutomationElement.NameProperty, name))));
             ((SelectionItemPattern)entry.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
@@ -275,7 +295,7 @@ public sealed partial class AppWindowTests
             return;
         }
 
-        var selector = app.Find("PreferencesSection");
+        var selector = navigation;
         Assert.False(selector.Current.IsOffscreen);
         // The list drops down on the window's thread after Expand returns, and can close again as
         // focus settles, so it is opened until the section is really on offer.
