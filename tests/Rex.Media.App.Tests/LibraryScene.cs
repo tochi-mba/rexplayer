@@ -246,9 +246,9 @@ internal sealed class LibraryScene : IDisposable
     }
 
     /// <summary>Watches the folder without looking through it, so the window's own scan finds the files.</summary>
-    public LibraryScene Watched()
+    public LibraryScene Watched(string? folder = null)
     {
-        new MediaLibrary(RexStore.Open(Path.Combine(Root, "library.log"))).AddFolder(Media);
+        new MediaLibrary(RexStore.Open(Path.Combine(Root, "library.log"))).AddFolder(folder ?? Media);
         WriteSettings(Root);
         return this;
     }
