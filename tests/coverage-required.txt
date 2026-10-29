@@ -461,3 +461,5 @@ DesignTokens.cs
 OnScreenMessage.cs
 Legibility.cs
 LibraryHeaderLayout.cs
+SceneSense.cs
+OneEuroFilter.cs
