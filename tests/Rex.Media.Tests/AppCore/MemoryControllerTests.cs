@@ -90,6 +90,29 @@ public sealed class MemoryControllerTests
     }
 
     [Fact]
+    [Capability("PB-11")]
+    public void AnUnansweredResumeOfferKeepsItsPlaceWhenPlaybackRunsToTheEnd()
+    {
+        using var harness = Harness(RexStore.InMemory());
+        var controller = harness.Controller;
+        controller.Settings = controller.Settings with { ResumeMode = ResumeBehavior.Ask };
+        LeaveAHalfWay(harness);
+        OpenReady(harness, "a.wav");
+        Assert.Equal(TimeSpan.FromSeconds(15), controller.PendingResumeAt);
+
+        controller.Seek(TimeSpan.FromSeconds(29.9));
+        harness.PumpUntil(c => c.State == SessionState.Paused);
+        Assert.True(controller.Execute(CommandCatalog.PlayPause));
+        harness.PumpUntil(c => c.State == SessionState.Ended);
+        controller.RememberPosition();
+        Assert.Equal(TimeSpan.FromSeconds(15), controller.Memory.ResumePoint("a.wav"));
+
+        controller.Stop();
+        Assert.Null(controller.PendingResumeAt);
+        Assert.Equal(TimeSpan.FromSeconds(15), controller.Memory.ResumePoint("a.wav"));
+    }
+
+    [Fact]
     [Capability("PB-10")]
     public void BookmarksAreAddedRenamedVisitedAndDeleted()
     {
