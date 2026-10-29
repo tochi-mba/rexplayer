@@ -31,6 +31,8 @@ public sealed partial class MainWindow
                 "pictures in memory only and stop the camera when another scene is selected.");
             explanation.TextColor = NSColor.SecondaryLabel;
             _musicVisualizerChoice = new NSPopUpButton(new CGRect(0, 0, 460, 28), false);
+            ((NSView)_musicVisualizerChoice).AccessibilityLabel = "Visualisation";
+            _musicVisualizerChoice.ToolTip = "Choose a sound-reactive scene";
             foreach (var choice in Enum.GetValues<VisualizerChoice>())
             {
                 _macVisualizerChoices.Add(choice);
@@ -43,6 +45,7 @@ public sealed partial class MainWindow
                 LoadMusicVisualizerOptions();
             };
             _musicVisualizerSensitivity = NSSlider.FromValue(1, 0.25, 4, ApplyMusicVisualizerOptions);
+            ((NSView)_musicVisualizerSensitivity).AccessibilityLabel = "Visualisation sensitivity";
             _musicVisualizerSensitivity.WidthAnchor.ConstraintEqualTo(260).Active = true;
             _musicVisualizerMeter = NSButton.CreateCheckbox(
                 "Show a live beat meter with rendered scenes", ApplyMusicVisualizerOptions);

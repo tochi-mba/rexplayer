@@ -41,6 +41,7 @@ public sealed partial class MainWindow
                 "A duplicate binding is moved instead of activating two commands.");
             explanation.TextColor = NSColor.SecondaryLabel;
             _shortcutCommand = new NSPopUpButton(new CGRect(0, 0, 560, 28), false);
+            ((NSView)_shortcutCommand).AccessibilityLabel = "Command to bind";
             foreach (var command in _shortcutCommands)
             {
                 _shortcutCommand.AddItem(command.Group + " - " + command.Title);
@@ -52,6 +53,7 @@ public sealed partial class MainWindow
                 PlaceholderString = "Cmd+Shift+P",
                 ToolTip = "Enter Cmd, Option and Shift with a letter, number, function or named key",
             };
+            ((NSView)_shortcutChord).AccessibilityLabel = "Shortcut keys";
             _shortcutStatus = NSTextField.CreateWrappingLabel("");
             _shortcutStatus.TextColor = NSColor.SecondaryLabel;
             _shortcutGlobal = NSButton.CreateCheckbox(

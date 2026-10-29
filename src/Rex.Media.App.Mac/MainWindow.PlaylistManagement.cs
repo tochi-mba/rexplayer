@@ -69,6 +69,7 @@ public sealed partial class MainWindow
                 "Saved playlists keep their own names and entries, separately from Up Next.");
             hint.TextColor = NSColor.SecondaryLabel;
             _savedPlaylistPicker = new NSPopUpButton(new CGRect(0, 0, 500, 28), false);
+            ((NSView)_savedPlaylistPicker).AccessibilityLabel = "Saved playlist";
             _savedPlaylistPicker.Activated += (_, _) => RefreshSavedPlaylists();
             _savedPlaylistSummary = NSTextField.CreateLabel("");
             _savedPlaylistSummary.TextColor = NSColor.SecondaryLabel;

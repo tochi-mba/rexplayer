@@ -45,9 +45,12 @@ public sealed partial class MainWindow
         }
 
         _logLevel.Activated += (_, _) => RefreshLogConsole();
+        ((NSView)_logLevel).AccessibilityLabel = "Lowest log level shown";
         _logSource = new NSPopUpButton(new CGRect(0, 0, 170, 28), false);
+        ((NSView)_logSource).AccessibilityLabel = "Log source";
         _logSource.Activated += (_, _) => RefreshLogConsole();
         _logSearch = new NSSearchField(new CGRect(0, 0, 260, 28)) { PlaceholderString = "Search log" };
+        ((NSView)_logSearch).AccessibilityLabel = "Search log";
         _logSearch.Changed += (_, _) => RefreshLogConsole();
         var filters = NSStackView.FromViews([_logLevel, _logSource, _logSearch]);
         filters.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;

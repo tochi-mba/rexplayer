@@ -50,6 +50,7 @@ public sealed partial class MainWindow
             _bookmarkPicker = new NSPopUpButton(new CGRect(0, 0, 460, 28), false);
             _bookmarkPicker.Activated += (_, _) => ShowSelectedBookmarkName();
             _bookmarkPicker.ToolTip = "Choose a saved moment in this file";
+            ((NSView)_bookmarkPicker).AccessibilityLabel = "Saved moment";
             _bookmarkName = new NSTextField(new CGRect(0, 0, 460, 24)) { PlaceholderString = "Name this moment" };
             _bookmarkName.ToolTip = "Bookmark name";
             var add = NSButton.CreateButton("Save this moment", () =>
