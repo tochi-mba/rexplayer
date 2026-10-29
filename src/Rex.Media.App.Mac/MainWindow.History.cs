@@ -28,6 +28,7 @@ public sealed partial class MainWindow
                 "you can return to later.");
             explanation.TextColor = NSColor.SecondaryLabel;
             _recentPicker = new NSPopUpButton(new CGRect(0, 0, 500, 28), false);
+            ((NSView)_recentPicker).AccessibilityLabel = "Recently played file";
             _recentSummary = NSTextField.CreateLabel("");
             _recentSummary.TextColor = NSColor.SecondaryLabel;
             var open = NSButton.CreateButton("Open selected", () =>

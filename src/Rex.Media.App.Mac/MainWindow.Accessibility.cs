@@ -55,6 +55,7 @@ public sealed partial class MainWindow
                     {
                         var name = node switch
                         {
+                            NSPopUpButton popup => popup.ToolTip ?? NearbyMacLabel(node),
                             NSButton button => button.Title,
                             NSSearchField search => search.PlaceholderString ?? "Search media",
                             NSTextField input => input.ToolTip ?? NearbyMacLabel(node) ?? input.PlaceholderString,
