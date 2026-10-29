@@ -42,8 +42,11 @@ public sealed partial class MainWindow
             Visit(root);
             void Visit(NSView node)
             {
+                // AppKit inserts a shared NSTextView while editing a window's text fields.
+                // Audit the owning text field, not that reusable implementation view.
+                // Dedicated editable text views still need their own accessible name.
                 var isControl = node is NSButton or NSSlider or NSPopUpButton or NSSearchField ||
-                    node is NSTextField { Editable: true } or NSTextView { Editable: true };
+                    node is NSTextField { Editable: true } or NSTextView { Editable: true, FieldEditor: false };
                 if (isControl)
                 {
                     controls++;
