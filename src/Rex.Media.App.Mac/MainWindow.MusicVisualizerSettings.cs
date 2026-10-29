@@ -94,9 +94,11 @@ public sealed partial class MainWindow
         if (_musicVisualizerSensitivity is null || _musicVisualizerMeter is null || _musicVisualizerCamera is null) return;
         _musicVisualizerSensitivity.DoubleValue = VisualizerOptions.Number(
             _settings.VisualOptions, _settings.Visualizer, VisualizerOptions.Sensitivity);
-        _musicVisualizerMeter.State = State(VisualizerOptions.Toggle(
+        // Only rendered scenes have a beat meter; asking a classic scene for it throws.
+        var drawn = VisualScene.Draws(_settings.Visualizer);
+        _musicVisualizerMeter.State = State(drawn && VisualizerOptions.Toggle(
             _settings.VisualOptions, _settings.Visualizer, VisualizerOptions.Meter));
-        _musicVisualizerMeter.Enabled = VisualScene.Draws(_settings.Visualizer);
+        _musicVisualizerMeter.Enabled = drawn;
         _musicVisualizerCamera.State = State(_settings.CameraAllowed);
     }
 
@@ -106,8 +108,11 @@ public sealed partial class MainWindow
         var choice = _settings.Visualizer;
         var options = VisualizerOptions.With(_settings.VisualOptions, choice,
             VisualizerOptions.Sensitivity, _musicVisualizerSensitivity.DoubleValue);
-        options = VisualizerOptions.With(options, choice, VisualizerOptions.Meter,
-            IsChecked(_musicVisualizerMeter) ? 1 : 0);
+        if (VisualScene.Draws(choice))
+        {
+            options = VisualizerOptions.With(options, choice, VisualizerOptions.Meter,
+                IsChecked(_musicVisualizerMeter) ? 1 : 0);
+        }
         _settings = _settings with
         {
             VisualOptions = options,
