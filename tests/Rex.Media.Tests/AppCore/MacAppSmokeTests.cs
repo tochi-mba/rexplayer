@@ -581,9 +581,16 @@ public sealed partial class MacAppSmokeTests
             var lyricsHidden = await Ask(pipe, new AutomationRequest { Command = "mac-music" });
             Assert.Contains("visible=True;art=True;heading=Sample Song;lyrics=False", lyricsHidden?.Text, StringComparison.Ordinal);
             await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLyrics });
-            await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.CycleVisualizer });
+            // The normal default is Spectrum, and cycling advances to Oscilloscope.
+            // Check the next value from the saved starting choice rather than assuming
+            // that a newly created profile begins with the visualiser switched off.
+            var startingVisualizer = SettingsStore.Load(startupRoots.SettingsPath).Visualizer;
+            var cycle = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.CycleVisualizer });
+            Assert.True(cycle?.Ok == true, "Cycling the native Mac visualisation was not handled.");
+            var expectedVisualizer = Rex.Media.AppCore.Player.Visualizers.Next(startingVisualizer);
             var visualizerShown = await Ask(pipe, new AutomationRequest { Command = "mac-music" });
-            Assert.Contains("visualizer=Meters", visualizerShown?.Text, StringComparison.Ordinal);
+            Assert.Contains("visualizer=" + expectedVisualizer, visualizerShown?.Text, StringComparison.Ordinal);
+            Assert.Equal(expectedVisualizer, SettingsStore.Load(startupRoots.SettingsPath).Visualizer);
             var visualisers = await Ask(pipe, new AutomationRequest { Command = "mac-music", Id = "visualisers" });
             Assert.True(visualisers?.Ok == true && visualisers.Text?.Contains("camera=", StringComparison.Ordinal) == true,
                 "The native visualisation panel is incomplete: " + (visualisers?.Error ?? "no reply"));
