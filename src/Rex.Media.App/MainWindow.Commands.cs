@@ -672,44 +672,6 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>Plays files copied in Explorer, or a path copied as text.</summary>
-    private async Task PasteAsync()
-    {
-        var content = Clipboard.GetContent();
-        if (content.Contains(StandardDataFormats.StorageItems))
-        {
-            var (supported, skipped) = MediaFiles.FilterClipboardPaths(PathsOf(await content.GetStorageItemsAsync()), Directory.Exists);
-            if (supported.Count == 0)
-            {
-                Say("The clipboard has no media rexplayer can open.");
-                return;
-            }
-
-            if (skipped > 0)
-            {
-                Say($"Skipped {skipped} clipboard item{(skipped == 1 ? "" : "s")} that rexplayer cannot open.");
-            }
-
-            _player.Open(supported);
-        }
-        else if (content.Contains(StandardDataFormats.Text))
-        {
-            var (supported, skipped) = MediaFiles.FilterClipboardText(await content.GetTextAsync(), Directory.Exists);
-            if (supported.Count == 0)
-            {
-                Say("The clipboard has no media rexplayer can open.");
-                return;
-            }
-
-            if (skipped > 0)
-            {
-                Say($"Skipped {skipped} clipboard item{(skipped == 1 ? "" : "s")} that rexplayer cannot open.");
-            }
-
-            _player.Open(supported);
-        }
-    }
-
     private async Task GoToTimeAsync()
     {
         if (!_stageView.CanSeek || !_player.CanSeek)
