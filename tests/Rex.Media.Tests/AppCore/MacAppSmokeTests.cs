@@ -214,7 +214,7 @@ public sealed partial class MacAppSmokeTests
                     $"Mac {extension} playlist export did not create a readable file.");
                 var playlistText = File.ReadAllText(playlistFile);
                 Assert.Contains(marker, playlistText, StringComparison.OrdinalIgnoreCase);
-                Assert.Contains("h264-aac.mp4", playlistText, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains(Path.GetFileName(handedOverVideo), playlistText, StringComparison.OrdinalIgnoreCase);
             }
             var createNamed = await Ask(pipe, new AutomationRequest { Command = "mac-playlists", Id = "create" });
             Assert.True(createNamed?.Ok == true, "Native named-playlist creation failed.");
