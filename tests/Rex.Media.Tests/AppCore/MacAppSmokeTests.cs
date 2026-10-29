@@ -335,6 +335,10 @@ public sealed partial class MacAppSmokeTests
             var slotOpened = await Ask(pipe, new AutomationRequest { Command = "mac-quick-slots", Id = "open-one" });
             Assert.True(slotOpened?.Position is >= 0.2 and <= 0.5,
                 "The native quick slot did not reopen its saved playback position.");
+            // The quick slot reopens the file asynchronously, and the native save button
+            // stays disabled until the reopened file can seek again.
+            await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }),
+                reply => reply is { State: "Playing" or "Ended" or "Paused" }, app, root);
             var bookmarkAdded = await Ask(pipe, new AutomationRequest { Command = "mac-bookmarks", Id = "add" });
             Assert.Equal("Mac moment", bookmarkAdded?.Text);
             var bookmarkRenamed = await Ask(pipe, new AutomationRequest { Command = "mac-bookmarks", Id = "rename" });
