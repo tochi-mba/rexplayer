@@ -82,10 +82,14 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>Play, Shuffle and Add to queue act only when the view holds something that can be played.</summary>
+    /// <summary>
+    /// Play, Shuffle and Add to queue act only when the view holds something that can be played. A
+    /// file still downloading counts: Play on it says how far its download is, which a disabled
+    /// button could not.
+    /// </summary>
     private void SetLibraryActionsPlayable(IEnumerable<LibraryRow>? rows)
     {
-        var playable = rows is null || rows.Any(row => row.Item is not LibraryEntry { Problem: not null });
+        var playable = rows is null || rows.Any(row => row.Item is not LibraryEntry { Problem: not null, Downloading: false });
         LibraryPlay.IsEnabled = LibraryShuffle.IsEnabled = LibraryEnqueue.IsEnabled = playable;
     }
 

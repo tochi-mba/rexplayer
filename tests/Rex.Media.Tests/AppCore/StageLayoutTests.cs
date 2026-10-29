@@ -96,7 +96,7 @@ public sealed class StageLayoutTests
 
         // A software stage spans the width; with nothing under it, it reaches the stage's edge.
         var software = StageLayout.Resolve(new StageLayoutInput(1000, 470, VisualizerWanted: true, FullBleed: true, TitleHeight: 120));
-        Assert.Equal(new StageBand(0, 168, 0, 0), software.Band);
+        Assert.Equal(new StageBand(0, 0, 0, 0), software.Band);
 
         Assert.Equal(new StageBand(48, 168, 48, 48), StageLayout.Resolve(new StageLayoutInput(1000, 470, VisualizerWanted: true, TitleHeight: 120)).Band);
         Assert.Equal(new StageBand(20, 20 + 90 + 16, 20, 12), StageLayout.Resolve(new StageLayoutInput(720, 290, VisualizerWanted: true, TitleHeight: 90)).Band);

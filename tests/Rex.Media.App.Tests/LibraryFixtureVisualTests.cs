@@ -96,7 +96,7 @@ public sealed partial class LibraryFixtureVisualTests
         app.Press("LibraryRescan");
         app.Visit("Home");
         Wait.For(() => app.IsShown("LibraryEmptyText") &&
-            app.Text("LibraryEmptyText").Contains("Reconnect its drive or check permissions", StringComparison.Ordinal),
+            app.Text("LibraryEmptyText").Contains("Reconnect its drive or check its permissions", StringComparison.Ordinal),
             "the inaccessible folder to show a recovery action rather than claiming no media exists");
         Assert.DoesNotContain("There is nothing of this kind", app.Text("LibraryEmptyText"), StringComparison.Ordinal);
         Assert.Equal("Try scanning the library folder again", app.Find("LibraryEmptyRetryScan").Current.Name);

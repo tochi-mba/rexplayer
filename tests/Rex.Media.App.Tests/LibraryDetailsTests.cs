@@ -267,7 +267,7 @@ public sealed class LibraryDetailsTests : IDisposable
 
         app.Press("LibraryBillboardMore");
         Wait.For(() => app.Text("LibraryKicker") == "TV SHOW" && app.Text("LibraryTitle") == "Harbour Lights", "the show page");
-        Wait.For(() => app.IsShown("LibraryFacts") && app.Text("LibraryFacts") == "BBC One · 2019-2021 · Ended", "the show's facts");
+        Wait.For(() => app.IsShown("LibraryFacts") && app.Text("LibraryFacts") == "BBC One · 2019–2021 · Ended", "the show's facts");
         Assert.Equal(ShowSummary, app.Text("LibraryOverview"));
         Assert.Equal("Data from TVmaze", app.Text("LibraryCredit"));
         Assert.Equal("The crew's first winter on the coast.", app.Text("LibrarySeasonOverview"));
