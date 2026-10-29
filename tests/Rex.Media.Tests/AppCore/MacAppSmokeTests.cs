@@ -480,7 +480,7 @@ public sealed partial class MacAppSmokeTests
             Assert.Contains("enabled=False", disabledOsd?.Text, StringComparison.Ordinal);
             Assert.EndsWith("overlay=", disabledOsd?.Text, StringComparison.Ordinal);
             var speech = await Ask(pipe, new AutomationRequest { Command = "mac-speech", Id = "configure" });
-            Assert.Contains("visible=True;model=base;library=True;playing=True;paused=True", speech?.Text,
+            Assert.Contains("visible=True;model=base.en;library=True;playing=True;paused=True", speech?.Text,
                 StringComparison.Ordinal);
             var savedSpeech = SettingsStore.Load(startupRoots.SettingsPath);
             Assert.Equal((TranscriptModelChoice.Base, true, true, true),
