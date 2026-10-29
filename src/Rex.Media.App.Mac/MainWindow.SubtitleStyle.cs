@@ -182,7 +182,7 @@ public sealed partial class MainWindow
     private static NSStackView StyleSliderRow(string title, NSSlider slider)
     {
         var label = NSTextField.CreateLabel(title);
-        slider.AccessibilityLabel = title;
+        ((NSView)slider).AccessibilityLabel = title;
         label.WidthAnchor.ConstraintEqualTo(170).Active = true;
         slider.WidthAnchor.ConstraintGreaterThanOrEqualTo(225).Active = true;
         var row = NSStackView.FromViews([label, slider]);

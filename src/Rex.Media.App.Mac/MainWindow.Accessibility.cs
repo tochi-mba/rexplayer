@@ -68,7 +68,12 @@ public sealed partial class MainWindow
                     }
 
                     if (string.IsNullOrWhiteSpace(node.AccessibilityLabel))
+                    {
                         missing++;
+                        _log.Warning(LogSource, "Unnamed Mac control: " + node.AccessibilityIdentifier +
+                            "; window=" + window.Title + "; type=" + node.GetType().Name +
+                            "; tooltip=" + node.ToolTip);
+                    }
                     if (string.IsNullOrWhiteSpace(node.AccessibilityHelp) &&
                         !string.IsNullOrWhiteSpace(node.ToolTip))
                         node.AccessibilityHelp = node.ToolTip;
