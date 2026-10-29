@@ -391,8 +391,15 @@ public sealed partial class MainWindow
 
         if (action == "fill-long")
         {
+            var smokeLocation = _player.Playlist.Items
+                .FirstOrDefault(item => !_player.IsMissing(item))?.Location;
+            if (smokeLocation is null)
+            {
+                return false;
+            }
+
             _player.Playlist.Add(Enumerable.Range(1, 90).Select(index =>
-                new PlaylistItem($"/queue-smoke/track-{index:000}.mp3")
+                new PlaylistItem(smokeLocation)
                 {
                     Title = $"Queue sample {index:000}",
                 }));

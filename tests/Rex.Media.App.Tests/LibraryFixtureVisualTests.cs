@@ -83,10 +83,12 @@ public sealed partial class LibraryFixtureVisualTests
     public void DisconnectedLibraryFolderShowsRecoveryInsteadOfAFalseEmptyClaim()
     {
         using var scene = new LibraryScene();
-        scene.Watched();
+        var missingFolder = Path.Combine(Path.GetTempPath(), "rexplayer-ui-library-disconnected");
+        Directory.CreateDirectory(missingFolder);
+        scene.Watched(missingFolder);
         // The folder was connected when it was chosen and is missing at this launch.
         // Do not treat an unsuccessful enumeration as proof that its media is gone.
-        System.IO.Directory.Delete(scene.Media, recursive: true);
+        Directory.Delete(missingFolder, recursive: true);
         using var app = scene.Start();
         SetViewport(app, 1000, 760);
         // Rescan belongs to the Folders route's actions, not the Home
