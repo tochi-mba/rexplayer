@@ -7,6 +7,7 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 ### Fixed
 
 - Opus sound on a Mac starts in step: the first 2.5 ms the Mac's decoder keeps back no longer pull the sound after it early, with a short silence in its place.
+- Paste right after copying a file or a path no longer does nothing when another program is still reading the clipboard, and a clipboard with nothing to play says so.
 
 ## 0.32.0 - 2026-10-28
 

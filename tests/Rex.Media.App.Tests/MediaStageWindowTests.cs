@@ -654,8 +654,10 @@ public sealed class MediaStageWindowTests : IDisposable
         // Movies open their details page first; Play there starts the actual stream.
         // The earlier test incorrectly expected the grid's Play action to bypass it.
         app.Press("LibraryPlay");
-        Wait.For(() => app.Text("LibraryKicker") == "MOVIE"
-            && app.Text("LibraryTitle") == "Small Film" && app.IsShown("LibraryPlay"),
+        // At this 1000x700 viewport the library is short, so its header is compact (LIB-05): Back,
+        // the title and the actions, without the MOVIE kicker.
+        Wait.For(() => app.Text("LibraryTitle") == "Small Film" && app.IsShown("LibraryBack")
+            && app.IsShown("LibraryPlay"),
             "the movie's dedicated details page");
         app.Press("LibraryPlay");
         Wait.For(() => app.Find("Stage").Current.Name == "MOVIE playback stage"
