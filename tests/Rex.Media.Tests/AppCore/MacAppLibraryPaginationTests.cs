@@ -1,9 +1,8 @@
 using System.Diagnostics;
 using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Commands;
+using Rex.Media.AppCore.Platform;
 using Rex.Media.Library;
-using Rex.Media.Settings;
-using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.AppCore;
 
