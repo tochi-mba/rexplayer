@@ -20,13 +20,22 @@ public sealed partial class MainWindow
     private NSButton? _previousQueuePage;
     private NSButton? _nextQueuePage;
     private const int QueuePageSize = 75;
+    private bool _queueRefreshQueued;
+    private int? _queueRowsSignature;
 
+    // A burst of playlist changes (a removal, a reshuffle) queues one refresh, not one per change.
     private void InitializeQueue() =>
-        _player.Playlist.Changed += (_, _) => OnWindowThread(() =>
+        _player.Playlist.Changed += (_, _) =>
         {
-            RefreshQueue();
-            ShowState();
-        });
+            if (_queueRefreshQueued) return;
+            _queueRefreshQueued = true;
+            OnWindowThread(() =>
+            {
+                _queueRefreshQueued = false;
+                RefreshQueue();
+                ShowState();
+            });
+        };
 
     private void ShowQueue()
     {
@@ -144,6 +153,38 @@ public sealed partial class MainWindow
             _queueRepeat.Title = "Repeat: " + _player.Playlist.Repeat;
         }
 
+        // Rebuilding a page creates hundreds of native views, so it happens only when what the
+        // rows show has changed; the summary below is cheap and always refreshed.
+        var signature = QueueRowsSignature(queue, start, end);
+        if (signature != _queueRowsSignature || _queueScroll.DocumentView is null)
+        {
+            _queueRowsSignature = signature;
+            BuildQueueRows(_queueScroll, queue, start, end);
+        }
+
+        _queueSummary.StringValue = (queue.Count == 1 ? "1 item" : $"{queue.Count} items")
+            + (queue.Count > QueuePageSize ? $" • viewing {start + 1}–{end}" : "")
+            + (_player.Playlist.PeekNext(automatic: false) is { } nextItem ? $" • Next: {nextItem.Title}" : "");
+    }
+
+    private int QueueRowsSignature(IReadOnlyList<PlaylistItem> queue, int start, int end)
+    {
+        var hash = new HashCode();
+        hash.Add(start);
+        hash.Add(end);
+        hash.Add(queue.Count);
+        hash.Add(_player.Playlist.CurrentIndex);
+        for (var i = start; i < end; i++)
+        {
+            hash.Add(queue[i]);
+            hash.Add(_player.IsMissing(queue[i]));
+        }
+
+        return hash.ToHashCode();
+    }
+
+    private void BuildQueueRows(NSScrollView scroll, IReadOnlyList<PlaylistItem> queue, int start, int end)
+    {
         var rows = new List<NSView>();
         if (queue.Count == 0)
         {
@@ -244,15 +285,12 @@ public sealed partial class MainWindow
         content.Spacing = 8;
         content.EdgeInsets = new NSEdgeInsets(12, 12, 14, 12);
         content.Frame = new CGRect(0, 0, 580, Math.Max(200, (end - start) * 90 + 35));
-        _queueScroll.DocumentView = content;
+        scroll.DocumentView = content;
         // AppKit document views use bottom-left coordinates by default. Place the first
         // entry at the visible top when opening a page, not the last visible row.
-        var clip = _queueScroll.ContentView;
+        var clip = scroll.ContentView;
         clip.ScrollToPoint(new CGPoint(0, Math.Max(0, content.Frame.Height - clip.Bounds.Height)));
-        _queueScroll.ReflectScrolledClipView(clip);
-        _queueSummary.StringValue = (queue.Count == 1 ? "1 item" : $"{queue.Count} items")
-            + (queue.Count > QueuePageSize ? $" • viewing {start + 1}–{end}" : "")
-            + (_player.Playlist.PeekNext(automatic: false) is { } nextItem ? $" • Next: {nextItem.Title}" : "");
+        scroll.ReflectScrolledClipView(clip);
     }
 
     private void DropIntoQueue(IReadOnlyList<string> paths, CGPoint windowPoint)
