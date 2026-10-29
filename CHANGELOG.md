@@ -6,6 +6,7 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 
 ### Added
 
+- **The camera's eyes, without a download.** A matte that needs no empty-room step (the room is the running median of what the camera saw), a flow field of how the picture moves, and hands guessed at the outline's upper ends; a gesture reader that turns hand points into pinches, taps, fists, swipes, raised hands, a push and hands on the chest, each with a threshold to enter and another to leave, a dwell and a cooldown, so nothing fires by accident; and the pure half of the downloadable camera pack (ADR-0022): its five models in the catalogue, the detectors' anchors generated and checked against the published tables, the box decoding, the rotated windows the hand and pose models take, and their answers read back as shares of the picture. Nothing visible changes yet.
 - **Groundwork for camera effects that see you.** ADR-0022 chooses the camera perception models (a soft matte, 21-point hands and a 33-point body, all Apache-2.0, about 32 MB, optional) and records their speed on an ordinary laptop; `SceneSense` is the one shape every finder fills, with a 1 euro filter so tracked points are steady at rest and immediate in motion. Nothing visible changes yet.
 
 ### Fixed

@@ -463,3 +463,7 @@ Legibility.cs
 LibraryHeaderLayout.cs
 SceneSense.cs
 OneEuroFilter.cs
+GestureReader.cs
+HandWrittenSense.cs
+DetectorDecoding.cs
+SceneTensors.cs

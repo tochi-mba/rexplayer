@@ -1,6 +1,6 @@
 namespace Rex.Media.Vision;
 
-/// <summary>What a downloadable model does for Subject Lock.</summary>
+/// <summary>What a downloadable model does: for Subject Lock, or for the camera (ADR-0022).</summary>
 public enum ModelPurpose
 {
     /// <summary>A click or a box in, the outline of the object under it out.</summary>
@@ -8,6 +8,21 @@ public enum ModelPurpose
 
     /// <summary>A picture and a hole in, the picture with the hole filled out.</summary>
     Inpainting,
+
+    /// <summary>A camera picture in, where the person is (a soft matte) out.</summary>
+    Matte,
+
+    /// <summary>A camera picture in, boxes around the palms and seven palm points out.</summary>
+    PalmDetection,
+
+    /// <summary>A window on one hand in, its 21 points and which hand it is out.</summary>
+    HandLandmarks,
+
+    /// <summary>A camera picture in, a box around the person and four body points out.</summary>
+    PersonDetection,
+
+    /// <summary>A window on the body in, 33 joints and a mask out.</summary>
+    Pose,
 }
 
 /// <summary>
