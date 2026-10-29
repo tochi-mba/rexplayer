@@ -166,9 +166,17 @@ public sealed partial class MacAppSmokeTests
 
             var handedOver = await Until(
                 () => Ask(pipe, new AutomationRequest { Command = "status" }),
-                reply => reply is { Ok: true, Title: not null }, app, root);
+                reply => reply is { Ok: true, Title: not null, State: "Playing" or "Paused" }, app, root);
             Assert.Contains("h264-aac", handedOver.Title, StringComparison.OrdinalIgnoreCase);
             Assert.False(app.HasExited, "The original player exited when the later launch handed over its file.");
+            var crashRecovery = await Ask(pipe, new AutomationRequest
+            {
+                Command = "mac-crash-recovery",
+                Id = "enable-dumps",
+            });
+            Assert.Contains("handlers=True;resumeMarker=True;dumps=True;runtime=1;local=True",
+                crashRecovery?.Text, StringComparison.Ordinal);
+            Assert.True(SettingsStore.Load(startupRoots.SettingsPath).LocalCrashDumps);
             var mainKeyboard = await Ask(pipe, new AutomationRequest { Command = "mac-keyboard" });
             Assert.True(mainKeyboard?.Ok == true, "The Mac main-window keyboard loop failed: " +
                 (mainKeyboard?.Error ?? "no reply") + LogTail(root));
@@ -440,14 +448,6 @@ public sealed partial class MacAppSmokeTests
             var savedWindowSize = SettingsStore.Load(startupRoots.SettingsPath);
             Assert.True(savedWindowSize.ResizeWindowToVideo);
             Assert.Equal(1, savedWindowSize.VideoWindowScale);
-            var crashRecovery = await Ask(pipe, new AutomationRequest
-            {
-                Command = "mac-crash-recovery",
-                Id = "enable-dumps",
-            });
-            Assert.Contains("handlers=True;resumeMarker=True;dumps=True;runtime=1;local=True",
-                crashRecovery?.Text, StringComparison.Ordinal);
-            Assert.True(SettingsStore.Load(startupRoots.SettingsPath).LocalCrashDumps);
             await Ask(pipe, new AutomationRequest { Command = "mac-stats", Id = "show" });
             var stats = await Until(
                 () => Ask(pipe, new AutomationRequest { Command = "mac-stats", Id = "status" }),
