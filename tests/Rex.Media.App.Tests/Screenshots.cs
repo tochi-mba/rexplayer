@@ -180,7 +180,9 @@ internal static class Screenshots
                     return false;
                 }
 
-                return HasVisibleVariation(picture) &&
+                return (automationId is null
+                    ? HasVisibleVariation(picture)
+                    : HasInk(picture, pixelThreshold)) &&
                     (!needsPixelWitness || HasVisibleVariation(witness));
             }
             catch (Exception error)
@@ -318,7 +320,9 @@ internal static class Screenshots
             + $"The last frame is window/{name}.png in the screenshots artefact. A whole window that stays one colour is not being drawn "
             + "(minimised, covered, on a locked or disconnected desktop, or the app stalled before its first frame: see its .log beside it); "
             + "one control that stays blank is a rendering defect in the app.");
-        Assert.True(HasVisibleVariation(picture),
+        Assert.True(automationId is null
+                ? HasVisibleVariation(picture)
+                : HasInk(picture, pixelThreshold),
             $"Screenshot {name} appears blank or uniform; wait for the expected UI before capturing it.");
         Assert.True(!needsPixelWitness || HasVisibleVariation(witness),
             $"Screenshot {name} does not visibly render the expected popup control {scene.ReadinessId}, despite UI Automation reporting it. See its actual capture.");
