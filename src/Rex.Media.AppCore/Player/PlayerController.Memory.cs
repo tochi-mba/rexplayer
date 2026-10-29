@@ -58,11 +58,13 @@ public sealed partial class PlayerController
 
     /// <summary>
     /// Remembers where the current item is, so it can be resumed (the window calls this now and
-    /// then, so a crash loses little); at either end it is forgotten instead.
+    /// then, so a crash loses little); at either end it is forgotten instead. While a resume offer
+    /// is still waiting for an answer the stored place is left alone, so playing on underneath the
+    /// offer (even to the end of a short file) never takes away the place it offers.
     /// </summary>
     public void RememberPosition()
     {
-        if (Item is { } item && _session is not null && State is not (Rex.Media.Engine.SessionState.Faulted or Rex.Media.Engine.SessionState.Opening) && Duration > TimeSpan.Zero)
+        if (PendingResumeAt is null && Item is { } item && _session is not null && State is not (Rex.Media.Engine.SessionState.Faulted or Rex.Media.Engine.SessionState.Opening) && Duration > TimeSpan.Zero)
         {
             Memory.Left(MemoryKey(item), Position, Duration);
         }
