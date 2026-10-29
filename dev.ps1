@@ -48,8 +48,7 @@ function Invoke-Test {
         "--coverage-settings", "tests/coverage.settings.xml")
 }
 
-# Every listed file must have no uncovered line. Branch coverage is reported, not gated: switch
-# expressions compile to branches no input can reach, and an exemption list for those would be noise.
+# Every listed file must have no uncovered line and no branch condition with an uncovered arm.
 function Invoke-Gate {
     $report = Get-ChildItem -Recurse -Filter coverage.cobertura.xml -Path $root | Sort-Object LastWriteTime -Descending | Select-Object -First 1
     if (-not $report) { throw "There is no coverage report; run ./dev.ps1 test first." }
@@ -70,6 +69,9 @@ function Invoke-Gate {
             foreach ($line in @($class.lines.line | Where-Object { $_ -and [int]$_.hits -eq 0 })) {
                 $failures.Add("${name}:$($line.number) is not covered")
             }
+            foreach ($line in @($class.lines.line | Where-Object { $_ -and $_.'condition-coverage' -and -not ([string]$_.'condition-coverage').StartsWith("100%") })) {
+                $failures.Add("${name}:$($line.number) has uncovered branches $($line.'condition-coverage')")
+            }
         }
     }
 
@@ -77,10 +79,10 @@ function Invoke-Gate {
     Write-Host ("Branch coverage across measured code: {0:P1}" -f $branchRate)
     if ($failures.Count -gt 0) {
         $failures | Sort-Object -Unique | ForEach-Object { Write-Host "  $_" }
-        throw "$($failures.Count) required line(s) are not covered."
+        throw "$($failures.Count) required line(s) or branch(es) are not covered."
     }
 
-    Write-Host "All $($required.Count) required files have every line covered."
+    Write-Host "All $($required.Count) required files have every line and branch covered."
 }
 
 function Invoke-Smoke {
