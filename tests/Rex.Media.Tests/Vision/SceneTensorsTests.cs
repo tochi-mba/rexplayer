@@ -246,8 +246,8 @@ public sealed class SceneTensorsTests
         {
             for (var x = 0; x < side; x++)
             {
-                scores[(y * side) + x] = x < side / 2 ? -4 : 4;
-                scores[(side * side) + (y * side) + x] = x < side / 2 ? 4 : -4;
+                scores[(y * side) + x] = x < side / 2 ? 0.01f : 0.99f;
+                scores[(side * side) + (y * side) + x] = x < side / 2 ? 0.99f : 0.01f;
             }
         }
 
@@ -259,6 +259,9 @@ public sealed class SceneTensorsTests
         Assert.InRange(matte[0], 0, 0.01f);
         Assert.InRange(matte[7], 0.99f, 1);
 
+        // Nothing either way is no one.
+        SceneDecoding.Matte(new float[2 * side * side], CropFrame.Around(8, 6), 8, 6, false, 8, 6, matte);
+        Assert.All(matte, value => Assert.Equal(0, value));
         Assert.Throws<ArgumentException>(() => SceneDecoding.Matte(new float[3], CropFrame.Around(8, 6), 8, 6, false, 8, 6, matte));
         Assert.Throws<ArgumentException>(() => SceneDecoding.Matte(scores, CropFrame.Around(8, 6), 8, 6, false, 8, 6, new float[3]));
     }

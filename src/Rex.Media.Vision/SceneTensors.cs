@@ -76,6 +76,15 @@ public static class PictureTensor
         // Pixels of the picture under one pixel of the tensor, each way; more than one is averaged.
         var span = Math.Max(1, (int)(frame.Side / size));
         var weight = 1f / (span * span);
+        // The window is an affine map, so a sample's place is a start plus steps across and down:
+        // one sine and cosine for the whole tensor rather than one per sample.
+        var (sin, cos) = MathF.SinCos(frame.Angle);
+        var step = frame.Side / (size * span);
+        var (acrossX, acrossY) = (cos * step, sin * step);
+        var (downX, downY) = (-sin * step, cos * step);
+        var (originX, originY) = frame.ToPicture(0, 0);
+        originX += (acrossX + downX) * 0.5f;
+        originY += (acrossY + downY) * 0.5f;
         for (var v = 0; v < size; v++)
         {
             for (var u = 0; u < size; u++)
@@ -83,9 +92,12 @@ public static class PictureTensor
                 float r = 0, g = 0, b = 0;
                 for (var sy = 0; sy < span; sy++)
                 {
+                    var row0 = (v * span) + sy;
                     for (var sx = 0; sx < span; sx++)
                     {
-                        var (x, y) = frame.ToPicture((u + ((sx + 0.5f) / span)) / size, (v + ((sy + 0.5f) / span)) / size);
+                        var column = (u * span) + sx;
+                        var x = originX + (column * acrossX) + (row0 * downX);
+                        var y = originY + (column * acrossY) + (row0 * downY);
                         var (px, py) = ((int)MathF.Floor(x), (int)MathF.Floor(y));
                         if (px < 0 || py < 0 || px >= picture.Width || py >= picture.Height)
                         {
@@ -229,7 +241,7 @@ public static class SceneDecoding
     /// <summary>
     /// Fills <paramref name="matte"/> (the scene's size, row by row) from the matte model's two
     /// class scores (room then person, each <see cref="MatteSide"/> square, planes one after the
-    /// other) for the window <paramref name="letterbox"/>: the person's share by a softmax, mirrored when asked.
+    /// other) for the window <paramref name="letterbox"/>: the person's share of the two, mirrored when asked.
     /// </summary>
     public static void Matte(ReadOnlySpan<float> scores, CropFrame letterbox, int pictureWidth, int pictureHeight, bool mirror, int width, int height, Span<float> matte)
     {
@@ -252,10 +264,9 @@ public static class SceneDecoding
                 var (u, v) = letterbox.FromPicture((sourceX + 0.5f) * pictureWidth / width, (y + 0.5f) * pictureHeight / height);
                 var (su, sv) = (Math.Clamp((int)(u * MatteSide), 0, MatteSide - 1), Math.Clamp((int)(v * MatteSide), 0, MatteSide - 1));
                 var at = (sv * MatteSide) + su;
-                var (room, person) = (scores[at], scores[plane + at]);
-                var top = Math.Max(room, person);
-                var personShare = MathF.Exp(person - top) / (MathF.Exp(room - top) + MathF.Exp(person - top));
-                matte[(y * width) + x] = personShare;
+                // The converted model ends in its own softmax: the two planes are already shares.
+                var (room, person) = (Math.Max(0, scores[at]), Math.Max(0, scores[plane + at]));
+                matte[(y * width) + x] = room + person > 0 ? person / (room + person) : 0;
             }
         }
     }

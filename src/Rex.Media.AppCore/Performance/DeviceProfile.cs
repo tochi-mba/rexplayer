@@ -1,6 +1,7 @@
 using System.Globalization;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
+using Rex.Media.Vision;
 
 namespace Rex.Media.AppCore.Performance;
 
@@ -103,6 +104,16 @@ public sealed record DeviceBudget
     /// <summary>Audio packets waiting for the decoder (see EngineOptions.AudioQueueCapacity).</summary>
     public int AudioQueueCapacity { get; init; } = 64;
 
+    /// <summary>How much of the camera's perception runs for the camera effects and the conductor (ADR-0022).</summary>
+    public PerceptionLevel CameraPerception { get; init; } = PerceptionLevel.Full;
+
+    /// <summary>
+    /// Whether the camera's models run on the graphics card. Only a card of its own: graphics built
+    /// into the processor are busy drawing the camera stage, and on them the small models are as
+    /// fast on the processor (docs/hardware-runs/2026-10-29-camera-models.md).
+    /// </summary>
+    public bool CameraModelsOnGpu { get; init; }
+
     /// <summary>Whether <paramref name="effect"/> may be shown on this tier.</summary>
     public bool Allows(VideoEffect effect) => !(HeavyEffectsOff && DeviceProfile.HeavyEffects.Contains(effect));
 }
@@ -199,6 +210,7 @@ public static class DeviceProfile
                 PauseBackgroundWorkWhileBrowsing = true,
                 VideoQueueCapacity = 24,
                 PictureMemoryBytes = 96L * 1024 * 1024,
+                CameraPerception = PerceptionLevel.Light,
             },
             PerformanceTier.Fastest => new DeviceBudget
             {
@@ -217,9 +229,12 @@ public static class DeviceProfile
                 Animations = false,
                 VideoQueueCapacity = 12,
                 AudioQueueCapacity = 32,
+                CameraPerception = PerceptionLevel.HandWritten,
             },
             _ => new DeviceBudget { Tier = PerformanceTier.BestQuality },
         };
+        budget = budget with { CameraModelsOnGpu = facts.Graphics == GraphicsKind.Discrete };
+
         // Energy Saver holds picture memory down whatever mode was chosen.
         if (facts.EnergySaver && budget.PictureMemoryBytes > EnergySaverPictureMemory)
         {
@@ -318,6 +333,15 @@ public static class DeviceProfile
         if (budget.VideoQueueCapacity < 32)
         {
             changes.Add("Fewer pictures wait to be decoded, so playing uses less memory.");
+        }
+
+        if (budget.CameraPerception == PerceptionLevel.Light)
+        {
+            changes.Add("The camera effects follow your body every third picture rather than every other.");
+        }
+        else if (budget.CameraPerception == PerceptionLevel.HandWritten)
+        {
+            changes.Add("The camera effects use rexplayer's own outline and motion; no downloaded camera model runs.");
         }
 
         return changes;

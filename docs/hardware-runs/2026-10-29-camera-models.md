@@ -34,12 +34,31 @@ Tensors, as the files declare them (NHWC for the MediaPipe models, NCHW for the 
 | Person detector | `input_1:0` float [1,3,224,224] | `Identity_1:0` [1,2254,1] scores, `Identity:0` [1,2254,12] boxes and points |
 | Pose | `input_1` float [1,256,256,3] | `Identity` [1,195] 39 points by 5, `Identity_1` [1,1] score, `Identity_2` [1,256,256,1] mask, `Identity_3` heatmaps, `Identity_4` [1,117] world points |
 
-What follows from it: on this computer the matte and both hands together take about 60 ms of
-processor a frame, which is a camera at 15 frames a second with the rendering untouched, or 30
-with the hands on DirectML; the body every other frame adds about 30 ms a frame. Those are the
-Balanced tier's rates. The Best quality tier assumes a separate graphics card and runs everything
-every frame. The person detector's slow tail on the processor (361 ms at p90) is why it is run only
-until a body is found and again when it is lost.
+How many processor threads a model may use (2026-10-30, the processor only, median of thirty runs,
+one thread between operators):
+
+| Model | 1 thread | 2 threads | 4 threads | 8 threads |
+|---|---:|---:|---:|---:|
+| PPHumanSeg matte | 34.6 ms | 22.7 ms | 19.7 ms | 59.0 ms |
+| Palm detector | 32.2 ms | 19.5 ms | 16.2 ms | 36.4 ms |
+| Hand landmarks | 13.8 ms | 8.5 ms | 5.2 ms | 11.0 ms |
+| Person detector | 33.0 ms | 19.0 ms | 15.1 ms | 31.1 ms |
+| Pose | 38.7 ms | 26.4 ms | 19.6 ms | 43.7 ms |
+
+Eight threads on a processor of four cores is the slowest of all (the second thread of each core
+fights the first), and four is only about a quarter faster than two. The camera's models therefore
+run on two threads: with both hands followed a picture costs about 55 ms (the matte, two hands and
+the body every other picture), close to 18 pictures a second, and half the processor stays with the
+sound, the decoding and the window. The renderer smooths the points between pictures.
+
+What follows from it: on built-in graphics like these, DirectML is no faster than the processor
+for models this small, and the graphics are busy drawing the camera stage, so the models run on the
+processor (`DeviceBudget.CameraModelsOnGpu` is true only for a card of its own). This laptop is on
+the Best quality tier (the body every other picture); Balanced follows the body every third and
+Fastest runs no model. Perception has its own worker below normal priority and always takes the
+newest picture, so a slower computer sees fewer pictures, never a slower stage. The person
+detector's slow tail on the processor (361 ms at p90 with every thread) is why it runs only until
+a body is found and again when it is lost.
 
 Compared with ADR-0019's models on the same class of machine (an image encoder at 4 to 9 seconds),
 these are two hundred times cheaper, which is the difference between a tool for a paused picture

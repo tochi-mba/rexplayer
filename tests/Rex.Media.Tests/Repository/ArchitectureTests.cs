@@ -52,7 +52,9 @@ public sealed class ArchitectureTests
         ["Discs"] = (Portable, ["Primitives", "Diagnostics", "IO", "Containers"]),
         ["Discs.Device"] = (Windows, ["Primitives", "Discs", "Interop"]),
         ["Extensibility"] = (Portable, ["Primitives", "Diagnostics"]),
-        ["AppCore"] = (Portable, ["Primitives", "Diagnostics", "IO", "Containers", "Codecs", "Codecs.Software", "Audio", "Video", "Subtitles", "Engine", "Net", "Library", "Settings", "StreamOut", "Cast", "Discs", "Extensibility"]),
+        // ADR-0022: the camera's sense of the listener (Vision) is pure, and the conductor and the
+        // performance tiers in AppCore read it.
+        ["AppCore"] = (Portable, ["Primitives", "Diagnostics", "IO", "Containers", "Codecs", "Codecs.Software", "Audio", "Video", "Subtitles", "Engine", "Net", "Library", "Settings", "StreamOut", "Cast", "Discs", "Extensibility", "Vision"]),
         ["Updater"] = (Windows, ["Primitives", "Diagnostics", "IO", "Settings"]),
         // Windows' own face detector, for keeping captions off faces (OSD-11); a Windows 10 API, so
         // the command line that uses it names the platform version as the app does.
