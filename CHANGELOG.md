@@ -8,6 +8,10 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 
 - **Groundwork for camera effects that see you.** ADR-0022 chooses the camera perception models (a soft matte, 21-point hands and a 33-point body, all Apache-2.0, about 32 MB, optional) and records their speed on an ordinary laptop; `SceneSense` is the one shape every finder fills, with a 1 euro filter so tracked points are steady at rest and immediate in motion. Nothing visible changes yet.
 
+### Improved
+
+- The coverage gate now fails on any branch with an untested arm, not only on untested lines, for every file in the portable engine and app-core assemblies. The app shell and platform adapters stay excluded, as before, and are proved by the UI and integration suites.
+
 ### Fixed
 
 - Opus sound on a Mac starts in step: the first 2.5 ms the Mac's decoder keeps back no longer pull the sound after it early, with a short silence in its place.
