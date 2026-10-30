@@ -469,3 +469,9 @@ DetectorDecoding.cs
 SceneTensors.cs
 PerceptionPlan.cs
 SenseWorker.cs
+StageShaders.cs
+CameraStage.cs
+InkBodyEffect.cs
+NeonSkeletonEffect.cs
+EchoClonesEffect.cs
+StageGpu.cs
