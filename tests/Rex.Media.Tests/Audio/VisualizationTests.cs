@@ -207,11 +207,14 @@ public sealed class VisualizationTests
         Assert.Equal(VisualizerChoice.Spotlight, Visualizers.Next(VisualizerChoice.Shatter));
         Assert.Equal(VisualizerChoice.InfinityMirror, Visualizers.Next(VisualizerChoice.Spotlight));
         Assert.Equal(VisualizerChoice.Water, Visualizers.Next(VisualizerChoice.InfinityMirror));
-        Assert.Equal(VisualizerChoice.Off, Visualizers.Next(VisualizerChoice.Water));
+        Assert.Equal(VisualizerChoice.InkBody, Visualizers.Next(VisualizerChoice.Water));
+        Assert.Equal(VisualizerChoice.NeonSkeleton, Visualizers.Next(VisualizerChoice.InkBody));
+        Assert.Equal(VisualizerChoice.EchoClones, Visualizers.Next(VisualizerChoice.NeonSkeleton));
+        Assert.Equal(VisualizerChoice.Off, Visualizers.Next(VisualizerChoice.EchoClones));
         Assert.Equal(VisualizerChoice.Spectrum, Visualizers.Next(VisualizerChoice.Off));
-        Assert.Equal(VisualizerChoice.Off, Visualizers.Next((VisualizerChoice)42));
+        Assert.Equal(VisualizerChoice.Off, Visualizers.Next((VisualizerChoice)99));
         Assert.Equal(
-            ["No visualisation", "Spectrum", "Oscilloscope", "Level meters", "Spectrogram", "Vinyl", "Halo", "Mirror wave", "Aurora", "Embers", "Ripples", "Strobe", "Camera silhouette", "Beat edit", "Resonance", "Groove", "Flight", "Cymatics", "Ridgelines", "Synthwave", "Fireworks", "Lightning", "Lava lamp", "Constellation", "Galaxy", "Kaleidoscope", "Murmuration", "Ink", "Skyline", "Mandala", "Clones", "Time warp", "Aura", "LED wall", "Stardust", "Hall of mirrors", "Light painting", "Scanner", "Shatter", "Spotlight", "Infinity mirror", "Water"],
+            ["No visualisation", "Spectrum", "Oscilloscope", "Level meters", "Spectrogram", "Vinyl", "Halo", "Mirror wave", "Aurora", "Embers", "Ripples", "Strobe", "Camera silhouette", "Beat edit", "Resonance", "Groove", "Flight", "Cymatics", "Ridgelines", "Synthwave", "Fireworks", "Lightning", "Lava lamp", "Constellation", "Galaxy", "Kaleidoscope", "Murmuration", "Ink", "Skyline", "Mandala", "Clones", "Time warp", "Aura", "LED wall", "Stardust", "Hall of mirrors", "Light painting", "Scanner", "Shatter", "Spotlight", "Infinity mirror", "Water", "Ink body", "Neon skeleton", "Echo clones"],
             Enum.GetValues<VisualizerChoice>().Select(Visualizers.Name));
         var normalized = new PlayerSettings { Visualizer = (VisualizerChoice)99, AudiobookVisualizer = (VisualizerChoice)99 }.Normalize();
         Assert.Equal(VisualizerChoice.Spectrum, normalized.Visualizer);

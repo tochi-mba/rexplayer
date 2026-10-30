@@ -10,6 +10,13 @@ public sealed class ModelSet
     private readonly ModelStore _store;
     private readonly InstallStateMachine[] _machines;
 
+    /// <summary>A set for one optional download as Preferences presents it.</summary>
+    public ModelSet(ModelStore store, ModelPack pack)
+        : this(store, (pack ?? throw new ArgumentNullException(nameof(pack))).Models)
+    {
+        Pack = pack;
+    }
+
     public ModelSet(ModelStore store, IReadOnlyList<VisionModel> models)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
@@ -32,12 +39,15 @@ public sealed class ModelSet
 
     public IReadOnlyList<VisionModel> Models { get; }
 
+    /// <summary>How Preferences presents the set: Enhanced Subject Lock's words unless made for another pack.</summary>
+    public ModelPack Pack { get; private init; } = ModelPack.SubjectLock;
+
     public IReadOnlyList<InstallStatus> Statuses => [.. _machines.Select(machine => machine.Status)];
 
     /// <summary>Whether every model is installed at the catalogue's version and may be loaded.</summary>
     public bool Ready => _machines.All(machine => machine.Status.Phase == InstallPhase.Installed);
 
-    public ModelDownloadView View => ModelDownloadText.Describe(Models, Statuses);
+    public ModelDownloadView View => ModelDownloadText.Describe(Pack with { Models = Models }, Statuses);
 
     /// <summary>Downloads every model not yet installed at the catalogue's version.</summary>
     public async Task DownloadAsync(ModelDownloader downloader, CancellationToken cancellation = default)

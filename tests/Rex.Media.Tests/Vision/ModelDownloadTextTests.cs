@@ -92,7 +92,7 @@ public sealed class ModelDownloadTextTests
     [Fact]
     public void EveryModelNeedsOneStatus()
     {
-        Assert.Throws<ArgumentNullException>(() => ModelDownloadText.Describe(null!, []));
+        Assert.Throws<ArgumentNullException>(() => ModelDownloadText.Describe((IReadOnlyList<VisionModel>)null!, []));
         Assert.Throws<ArgumentNullException>(() => ModelDownloadText.Describe(Both, null!));
         Assert.Throws<ArgumentException>(() => ModelDownloadText.Describe([], []));
         Assert.Throws<ArgumentException>(() => ModelDownloadText.Describe(Both, [new(InstallPhase.Installed)]));

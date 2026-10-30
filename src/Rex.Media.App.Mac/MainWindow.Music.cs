@@ -209,7 +209,9 @@ public sealed partial class MainWindow
         VisualizerChoice.Aura or VisualizerChoice.LedWall or VisualizerChoice.Stardust or
         VisualizerChoice.HallOfMirrors or VisualizerChoice.LightPainting or
         VisualizerChoice.Scanner or VisualizerChoice.Shatter or VisualizerChoice.Spotlight or
-        VisualizerChoice.InfinityMirror or VisualizerChoice.Water or VisualizerChoice.BeatEdit;
+        VisualizerChoice.InfinityMirror or VisualizerChoice.Water or VisualizerChoice.BeatEdit or
+        // The graphics-card effects show their software stand-ins on a Mac; these two use the camera.
+        VisualizerChoice.NeonSkeleton or VisualizerChoice.EchoClones;
 
     private void DrawMacMusicScene(VisualizerChoice choice)
     {

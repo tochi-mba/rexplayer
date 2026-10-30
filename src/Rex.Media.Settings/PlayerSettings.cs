@@ -396,6 +396,13 @@ public enum VisualizerChoice
 
     /// <summary>The picture bent through ripples each kick drops at the listener.</summary>
     Water,
+
+    /// <summary>The listener pouring ink into a fluid their movement stirs (on the graphics card, ADR-0022).</summary>
+    InkBody,
+    /// <summary>The listener's hands and body as lines of light, plasma between the fingertips (on the graphics card).</summary>
+    NeonSkeleton,
+    /// <summary>The listener's last moments cascading behind them as coloured outlines on the beat (on the graphics card).</summary>
+    EchoClones,
 }
 
 /// <summary>What the sleep timer does when its time comes (PB-21).</summary>

@@ -86,7 +86,7 @@ public sealed class ModelSetTests
         var store = new ModelStore(folder.Path);
 
         Assert.Throws<ArgumentNullException>(() => new ModelSet(null!, [One]));
-        Assert.Throws<ArgumentNullException>(() => new ModelSet(store, null!));
+        Assert.Throws<ArgumentNullException>(() => new ModelSet(store, (IReadOnlyList<VisionModel>)null!));
         Assert.Throws<ArgumentException>(() => new ModelSet(store, []));
         await Assert.ThrowsAsync<ArgumentNullException>(() => new ModelSet(store, [One]).DownloadAsync(null!, TestContext.Current.CancellationToken));
     }
