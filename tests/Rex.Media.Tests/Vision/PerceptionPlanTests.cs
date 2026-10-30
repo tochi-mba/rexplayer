@@ -103,6 +103,49 @@ public sealed class PerceptionPlanTests
         Assert.True(plan.RunHands);
     }
 
+    [Theory]
+    [InlineData(PerceptionLevel.Full, 3, 6)]
+    [InlineData(PerceptionLevel.Light, 4, 8)]
+    public void AfterASecondWithNobodyTheDetectorsLookLessOftenUntilSomethingIsFound(PerceptionLevel level, int palmEvery, int personEvery)
+    {
+        var plan = new PerceptionPlan { Level = level };
+        for (var i = 0; i <= PerceptionPlan.Idle; i++)
+        {
+            plan.Next(0, false);
+        }
+
+        var (palms, people) = (0, 0);
+        for (var i = 0; i < 48; i++)
+        {
+            plan.Next(0, false);
+            palms += plan.RunPalm ? 1 : 0;
+            people += plan.RunPerson ? 1 : 0;
+            // The matte goes on every picture: an empty room is still an answer.
+            Assert.True(plan.RunMatte);
+        }
+
+        Assert.Equal(48 / palmEvery, palms);
+        Assert.Equal(48 / personEvery, people);
+
+        // One hand found: the idle count starts again, and the palm detector is back at its searching rate.
+        plan.Next(1, false);
+        var searching = 0;
+        for (var i = 0; i < 4; i++)
+        {
+            plan.Next(1, false);
+            searching += plan.RunPalm ? 1 : 0;
+        }
+
+        Assert.Equal(level == PerceptionLevel.Full ? 4 : 2, searching);
+
+        // A body found ends the person detector's idle rate too, and a reset forgets the idle counts.
+        plan.Next(0, true);
+        plan.Reset();
+        plan.Next(0, false);
+        Assert.True(plan.RunPalm);
+        Assert.True(plan.RunPerson);
+    }
+
     [Fact]
     public void ResettingCountsAgainAndBadCountsAreRefused()
     {

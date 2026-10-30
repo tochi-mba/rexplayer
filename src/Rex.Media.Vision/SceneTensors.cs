@@ -73,8 +73,9 @@ public static class PictureTensor
         }
 
         var plane = size * size;
-        // Pixels of the picture under one pixel of the tensor, each way; more than one is averaged.
-        var span = Math.Max(1, (int)(frame.Side / size));
+        // Pixels of the picture under one pixel of the tensor, each way; more than one is averaged,
+        // two by two at most: enough that a whole picture does not alias, cheap enough for every frame.
+        var span = Math.Clamp((int)(frame.Side / size), 1, 2);
         var weight = 1f / (span * span);
         // The window is an affine map, so a sample's place is a start plus steps across and down:
         // one sine and cosine for the whole tensor rather than one per sample.
@@ -122,6 +123,27 @@ public static class PictureTensor
                     (tensor[at], tensor[plane + at], tensor[(2 * plane) + at]) = (red, green, blue);
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Lays a filled NHWC tensor of values 0 to 1 out as NCHW, each value as
+    /// (value - <paramref name="offset"/>) * <paramref name="scale"/>: two models that take the same
+    /// window (the matte and the palm detector both take the 192 letterbox) share one sampling.
+    /// </summary>
+    public static void Relayout(ReadOnlySpan<float> nhwc, int size, float offset, float scale, Span<float> nchw)
+    {
+        var plane = size * size;
+        if (nhwc.Length != plane * 3 || nchw.Length != plane * 3)
+        {
+            throw new ArgumentException("Both tensors hold three values per pixel of the square.", nameof(nchw));
+        }
+
+        for (var at = 0; at < plane; at++)
+        {
+            nchw[at] = (nhwc[at * 3] - offset) * scale;
+            nchw[plane + at] = (nhwc[(at * 3) + 1] - offset) * scale;
+            nchw[(2 * plane) + at] = (nhwc[(at * 3) + 2] - offset) * scale;
         }
     }
 }
