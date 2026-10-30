@@ -199,6 +199,7 @@ public sealed partial class MainWindow
         _spectrogramBands.Reset();
         _meterLeft.Reset();
         _meterRight.Reset();
+        StopCameraStage();
         // An old frame is never allowed to finish painting a later song,
         // camera mode or closed window. Cancellation is cooperative and leaves
         // each worker's stage untouched until it returns.
@@ -366,6 +367,13 @@ public sealed partial class MainWindow
         _peakShapes.Clear();
         (_wave, _visualNote) = (null, null);
         var (width, height) = (Visualizer.ActualWidth, Visualizer.ActualHeight);
+        if (DrawsOnStage(choice) && BuildCameraStage(choice))
+        {
+            NoteCamera(height);
+            return;
+        }
+
+        StopCameraStage();
         if (VisualScene.Draws(choice))
         {
             BuildStage(height);
@@ -601,6 +609,13 @@ public sealed partial class MainWindow
         }
 
         var rate = Math.Max(1, _player.SoundSampleRate);
+        if (_builtFor is { } onStage && _cameraStage is not null && DrawsOnStage(onStage))
+        {
+            DrawCameraStage(onStage, rate, elapsed);
+            ShowCameraNote(onStage);
+            return;
+        }
+
         if (_visualStage is { } stage && _visualBitmap is not null && _builtFor is { } choice && VisualScene.Draws(choice))
         {
             DrawStage(stage, _visualBitmap, choice, rate, elapsed);
@@ -744,14 +759,7 @@ public sealed partial class MainWindow
                 }
             }
 
-            if (_visualNote is not null)
-            {
-                _visualNote.Text = !_settings.CameraAllowed ? "Choose this visualisation from the menu to let it use the camera."
-                    : camera?.Problem is { } problem ? problem + $" Trying again every {CameraRetry.TotalSeconds:0} seconds."
-                    : camera is null || !camera.HasPicture ? "Starting the camera..."
-                    : choice == VisualizerChoice.Silhouette && camera.IsLearning ? "Learning the EMPTY background. Step fully out of view until calibration finishes, then come back."
-                    : "";
-            }
+            ShowCameraNote(choice);
         }
 
         // The sound and the settings as they are now go with the frame; the window keeps its own.

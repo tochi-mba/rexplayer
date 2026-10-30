@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Rex.Media.AppCore.Player;
+using Rex.Media.Vision;
 using Windows.Graphics.Imaging;
 using Windows.Media.Capture;
 using Windows.Media.Capture.Frames;
@@ -32,6 +33,10 @@ internal sealed partial class CameraFeed : IAsyncDisposable
     private readonly SilhouetteMask _mask = new(MaskWidth, MaskHeight);
     private readonly byte[] _picture = new byte[PictureWidth * PictureHeight * 4];
     private byte[] _frameBytes = [];
+    private byte[] _full = [];
+    private (int Width, int Height) _fullSize;
+    private long _fullStamp;
+    private SenseWorker? _sense;
     private readonly object _gate = new();
     private readonly SemaphoreSlim _lifetime = new(1, 1);
     private MediaCapture? _capture;
@@ -63,6 +68,31 @@ internal sealed partial class CameraFeed : IAsyncDisposable
                 // A flipped camera needs a flipped room reference, otherwise its walls
                 // appear as foreground until the old model slowly adapts.
                 _mask.Reset();
+            }
+        }
+    }
+
+    /// <summary>
+    /// For the camera effects on the graphics card (ADR-0022): each picture is kept whole for the
+    /// stage (<see cref="CopyFull"/>) and offered to this worker to be perceived, and the software
+    /// outline and the small picture are not made, which would only cost time. Null for the
+    /// visualisations drawn in software.
+    /// </summary>
+    public SenseWorker? Sense
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _sense;
+            }
+        }
+
+        set
+        {
+            lock (_gate)
+            {
+                _sense = value;
             }
         }
     }
@@ -156,6 +186,31 @@ internal sealed partial class CameraFeed : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// The newest whole picture for the stage, BGRA at the camera's own size, copied into
+    /// <paramref name="into"/> (made again when the size changes); its stamp, which changes with each
+    /// picture, or 0 before the first.
+    /// </summary>
+    public long CopyFull(ref byte[] into, out int width, out int height)
+    {
+        lock (_gate)
+        {
+            (width, height) = _fullSize;
+            if (_fullStamp == 0)
+            {
+                return 0;
+            }
+
+            if (into.Length != _full.Length)
+            {
+                into = new byte[_full.Length];
+            }
+
+            _full.CopyTo(into, 0);
+            return _fullStamp;
+        }
+    }
+
     /// <summary>Watches the room again, as when the camera has moved.</summary>
     public void Relearn()
     {
@@ -195,6 +250,8 @@ internal sealed partial class CameraFeed : IAsyncDisposable
                 Array.Clear(_picture);
                 Array.Clear(_frameBytes);
                 _frameBytes = [];
+                Array.Clear(_full);
+                (_full, _fullSize, _fullStamp, _sense) = ([], default, 0, null);
                 _mask.Reset();
                 HasPicture = false;
             }
@@ -243,6 +300,22 @@ internal sealed partial class CameraFeed : IAsyncDisposable
             }
 
             picture.CopyToBuffer(_frameBytes.AsBuffer());
+            if (_sense is { } sense)
+            {
+                // The stage takes the picture whole; perception has a copy of its own, on its own thread.
+                if (_full.Length != required)
+                {
+                    _full = new byte[required];
+                }
+
+                _frameBytes.AsSpan(0, required).CopyTo(_full);
+                _fullSize = (picture.PixelWidth, picture.PixelHeight);
+                _fullStamp = System.Diagnostics.Stopwatch.GetTimestamp();
+                sense.Offer(_full, picture.PixelWidth, picture.PixelHeight, picture.PixelWidth * 4, _fullStamp, mirror: true);
+                HasPicture = true;
+                return;
+            }
+
             Shrink(_frameBytes, picture.PixelWidth, picture.PixelHeight, _picture, _mirror);
             _mask.UpdateColour(_frameBytes, picture.PixelWidth, picture.PixelHeight, Threshold, _mirror);
             HasPicture = true;

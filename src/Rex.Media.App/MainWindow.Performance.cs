@@ -159,6 +159,7 @@ public sealed partial class MainWindow
         // without animations it stands still and keeps marking the line.
         PlayingBars.SetAnimationsEnabled(budget.Animations);
 
+        ApplyCameraPerception();
         if (_visualizing && before.VisualMaxSide != budget.VisualMaxSide)
         {
             BuildVisualizer();

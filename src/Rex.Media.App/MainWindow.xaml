@@ -86,6 +86,8 @@
         <!-- Covers a presenter's late or remembered frame as soon as an audio-only item takes over. -->
         <Border x:Name="VideoBlankLayer" Background="Black" />
         <Grid x:Name="Visualizer" Visibility="Collapsed" IsHitTestVisible="False" Margin="48,120,48,48" AutomationProperties.AutomationId="Visualizer" AutomationProperties.Name="Visualisation">
+          <!-- The camera effects drawn on the graphics card (ADR-0022); shown only while one is chosen. -->
+          <SwapChainPanel x:Name="CameraStagePanel" Visibility="Collapsed" AutomationProperties.AutomationId="CameraStage" />
           <Image x:Name="SpectrogramImage" Stretch="Fill" />
           <Canvas x:Name="VisualCanvas" />
         </Grid>
