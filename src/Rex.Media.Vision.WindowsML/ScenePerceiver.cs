@@ -105,10 +105,16 @@ public sealed class ScenePerceiver : IScenePerceiver, IDisposable
         var followed = (_handWindows[0] is null ? 0 : 1) + (_handWindows[1] is null ? 0 : 1);
         Plan.Next(followed, _bodyWindow is not null);
 
+        // The matte and the palm detector take the same 192 letterbox: sampled once, laid out twice.
+        if (Plan.RunMatte || Plan.RunPalm)
+        {
+            PictureTensor.Fill(picture, letterbox, SceneDecoding.MatteSide, TensorLayout.Nhwc, 0, 1, _palmInput);
+        }
+
         if (Plan.RunMatte)
         {
             var started = Stopwatch.GetTimestamp();
-            PictureTensor.Fill(picture, letterbox, SceneDecoding.MatteSide, TensorLayout.Nchw, 0.5f, 2, _matteInput);
+            PictureTensor.Relayout(_palmInput, SceneDecoding.MatteSide, 0.5f, 2, _matteInput);
             using (var input = OrtValue.CreateTensorValueFromMemory(_matteInput, [1, 3, SceneDecoding.MatteSide, SceneDecoding.MatteSide]))
             using (var output = _matte.Run(_run, _matte.InputNames, [input], _matte.OutputNames))
             {
@@ -121,7 +127,7 @@ public sealed class ScenePerceiver : IScenePerceiver, IDisposable
         if (Plan.RunPalm)
         {
             var started = Stopwatch.GetTimestamp();
-            FindPalms(picture, letterbox);
+            FindPalms(letterbox);
             Plan.PalmBudget.Record(Stopwatch.GetElapsedTime(started));
         }
 
@@ -158,9 +164,8 @@ public sealed class ScenePerceiver : IScenePerceiver, IDisposable
         }
     }
 
-    private void FindPalms(BgraPicture picture, CropFrame letterbox)
+    private void FindPalms(CropFrame letterbox)
     {
-        PictureTensor.Fill(picture, letterbox, 192, TensorLayout.Nhwc, 0, 1, _palmInput);
         using var input = OrtValue.CreateTensorValueFromMemory(_palmInput, [1, 192, 192, 3]);
         using var output = _palm.Run(_run, _palm.InputNames, [input], _palm.OutputNames);
         _palms.Decode(output[0].GetTensorDataAsSpan<float>(), output[1].GetTensorDataAsSpan<float>(), PalmThreshold, Overlap);

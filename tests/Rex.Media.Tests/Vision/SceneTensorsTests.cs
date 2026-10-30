@@ -108,6 +108,45 @@ public sealed class SceneTensorsTests
     }
 
     [Fact]
+    public void ANhwcTensorIsLaidOutAsPlanesWithItsOwnScaling()
+    {
+        // Two pixels: (0.1, 0.2, 0.3) and (0.4, 0.5, 0.6).
+        float[] nhwc = [0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0, 0, 0, 1, 1, 1];
+        var nchw = new float[12];
+        PictureTensor.Relayout(nhwc, 2, 0.5f, 2, nchw);
+
+        Assert.Equal(-0.8f, nchw[0], 4);
+        Assert.Equal(-0.2f, nchw[1], 4);
+        Assert.Equal(-0.6f, nchw[4], 4);
+        Assert.Equal(0, nchw[5], 4);
+        Assert.Equal(-0.4f, nchw[8], 4);
+        Assert.Equal(0.2f, nchw[9], 4);
+        Assert.Equal(1, nchw[11], 4);
+        Assert.Throws<ArgumentException>(() => PictureTensor.Relayout(nhwc, 3, 0, 1, nchw));
+        Assert.Throws<ArgumentException>(() => PictureTensor.Relayout(nhwc, 2, 0, 1, new float[3]));
+    }
+
+    [Fact]
+    public void AVeryLargeWindowIsAveragedTwoByTwoAtMost()
+    {
+        // A 12 pixel square to a 2 pixel tensor: each tensor pixel samples 2 by 2 points, not 6 by 6.
+        var pixels = new byte[12 * 12 * 4];
+        for (var y = 0; y < 12; y++)
+        {
+            for (var x = 0; x < 12; x++)
+            {
+                // Red is 240 on the sampled points (columns and rows 1 and 4 of each 6), 0 elsewhere.
+                var sampled = x % 6 is 1 or 4 && y % 6 is 1 or 4;
+                pixels[(((y * 12) + x) * 4) + 2] = (byte)(sampled ? 240 : 0);
+            }
+        }
+
+        var tensor = new float[2 * 2 * 3];
+        PictureTensor.Fill(Picture(pixels, 12, 12), CropFrame.Around(12, 12), 2, TensorLayout.Nhwc, 0, 1, tensor);
+        Assert.Equal(240 / 255f, tensor[0], 4);
+    }
+
+    [Fact]
     public void TensorFillingIsChecked()
     {
         var pixels = Gradient(4, 4);

@@ -28,7 +28,15 @@ public sealed class PerceptionPlan
     /// <summary>With the body followed, the person detector still runs this often.</summary>
     public const int PersonSweepEvery = 60;
 
+    /// <summary>
+    /// After this many pictures with nothing found (about a second), the detectors look less often:
+    /// an empty room or a listener out of frame should not cost a detector every picture.
+    /// </summary>
+    public const int Idle = 30;
+
     private long _frame = -1;
+    private int _handsMissing;
+    private int _bodyMissing;
 
     public PerceptionLevel Level { get; set; } = PerceptionLevel.Light;
 
@@ -73,12 +81,20 @@ public sealed class PerceptionPlan
             return;
         }
 
-        var bodyEvery = Level == PerceptionLevel.Full ? 2 : 3;
+        var full = Level == PerceptionLevel.Full;
+        _handsMissing = handsFollowed == 0 ? _handsMissing + 1 : 0;
+        _bodyMissing = bodyFollowed ? 0 : _bodyMissing + 1;
+        var palmEvery = handsFollowed == 2 ? PalmSweepEvery
+            : _handsMissing > Idle ? (full ? 3 : 4)
+            : full ? 1 : 2;
+        var personEvery = bodyFollowed ? PersonSweepEvery
+            : _bodyMissing > Idle ? (full ? 6 : 8)
+            : full ? 2 : 4;
         RunMatte = Due(MatteBudget, 1);
-        RunPalm = Due(PalmBudget, handsFollowed < 2 ? (Level == PerceptionLevel.Full ? 1 : 2) : PalmSweepEvery);
+        RunPalm = Due(PalmBudget, palmEvery);
         RunHands = Due(HandBudget, 1);
-        RunPerson = Due(PersonBudget, bodyFollowed ? PersonSweepEvery : (Level == PerceptionLevel.Full ? 2 : 4));
-        RunPose = Due(PoseBudget, bodyEvery);
+        RunPerson = Due(PersonBudget, personEvery);
+        RunPose = Due(PoseBudget, full ? 2 : 3);
     }
 
     /// <summary>Whether a model that should run every <paramref name="every"/> pictures runs on this one, slowed or stopped by its budget.</summary>
@@ -99,5 +115,5 @@ public sealed class PerceptionPlan
     }
 
     /// <summary>Starts counting pictures again; the budgets keep what they learned.</summary>
-    public void Reset() => _frame = -1;
+    public void Reset() => (_frame, _handsMissing, _bodyMissing) = (-1, 0, 0);
 }
