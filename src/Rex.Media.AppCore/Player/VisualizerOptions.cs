@@ -78,7 +78,8 @@ public static class VisualizerOptions
             new(Color, "Colour", VisualOptionKind.Color, 0xFF3B30),
             new(Sensitivity, "Sensitivity", VisualOptionKind.Number, 1, 0.25, 4),
         ];
-        if (Visuals.VisualScene.Draws(choice))
+        // The beat meter is drawn by the software stage; the graphics-card effects have none.
+        if (Visuals.VisualScene.Draws(choice) && !Visuals.Stage.CameraEffects.OnStage(choice))
         {
             options.Add(new(Meter, "Show the beat meter (what the music is heard as)", VisualOptionKind.Toggle, 0));
         }
@@ -387,6 +388,9 @@ public static class VisualizerOptions
         VisualizerChoice.Water => VisualPalette.Ocean,
         VisualizerChoice.Embers => VisualPalette.Fire,
         VisualizerChoice.Ripples => VisualPalette.Ocean,
+        VisualizerChoice.InkBody => VisualPalette.Neon,
+        VisualizerChoice.NeonSkeleton => VisualPalette.Neon,
+        VisualizerChoice.EchoClones => VisualPalette.Neon,
         _ => VisualPalette.Accent,
     };
 

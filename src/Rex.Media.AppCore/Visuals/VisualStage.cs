@@ -166,7 +166,8 @@ public sealed class VisualStage
             return false;
         }
 
-        Context.Choice = choice;
+        // A stand-in reads its own settings: the graphics-card effect's are not the scene's.
+        Context.Choice = Stage.CameraEffects.StandIn(choice);
         Context.Options = options;
         Context.Dt = Math.Clamp(elapsed.TotalSeconds, 0, 0.25);
         Context.Prepare();

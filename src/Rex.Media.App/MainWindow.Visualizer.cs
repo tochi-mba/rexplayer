@@ -264,6 +264,7 @@ public sealed partial class MainWindow
         or VisualizerChoice.Clones or VisualizerChoice.TimeWarp or VisualizerChoice.Aura or VisualizerChoice.LedWall or VisualizerChoice.Stardust
         or VisualizerChoice.HallOfMirrors or VisualizerChoice.LightPainting or VisualizerChoice.Scanner or VisualizerChoice.Shatter
         or VisualizerChoice.Spotlight or VisualizerChoice.InfinityMirror or VisualizerChoice.Water
+        or VisualizerChoice.InkBody or VisualizerChoice.NeonSkeleton or VisualizerChoice.EchoClones
         || (choice == VisualizerChoice.BeatEdit && VisualizerOptions.Choice(_settings.VisualOptions, choice, "source") == 0);
 
     /// <summary>Asks once whether the camera may be used; true when it may.</summary>

@@ -184,11 +184,14 @@ public abstract class VisualScene
         [VisualizerChoice.BeatEdit] = () => new BeatEditScene(),
     };
 
-    /// <summary>The scene for <paramref name="choice"/>, or null for those the window draws with shapes.</summary>
-    public static VisualScene? For(VisualizerChoice choice) => Scenes.TryGetValue(choice, out var make) ? make() : null;
+    /// <summary>
+    /// The scene for <paramref name="choice"/>, or null for those the window draws with shapes. A
+    /// graphics-card camera effect gets its software stand-in (<see cref="Stage.CameraEffects.StandIn"/>).
+    /// </summary>
+    public static VisualScene? For(VisualizerChoice choice) => Scenes.TryGetValue(Stage.CameraEffects.StandIn(choice), out var make) ? make() : null;
 
-    /// <summary>Whether <paramref name="choice"/> is drawn by a scene rather than with the window's shapes.</summary>
-    public static bool Draws(VisualizerChoice choice) => Scenes.ContainsKey(choice);
+    /// <summary>Whether <paramref name="choice"/> is drawn by a scene (or its stand-in) rather than with the window's shapes.</summary>
+    public static bool Draws(VisualizerChoice choice) => Scenes.ContainsKey(Stage.CameraEffects.StandIn(choice));
 
     /// <summary>Draws the next frame on <see cref="VisualContext.Canvas"/>.</summary>
     public abstract void Draw(VisualContext context);

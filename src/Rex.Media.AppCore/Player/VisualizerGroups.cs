@@ -53,6 +53,9 @@ public static class VisualizerGroups
         ]),
         ("With the camera",
         [
+            (VisualizerChoice.InkBody, "My body pouring ink that my moves stir"),
+            (VisualizerChoice.NeonSkeleton, "My skeleton in neon, plasma between my hands"),
+            (VisualizerChoice.EchoClones, "Echoes of my moves on the beat"),
             (VisualizerChoice.Silhouette, "My silhouette"),
             (VisualizerChoice.BeatEdit, "A live beat edit, from the camera or the cover"),
             (VisualizerChoice.Clones, "Clones of my dance"),

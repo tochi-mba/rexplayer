@@ -14,8 +14,35 @@ public sealed record ModelDownloadView(
     bool IsError);
 
 /// <summary>
-/// The words and button states of the "Enhanced Subject Lock (optional download)" section in
-/// Preferences, decided here so the window only copies them onto controls.
+/// One optional download as Preferences presents it: its heading, what it adds, where it comes
+/// from, what the section says once it is installed or out of date, and its models.
+/// </summary>
+public sealed record ModelPack(string Heading, string Note, string Source, string Installed, string Update, IReadOnlyList<VisionModel> Models)
+{
+    /// <summary>Enhanced Subject Lock (ADR-0019).</summary>
+    public static ModelPack SubjectLock { get; } = new(
+        ModelDownloadText.Heading,
+        ModelDownloadText.Note,
+        "the model authors' own pages",
+        "Installed. Subject Lock uses these models when you select and remove.",
+        "A newer version of the models is available. Until it is downloaded, Subject Lock uses its built-in methods.",
+        ModelCatalogue.SubjectLock);
+
+    /// <summary>The camera effects pack (ADR-0022).</summary>
+    public static ModelPack Camera { get; } = new(
+        "Camera effects pack (optional download)",
+        "The camera effects work without this download, with rexplayer's own outline and motion. With it, they see your outline, "
+        + "every finger of your hands and the joints of your body, so the effects follow you closely. The models run on this computer, "
+        + "on two processor threads at most, only while a camera effect shows; nothing the camera sees is sent anywhere or kept.",
+        "OpenCV's model zoo, where the authors' models are published ready to run",
+        "Installed. The camera effects use these models while one of them shows.",
+        "A newer version of the models is available. Until it is downloaded, the camera effects use rexplayer's own outline and motion.",
+        ModelCatalogue.CameraPack);
+}
+
+/// <summary>
+/// The words and button states of an optional download's section in Preferences (Enhanced Subject
+/// Lock, the camera effects pack), decided here so the window only copies them onto controls.
 /// </summary>
 public static class ModelDownloadText
 {
@@ -35,12 +62,24 @@ public static class ModelDownloadText
         [.. models.Select(model => $"{model.Title}, {Size(model.Bytes)}, {model.Licence} licence: {Job(model.Purpose)} ({model.Authors})")];
 
     /// <summary>The total size line shown above the buttons.</summary>
-    public static string Total(IReadOnlyList<VisionModel> models) =>
-        $"Downloads {Size(models.Sum(model => model.Bytes))} from the model authors' own pages when you choose Download.";
+    public static string Total(IReadOnlyList<VisionModel> models) => Total(ModelPack.SubjectLock with { Models = models });
+
+    /// <summary>The total size line for <paramref name="pack"/>: how much, and from where.</summary>
+    public static string Total(ModelPack pack)
+    {
+        ArgumentNullException.ThrowIfNull(pack);
+        return $"Downloads {Size(pack.Models.Sum(model => model.Bytes))} from {pack.Source} when you choose Download.";
+    }
 
     /// <summary>The section's state for these models, given each one's status in the same order.</summary>
-    public static ModelDownloadView Describe(IReadOnlyList<VisionModel> models, IReadOnlyList<InstallStatus> statuses)
+    public static ModelDownloadView Describe(IReadOnlyList<VisionModel> models, IReadOnlyList<InstallStatus> statuses) =>
+        Describe(ModelPack.SubjectLock with { Models = models }, statuses);
+
+    /// <summary>The section's state for <paramref name="pack"/>, given each model's status in the same order.</summary>
+    public static ModelDownloadView Describe(ModelPack pack, IReadOnlyList<InstallStatus> statuses)
     {
+        ArgumentNullException.ThrowIfNull(pack);
+        var models = pack.Models;
         ArgumentNullException.ThrowIfNull(models);
         ArgumentNullException.ThrowIfNull(statuses);
         if (models.Count == 0 || models.Count != statuses.Count)
@@ -73,12 +112,12 @@ public static class ModelDownloadText
 
         if (statuses.All(status => status.Phase == InstallPhase.Installed))
         {
-            return new ModelDownloadView("Installed. Subject Lock uses these models when you select and remove.", "Download", false, false, true, false, 100, false);
+            return new ModelDownloadView(pack.Installed, "Download", false, false, true, false, 100, false);
         }
 
         if (statuses.Any(status => status.Phase == InstallPhase.UpdateAvailable))
         {
-            return new ModelDownloadView("A newer version of the models is available. Until it is downloaded, Subject Lock uses its built-in methods.", "Update", true, false, true, false, 0, false);
+            return new ModelDownloadView(pack.Update, "Update", true, false, true, false, 0, false);
         }
 
         return new ModelDownloadView(
@@ -89,6 +128,11 @@ public static class ModelDownloadText
     private static string Job(ModelPurpose purpose) => purpose switch
     {
         ModelPurpose.PromptSegmentation => "selects the object you click",
+        ModelPurpose.Matte => "finds where you are in the camera's picture",
+        ModelPurpose.PalmDetection => "finds your hands",
+        ModelPurpose.HandLandmarks => "follows each finger",
+        ModelPurpose.PersonDetection => "finds your body",
+        ModelPurpose.Pose => "follows your joints",
         _ => "fills the space a removed object leaves",
     };
 }
