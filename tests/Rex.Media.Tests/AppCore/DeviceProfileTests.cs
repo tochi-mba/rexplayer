@@ -1,6 +1,7 @@
 using Rex.Media.AppCore.Performance;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
+using Rex.Media.Vision;
 
 namespace Rex.Media.Tests.AppCore;
 
@@ -91,8 +92,10 @@ public sealed class DeviceProfileTests
                 "Music visualisations are drawn at up to 1280 pixels across and 30 pictures a second, then scaled to the window.",
                 "Background transcription and intro or credit analysis pause while browsing the library.",
                 "Fewer pictures wait to be decoded, so playing uses less memory.",
+                "The camera effects follow your body every third picture rather than every other.",
             ],
             DeviceProfile.Changes(budget));
+        Assert.Equal(PerceptionLevel.Light, budget.CameraPerception);
     }
 
     [Fact]
@@ -107,7 +110,9 @@ public sealed class DeviceProfileTests
         Assert.False(budget.Allows(VideoEffect.ZoomBurst));
         Assert.True(budget.Allows(VideoEffect.Halftone));
         var changes = DeviceProfile.Changes(budget);
-        Assert.Equal(11, changes.Count);
+        Assert.Equal(12, changes.Count);
+        Assert.Equal(PerceptionLevel.HandWritten, budget.CameraPerception);
+        Assert.Contains("The camera effects use rexplayer's own outline and motion; no downloaded camera model runs.", changes);
         Assert.Equal(35, DeviceProfile.HeavyEffects.Count);
         // A count, not a wall of 35 names: choosing one of them says so.
         Assert.Contains("The 35 heaviest picture effects stay off. Choosing one says so.", changes);
@@ -151,6 +156,24 @@ public sealed class DeviceProfileTests
         Assert.True(best.Allows(VideoEffect.NeonEdges));
         Assert.True(balanced.Allows(VideoEffect.NeonEdges));
         Assert.False(fastest.Allows(VideoEffect.NeonEdges));
+    }
+
+    [Theory]
+    [InlineData(GraphicsKind.Discrete, true)]
+    [InlineData(GraphicsKind.Integrated, false)]
+    [InlineData(GraphicsKind.Software, false)]
+    [InlineData(GraphicsKind.Unknown, false)]
+    public void TheCameraModelsUseOnlyAGraphicsCardOfItsOwn(GraphicsKind graphics, bool onGpu)
+    {
+        foreach (var tier in Enum.GetValues<PerformanceTier>())
+        {
+            var budget = DeviceProfile.For(tier, Capable with { Graphics = graphics });
+            Assert.Equal(onGpu, budget.CameraModelsOnGpu);
+            // Where the models run is a fact of the computer, not something taken away: it is never listed as a change.
+            Assert.DoesNotContain(DeviceProfile.Changes(budget), change => change.Contains("graphics", StringComparison.Ordinal));
+        }
+
+        Assert.Equal(PerceptionLevel.Full, DeviceProfile.For(PerformanceTier.BestQuality, Capable with { Graphics = graphics }).CameraPerception);
     }
 
     [Fact]

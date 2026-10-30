@@ -17,8 +17,12 @@ public static class OnnxSessions
     public static ExecutionDevice Preferred() =>
         ExecutionPolicy.Prefer(ExecutionPolicy.ChooseGpu(Accelerators()), gpuFailed: false);
 
-    /// <summary>Opens <paramref name="path"/> on <paramref name="wanted"/>, falling back to the processor when the graphics load fails.</summary>
-    public static (InferenceSession Session, ExecutionDevice Device) Open(string path, ExecutionDevice wanted)
+    /// <summary>
+    /// Opens <paramref name="path"/> on <paramref name="wanted"/>, falling back to the processor when
+    /// the graphics load fails. <paramref name="threads"/> above zero caps the processor threads one
+    /// run may use, so a model that runs all the time (the camera's) never crowds out the sound and the window.
+    /// </summary>
+    public static (InferenceSession Session, ExecutionDevice Device) Open(string path, ExecutionDevice wanted, int threads = 0)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         var devices = Devices();
@@ -28,6 +32,7 @@ public static class OnnxSessions
             try
             {
                 using var options = GraphicsOptions(devices.First(device => device.Info == gpu).Device);
+                Limit(options, threads);
                 return (new InferenceSession(path, options), ExecutionDevice.Gpu);
             }
             catch (OnnxRuntimeException)
@@ -38,7 +43,17 @@ public static class OnnxSessions
 
         var device = ExecutionPolicy.Prefer(wanted == ExecutionDevice.Gpu ? gpu : null, gpuFailed: true);
         using var processor = new SessionOptions { GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL, LogSeverityLevel = OrtLoggingLevel.ORT_LOGGING_LEVEL_ERROR };
+        Limit(processor, threads);
         return (new InferenceSession(path, processor), device);
+    }
+
+    private static void Limit(SessionOptions options, int threads)
+    {
+        if (threads > 0)
+        {
+            options.IntraOpNumThreads = threads;
+            options.InterOpNumThreads = 1;
+        }
     }
 
     private static SessionOptions GraphicsOptions(OrtEpDevice device)

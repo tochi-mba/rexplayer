@@ -467,3 +467,5 @@ GestureReader.cs
 HandWrittenSense.cs
 DetectorDecoding.cs
 SceneTensors.cs
+PerceptionPlan.cs
+SenseWorker.cs

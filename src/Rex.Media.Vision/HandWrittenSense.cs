@@ -21,6 +21,7 @@ public sealed class MotionMatte
     private readonly byte[] _previous;
     private readonly byte[][] _remembered;
     private readonly byte[] _sorted = new byte[Memory];
+    private readonly byte[] _room;
     private readonly float[] _raw;
     private int _seen;
     private int _frames;
@@ -32,6 +33,7 @@ public sealed class MotionMatte
         (_width, _height) = (width, height);
         _luma = new byte[width * height];
         _previous = new byte[width * height];
+        _room = new byte[width * height];
         _raw = new float[width * height];
         _remembered = new byte[Memory][];
         for (var i = 0; i < Memory; i++)
@@ -60,6 +62,17 @@ public sealed class MotionMatte
             throw new ArgumentException("The matte is the size the matte was made for.", nameof(matte));
         }
 
+        Observe(picture, mirror);
+        Mark(matte);
+    }
+
+    /// <summary>
+    /// Takes the next camera picture without marking a matte: the luminance the flow reads, and the
+    /// room kept up to date. What a model's matte leaves this to do; the room's median is worked out
+    /// only when a picture is remembered (every <see cref="Stride"/>th), never per picture.
+    /// </summary>
+    public void Observe(BgraPicture picture, bool mirror)
+    {
         _luma.CopyTo(_previous, 0);
         Shrink(picture, _width, _height, mirror, _luma);
         if (_frames == 0)
@@ -72,26 +85,32 @@ public sealed class MotionMatte
         {
             _luma.CopyTo(_remembered[_seen % Memory], 0);
             _seen++;
-        }
+            var remembered = Math.Min(_seen, Memory);
+            if (remembered >= 3)
+            {
+                for (var i = 0; i < _room.Length; i++)
+                {
+                    for (var k = 0; k < remembered; k++)
+                    {
+                        _sorted[k] = _remembered[k][i];
+                    }
 
+                    _sorted.AsSpan(0, remembered).Sort();
+                    _room[i] = _sorted[remembered / 2];
+                }
+            }
+        }
+    }
+
+    private void Mark(Span<float> matte)
+    {
         var limit = Math.Clamp(Threshold, 0.02f, 1) * 255;
-        var remembered = Math.Min(_seen, Memory);
+        var known = RoomKnown;
         for (var i = 0; i < _luma.Length; i++)
         {
             // What moved since the last picture is the listener whatever the room is.
             var moved = Math.Abs(_luma[i] - _previous[i]) / limit;
-            float still = 0;
-            if (remembered >= 3)
-            {
-                for (var k = 0; k < remembered; k++)
-                {
-                    _sorted[k] = _remembered[k][i];
-                }
-
-                _sorted.AsSpan(0, remembered).Sort();
-                still = Math.Abs(_luma[i] - _sorted[remembered / 2]) / limit;
-            }
-
+            var still = known ? Math.Abs(_luma[i] - _room[i]) / limit : 0;
             _raw[i] = Math.Clamp(Math.Max(moved, still) - 0.5f, 0, 1);
         }
 
@@ -159,11 +178,11 @@ public sealed class MotionMatte
 /// </summary>
 public sealed class BlockFlow
 {
-    /// <summary>How far a block is looked for, in pixels either way.</summary>
-    public const int Search = 4;
+    /// <summary>How far a block is looked for, in pixels either way: three pixels a frame is a fast arm at the matte's size.</summary>
+    public const int Search = 3;
 
-    /// <summary>The block compared, in pixels each way: a little larger than the cell, so edges match.</summary>
-    public const int Block = 6;
+    /// <summary>The block compared, in pixels each way from the cell's centre: twice the cell, so edges match.</summary>
+    public const int Block = 4;
 
     private readonly int _width;
     private readonly int _height;
@@ -212,13 +231,20 @@ public sealed class BlockFlow
             {
                 var centreX = (cx * SceneSense.FlowStep) + (SceneSense.FlowStep / 2);
                 var centreY = (cy * SceneSense.FlowStep) + (SceneSense.FlowStep / 2);
+                var cell = (cy * cellsAcross) + cx;
+                if (Flat(centreX, centreY))
+                {
+                    // Nothing to match: a flat wall, a dark corner.
+                    (flowX[cell], flowY[cell]) = (0, 0);
+                    continue;
+                }
+
                 var (bestX, bestY, best) = (0, 0, int.MaxValue);
-                var flat = true;
                 for (var dy = -Search; dy <= Search; dy++)
                 {
                     for (var dx = -Search; dx <= Search; dx++)
                     {
-                        var cost = Cost(luma, centreX, centreY, dx, dy, ref flat);
+                        var cost = Cost(luma, centreX, centreY, dx, dy);
                         // Of equal costs the smaller shift wins, so a flat block stays still.
                         if (cost < best || (cost == best && (dx * dx) + (dy * dy) < (bestX * bestX) + (bestY * bestY)))
                         {
@@ -227,8 +253,7 @@ public sealed class BlockFlow
                     }
                 }
 
-                var cell = (cy * cellsAcross) + cx;
-                (flowX[cell], flowY[cell]) = flat ? (0, 0) : (bestX, bestY);
+                (flowX[cell], flowY[cell]) = (bestX, bestY);
             }
         }
 
@@ -237,28 +262,36 @@ public sealed class BlockFlow
 
     public void Reset() => _primed = false;
 
-    /// <summary>The difference between the block around a point in the last picture and the block shifted by (<paramref name="dx"/>, <paramref name="dy"/>) in this one.</summary>
-    private int Cost(ReadOnlySpan<byte> luma, int centreX, int centreY, int dx, int dy, ref bool flat)
+    /// <summary>Whether the last picture's block around a point is one shade throughout.</summary>
+    private bool Flat(int centreX, int centreY)
     {
-        var cost = 0;
-        var first = -1;
+        var first = _previous[(Math.Clamp(centreY - Block, 0, _height - 1) * _width) + Math.Clamp(centreX - Block, 0, _width - 1)];
         for (var y = centreY - Block; y < centreY + Block; y++)
         {
-            var fromY = Math.Clamp(y, 0, _height - 1);
-            var toY = Math.Clamp(y + dy, 0, _height - 1);
+            var row = Math.Clamp(y, 0, _height - 1) * _width;
             for (var x = centreX - Block; x < centreX + Block; x++)
             {
-                var before = _previous[(fromY * _width) + Math.Clamp(x, 0, _width - 1)];
-                var after = luma[(toY * _width) + Math.Clamp(x + dx, 0, _width - 1)];
-                cost += Math.Abs(before - after);
-                if (first < 0)
+                if (_previous[row + Math.Clamp(x, 0, _width - 1)] != first)
                 {
-                    first = before;
+                    return false;
                 }
-                else if (flat && before != first)
-                {
-                    flat = false;
-                }
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>The difference between the block around a point in the last picture and the block shifted by (<paramref name="dx"/>, <paramref name="dy"/>) in this one.</summary>
+    private int Cost(ReadOnlySpan<byte> luma, int centreX, int centreY, int dx, int dy)
+    {
+        var cost = 0;
+        for (var y = centreY - Block; y < centreY + Block; y++)
+        {
+            var from = Math.Clamp(y, 0, _height - 1) * _width;
+            var to = Math.Clamp(y + dy, 0, _height - 1) * _width;
+            for (var x = centreX - Block; x < centreX + Block; x++)
+            {
+                cost += Math.Abs(_previous[from + Math.Clamp(x, 0, _width - 1)] - luma[to + Math.Clamp(x + dx, 0, _width - 1)]);
             }
         }
 
@@ -273,7 +306,7 @@ public sealed class BlockFlow
 /// gestures that need only a position (hovering, swiping, raising) work and those that need fingers
 /// (a pinch, a fist) cannot fire by accident. No body is claimed.
 /// </summary>
-public sealed class HandWrittenPerceiver
+public sealed class HandWrittenPerceiver : IScenePerceiver
 {
     /// <summary>A guessed hand is this sure of itself.</summary>
     public const float GuessConfidence = 0.3f;
@@ -299,7 +332,15 @@ public sealed class HandWrittenPerceiver
     }
 
     /// <summary>Fills <paramref name="scene"/> (the perceiver's size) from the next camera picture.</summary>
-    public void Perceive(BgraPicture picture, bool mirror, SceneSense scene, long timestamp)
+    public void Perceive(BgraPicture picture, bool mirror, SceneSense scene, long timestamp) =>
+        Perceive(picture, mirror, scene, timestamp, motionOnly: false);
+
+    /// <summary>
+    /// Fills <paramref name="scene"/> from the next camera picture; with <paramref name="motionOnly"/>
+    /// only the flow, leaving the matte, the hands and the body to the models, which find them far
+    /// better (the room is still learned, so it is ready when the models stop).
+    /// </summary>
+    public void Perceive(BgraPicture picture, bool mirror, SceneSense scene, long timestamp, bool motionOnly)
     {
         ArgumentNullException.ThrowIfNull(scene);
         if (scene.Width != Width || scene.Height != Height)
@@ -307,11 +348,24 @@ public sealed class HandWrittenPerceiver
             throw new ArgumentException("The scene is the size the perceiver was made for.", nameof(scene));
         }
 
-        _matte.Update(picture, mirror, scene.Matte);
+        if (motionOnly)
+        {
+            _matte.Observe(picture, mirror);
+        }
+        else
+        {
+            _matte.Update(picture, mirror, scene.Matte);
+        }
+
         _flow.Update(_matte.Luma, scene.FlowX, scene.FlowY);
+        scene.Timestamp = timestamp;
+        if (motionOnly)
+        {
+            return;
+        }
+
         GuessHands(scene);
         scene.Body.Clear();
-        scene.Timestamp = timestamp;
         scene.Source = SenseSource.HandWritten;
     }
 
