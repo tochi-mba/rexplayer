@@ -212,4 +212,36 @@ public sealed class HandWrittenSenseTests
         Assert.True(scene.Hands[1].Present);
         Assert.True(scene.Hands[1].Centre.Y < 0.2f);
     }
+
+    [Fact]
+    public void MotionOnlyLeavesTheMatteHandsAndBodyToTheModelsButStillLearnsTheRoom()
+    {
+        var perceiver = new HandWrittenPerceiver(Width, Height) { Threshold = 0.1f };
+        var scene = new SceneSense(Width, Height) { Source = SenseSource.Model };
+        Array.Fill(scene.Matte, 0.5f);
+        SceneSenseTests.PlaceHand(scene.Hands[1], 0.5f, 0.5f, 0.1f, open: true);
+        scene.Body.Present = true;
+        perceiver.Perceive(View(Picture(Width, Height, (8, 0, 14, Height)), Width, Height), false, scene, 1, motionOnly: true);
+        perceiver.Perceive(View(Picture(Width, Height, (11, 0, 17, Height)), Width, Height), false, scene, 2, motionOnly: true);
+
+        // The flow and the time are rexplayer's own: the figure moved three pixels right.
+        Assert.Equal(2, scene.Timestamp);
+        Assert.Contains(3f, scene.FlowX);
+        // What the models found stays as they left it.
+        Assert.All(scene.Matte, value => Assert.Equal(0.5f, value));
+        Assert.True(scene.Hands[1].Present);
+        Assert.True(scene.Body.Present);
+        Assert.Equal(SenseSource.Model, scene.Source);
+
+        // The room went on being learned: the matte is ready the moment the models stop.
+        for (var i = 0; i < MotionMatte.Stride * 3; i++)
+        {
+            perceiver.Perceive(View(Picture(Width, Height), Width, Height), false, scene, 3 + i, motionOnly: true);
+        }
+
+        perceiver.Perceive(View(Picture(Width, Height, (10, 4, 16, 20)), Width, Height), false, scene, 100);
+        perceiver.Perceive(View(Picture(Width, Height, (10, 4, 16, 20)), Width, Height), false, scene, 101);
+        Assert.True(scene.Matte[(10 * Width) + 13] > 0.5f, "a still figure differs from the learned room");
+        Assert.Equal(SenseSource.HandWritten, scene.Source);
+    }
 }
