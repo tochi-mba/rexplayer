@@ -136,6 +136,8 @@ public sealed partial class MainWindow
         menu.Opening += (_, _) =>
         {
             menu.Items.Clear();
+            menu.Items.Add(ListenMenu());
+            menu.Items.Add(new MenuFlyoutSeparator());
             foreach (var choice in Enum.GetValues<VisualizerChoice>().Where(choice => choice != VisualizerChoice.Off))
             {
                 var item = new ToggleMenuFlyoutItem { Text = Visualizers.Name(choice), IsChecked = choice == ActiveVisualizer };
@@ -165,9 +167,11 @@ public sealed partial class MainWindow
     private void ApplyVisualizer()
     {
         var music = _player.Item is not null && _player.Info is not null && !HasVideo && _player.State is not (SessionState.Idle or SessionState.Faulted);
+        // Listening to another app, the visualisation shows even with nothing open here (AU-25).
+        var listening = _settings.ListenTo != ListenTo.Player && !HasVideo;
         var choice = ActiveVisualizer;
         _visualizerChoice = choice;
-        _visualizerWanted = music && choice != VisualizerChoice.Off;
+        _visualizerWanted = (music || listening) && choice != VisualizerChoice.Off;
         _visualizerFullBleed = VisualScene.Draws(choice);
         LayOutStageContent();
         WakeVisualizer();
@@ -200,6 +204,7 @@ public sealed partial class MainWindow
         _meterLeft.Reset();
         _meterRight.Reset();
         StopCameraStage();
+        StopListening();
         // An old frame is never allowed to finish painting a later song,
         // camera mode or closed window. Cancellation is cooperative and leaves
         // each worker's stage untouched until it returns.
@@ -578,7 +583,7 @@ public sealed partial class MainWindow
         // Paused or ended, the picture settles and then stops being drawn until the music plays
         // again; minimised, it is not drawn until the window is back (WakeVisualizer).
         var now = e is RenderingEventArgs rendering ? rendering.RenderingTime : TimeSpan.Zero;
-        if (!_hidden.Draws || !_visualPacing.Draws(now, _player.IsPlaying, _builtFor is { } drawing && UsesCamera(drawing)))
+        if (!_hidden.Draws || !_visualPacing.Draws(now, _player.IsPlaying || ListensElsewhere, _builtFor is { } drawing && UsesCamera(drawing)))
         {
             CompositionTarget.Rendering -= OnRendering;
             _visualDrawing = false;
@@ -602,13 +607,14 @@ public sealed partial class MainWindow
 
         _lastDrawn = now;
         elapsed = elapsed < TimeSpan.Zero || elapsed > TimeSpan.FromSeconds(1) ? interval : elapsed;
-        if (!_player.ReadSound(_soundLeft, _soundRight, interval + ShownAfter))
+        ShowListenChip();
+        if (!ReadVisualSound(_soundLeft, _soundRight, interval + ShownAfter))
         {
             Array.Clear(_soundLeft);
             Array.Clear(_soundRight);
         }
 
-        var rate = Math.Max(1, _player.SoundSampleRate);
+        var rate = Math.Max(1, VisualSampleRate);
         if (_builtFor is { } onStage && _cameraStage is not null && DrawsOnStage(onStage))
         {
             DrawCameraStage(onStage, rate, elapsed);
