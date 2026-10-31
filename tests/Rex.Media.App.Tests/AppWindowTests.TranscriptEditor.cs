@@ -37,6 +37,27 @@ public sealed partial class AppWindowTests
         Wait.For(() => app.Text("TranscriptEditMatch").Contains("word 2 of 2", StringComparison.Ordinal),
             "the transcript search to locate the second timed word");
         Assert.True(app.IsShown("TranscriptEditJump"));
+        // A result can appear before opening media becomes seekable, or after a
+        // late search TextChanged notification. Wait for the real enabled
+        // action instead of invoking a disabled automation element.
+        Wait.For(() =>
+        {
+            try
+            {
+                if (app.Find("TranscriptEditJump").Current.IsEnabled)
+                {
+                    return true;
+                }
+
+                app.Press("TranscriptEditFindNext");
+            }
+            catch (ElementNotAvailableException)
+            {
+                // WinUI may replace the search controls between snapshots.
+            }
+
+            return false;
+        }, "the transcript match to become seekable");
         app.Press("TranscriptEditJump");
         search.SetValue("absent phrase");
         app.Press("TranscriptEditFindNext");
