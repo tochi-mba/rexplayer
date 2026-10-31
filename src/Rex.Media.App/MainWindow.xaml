@@ -986,6 +986,12 @@
               </Flyout>
             </Button.Flyout>
           </Button>
+          <!-- What the visualisation listens to (AU-25): rexplayer, one app, or everything; lit while it is not rexplayer. -->
+          <Button x:Name="ListenButton" Width="44" Height="44" VerticalAlignment="Center" Click="OnListenButton"
+                  AutomationProperties.AutomationId="ListenButton" AutomationProperties.Name="Visualise the sound of"
+                  ToolTipService.ToolTip="Visualise the sound of rexplayer, another app, or everything this computer plays">
+            <FontIcon x:Name="ListenIcon" Glyph="&#xE7F6;" />
+          </Button>
           <Button x:Name="SpeedButton" Content="1×" MinWidth="52" MinHeight="44" Click="OnSpeedButton" VerticalAlignment="Center"
                   AutomationProperties.AutomationId="SpeedButton" AutomationProperties.Name="Playback speed, 1×"
                   ToolTipService.ToolTip="Choose playback speed" />

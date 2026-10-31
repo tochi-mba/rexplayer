@@ -103,7 +103,7 @@ public sealed partial class MainWindow
             _transportMovable.Add(TransportWidth(button) + (!minimal && ReferenceEquals(button, FullScreenButton) ? TransportWidth(TransportSeparator) : 0));
         }
 
-        var group = (picture ? 0 : TransportWidth(SpeedButton) + TransportWidth(MuteButton) + VolumeBar.Width + TransportSpacing)
+        var group = (picture ? 0 : TransportWidth(ListenButton) + TransportWidth(SpeedButton) + TransportWidth(MuteButton) + VolumeBar.Width + TransportSpacing)
             + PickerWidth(MovieVersionButton) + PickerWidth(PictureIntervalButton) + PickerWidth(UpdateIndicator);
         var layout = Root.ActualWidth > 0
             ? TransportFit.Decide(new TransportRoom(Root.ActualWidth - padding.Left - padding.Right, gap, fixedWidth,
@@ -138,6 +138,7 @@ public sealed partial class MainWindow
         _transportSpeedMoved = layout.SpeedMoved && !picture;
         SetShown(SpeedButton, !picture && !_transportSpeedMoved);
         SetShown(MuteButton, !picture);
+        SetShown(ListenButton, !picture);
         SetShown(VolumeBar, !picture);
         var more = _transportMoved.Count > 0 || _transportSpeedMoved;
         if (!more && TransportMoreButton.Visibility == Visibility.Visible)
