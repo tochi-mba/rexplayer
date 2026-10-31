@@ -227,3 +227,10 @@ DEVICE_STATE
 PROPERTYKEY
 AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM
 AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY
+IAudioCaptureClient
+IAudioSessionManager2
+IAudioSessionEnumerator
+IAudioSessionControl
+IAudioSessionControl2
+IAudioMeterInformation
+AudioSessionState
