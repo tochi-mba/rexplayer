@@ -16,51 +16,64 @@ namespace Rex.Media.Interop.Audio;
 [SupportedOSPlatform("windows6.0.6000")]
 public sealed unsafe class WasapiLoopbackCapture : IDisposable
 {
-    /// <summary>A packet: interleaved samples of <see cref="Format"/>, how many frames, and whether Windows marked it silent.</summary>
-    public delegate void PacketHandler(ReadOnlySpan<byte> interleaved, int frames, bool silent);
+    /// <summary>A packet: interleaved samples, how many frames, whether Windows marked it silent, and their layout.</summary>
+    public delegate void PacketHandler(ReadOnlySpan<byte> interleaved, int frames, bool silent, WasapiMixFormat format);
 
     private const int LoopbackFlag = 0x00020000;
     private const int AutoConvertFlags = unchecked((int)0x80000000) | 0x08000000;
     private const uint SilentFlag = 0x2;
     private static readonly TimeSpan BufferDuration = TimeSpan.FromMilliseconds(200);
 
-    private readonly IAudioClient _client;
-    private readonly IAudioCaptureClient _capture;
+    private readonly Func<(IAudioClient Client, WasapiMixFormat Format)?> _open;
     private readonly PacketHandler _packet;
     private readonly Thread _thread;
+    private readonly ManualResetEventSlim _ready = new(false);
     private volatile bool _stopping;
+    private bool _opened;
     private bool _disposed;
 
-    private WasapiLoopbackCapture(IAudioClient client, WasapiMixFormat format, PacketHandler packet)
+    /// <summary>
+    /// Opens and runs the capture on a thread of its own: the audio objects are made, read and let go
+    /// there, never handed between threads (they cannot be, from a window's single-threaded apartment).
+    /// </summary>
+    private WasapiLoopbackCapture(Func<(IAudioClient Client, WasapiMixFormat Format)?> open, PacketHandler packet)
     {
-        (_client, Format, _packet) = (client, format, packet);
-        var id = typeof(IAudioCaptureClient).GUID;
-        _client.GetService(&id, out var pointer);
-        try
-        {
-            _capture = (IAudioCaptureClient)Marshal.GetObjectForIUnknown((nint)pointer);
-        }
-        finally
-        {
-            Marshal.Release((nint)pointer);
-        }
-
+        (_open, _packet) = (open, packet);
         _thread = new Thread(Run) { IsBackground = true, Name = "Sound capture", Priority = ThreadPriority.BelowNormal };
+        _thread.SetApartmentState(ApartmentState.MTA);
+        _thread.Start();
+        _ready.Wait(TimeSpan.FromSeconds(6));
     }
 
     /// <summary>The captured sound's layout.</summary>
-    public WasapiMixFormat Format { get; }
+    public WasapiMixFormat Format { get; private set; } = new(48_000, 2, 16, 16, 3, false, 4);
 
-    /// <summary>Why the last packet could not be read, for the log; capture stops then.</summary>
+    /// <summary>Why capture stopped or could not start, for the log.</summary>
     public Exception? Failure { get; private set; }
 
     /// <summary>Whether listening to one app is possible on this Windows.</summary>
     public static bool CanListenToOneApp => OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041);
 
+    private static WasapiLoopbackCapture? Started(WasapiLoopbackCapture capture)
+    {
+        if (capture._opened)
+        {
+            return capture;
+        }
+
+        capture.Dispose();
+        return null;
+    }
+
     /// <summary>Listens to everything the media default output plays; null when there is no output.</summary>
     public static WasapiLoopbackCapture? OpenEverything(PacketHandler packet)
     {
         ArgumentNullException.ThrowIfNull(packet);
+        return Started(new WasapiLoopbackCapture(MakeEverything, packet));
+    }
+
+    private static (IAudioClient Client, WasapiMixFormat Format)? MakeEverything()
+    {
         var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumerator();
         IMMDevice? device = null;
         try
@@ -75,7 +88,7 @@ public sealed unsafe class WasapiLoopbackCapture : IDisposable
             {
                 var format = Read(mix);
                 client.Initialize(AUDCLNT_SHAREMODE.AUDCLNT_SHAREMODE_SHARED, (uint)LoopbackFlag, BufferDuration.Ticks, 0, mix, null);
-                return new WasapiLoopbackCapture(client, format, packet);
+                return (client, format);
             }
             finally
             {
@@ -105,6 +118,12 @@ public sealed unsafe class WasapiLoopbackCapture : IDisposable
     public static WasapiLoopbackCapture? OpenApp(uint processId, PacketHandler packet)
     {
         ArgumentNullException.ThrowIfNull(packet);
+        return Started(new WasapiLoopbackCapture(() => MakeApp(processId), packet));
+    }
+
+    [SupportedOSPlatform("windows10.0.19041")]
+    private static (IAudioClient Client, WasapiMixFormat Format)? MakeApp(uint processId)
+    {
         var parameters = new ActivationParameters { Type = 1, ProcessId = processId, Mode = 0 };
         var variant = new BlobVariant { Type = 65, Size = (uint)sizeof(ActivationParameters), Data = (nint)(&parameters) };
         var handler = new Completion();
@@ -127,7 +146,7 @@ public sealed unsafe class WasapiLoopbackCapture : IDisposable
             try
             {
                 client.Initialize(AUDCLNT_SHAREMODE.AUDCLNT_SHAREMODE_SHARED, unchecked((uint)(LoopbackFlag | AutoConvertFlags)), BufferDuration.Ticks, 0, &wave, null);
-                return new WasapiLoopbackCapture(client, format, packet);
+                return (client, format);
             }
             catch (COMException)
             {
@@ -140,12 +159,6 @@ public sealed unsafe class WasapiLoopbackCapture : IDisposable
             Marshal.ReleaseComObject(operation);
             handler.Done.Dispose();
         }
-    }
-
-    public void Start()
-    {
-        _client.Start();
-        _thread.Start();
     }
 
     public void Dispose()
@@ -162,51 +175,89 @@ public sealed unsafe class WasapiLoopbackCapture : IDisposable
             _thread.Join();
         }
 
-        try
-        {
-            _client.Stop();
-        }
-        catch (COMException)
-        {
-            // The device may be gone already; letting go is all that is left.
-        }
-
-        Marshal.ReleaseComObject(_capture);
-        Marshal.ReleaseComObject(_client);
+        _ready.Dispose();
     }
 
-    /// <summary>Reads what has arrived every ten milliseconds: event callbacks are unreliable with loopback on older Windows.</summary>
+    /// <summary>
+    /// Opens, then reads what has arrived every ten milliseconds (event callbacks are unreliable with
+    /// loopback on older Windows), then lets everything go: all on this thread.
+    /// </summary>
     private void Run()
     {
+        IAudioClient? client = null;
+        IAudioCaptureClient? capture = null;
         try
         {
+            if (_open() is not { } opened)
+            {
+                return;
+            }
+
+            (client, Format) = opened;
+            var id = typeof(IAudioCaptureClient).GUID;
+            client.GetService(&id, out var pointer);
+            try
+            {
+                capture = (IAudioCaptureClient)Marshal.GetObjectForIUnknown((nint)pointer);
+            }
+            finally
+            {
+                Marshal.Release((nint)pointer);
+            }
+
+            client.Start();
+            _opened = true;
+            _ready.Set();
             while (!_stopping)
             {
                 Thread.Sleep(10);
-                _capture.GetNextPacketSize(out var size);
+                capture.GetNextPacketSize(out var size);
                 while (size > 0 && !_stopping)
                 {
                     byte* data;
                     uint frames;
                     uint flags;
-                    _capture.GetBuffer(&data, out frames, out flags, null, null);
+                    capture.GetBuffer(&data, out frames, out flags, null, null);
                     try
                     {
-                        _packet(new ReadOnlySpan<byte>(data, (int)frames * Format.BlockAlign), (int)frames, (flags & SilentFlag) != 0);
+                        _packet(new ReadOnlySpan<byte>(data, (int)frames * Format.BlockAlign), (int)frames, (flags & SilentFlag) != 0, Format);
                     }
                     finally
                     {
-                        _capture.ReleaseBuffer(frames);
+                        capture.ReleaseBuffer(frames);
                     }
 
-                    _capture.GetNextPacketSize(out size);
+                    capture.GetNextPacketSize(out size);
                 }
             }
         }
-        catch (COMException ex)
+        catch (Exception ex) when (ex is COMException or InvalidCastException or InvalidOperationException or NotSupportedException or ArgumentException)
         {
-            // The device went away or the app closed; the owner sees Failure and decides what next.
+            // The device went away, the app closed, or Windows refused: listening stops, the app goes on.
             Failure = ex;
+        }
+        finally
+        {
+            try
+            {
+                client?.Stop();
+            }
+            catch (COMException)
+            {
+                // The device may be gone already; letting go is all that is left.
+            }
+
+            if (capture is not null)
+            {
+                Marshal.ReleaseComObject(capture);
+            }
+
+            if (client is not null)
+            {
+                Marshal.ReleaseComObject(client);
+            }
+
+            _ready.Set();
         }
     }
 

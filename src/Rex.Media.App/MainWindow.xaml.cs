@@ -510,7 +510,10 @@ public sealed partial class MainWindow : Window
         }
         NowPlaying.Text = title;
 
-        var idle = _player.State is SessionState.Idle || (_player.Item is not null && !HasVideo);
+        // Listening to another app with nothing open here, the visualisation has the whole stage (AU-25).
+        var listeningHere = _player.Item is null && _settings.ListenTo != Rex.Media.Settings.ListenTo.Player;
+        var idle = (_player.State is SessionState.Idle && !listeningHere) || (_player.Item is not null && !HasVideo);
+        ShowListenButton();
         VideoBlankLayer.Visibility = HasVideo ? Visibility.Collapsed : Visibility.Visible;
         Idle.Visibility = idle ? Visibility.Visible : Visibility.Collapsed;
         IdleScroller.Visibility = Idle.Visibility;

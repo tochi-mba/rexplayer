@@ -23,6 +23,7 @@ public sealed partial class MainWindow
     private CaptureFeed? _listenFeed;
     private WasapiLoopbackCapture? _capture;
     private SoundApp? _listenApp;
+    private Task _listenOpening = Task.CompletedTask;
     private DateTime _listenTriedAt;
     private long _listenHeard;
     private Button? _listenChip;
@@ -49,7 +50,7 @@ public sealed partial class MainWindow
     /// <summary>Starts capturing the chosen source when it is not yet, and tries again a while after it could not.</summary>
     private void KeepListening()
     {
-        if (_capture is { Failure: null })
+        if (_capture is { Failure: null } || !_listenOpening.IsCompleted)
         {
             return;
         }
@@ -62,36 +63,49 @@ public sealed partial class MainWindow
 
         _listenTriedAt = DateTime.UtcNow;
         var feed = _listenFeed ??= new CaptureFeed(_listenScope);
-        var format = default(CaptureFormat);
-        WasapiLoopbackCapture.PacketHandler packet = (data, frames, silent) =>
+        var (kind, name) = (_settings.ListenTo, _settings.ListenApp);
+        WasapiLoopbackCapture.PacketHandler packet = (data, frames, silent, mix) =>
         {
-            feed.Write(data, frames, format, silent);
+            feed.Write(data, frames, new CaptureFormat(mix.SampleRate, mix.Channels, mix.BitsPerSample, mix.IsFloat), silent);
             if (!silent)
             {
                 Interlocked.Add(ref _listenHeard, frames);
             }
         };
-        WasapiLoopbackCapture? capture = null;
-        if (_settings.ListenTo == ListenTo.Everything)
-        {
-            capture = WasapiLoopbackCapture.OpenEverything(packet);
-        }
-        else if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041) && ListenChooser.Find(RunningSoundApps(_settings.ListenApp), _settings.ListenApp) is { } app)
-        {
-            _listenApp = app;
-            capture = WasapiLoopbackCapture.OpenApp(app.ProcessId, packet);
-        }
 
-        if (capture is null)
+        // Finding the app and opening its sound talk to Windows' audio service and can take a moment:
+        // never on the window's thread, which only picks up the capture once it is ready.
+        _listenOpening = Task.Run(() =>
         {
-            return;
-        }
+            SoundApp? app = null;
+            WasapiLoopbackCapture? capture = null;
+            if (kind == ListenTo.Everything)
+            {
+                capture = WasapiLoopbackCapture.OpenEverything(packet);
+            }
+            else if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041) && ListenChooser.Find(RunningSoundApps(name), name) is { } found)
+            {
+                app = found;
+                capture = WasapiLoopbackCapture.OpenApp(found.ProcessId, packet);
+            }
 
-        var mix = capture.Format;
-        format = new CaptureFormat(mix.SampleRate, mix.Channels, mix.BitsPerSample, mix.IsFloat);
-        capture.Start();
-        _capture = capture;
-        App.Log.Info(LogSource, $"The visualisation listens to {(_settings.ListenTo == ListenTo.Everything ? "everything" : _listenApp?.Name)}.");
+            OnWindowThread(() =>
+            {
+                if (capture is null)
+                {
+                    return;
+                }
+
+                if (_closed || !_visualizing || _settings.ListenTo != kind || _settings.ListenApp != name)
+                {
+                    capture.Dispose();
+                    return;
+                }
+
+                (_capture, _listenApp) = (capture, app);
+                App.Log.Info(LogSource, $"The visualisation listens to {(kind == ListenTo.Everything ? "everything" : app?.Name)}.");
+            });
+        });
     }
 
     private void StopListening()
@@ -139,11 +153,27 @@ public sealed partial class MainWindow
         try
         {
             using var process = Process.GetProcessById((int)processId);
-            return new SoundApp(processId, process.ProcessName, SafeTitle(process), playing, peak);
+            return new SoundApp(processId, process.ProcessName, Product(process) ?? SafeTitle(process), playing, peak);
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             // The app closed while it was looked at.
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// What the program calls itself (Helium, not the "chrome" its file is named after), so the menu
+    /// tells apps built on the same engine apart; null when Windows will not say.
+    /// </summary>
+    private static string? Product(Process process)
+    {
+        try
+        {
+            return process.MainModule?.FileVersionInfo.ProductName is { Length: > 0 } product ? product : null;
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or NotSupportedException)
+        {
             return null;
         }
     }
@@ -215,16 +245,51 @@ public sealed partial class MainWindow
     {
         var first = _settings.ListenTo == ListenTo.Player && kind != ListenTo.Player;
         _settings = _settings with { ListenTo = kind, ListenApp = app };
+        if (kind != ListenTo.Player && _settings.Visualizer == VisualizerChoice.Off)
+        {
+            // Choosing what to listen to means wanting to see it: a visualisation that fills the stage.
+            _settings = _settings with { Visualizer = VisualizerChoice.Galaxy };
+        }
+
+        ShowListenButton();
         _player.Settings = _settings;
         StopListening();
         _listenTriedAt = default;
         (_listenApp, _listenChipText) = (null, "");
         SaveSettings();
+        ShowState();
         ApplyVisualizer();
         BuildVisualizer();
         Say(kind == ListenTo.Player ? "Listening to rexplayer"
             : first ? "rexplayer listens only to draw the sound; nothing is recorded, kept or sent"
             : kind == ListenTo.Everything ? "Listening to everything" : "Listening to " + ListenChooser.Pretty(app));
+    }
+
+    /// <summary>The bottom bar's Listen button: the same choices as the visualisation's menu, at any time.</summary>
+    private void OnListenButton(object sender, RoutedEventArgs e)
+    {
+        var menu = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.Top };
+        foreach (var item in ListenItems())
+        {
+            menu.Items.Add(item);
+        }
+
+        menu.ShowAt(ListenButton);
+    }
+
+    /// <summary>The Listen button shows its choice: lit in the accent while the visualisation listens elsewhere, and says so.</summary>
+    private void ShowListenButton()
+    {
+        var elsewhere = _settings.ListenTo != ListenTo.Player;
+        ListenIcon.Foreground = elsewhere ? RexTheme.Brush("AccentTextFillColorPrimaryBrush") : RexTheme.Brush("TextFillColorPrimaryBrush");
+        var what = _settings.ListenTo switch
+        {
+            ListenTo.Everything => "everything this computer plays",
+            ListenTo.App => ListenChooser.Pretty(_listenApp?.Label ?? _settings.ListenApp),
+            _ => "rexplayer",
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(ListenButton, "Visualise the sound of " + what);
+        ToolTipService.SetToolTip(ListenButton, "The visualisation listens to " + what + ". Choose another app, or everything.");
     }
 
     /// <summary>A list of the open windows to pick one to listen to: those playing sound first.</summary>

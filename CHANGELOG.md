@@ -2,6 +2,16 @@
 
 Every version of rexplayer that reaches users, newest first. CI publishes a version when its number reaches `main`.
 
+## Unreleased
+
+### Added
+
+- **Visualise any app's sound.** The visualisations and camera effects can listen to another app (Spotify, a browser, a game) or to everything this computer plays, chosen from the new Listen button beside speed and volume, the visualisation's right-click menu, or a window picker. A chip on the stage says what is heard and offers to change it; the choice is remembered by the app's name and reconnects when the app starts again; rexplayer's own music always comes first while it plays. With nothing open, the visualisation takes the whole stage. The sound is only drawn: nothing is recorded, kept or sent.
+
+### Fixed
+
+- Switching the Windows audio output (speakers to headphones, a Bluetooth device) now moves rexplayer's sound to the new device within a moment, keeping its place; a device that is unplugged is recovered the same way.
+
 ## 0.33.0 - 2026-10-30
 
 ### Added
