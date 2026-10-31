@@ -19,6 +19,7 @@ public sealed record WasapiMixFormat(int SampleRate, int Channels, int BitsPerSa
 public sealed unsafe class WasapiRenderClient : IDisposable
 {
     private static readonly Guid FloatSubtype = new("00000003-0000-0010-8000-00aa00389b71");
+    private static readonly Guid PcmSubtype = new("00000001-0000-0010-8000-00aa00389b71");
 
     private readonly IMMDevice _device;
     private readonly IAudioClient _client;
@@ -28,23 +29,36 @@ public sealed unsafe class WasapiRenderClient : IDisposable
     private readonly ulong _clockFrequency;
     private bool _disposed;
 
-    private WasapiRenderClient(IMMDevice device, TimeSpan bufferDuration)
+    private WasapiRenderClient(IMMDevice device, TimeSpan bufferDuration, WasapiMixFormat? keep)
     {
         _device = device;
         var clientId = typeof(IAudioClient).GUID;
         _device.Activate(&clientId, CLSCTX.CLSCTX_ALL, null, out var activated);
         _client = (IAudioClient)activated;
 
-        WAVEFORMATEX* mix;
-        _client.GetMixFormat(&mix);
-        try
+        if (keep is not null)
         {
-            Format = ReadFormat(mix);
-            _client.Initialize(AUDCLNT_SHAREMODE.AUDCLNT_SHAREMODE_SHARED, PInvoke.AUDCLNT_STREAMFLAGS_EVENTCALLBACK, bufferDuration.Ticks, 0, mix, null);
+            // The sound moved to another device: it keeps the format the pipeline already makes,
+            // and Windows converts to the new device's own, so playback goes on without renegotiating.
+            var format = Extensible(keep);
+            Format = keep;
+            _client.Initialize(AUDCLNT_SHAREMODE.AUDCLNT_SHAREMODE_SHARED,
+                PInvoke.AUDCLNT_STREAMFLAGS_EVENTCALLBACK | PInvoke.AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | PInvoke.AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY,
+                bufferDuration.Ticks, 0, (WAVEFORMATEX*)&format, null);
         }
-        finally
+        else
         {
-            PInvoke.CoTaskMemFree(mix);
+            WAVEFORMATEX* mix;
+            _client.GetMixFormat(&mix);
+            try
+            {
+                Format = ReadFormat(mix);
+                _client.Initialize(AUDCLNT_SHAREMODE.AUDCLNT_SHAREMODE_SHARED, PInvoke.AUDCLNT_STREAMFLAGS_EVENTCALLBACK, bufferDuration.Ticks, 0, mix, null);
+            }
+            finally
+            {
+                PInvoke.CoTaskMemFree(mix);
+            }
         }
 
         _client.SetEventHandle(new HANDLE(_bufferEvent.SafeWaitHandle.DangerousGetHandle()));
@@ -85,8 +99,11 @@ public sealed unsafe class WasapiRenderClient : IDisposable
         }
     }
 
-    /// <summary>Opens the console default render endpoint, or returns null when there is none.</summary>
-    public static WasapiRenderClient? OpenDefault(TimeSpan bufferDuration)
+    /// <summary>
+    /// Opens the media default render endpoint, or returns null when there is none. With
+    /// <paramref name="keep"/>, the stream takes that format and Windows converts it to the device's.
+    /// </summary>
+    public static WasapiRenderClient? OpenDefault(TimeSpan bufferDuration, WasapiMixFormat? keep = null)
     {
         var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumerator();
         try
@@ -95,7 +112,7 @@ public sealed unsafe class WasapiRenderClient : IDisposable
             // different endpoint (commonly the built-in speakers) even while the user's music and
             // video apps are routed elsewhere.
             enumerator.GetDefaultAudioEndpoint(EDataFlow.eRender, ERole.eMultimedia, out var device);
-            return new WasapiRenderClient(device, bufferDuration);
+            return new WasapiRenderClient(device, bufferDuration, keep);
         }
         catch (COMException)
         {
@@ -164,6 +181,23 @@ public sealed unsafe class WasapiRenderClient : IDisposable
         {
             Marshal.Release((nint)pointer);
         }
+    }
+
+    /// <summary>The extensible wave format that describes <paramref name="format"/>.</summary>
+    private static WAVEFORMATEXTENSIBLE Extensible(WasapiMixFormat format)
+    {
+        var extensible = default(WAVEFORMATEXTENSIBLE);
+        extensible.Format.wFormatTag = 0xFFFE;
+        extensible.Format.nChannels = (ushort)format.Channels;
+        extensible.Format.nSamplesPerSec = (uint)format.SampleRate;
+        extensible.Format.wBitsPerSample = (ushort)format.BitsPerSample;
+        extensible.Format.nBlockAlign = (ushort)format.BlockAlign;
+        extensible.Format.nAvgBytesPerSec = (uint)(format.SampleRate * format.BlockAlign);
+        extensible.Format.cbSize = 22;
+        extensible.Samples.wValidBitsPerSample = (ushort)format.ValidBitsPerSample;
+        extensible.dwChannelMask = format.ChannelMask;
+        extensible.SubFormat = format.IsFloat ? FloatSubtype : PcmSubtype;
+        return extensible;
     }
 
     private static WasapiMixFormat ReadFormat(WAVEFORMATEX* format)
