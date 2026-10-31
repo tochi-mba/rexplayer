@@ -193,8 +193,18 @@ public sealed partial class MainWindow : Window
     /// The audio output: the Windows default device, or nothing audible when REXPLAYER_FAKE_AUDIO=1
     /// (the UI tests, which run where there may be no sound card).
     /// </summary>
-    private static IAudioSink NewAudioSink() =>
-        Environment.GetEnvironmentVariable("REXPLAYER_FAKE_AUDIO") == "1" ? new NullAudioSink() : new WasapiAudioSink();
+    private IAudioSink NewAudioSink()
+    {
+        if (Environment.GetEnvironmentVariable("REXPLAYER_FAKE_AUDIO") == "1")
+        {
+            return new NullAudioSink();
+        }
+
+        // The sound follows Windows' default output; say so when it moves.
+        var sink = new WasapiAudioSink();
+        sink.Moved += () => OnWindowThread(() => Say("Sound moved to the new output device"));
+        return sink;
+    }
 
     private static IByteSource OpenSource(string location)
     {
