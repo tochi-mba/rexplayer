@@ -274,6 +274,9 @@ public sealed partial class MainWindow
             var first = TranscriptSearch.FindNext(history.Current.Words, search.Text);
             if (first >= 0)
             {
+                // A late TextChanged notification must not leave a visible match
+                // with a disabled Jump button after Find has already run.
+                jump.IsEnabled = _player.CanSeek && _player.Item?.Location == media;
                 var at = history.Current.Words[first].Start;
                 matchStatus.Text = $"Match at word {first + 1} of {history.Current.Words.Count}, {Rex.Media.AppCore.Player.TimeText.Format(at, _player.Duration)}.";
             }
@@ -302,10 +305,14 @@ public sealed partial class MainWindow
         };
         jump.Click += (_, _) =>
         {
-            if (matchIndex >= 0 && matchIndex < history.Current.Words.Count
+            // Search may have changed after Find: jump to the match currently
+            // described in the status even when TextChanged reset the cursor.
+            var selected = matchIndex >= 0
+                ? matchIndex : TranscriptSearch.FindNext(history.Current.Words, search.Text);
+            if (selected >= 0 && selected < history.Current.Words.Count
                 && _player.CanSeek && _player.Item?.Location == media)
             {
-                var at = history.Current.Words[matchIndex].Start;
+                var at = history.Current.Words[selected].Start;
                 _player.Seek(at < TimeSpan.Zero ? TimeSpan.Zero : at);
             }
         };

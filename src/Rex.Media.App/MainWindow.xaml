@@ -22,8 +22,7 @@
                           HorizontalAlignment="Right" VerticalAlignment="Top" Foreground="{StaticResource RexOverlayTextBrush}" Background="{StaticResource RexOverlayBrush}" IsHitTestVisible="False"
                           ToolTipService.ToolTip="{x:Bind DownloadText, Mode=OneWay}" AutomationProperties.AutomationId="LibraryDownloadBadge" AutomationProperties.Name="{x:Bind DownloadText, Mode=OneWay}" />
             <FontIcon Glyph="&#xE896;" Visibility="{x:Bind DownloadVisibility, Mode=OneWay}" FontSize="9" Foreground="{StaticResource RexOverlayTextBrush}" Width="22" Height="22" Margin="3" HorizontalAlignment="Right" VerticalAlignment="Top" />
-          </Grid>
-        </Border>
+          </Grid></Border>
         <StackPanel Grid.Column="2" VerticalAlignment="Center">
           <TextBlock Text="{x:Bind Name}" FlowDirection="{x:Bind NameDirection}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
           <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" Visibility="{x:Bind DetailVisibility, Mode=OneWay}" />
@@ -37,8 +36,7 @@
           <Button Padding="7" Background="Transparent" BorderThickness="0" Click="OnRowQueue" IsTabStop="False" AllowFocusOnInteraction="False"
                   AutomationProperties.AutomationId="LibraryRowQueue" AutomationProperties.Name="Add to queue" ToolTipService.ToolTip="Add to the end of the playlist">
             <FontIcon Glyph="&#xE710;" FontSize="14" />
-          </Button>
-        </StackPanel>
+          </Button></StackPanel>
         <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
           <FontIcon Glyph="{x:Bind TranscriptGlyph, Mode=OneWay}" Visibility="{x:Bind TranscriptVisibility, Mode=OneWay}" FontSize="13"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" ToolTipService.ToolTip="{x:Bind TranscriptText, Mode=OneWay}"
@@ -113,8 +111,7 @@
                     <TextBlock x:Name="SubjectConfidenceText" Foreground="{StaticResource RexToolBrush}" FontSize="12" AutomationProperties.AutomationId="SubjectConfidenceText" AutomationProperties.Name="Tracking state"
                                AutomationProperties.LiveSetting="Polite"
                                TextWrapping="Wrap" Text="Waiting for selection" />
-                  </Border>
-                </StackPanel>
+                  </Border></StackPanel>
                 <Button x:Name="SubjectSelectButton" Grid.Row="1" Grid.ColumnSpan="2" Content="Select" HorizontalAlignment="Stretch"
                         Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Top"
                         Click="OnSubjectSelect" AutomationProperties.AutomationId="SubjectSelect" AutomationProperties.Name="Select an object in the picture" />
@@ -147,8 +144,7 @@
                                 Toggled="OnSubjectShowBoxChanged" AutomationProperties.AutomationId="SubjectShowBox" AutomationProperties.Name="Show the tracking box; tracking continues when hidden" />
                   <TextBlock Text="Zooming or panning by hand switches auto-follow off until you turn it on again."
                              Foreground="{StaticResource RexOverlaySecondaryTextBrush}" FontSize="11" TextWrapping="Wrap" />
-                </StackPanel>
-              </Expander>
+                </StackPanel></Expander>
               <Expander x:Name="SubjectRemovalSection" Header="Removal preview" IsExpanded="True"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                         Expanding="OnSubjectExpanding" Collapsed="OnSubjectCollapsed" AutomationProperties.AutomationId="SubjectRemovalSection" AutomationProperties.Name="Removal preview">
@@ -179,8 +175,7 @@
                   <Slider x:Name="SubjectFeather" Minimum="0" Maximum="12" Value="3" StepFrequency="1"
                           ValueChanged="OnSubjectMaskChanged" AutomationProperties.AutomationId="SubjectFeather" AutomationProperties.Name="Edge softness" />
                   <TextBlock x:Name="SubjectRemovalNote" Foreground="{StaticResource RexOverlaySecondaryTextBrush}" FontSize="11" TextWrapping="Wrap" />
-                </StackPanel>
-              </Expander>
+                </StackPanel></Expander>
               <Expander x:Name="SubjectHelpSection" Header="Help" IsExpanded="False"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                         Expanding="OnSubjectExpanding" Collapsed="OnSubjectCollapsed" AutomationProperties.AutomationId="SubjectHelpSection" AutomationProperties.Name="Help">
@@ -232,8 +227,7 @@
                 <TextBlock x:Name="ErrorDetailText" TextWrapping="Wrap" IsTextSelectionEnabled="True" FontFamily="{StaticResource RexMonoFontFamily}"
                            FontSize="{StaticResource RexCaptionFontSize}" Foreground="{StaticResource RexOverlaySecondaryTextBrush}"
                            AutomationProperties.AutomationId="ErrorDetailText" />
-              </Expander>
-            </StackPanel>
+              </Expander></StackPanel>
             <StackPanel x:Name="WelcomeActions" Spacing="14" Margin="0,18,0,0">
               <!-- Ordinary button sizes, like every other button; the second keeps an outline you
                    can see on black (the dark theme's own fill and edge all but vanish there). -->
@@ -245,8 +239,7 @@
                     <StaticResource x:Key="ButtonBorderBrush" ResourceKey="RexOverlayTertiaryTextBrush" />
                     <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="RexOverlaySecondaryTextBrush" />
                   </Button.Resources>
-                </Button>
-              </StackPanel>
+                </Button></StackPanel>
               <TextBlock x:Name="WelcomeTagline" Text="Your music. Your films. Your space." FontSize="12" Foreground="{StaticResource RexOverlaySecondaryTextBrush}" HorizontalAlignment="Center" />
             </StackPanel>
           </StackPanel>
@@ -302,8 +295,7 @@
                        TextWrapping="Wrap" AutomationProperties.AutomationId="CaptionBufferOverlayText" AutomationProperties.LiveSetting="Polite" />
             <Button Content="Play now" HorizontalAlignment="Center" Click="OnPlayWithoutCaptionBuffer" AutomationProperties.AutomationId="CaptionBufferPlayNow"
                     AutomationProperties.Name="Play now without waiting for more captions" />
-          </StackPanel>
-        </Border>
+          </StackPanel></Border>
         <!-- A growing local file can temporarily run out of downloaded bytes without being over.
              Make that recoverable wait explicit instead of leaving a frozen picture on screen. -->
         <Border x:Name="DownloadBufferOverlay" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -315,16 +307,14 @@
                        HorizontalAlignment="Center" />
             <TextBlock x:Name="DownloadBufferOverlayText" Text="Playback will continue automatically when more of the file is available."
                        Foreground="{StaticResource RexOverlaySecondaryTextBrush}" TextAlignment="Center" TextWrapping="Wrap" AutomationProperties.AutomationId="DownloadBufferOverlayText" AutomationProperties.LiveSetting="Polite" />
-          </StackPanel>
-        </Border>
+          </StackPanel></Border>
         <InfoBar x:Name="Notice" VerticalAlignment="Bottom" Margin="16" IsOpen="False" IsClosable="True" MaxWidth="720" AutomationProperties.AutomationId="Notice" />
         <!-- The navigator: the presenter draws the whole picture here while zoomed; this frames it, marks the view and takes the pointer. -->
         <Grid x:Name="Navigator" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed" Background="Transparent"
               BorderBrush="{StaticResource RexOverlayTextBrush}" BorderThickness="1" AutomationProperties.AutomationId="Navigator" AutomationProperties.Name="Navigator">
           <Canvas>
             <Rectangle x:Name="NavigatorView" Stroke="{ThemeResource AccentFillColorDefaultBrush}" StrokeThickness="2" Fill="{StaticResource RexOverlayFillBrush}" />
-          </Canvas>
-        </Grid>
+          </Canvas></Grid>
         <!-- Skip intro / Skip credits / Next episode, bottom right above the controls. The options
              button beside them confirms, adjusts or rejects the section; Cancel shows only while an
              opted-in automatic skip counts down. -->
