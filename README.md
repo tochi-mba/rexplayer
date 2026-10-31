@@ -9,7 +9,7 @@ native window to watch and listen in, and a command line made for scripts.
 [On a Mac](docs/mac.md) ·
 [What's new](CHANGELOG.md)
 
-> **Source version: 0.33.0.** rexplayer opens in a window of its own: MP4, MOV, MKV and WebM video decoded on
+> **Source version: 0.34.0.** rexplayer opens in a window of its own: MP4, MOV, MKV and WebM video decoded on
 > the graphics card; MP3, FLAC, Ogg, Opus, WAV, RF64 and AIFF without a gap from one file to the
 > next; and pictures (JPEG, PNG, animated GIF, WebP, BMP, TIFF), a folder of them as a slideshow.
 > A media library keeps up with the folders you choose, with named playlists, covers and lyrics,

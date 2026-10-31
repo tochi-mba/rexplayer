@@ -2,7 +2,7 @@
 
 Every version of rexplayer that reaches users, newest first. CI publishes a version when its number reaches `main`.
 
-## Unreleased
+## 0.34.0 - 2026-10-31
 
 ### Added
 
