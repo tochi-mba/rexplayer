@@ -297,7 +297,7 @@ public sealed partial class MainWindow
 
         if (action == "sheet-escape")
         {
-            _shortcutSheetWindow?.ContentView?.CancelOperation(_shortcutSheetWindow);
+            (_shortcutSheetWindow?.ContentView as ShortcutSheetView)?.CloseOnCancel(_shortcutSheetWindow);
             return _shortcutSheetWindow?.IsVisible != true;
         }
 
