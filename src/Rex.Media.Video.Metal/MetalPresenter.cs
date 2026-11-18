@@ -10,7 +10,8 @@ namespace Rex.Media.Video.Metal;
 /// Direct3D shader uses, so both platforms show the same colours), placed by
 /// <see cref="VideoLayout.Fit"/> with black bars (the same placement). The engine calls
 /// <see cref="Present"/> on its video thread; the window calls <see cref="Resize"/> and
-/// <see cref="Redraw"/> on its own. Picture looks and effects follow (docs/parity.md).
+/// <see cref="Redraw"/> on its own. <see cref="SetLook"/> applies the picture looks with the same
+/// shader maths as Windows; effects follow (docs/parity.md).
 /// </summary>
 public sealed class MetalPresenter : IVideoPresenter
 {
@@ -35,6 +36,29 @@ public sealed class MetalPresenter : IVideoPresenter
             float4 sample = float4(luma.sample(linear, in.uv).r, chroma.sample(linear, in.uv).rg, 1);
             return float4(dot(colour.rowR, sample), dot(colour.rowG, sample), dot(colour.rowB, sample), 1);
         }
+
+        constant float3 lumaWeights = float3(0.2126, 0.7152, 0.0722);
+        float lumaOf(float3 c) { return dot(c, lumaWeights); }
+        """ + "\n" + MetalVideoShaderLooks.Source + "\n" + """
+        // look: x the look, y its intensity (0-1.5), z its colour richness (0.5-1.5): the values
+        // Windows' renderer packs, mixed the same way. Original (x 0) is brightness and contrast.
+        float3 styledLook(float3 original, float4 look) {
+            float3 styled = basePictureLook(original, look);
+            float l = lumaOf(styled);
+            styled = saturate(mix(float3(l, l, l), styled, look.z));
+            if (look.x < 0.5) {
+                return saturate((original - 0.5) * look.z + 0.5 + (look.y - 1.0) * 0.25);
+            }
+            return saturate(mix(original, styled, look.y));
+        }
+
+        fragment float4 showYuvStyled(Placed in [[stage_in]], texture2d<float> luma [[texture(0)]],
+            texture2d<float> chroma [[texture(1)]], sampler linear [[sampler(0)]], constant Colour& colour [[buffer(0)]],
+            constant float4& look [[buffer(1)]]) {
+            float4 sample = float4(luma.sample(linear, in.uv).r, chroma.sample(linear, in.uv).rg, 1);
+            float3 shown = float3(dot(colour.rowR, sample), dot(colour.rowG, sample), dot(colour.rowB, sample));
+            return float4(styledLook(saturate(shown), look), 1);
+        }
         """;
 
     private readonly object _gate = new();
@@ -42,6 +66,7 @@ public sealed class MetalPresenter : IVideoPresenter
     private readonly IMTLDevice _device;
     private readonly IMTLCommandQueue _queue;
     private readonly IMTLRenderPipelineState _pipeline;
+    private readonly IMTLRenderPipelineState _styledPipeline;
     private readonly IMTLSamplerState _sampler;
     private IMTLTexture? _luma;
     private IMTLTexture? _chroma;
@@ -57,6 +82,9 @@ public sealed class MetalPresenter : IVideoPresenter
     private double _zoom = 1;
     private double _panX;
     private double _panY;
+    private VideoLook _look = VideoLook.Original;
+    private float _lookIntensity = 1;
+    private float _lookDetail = 1;
 
     private MetalPresenter(CAMetalLayer layer, IMTLDevice device)
     {
@@ -73,6 +101,11 @@ public sealed class MetalPresenter : IVideoPresenter
         description.ColorAttachments[0]!.PixelFormat = layer.PixelFormat;
         _pipeline = device.CreateRenderPipelineState(description, out error)
             ?? throw new InvalidOperationException("The picture pipeline could not be made: " + error?.LocalizedDescription);
+        // A second pipeline applies the chosen look; the first stays exactly today's drawing, so
+        // Original at its default controls changes nothing.
+        description.FragmentFunction = library.CreateFunction("showYuvStyled");
+        _styledPipeline = device.CreateRenderPipelineState(description, out error)
+            ?? throw new InvalidOperationException("The styled picture pipeline could not be made: " + error?.LocalizedDescription);
         _sampler = device.CreateSamplerState(new MTLSamplerDescriptor
         {
             MinFilter = MTLSamplerMinMagFilter.Linear,
@@ -127,6 +160,17 @@ public sealed class MetalPresenter : IVideoPresenter
             _panX = double.IsFinite(panX) ? Math.Clamp(panX, -1, 1) : 0;
             _panY = double.IsFinite(panY) ? Math.Clamp(panY, -1, 1) : 0;
             Draw();
+        }
+    }
+
+    /// <summary>Colour style applied by the GPU on the next frame or a paused-frame redraw.</summary>
+    public void SetLook(VideoLook look, int intensity = 100, int detail = 100)
+    {
+        lock (_gate)
+        {
+            _look = Enum.IsDefined(look) ? look : VideoLook.Original;
+            _lookIntensity = Math.Clamp(intensity, 0, 150) / 100f;
+            _lookDetail = Math.Clamp(detail, 50, 150) / 100f;
         }
     }
 
@@ -239,7 +283,8 @@ public sealed class MetalPresenter : IVideoPresenter
         pass.ColorAttachments[0].StoreAction = MTLStoreAction.Store;
         var commands = _queue.CommandBuffer() ?? throw new InvalidOperationException("Metal gave no command buffer.");
         var encoder = commands.CreateRenderCommandEncoder(pass);
-        encoder.SetRenderPipelineState(_pipeline);
+        var styled = _look != VideoLook.Original || _lookIntensity != 1 || _lookDetail != 1;
+        encoder.SetRenderPipelineState(styled ? _styledPipeline : _pipeline);
         unsafe
         {
             var quad = stackalloc float[] { left, top, width, height };
@@ -249,6 +294,13 @@ public sealed class MetalPresenter : IVideoPresenter
             fixed (float* rows = _rows)
             {
                 encoder.SetFragmentBytes((IntPtr)rows, (nuint)(sizeof(float) * _rows.Length), 0);
+            }
+
+            if (styled)
+            {
+                // The same four values Windows' renderer packs: the look, its intensity and richness.
+                var look = stackalloc float[] { (int)_look, _lookIntensity, _lookDetail, 0 };
+                encoder.SetFragmentBytes((IntPtr)look, sizeof(float) * 4, 1);
             }
         }
 
