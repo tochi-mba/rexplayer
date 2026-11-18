@@ -288,6 +288,19 @@ public sealed partial class MainWindow
             return _shortcutsWindow?.IsVisible == true && _shortcutCommand is not null;
         }
 
+        // The read-only sheet: proved open with grouped lines, then closed the way Esc closes it.
+        if (action == "sheet")
+        {
+            return _shortcutSheetWindow?.IsVisible == true && _shortcutSheetTable is not null
+                && _shortcutSheetRows.Any(row => row.Heading) && _shortcutSheetRows.Any(row => !row.Heading);
+        }
+
+        if (action == "sheet-escape")
+        {
+            _shortcutSheetWindow?.ContentView?.CancelOperation(_shortcutSheetWindow);
+            return _shortcutSheetWindow?.IsVisible != true;
+        }
+
         if (_shortcutCommand is null || _shortcutChord is null)
         {
             return false;
@@ -328,6 +341,7 @@ public sealed partial class MainWindow
     private void DisposeShortcuts()
     {
         StopGlobalShortcutMonitor();
+        DisposeShortcutSheet();
         _shortcutsWindow?.Close();
         _shortcutsWindow?.Dispose();
         _shortcutsWindow = null;
