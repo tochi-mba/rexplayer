@@ -44,6 +44,8 @@ public sealed partial class MainWindow
         _libraryCurrentPage?.RemoveFromSuperview();
         AttachLibraryPage(page);
         UpdateLibraryNavigationBack();
+        // The focus loop follows the page now showing: the list's controls, or a detail page's own.
+        WireLibraryKeyViews();
     }
 
     /// <summary>Removing a page discards its edge constraints, so attaching makes them again.</summary>
@@ -107,6 +109,62 @@ public sealed partial class MainWindow
         {
             back.Enabled = _libraryNavigationStops.Count > 0;
         }
+    }
+
+    /// <summary>
+    /// A page shown over the list (an album, an artist): a scrolling column of its views, the
+    /// controls that join the window's focus loop while it shows, and the line scripted checks read.
+    /// </summary>
+    private static LibraryDetailPage LibraryDetailPageOf(string label, string summary, IReadOnlyList<NSView> views, IReadOnlyList<NSView> keyViews)
+    {
+        var content = NSStackView.FromViews([.. views]);
+        content.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
+        content.Alignment = NSLayoutAttribute.Leading;
+        content.Spacing = 10;
+        content.EdgeInsets = new NSEdgeInsets(22, 24, 22, 24);
+        content.TranslatesAutoresizingMaskIntoConstraints = false;
+        var document = new TopAlignedLibraryDocument { TranslatesAutoresizingMaskIntoConstraints = false };
+        document.AddSubview(content);
+        content.TopAnchor.ConstraintEqualTo(document.TopAnchor).Active = true;
+        content.LeadingAnchor.ConstraintEqualTo(document.LeadingAnchor).Active = true;
+        content.TrailingAnchor.ConstraintLessThanOrEqualTo(document.TrailingAnchor).Active = true;
+        content.BottomAnchor.ConstraintEqualTo(document.BottomAnchor).Active = true;
+
+        var scroll = new NSScrollView { HasVerticalScroller = true, DrawsBackground = false };
+        scroll.TranslatesAutoresizingMaskIntoConstraints = false;
+        scroll.DocumentView = document;
+        // The column is as wide as the page and as tall as its views, so it scrolls only up and down.
+        document.TopAnchor.ConstraintEqualTo(scroll.ContentView.TopAnchor).Active = true;
+        document.LeadingAnchor.ConstraintEqualTo(scroll.ContentView.LeadingAnchor).Active = true;
+        document.WidthAnchor.ConstraintEqualTo(scroll.ContentView.WidthAnchor).Active = true;
+
+        var page = new LibraryDetailPage(summary, [.. keyViews]);
+        page.AccessibilityLabel = label;
+        page.AddSubview(scroll);
+        scroll.TopAnchor.ConstraintEqualTo(page.TopAnchor).Active = true;
+        scroll.LeadingAnchor.ConstraintEqualTo(page.LeadingAnchor).Active = true;
+        scroll.TrailingAnchor.ConstraintEqualTo(page.TrailingAnchor).Active = true;
+        scroll.BottomAnchor.ConstraintEqualTo(page.BottomAnchor).Active = true;
+        return page;
+    }
+
+    /// <summary>
+    /// A detail page in the content area. It keeps its own controls and summary, so Back can bring
+    /// it back exactly as it was left, focus loop and all.
+    /// </summary>
+    private sealed class LibraryDetailPage : NSView
+    {
+        public LibraryDetailPage(string summary, IReadOnlyList<NSView> keyViews)
+        {
+            Summary = summary;
+            KeyViews = keyViews;
+        }
+
+        /// <summary>What the page shows in one line, for scripted checks.</summary>
+        public string Summary { get; }
+
+        /// <summary>The page's controls in focus order, after the sidebar and its Back button.</summary>
+        public IReadOnlyList<NSView> KeyViews { get; }
     }
 
     private void CloseLibraryNavigation()
