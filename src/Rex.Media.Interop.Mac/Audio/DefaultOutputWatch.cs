@@ -1,4 +1,4 @@
-// Spec: CoreAudio/AudioHardware.h (macOS SDK) — kAudioHardwarePropertyDefaultOutputDevice and its property listener.
+// Spec: CoreAudio/AudioHardware.h (macOS SDK): kAudioHardwarePropertyDefaultOutputDevice and its property listener.
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using static Rex.Media.Interop.Mac.Audio.AudioHardware;

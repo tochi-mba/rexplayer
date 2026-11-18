@@ -37,7 +37,7 @@ public static class DeviceFollowPolicy
     /// <summary>
     /// Whether the Mac's default-output notification moves the sound: the Mac has one default for
     /// playback, so the sound moves whenever the notification names a different device than the one
-    /// in use — including none at all (0), so a lost default is waited out and tried again rather
+    /// in use, including none at all (0), so a lost default is waited out and tried again rather
     /// than played to a device that is gone.
     /// </summary>
     public static bool ShouldMove(uint newDevice, uint currentDevice) => newDevice != currentDevice;
