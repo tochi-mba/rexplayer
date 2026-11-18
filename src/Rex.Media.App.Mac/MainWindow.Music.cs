@@ -1,4 +1,5 @@
 using Rex.Media.Primitives;
+using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Visuals;
 using Rex.Media.Video;
@@ -66,7 +67,7 @@ public sealed partial class MainWindow
         _musicLyrics.TextColor = NSColor.White;
         _musicLyrics.WidthAnchor.ConstraintLessThanOrEqualTo(550).Active = true;
         _musicPresentation = NSStackView.FromViews([
-            _musicArtwork, _musicHeading, _musicSpectrum, _musicLyrics,
+            _musicArtwork, _musicHeading, _musicSpectrum, _musicLyrics, CreateLyricsWindowButton(),
         ]);
         _musicPresentation.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
         _musicPresentation.Alignment = NSLayoutAttribute.CenterX;
@@ -79,7 +80,11 @@ public sealed partial class MainWindow
         _musicPresentation.WidthAnchor.ConstraintLessThanOrEqualTo(_picture.WidthAnchor, 1, -48).Active = true;
         ((NSView)_musicPresentation).AccessibilityLabel = "Now playing music, cover art, audio meter and lyrics";
         _musicShowLyrics = _settings.ShowLyrics;
-        _musicTimer = NSTimer.CreateRepeatingScheduledTimer(TimeSpan.FromMilliseconds(120), _ => RefreshMusicPosition());
+        _musicTimer = NSTimer.CreateRepeatingScheduledTimer(TimeSpan.FromMilliseconds(120), _ =>
+        {
+            RefreshMusicPosition();
+            RefreshLyricsCompanion();
+        });
     }
 
     private bool IsMusicPlaying() =>
@@ -95,6 +100,8 @@ public sealed partial class MainWindow
 
         var visible = IsMusicPlaying();
         _musicPresentation.Hidden = !visible;
+        // The detached window follows every track change, including to a video or to nothing.
+        RefreshLyricsCompanion();
         if (!visible)
         {
             _musicLyricLine = -2;
@@ -202,6 +209,32 @@ public sealed partial class MainWindow
         SaveMusicSettings();
         _musicLyricLine = -2;
         RefreshMusicPosition();
+        RefreshLyricsCompanion();
+    }
+
+    /// <summary>
+    /// The music stage for scripted checks: "visualisers" reports the visualisation panel, the
+    /// "companion" ids drive the lyrics window, and anything else describes the stage itself.
+    /// </summary>
+    private AutomationReply MusicSmokeAction(string? id)
+    {
+        if (id == "visualisers")
+        {
+            return MacVisualizerSmokeAction();
+        }
+
+        if (id is "companion" or "companion-open" or "companion-close")
+        {
+            return LyricsCompanionSmokeAction(id);
+        }
+
+        RefreshMusicPresentation();
+        RefreshMusicPosition();
+        return new AutomationReply
+        {
+            Ok = true,
+            Text = $"visible={_musicPresentation?.Hidden == false};art={_musicArtwork?.Hidden == false};heading={_musicHeading?.StringValue};lyrics={_musicLyrics?.Hidden == false};visualizer={_settings.Visualizer};meter={_musicSpectrum?.StringValue.Length ?? 0};text={_musicLyrics?.StringValue};companion={LyricsCompanionOpen}",
+        };
     }
 
     private static bool MacVisualizerNeedsCamera(VisualizerChoice choice) => choice is
@@ -317,6 +350,7 @@ public sealed partial class MainWindow
     {
         _musicTimer?.Invalidate();
         _musicTimer = null;
+        DisposeLyricsCompanion();
         _musicArtwork!.Image = null;
         if (_musicBackdrop is not null) _musicBackdrop.Image = null;
         _musicSceneImage?.Dispose();
