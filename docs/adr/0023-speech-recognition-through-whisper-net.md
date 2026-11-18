@@ -1,4 +1,4 @@
-# ADR-0020: Speech recognition through Whisper.net
+# ADR-0023: Speech recognition through Whisper.net
 
 Status: accepted (2026-10-13). Amends [ADR-0002](0002-no-third-party-runtime-code.md).
 
