@@ -205,8 +205,9 @@ public sealed partial class MainWindow
         }
 
         _macReaderVariant = 0;
-        RefreshMacReader();
+        // Refreshing fills only a visible reader, so the window comes forward first.
         _macReaderWindow.MakeKeyAndOrderFront(null);
+        RefreshMacReader();
     }
 
     /// <summary>Shows the chosen variant's lines, keeping the search and marking where playback is.</summary>
