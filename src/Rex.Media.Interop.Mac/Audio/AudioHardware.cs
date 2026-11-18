@@ -1,4 +1,4 @@
-// Spec: CoreAudio/AudioHardware.h and AudioHardwareBase.h (macOS SDK) — the HAL's property interface.
+// Spec: CoreAudio/AudioHardware.h and AudioHardwareBase.h (macOS SDK): the HAL's property interface.
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
