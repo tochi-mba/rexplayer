@@ -28,4 +28,24 @@ public static class DeviceFormatPolicy
         var frames = new AudioFormat(sampleRate, channels, SampleFormat.F32, layout.ChannelCount() == channels ? layout : ChannelLayouts.Default(channels));
         return (frames, storage);
     }
+
+    /// <summary>
+    /// The format to open an output that converts to the device itself (the Mac's output unit, which
+    /// takes any rate and format and resamples to the device): the stream as it is when the device
+    /// has that many outputs, otherwise as many channels as the device has, in the default layout for
+    /// that count, for the pure mixer to fold to first. A device that cannot say how many outputs it
+    /// has is taken as stereo, and no named layout goes past eight speakers.
+    /// </summary>
+    public static AudioFormat ForConvertingOutput(AudioFormat stream, int deviceChannels)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        var available = deviceChannels < 1 ? 2 : deviceChannels;
+        if (available >= stream.Channels)
+        {
+            return new AudioFormat(stream.SampleRate, stream.Channels, SampleFormat.F32, stream.Layout);
+        }
+
+        var channels = Math.Min(available, 8);
+        return new AudioFormat(stream.SampleRate, channels, SampleFormat.F32, ChannelLayouts.Default(channels));
+    }
 }

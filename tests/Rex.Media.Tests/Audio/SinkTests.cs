@@ -328,4 +328,32 @@ public sealed class SinkTests : IDisposable
         Assert.Throws<NotSupportedException>(() => DeviceFormatPolicy.FromMixFormat(48_000, 2, 8, 3, isFloat: false));
         Assert.Equal(ChannelLayout.Surround51, DeviceFormatPolicy.FromMixFormat(48_000, 6, 32, (uint)ChannelLayout.Stereo, true).Frames.Layout);
     }
+
+    [Fact]
+    public void AConvertingOutputTakesTheStreamAsItIsWhenTheDeviceHasTheChannels()
+    {
+        var stream = new AudioFormat(44_100, 6, SampleFormat.S16, ChannelLayout.Surround51Back);
+
+        Assert.Equal(new AudioFormat(44_100, 6, SampleFormat.F32, ChannelLayout.Surround51Back), DeviceFormatPolicy.ForConvertingOutput(stream, deviceChannels: 8));
+        Assert.Equal(new AudioFormat(44_100, 6, SampleFormat.F32, ChannelLayout.Surround51Back), DeviceFormatPolicy.ForConvertingOutput(stream, deviceChannels: 6));
+    }
+
+    [Fact]
+    public void AConvertingOutputFoldsToTheChannelsTheDeviceHas()
+    {
+        var stream = new AudioFormat(48_000, 8, SampleFormat.F32, ChannelLayout.Surround71);
+
+        Assert.Equal(new AudioFormat(48_000, 6, SampleFormat.F32, ChannelLayout.Surround51), DeviceFormatPolicy.ForConvertingOutput(stream, 6));
+        Assert.Equal(new AudioFormat(48_000, 2, SampleFormat.F32, ChannelLayout.Stereo), DeviceFormatPolicy.ForConvertingOutput(stream, 2));
+        Assert.Equal(new AudioFormat(48_000, 1, SampleFormat.F32, ChannelLayout.Mono), DeviceFormatPolicy.ForConvertingOutput(stream, 1));
+    }
+
+    [Fact]
+    public void AConvertingOutputTreatsAnUnknownDeviceAsStereoAndNamesNoLayoutPastEight()
+    {
+        Assert.Equal(2, DeviceFormatPolicy.ForConvertingOutput(new AudioFormat(48_000, 6, SampleFormat.F32), 0).Channels);
+        Assert.Equal(1, DeviceFormatPolicy.ForConvertingOutput(new AudioFormat(48_000, 1, SampleFormat.F32), -1).Channels);
+        Assert.Equal(new AudioFormat(48_000, 8, SampleFormat.F32, ChannelLayout.Surround71), DeviceFormatPolicy.ForConvertingOutput(new AudioFormat(48_000, 12, SampleFormat.F32), 10));
+        Assert.Throws<ArgumentNullException>(() => DeviceFormatPolicy.ForConvertingOutput(null!, 2));
+    }
 }

@@ -1,4 +1,6 @@
+using Rex.Media.Audio;
 using Rex.Media.Audio.CoreAudio;
+using Rex.Media.Interop.Mac.Audio;
 using Rex.Media.Primitives;
 using Rex.Media.TestKit;
 
@@ -38,13 +40,22 @@ public sealed class CoreAudioSinkTests
 
     [Fact]
     [Capability("AU-01", CapabilityPlatform.MacOS)]
-    public void TheDeviceTakesFloatsAtTheAskedRateAndAtMostTwoChannels()
+    public void TheDeviceTakesFloatsAtTheAskedRateInTheChannelsThePolicyDecides()
     {
         using var sink = OpenOrSkip(channels: 6, out var format);
 
-        Assert.Equal(new AudioFormat(Rate, 2, SampleFormat.F32, ChannelLayout.Stereo), format);
+        // The sink only executes the policy's decision for this Mac's default device.
+        var expected = DeviceFormatPolicy.ForConvertingOutput(
+            new AudioFormat(Rate, 6, SampleFormat.F32),
+            DefaultOutputWatch.OutputChannels(DefaultOutputWatch.Device()));
+        Assert.Equal(expected, format);
         Assert.True(sink.IsRealTime);
         Assert.Equal("Mac default audio output", sink.Name);
+
+        // Whatever was decided, the sink plays it and counts every frame.
+        Play(sink, format, Rate / 10);
+        sink.Drain(TestContext.Current.CancellationToken);
+        Assert.Equal(Rate / 10, sink.PlayedSamples);
     }
 
     [Fact]

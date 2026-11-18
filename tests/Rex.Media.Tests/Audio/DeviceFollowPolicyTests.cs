@@ -18,6 +18,15 @@ public sealed class DeviceFollowPolicyTests
     }
 
     [Theory]
+    [InlineData(41u, 37u, true)]
+    [InlineData(37u, 37u, false)]
+    [InlineData(0u, 37u, true)]
+    public void OnTheMacAnyOtherDefaultOutputMovesTheSound(uint newDevice, uint current, bool moves)
+    {
+        Assert.Equal(moves, DeviceFollowPolicy.ShouldMove(newDevice, current));
+    }
+
+    [Theory]
     [InlineData(unchecked((int)0x88890004), true)]
     [InlineData(unchecked((int)0x88890010), true)]
     [InlineData(unchecked((int)0x88890026), true)]
