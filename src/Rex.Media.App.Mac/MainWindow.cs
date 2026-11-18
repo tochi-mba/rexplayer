@@ -366,6 +366,9 @@ public sealed partial class MainWindow : IDisposable
                 case "mac-updates":
                     answered.SetResult(MacUpdateSmokeAction(request.Id));
                     return;
+                case "mac-preferences":
+                    answered.SetResult(PreferencesSmokeAction(request.Id));
+                    return;
                 case "status":
                     break;
                 case "ui.add-folder":
@@ -772,6 +775,7 @@ public sealed partial class MainWindow : IDisposable
         CommandCatalog.ToggleFullScreen => IsFullScreen,
         CommandCatalog.ToggleAlwaysOnTop => _window.Level == NSWindowLevel.Floating,
         CommandCatalog.ToggleStats => _statsVisible,
+        CommandCatalog.ToggleNavigator => _settings.ShowNavigator,
         CommandCatalog.MinimalInterface => _minimalInterface,
         _ => false,
     };
