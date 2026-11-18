@@ -4,9 +4,11 @@ namespace Rex.Media.Codecs.Apple;
 
 /// <summary>
 /// The Mac's own decoders, the counterpart of Windows Media Foundation (ADR-0009): H.264 and HEVC
-/// through VideoToolbox, AAC and Opus through AudioToolbox. Ranked as Windows' decoders are, below
-/// rexplayer's own for the codecs both cover. Tracks need their configuration in the container
-/// (MP4's avcC, hvcC and esds, Matroska's CodecPrivate); raw Annex B and ADTS streams follow.
+/// through VideoToolbox, AAC and Opus through AudioToolbox, still pictures through ImageIO as
+/// Windows decodes them through its imaging components. Ranked as Windows' decoders are, below
+/// rexplayer's own for the codecs both cover. Compressed tracks need their configuration in the
+/// container (MP4's avcC, hvcC and esds, Matroska's CodecPrivate); raw Annex B and ADTS streams
+/// follow.
 /// </summary>
 public sealed class AppleDecoderFactory : IDecoderFactory
 {
@@ -31,10 +33,11 @@ public sealed class AppleDecoderFactory : IDecoderFactory
     public bool CanDecode(TrackInfo track)
     {
         ArgumentNullException.ThrowIfNull(track);
-        return OperatingSystem.IsMacOS() && track.CodecPrivate.Length > 0 && track.Codec switch
+        return OperatingSystem.IsMacOS() && track.Codec switch
         {
-            CodecId.H264 or CodecId.Hevc => track.Video is not null,
-            CodecId.Aac or CodecId.Opus => track.Audio is not null,
+            CodecId.Picture => true,
+            CodecId.H264 or CodecId.Hevc => track.Video is not null && track.CodecPrivate.Length > 0,
+            CodecId.Aac or CodecId.Opus => track.Audio is not null && track.CodecPrivate.Length > 0,
             _ => false,
         };
     }
@@ -43,12 +46,21 @@ public sealed class AppleDecoderFactory : IDecoderFactory
         ? new AtAudioDecoder(track)
         : throw new PlatformNotSupportedException("AudioToolbox exists only on a Mac.");
 
-    public IVideoDecoder CreateVideo(TrackInfo track) => OperatingSystem.IsMacOS()
-        ? new VtVideoDecoder(track, _allowHardware && (track.Codec switch
+    public IVideoDecoder CreateVideo(TrackInfo track)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        if (!OperatingSystem.IsMacOS())
         {
-            CodecId.H264 => _allowH264Hardware,
-            CodecId.Hevc => _allowHevcHardware,
-            _ => false,
-        }))
-        : throw new PlatformNotSupportedException("VideoToolbox exists only on a Mac.");
+            throw new PlatformNotSupportedException("VideoToolbox and ImageIO exist only on a Mac.");
+        }
+
+        return track.Codec == CodecId.Picture
+            ? new IoPictureDecoder()
+            : new VtVideoDecoder(track, _allowHardware && (track.Codec switch
+            {
+                CodecId.H264 => _allowH264Hardware,
+                CodecId.Hevc => _allowHevcHardware,
+                _ => false,
+            }));
+    }
 }
