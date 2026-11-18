@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 148 planned, 46 built, 98 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
+macOS: 147 planned, 47 built, 98 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -98,7 +98,7 @@ macOS: 148 planned, 46 built, 98 verified, 1 verified-hardware, 27 post-1.0, 2 n
 | FMT-A07 | E-AC-3 | MF ext → own after legal checkpoint | M11/M12 | should | planned | planned |
 | FMT-A08 | DTS core (+ core extraction from DTS-HD) | Own | M12 | should | planned | planned |
 | FMT-A09 | Vorbis | Own | M7 | must | verified | verified |
-| FMT-A10 | Opus (SILK/CELT/hybrid, multistream for surround) | Own | M7 | must | built | planned |
+| FMT-A10 | Opus (SILK/CELT/hybrid, multistream for surround) | Own | M7 | must | built | built |
 | FMT-A11 | ALAC | Own | M7 | should | planned | planned |
 | FMT-A12 | WMA 1/2/Pro/Lossless | MF | M3 | should | planned | planned |
 | FMT-A13 | AMR-NB/WB | MF | M7 | could | planned | planned |
