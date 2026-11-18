@@ -86,7 +86,7 @@ public sealed partial class MainWindow
             // Mirror opening an album from its song: only an album the catalogue holds can open.
             var title = action["open-album:".Length..];
             return _mediaLibrary is not null && LibraryMemo.Albums(_mediaLibrary.Entries).FirstOrDefault(candidate =>
-                string.Equals(candidate.Name, title, StringComparison.CurrentCultureIgnoreCase)) is { } album && OpenLibraryAlbum(album);
+                string.Equals(candidate.Name, title, StringComparison.OrdinalIgnoreCase)) is { } album && OpenLibraryAlbum(album);
         }
 
         if (action is not null && action.StartsWith("open-artist:", StringComparison.Ordinal))

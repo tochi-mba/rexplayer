@@ -419,7 +419,7 @@ public sealed partial class MainWindow
             label.LineBreakMode = NSLineBreakMode.TruncatingTail;
             label.Font = index == _owner._macReaderCurrent
                 ? NSFont.SystemFontOfSize(13, NSFontWeight.Semibold)!
-                : NSFont.SystemFontOfSize(13);
+                : NSFont.SystemFontOfSize(13)!;
             ((NSView)label).AccessibilityLabel = $"Jump to {time}. {cue.Text}";
             return label;
         }
