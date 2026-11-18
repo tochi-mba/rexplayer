@@ -17,6 +17,7 @@ public sealed partial class MainWindow
     private readonly TranscriptionLedger _macLedger = new(TranscriptionLedger.DefaultPath(AppHost.Roots.Root));
     private TranscriptionWorker? _macWorker;
     private Transcript? _macTranscript;
+    private Transcript? _macPartialTranscript;
     private SubtitleTrack? _macTrack;
     private string? _macTranscriptItem;
     private string? _macAsked;
@@ -26,6 +27,7 @@ public sealed partial class MainWindow
     private NSButton? _macSpeechLibrary;
     private NSButton? _macSpeechPlaying;
     private NSButton? _macSpeechPaused;
+    private NSButton? _macSpeechSrt;
     private NSTimer? _macSpeechTimer;
     private CancellationTokenSource? _macDownloadingModel;
     private bool _macLibraryQueueDirty = true;
@@ -36,7 +38,13 @@ public sealed partial class MainWindow
     {
         _macSpeechTimer = NSTimer.CreateRepeatingScheduledTimer(
             TimeSpan.FromSeconds(2), _ => MacSpeechTick());
-        _player.PositionChanged += (_, _) => _macWorker?.MovePlayhead(_player.Position);
+        _player.PositionChanged += (_, _) =>
+        {
+            _macWorker?.MovePlayhead(_player.Position);
+            OnWindowThread(ShowMacReaderPosition);
+        };
+        _player.SubtitlesChanged += (_, _) => OnWindowThread(ShowMacCoverage);
+        EnsureMacReaderMenu();
         if (_mediaLibrary is not null)
         {
             _mediaLibrary.Changed += (_, _) => _macLibraryQueueDirty = true;
@@ -47,7 +55,7 @@ public sealed partial class MainWindow
     {
         if (_macSpeechWindow is null)
         {
-            _macSpeechWindow = new NSWindow(new CGRect(0, 0, 620, 390),
+            _macSpeechWindow = new NSWindow(new CGRect(0, 0, 620, 450),
                 NSWindowStyle.Titled | NSWindowStyle.Closable,
                 NSBackingStore.Buffered, false) { Title = "Speech transcription - rexplayer" };
             _macSpeechWindow.ReleaseWhenClosed(false);
@@ -62,24 +70,28 @@ public sealed partial class MainWindow
             _macSpeechLibrary = NSButton.CreateCheckbox("Transcribe watched videos in the background", SaveMacSpeechOptions);
             _macSpeechPlaying = NSButton.CreateCheckbox("Transcribe what plays from its playhead", SaveMacSpeechOptions);
             _macSpeechPaused = NSButton.CreateCheckbox("Pause background transcription", SaveMacSpeechOptions);
+            _macSpeechSrt = NSButton.CreateCheckbox("Keep original and edited SRT files beside transcribed media", SaveMacSpeechOptions);
             _macSpeechStatus = NSTextField.CreateWrappingLabel("");
             _macSpeechStatus.TextColor = NSColor.SecondaryLabel;
             var download = NSButton.CreateButton("Download model", DownloadMacModel);
             var current = NSButton.CreateButton("Transcribe this file", AskMacSpeech);
             var export = NSButton.CreateButton("Export captions…", ExportMacSpeech);
-            var controls = NSStackView.FromViews([download, current, export]);
+            var read = NSButton.CreateButton(MacReaderMenuTitle, ShowMacReader);
+            var clean = NSButton.CreateButton("Remove SRT copies", CleanMacGeneratedTranscriptSrts);
+            clean.ToolTip = "Remove the generated SRT copies beside known media; authored subtitles stay";
+            var controls = NSStackView.FromViews([download, current, export, read, clean]);
             controls.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
             controls.Spacing = 9;
             var stack = NSStackView.FromViews([
                 title, intro, EffectChoiceRow("Model", _macSpeechQuality),
-                _macSpeechLibrary, _macSpeechPlaying, _macSpeechPaused, _macSpeechStatus, controls,
+                _macSpeechLibrary, _macSpeechPlaying, _macSpeechPaused, _macSpeechSrt, _macSpeechStatus, controls,
             ]);
             stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
             stack.Alignment = NSLayoutAttribute.Leading;
             stack.Spacing = 16;
             stack.EdgeInsets = new NSEdgeInsets(22, 24, 22, 24);
             stack.TranslatesAutoresizingMaskIntoConstraints = false;
-            var root = new NSView(new CGRect(0, 0, 620, 390));
+            var root = new NSView(new CGRect(0, 0, 620, 450));
             root.AddSubview(stack);
             stack.TopAnchor.ConstraintEqualTo(root.TopAnchor).Active = true;
             stack.BottomAnchor.ConstraintEqualTo(root.BottomAnchor).Active = true;
@@ -95,6 +107,7 @@ public sealed partial class MainWindow
         _macSpeechLibrary!.State = State(_settings.Transcription.Library);
         _macSpeechPlaying!.State = State(_settings.Transcription.WhatPlays);
         _macSpeechPaused!.State = State(_settings.Transcription.Paused);
+        _macSpeechSrt!.State = State(_settings.Transcription.WriteSrtBesideMedia);
         ShowMacSpeechStatus();
         _macSpeechWindow.MakeKeyAndOrderFront(null);
     }
@@ -113,11 +126,13 @@ public sealed partial class MainWindow
                 Library = IsChecked(_macSpeechLibrary),
                 WhatPlays = IsChecked(_macSpeechPlaying),
                 Paused = IsChecked(_macSpeechPaused),
+                WriteSrtBesideMedia = _macSpeechSrt is null ? _settings.Transcription.WriteSrtBesideMedia : IsChecked(_macSpeechSrt),
             },
         }).Normalize();
         try
         {
             SettingsStore.Save(_roots.SettingsPath, candidate);
+            var before = _settings;
             _settings = candidate;
             _player.Settings = candidate;
             _macLibraryQueueDirty = true;
@@ -128,6 +143,15 @@ public sealed partial class MainWindow
                 _macTranscript = null;
                 _macTrack = null;
                 _macTranscriptItem = null;
+            }
+
+            if (candidate.Transcription.WriteSrtBesideMedia && !before.Transcription.WriteSrtBesideMedia)
+            {
+                _ = Task.Run(ExportMacCachedTranscriptSrts);
+            }
+            else if (!candidate.Transcription.WriteSrtBesideMedia && before.Transcription.WriteSrtBesideMedia)
+            {
+                CleanMacGeneratedTranscriptSrts();
             }
 
             MacSpeechTick();
@@ -214,23 +238,45 @@ public sealed partial class MainWindow
         {
             _macTranscriptItem = item;
             _macTranscript = null;
+            _macPartialTranscript = null;
             _macTrack = null;
+            _macSavedVariants = [];
+            ResetMacCoverage();
             if (item is { } local && File.Exists(local))
             {
                 var chosen = model.Id;
-                _ = Task.Run(() => _macTranscriptCache.Load(local, chosen)).ContinueWith(
+                _ = Task.Run(() =>
+                {
+                    var whole = _macTranscriptCache.Load(local, chosen);
+                    return (Whole: whole, Partial: whole is null ? _macTranscriptCache.LoadPartial(local, chosen) : null);
+                }).ContinueWith(
                     task => OnWindowThread(() =>
                     {
-                        if (task.IsCompletedSuccessfully && task.Result is { } found &&
-                            _player.Item?.Location == local && MacModel.Id == chosen)
+                        if (!task.IsCompletedSuccessfully || _player.Item?.Location != local || MacModel.Id != chosen) return;
+                        if (task.Result.Whole is { } found)
                         {
                             _macTranscript = found;
                             _macTrack = found.ToTrack(TranscriptionWorker.TrackName(chosen));
                             _player.AddSubtitles(_macTrack, show: false);
+                            SetMacCoverage(complete: true, null, null, hearing: false);
                         }
+                        else if (task.Result.Partial is { } part)
+                        {
+                            _macPartialTranscript = part.ToTranscript();
+                            SetMacCoverage(complete: false, part.Done, part.Duration, hearing: false);
+                        }
+
+                        RefreshMacReader();
                     }), TaskScheduler.Default);
+                QueueMacTranscriptVariants(local);
             }
+
+            RefreshMacReader();
         }
+
+        EnsureMacReaderMenu();
+        // The duration a complete transcript covers may only be known after it loaded.
+        ShowMacCoverage();
 
         var installed = _macModels.IsInstalled(model);
         // Songs (a cover kept as a one-frame video track included) and files still downloading are
@@ -296,6 +342,7 @@ public sealed partial class MainWindow
 
     private void OnMacHearing(TranscriptionWorker worker, HearingEventArgs e)
     {
+        WriteMacTranscriptSrt(worker, e.Path);
         OnWindowThread(() =>
         {
             if (!ReferenceEquals(worker, _macWorker) || _player.Item?.Location != e.Path) return;
@@ -312,6 +359,8 @@ public sealed partial class MainWindow
                 _macAsked = null;
             }
 
+            SetMacCoverage(e.Complete, e.Done, e.Duration, hearing: !e.Complete);
+            RefreshMacReader();
             ShowMacSpeechStatus();
         });
     }
@@ -380,6 +429,10 @@ public sealed partial class MainWindow
             _macSpeechPaused!.State = NSCellStateValue.Off;
             SaveMacSpeechOptions();
         }
+        else if (MacReaderSmokeAction(action) is { } reader)
+        {
+            return reader;
+        }
         else if (action != "status")
         {
             return new AutomationReply { Ok = false, Error = "Unknown speech action." };
@@ -404,5 +457,6 @@ public sealed partial class MainWindow
         _macSpeechWindow?.Close();
         _macSpeechWindow?.Dispose();
         _macSpeechWindow = null;
+        DisposeMacReader();
     }
 }
