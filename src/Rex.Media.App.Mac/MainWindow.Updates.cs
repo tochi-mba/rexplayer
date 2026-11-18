@@ -1,3 +1,4 @@
+using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Updates;
 using Rex.Media.Settings;
 
@@ -10,6 +11,16 @@ namespace Rex.Media.App.Mac;
 public sealed partial class MainWindow
 {
     private const string MacUpdateAsset = "rexplayer-mac-universal.zip";
+
+    /// <summary>
+    /// A stand-in release feed the operator chose over the published one (the update smoke test's
+    /// own server); assets are then accepted from that feed's origin alone.
+    /// </summary>
+    private static readonly Uri? UpdateFeedOverride = ReadUpdateFeedOverride();
+
+    private static Uri? ReadUpdateFeedOverride() =>
+        Uri.TryCreate(Environment.GetEnvironmentVariable("REXPLAYER_UPDATE_FEED"), UriKind.Absolute, out var feed)
+            ? feed : null;
     private NSWindow? _updatesWindow;
     private NSTextField? _updatesStatus;
     private NSPopUpButton? _updatesCadence;
@@ -208,8 +219,8 @@ public sealed partial class MainWindow
         {
             _updateHttp.DefaultRequestHeaders.UserAgent.ParseAdd("rexplayer-mac/1");
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var json = await _updateHttp.GetStringAsync(UpdateCheck.LatestRelease, deadline.Token);
-            var offer = UpdateCheck.Offer(json, RunningVersion, MacUpdateAsset);
+            var json = await _updateHttp.GetStringAsync(UpdateFeedOverride ?? UpdateCheck.LatestRelease, deadline.Token);
+            var offer = UpdateCheck.Offer(json, RunningVersion, MacUpdateAsset, UpdateFeedOverride);
             OnWindowThread(() =>
             {
                 _macUpdateOffer = offer is not null &&
@@ -426,6 +437,45 @@ public sealed partial class MainWindow
             _log.Warning(LogSource, "The Mac update could not start: " + ex.Message);
             if (_updatesStatus is not null) _updatesStatus.StringValue = "The update could not start: " + ex.Message;
         }
+    }
+
+    /// <summary>
+    /// CI-only update smoke actions (TOOL-09): the same checks, downloads and installs the buttons
+    /// run, driven against the stand-in feed REXPLAYER_UPDATE_FEED names.
+    /// </summary>
+    private AutomationReply MacUpdateSmokeAction(string? action)
+    {
+        if (Environment.GetEnvironmentVariable("REXPLAYER_MAC_UPDATE_TESTS") != "1")
+        {
+            return AutomationReply.Failed("Set REXPLAYER_MAC_UPDATE_TESTS=1 to drive the Mac updater.");
+        }
+
+        switch (action)
+        {
+            case "check":
+                CheckForMacUpdates();
+                break;
+            case "download":
+                DownloadMacUpdate();
+                break;
+            case "install-now":
+                // Reply before the hand-off: installing saves the session and ends this process.
+                _ = NSTimer.CreateScheduledTimer(TimeSpan.FromMilliseconds(50), _ => InstallMacUpdate(relaunch: true));
+                break;
+            case "status":
+                break;
+            default:
+                return AutomationReply.Failed("Unknown Mac update action: " + action);
+        }
+
+        var ready = _macPending is { Stage: UpdateStage.Ready } pending
+            && UpdateDownloader.IsReady(_roots.UpdateFolder, pending);
+        return new AutomationReply
+        {
+            Ok = true,
+            Text = $"version={RunningVersion};offer={_macUpdateOffer?.Version.ToString() ?? "none"};" +
+                $"stage={_macPending?.Stage.ToString() ?? "none"};ready={ready};handedOff={_installHandedOff}",
+        };
     }
 
     private void DisposeMacUpdates()
