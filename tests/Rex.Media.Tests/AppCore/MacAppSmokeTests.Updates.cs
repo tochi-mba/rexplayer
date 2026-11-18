@@ -68,7 +68,7 @@ public sealed partial class MacAppSmokeTests
               ]
             }
             """;
-        var serving = Task.Run(() => Serve(feed, feedJson, zipBytes, checksum));
+        var serving = Task.Run(() => Serve(feed, feedJson, zipBytes, checksum), TestContext.Current.CancellationToken);
 
         var pipe = "rexplayer-mac-" + Guid.NewGuid().ToString("N")[..8];
         var start = new ProcessStartInfo(Path.Combine(bundle, "Contents", "MacOS", "rexplayer"))

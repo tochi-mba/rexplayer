@@ -69,10 +69,14 @@ public sealed partial class MainWindow
         ApplyVideoGeometry();
     }
 
-    private void ApplyVideoGeometry() => _picture?.Presenter?.SetViewGeometry(
-        _aspectIndex == MacAspectRatios.Length - 1 ? _customAspect : MacAspectRatios[_aspectIndex].Value,
-        MacCropRatios[_cropIndex].Value,
-        _videoZoom, _videoPanX, _videoPanY);
+    private void ApplyVideoGeometry()
+    {
+        _picture?.Presenter?.SetViewGeometry(
+            _aspectIndex == MacAspectRatios.Length - 1 ? _customAspect : MacAspectRatios[_aspectIndex].Value,
+            MacCropRatios[_cropIndex].Value,
+            _videoZoom, _videoPanX, _videoPanY);
+        RefreshVideoNavigator();
+    }
 
     private void ShowCustomAspectRatio()
     {
@@ -117,6 +121,15 @@ public sealed partial class MainWindow
                 break;
             case "custom":
                 SetCustomAspectRatio(21, 9);
+                break;
+            case "navigator":
+                return new AutomationReply
+                {
+                    Ok = true,
+                    Text = $"visible={MacNavigatorShown};setting={_settings.ShowNavigator};zoom={_videoZoom:0.00}",
+                };
+            case "navigator-center":
+                CenterVideoViewOn(0.25, 0.25);
                 break;
             default:
                 return new AutomationReply { Ok = false, Error = "Unknown video geometry action." };

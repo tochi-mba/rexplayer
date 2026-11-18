@@ -89,6 +89,9 @@ public sealed partial class MainWindow
             case CommandCatalog.PanDown:
                 PanVideo(0, +0.15);
                 return true;
+            case CommandCatalog.ToggleNavigator:
+                ToggleVideoNavigator();
+                return true;
             case CommandCatalog.ScaleQuarter:
                 SizeWindowToVideo(0.25);
                 return true;
@@ -139,11 +142,17 @@ public sealed partial class MainWindow
             case CommandCatalog.KeyboardAndMouse:
                 ShowShortcutEditor();
                 return true;
+            case CommandCatalog.ShortcutSheet:
+                ShowShortcutSheet();
+                return true;
             case CommandCatalog.SavePlaylist:
                 SavePlaylistWithPanel();
                 return true;
             case CommandCatalog.OpenPlaylist:
                 OpenPlaylistWithPanel();
+                return true;
+            case CommandCatalog.ClearPlaylist:
+                ClearUpNextQueue();
                 return true;
             case CommandCatalog.Effects:
                 ShowEffects();
@@ -198,6 +207,10 @@ public sealed partial class MainWindow
                 return true;
             case CommandCatalog.Transcribe:
                 AskMacSpeech();
+                return true;
+            case CommandCatalog.SaveTranscript:
+                // The shared command and the speech window's Export button are one save flow.
+                ExportMacSpeech();
                 return true;
             case CommandCatalog.CheckForUpdates:
                 ShowMacUpdates();
@@ -293,6 +306,20 @@ public sealed partial class MainWindow
         }
 
         _player.Open([address]);
+    }
+
+    /// <summary>Stop and empty the queue, as Clear the playlist promises; Up Next refreshes itself.</summary>
+    private void ClearUpNextQueue()
+    {
+        if (_player.Playlist.Items.Count == 0)
+        {
+            _player.Stop();
+            return;
+        }
+
+        _player.Stop();
+        _player.Playlist.Clear();
+        Say("Queue cleared.");
     }
 
     private void AddSubtitleWithPanel()
