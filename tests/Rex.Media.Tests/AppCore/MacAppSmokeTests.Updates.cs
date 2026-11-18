@@ -110,8 +110,9 @@ public sealed partial class MacAppSmokeTests
             Assert.True(app.WaitForExit(InstallPatience), "The app did not close for the update hand-off." + LogTail(root));
 
             // The helper outlives the app: it swaps the bundle, records how it went, and reopens
-            // the new app. The reopened copy runs outside this test's data root, so it is closed
-            // again; the proof it carries is read from the bundle and the record instead.
+            // the new app. `open` hands the reopened copy this process's environment, so it shares
+            // the test's data root and pipe, and it is the copy that reads the saved session (a
+            // session restores once). That copy, not a fresh launch, owes the user their session back.
             var record = Path.Combine(startupRoots.UpdateFolder, "install-result.txt");
             var deadline = Stopwatch.StartNew();
             while (!File.Exists(record) || File.ReadAllText(record).Trim().Length == 0)
@@ -123,33 +124,20 @@ public sealed partial class MacAppSmokeTests
             Assert.Equal("success", File.ReadAllText(record).Trim());
             Assert.True(File.Exists(Path.Combine(bundle, "Contents", "Resources", markerName)),
                 "The bundle on disk is still the old one; the update was not installed in place.");
-            await Task.Delay(2000, TestContext.Current.CancellationToken);
-            Tool("pkill", exitCodes: [0, 1], "-f", Path.Combine(bundle, "Contents", "MacOS", "rexplayer"));
 
-            // The replaced bundle, launched with the same data root, owes the user their session
-            // back: the same video, paused where the install left it.
-            var reopenedPipe = pipe + "-again";
-            start.Environment["REXPLAYER_PIPE_NAME"] = reopenedPipe;
-            using var reopened = Process.Start(start)!;
-            try
+            // The same video, paused where the install left it.
+            AutomationReply? restored = null;
+            var waiting = Stopwatch.StartNew();
+            while (restored is not { Ok: true, Title: not null, State: "Paused" })
             {
-                var restored = await Until(() => Ask(reopenedPipe, new AutomationRequest { Command = "status" }),
-                    reply => reply is { Ok: true, Title: not null, State: "Paused" }, reopened, root);
-                Assert.NotNull(restored.Title);
-                var quit = await Ask(reopenedPipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Quit });
-                Assert.True(quit?.Ok == true || (reopened.WaitForExit(TimeSpan.FromSeconds(5)) && reopened.ExitCode == 0),
-                    "The updated Mac app could not quit: " + (quit?.Error ?? "no reply") + LogTail(root));
-                Assert.True(reopened.WaitForExit(Patience), "The updated Mac app did not quit.");
-                Assert.Equal(0, reopened.ExitCode);
+                Assert.True(waiting.Elapsed < InstallPatience,
+                    "The relaunched Mac app never restored the paused session; its last answer: " + Described(restored) + ". Its log ends:" + LogTail(root));
+                await Task.Delay(200, TestContext.Current.CancellationToken);
+                restored = await Ask(pipe, new AutomationRequest { Command = "status" });
             }
-            finally
-            {
-                if (!reopened.HasExited)
-                {
-                    reopened.Kill();
-                    reopened.WaitForExit();
-                }
-            }
+
+            var quit = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Quit });
+            Assert.True(quit?.Ok == true, "The updated Mac app could not quit: " + (quit?.Error ?? "no reply") + LogTail(root));
         }
         finally
         {
