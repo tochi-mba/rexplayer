@@ -38,6 +38,7 @@ public sealed partial class MainWindow
     private string? _libraryRenderedEmptyLabel;
     private int _libraryPageIndex;
     private const int LibraryPageSize = 80;
+    private const double MinimumLibraryPageWidth = 590;
     private bool _closingLibrary;
     private bool _libraryTemporaryStore;
     private RexStore? _libraryStore;
@@ -80,7 +81,6 @@ public sealed partial class MainWindow
                 NSBackingStore.Buffered, false)
             {
                 Title = "Your library - rexplayer",
-                MinSize = new CGSize(590, 460),
             };
             _libraryWindow.ReleaseWhenClosed(false);
             // The key-view order is explicit: AppKit's automatic geometric ordering
@@ -181,9 +181,22 @@ public sealed partial class MainWindow
             stack.Spacing = 14;
             stack.EdgeInsets = new NSEdgeInsets(22, 24, 22, 24);
             stack.TranslatesAutoresizingMaskIntoConstraints = false;
-            _libraryWindow.ContentView = stack;
+            // The split view adds navigation chrome beside the existing page: the sidebar
+            // column keeps a fixed width, so the list page keeps the exact layout the
+            // reviewed screenshot baselines were taken of, and the window grows instead.
+            _librarySplit = new NSSplitView
+            {
+                IsVertical = true,
+                DividerStyle = NSSplitViewDividerStyle.Thin,
+            };
+            _librarySplit.AddArrangedSubview(BuildLibrarySidebar());
+            _librarySplit.AddArrangedSubview(BuildLibraryPageHost(stack));
+            _librarySplit.SetHoldingPriority(490, 0);
+            _libraryWindow.ContentView = _librarySplit;
             _libraryScroll.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
             _librarySummary.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
+            _libraryWindow.SetFrame(new CGRect(0, 0, 820 + LibrarySidebarTotalWidth, 620), false);
+            _libraryWindow.MinSize = new CGSize(MinimumLibraryPageWidth + LibrarySidebarTotalWidth, 460);
             _libraryWindow.Center();
         }
 
@@ -486,6 +499,7 @@ public sealed partial class MainWindow
         _libraryFolderCount = _mediaLibrary.Folders.Count;
         _libraryVisibleResultCount = shown.Count;
         UpdateLibraryStatus();
+        RefreshLibrarySidebar();
     }
 
     private string LibraryEntryDescription(LibraryEntry entry)
@@ -551,25 +565,42 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// Include the action toolbar, filters, paging and the current page of row buttons
+    /// The one native focus loop both the wiring and the keyboard probe follow: the sidebar and its
+    /// Back button, the filters, the action toolbar, paging, then the current page of row buttons.
+    /// Null while any of the fixed controls is missing.
+    /// </summary>
+    private List<NSView>? LibraryKeyViewOrder()
+    {
+        if (_librarySidebar is null || _libraryNavigationBack is null ||
+            _librarySearch is null || _libraryCategory is null ||
+            _libraryAddButton is null || _libraryRescanButton is null || _libraryBackButton is null ||
+            _libraryPreviousPage is null || _libraryNextPage is null)
+        {
+            return null;
+        }
+
+        var order = new List<NSView>
+        {
+            _librarySidebar, _libraryNavigationBack,
+            _librarySearch, _libraryCategory, _libraryAddButton, _libraryRescanButton,
+            _libraryBackButton, _libraryPreviousPage, _libraryNextPage,
+        };
+        order.AddRange(_libraryResultKeyViews);
+        return order;
+    }
+
+    /// <summary>
+    /// Include the sidebar, action toolbar, filters, paging and the current page of row buttons
     /// in a stable, reversible native focus loop. The row views are replaced after scans
     /// or filters, so AppKit's automatic geometric loop must not retain stale buttons.
     /// </summary>
     private void WireLibraryKeyViews()
     {
-        if (_libraryWindow is null || _librarySearch is null || _libraryCategory is null ||
-            _libraryAddButton is null || _libraryRescanButton is null || _libraryBackButton is null ||
-            _libraryPreviousPage is null || _libraryNextPage is null)
+        if (_libraryWindow is null || LibraryKeyViewOrder() is not { } order)
         {
             return;
         }
 
-        var order = new List<NSView>
-        {
-            _librarySearch, _libraryCategory, _libraryAddButton, _libraryRescanButton,
-            _libraryBackButton, _libraryPreviousPage, _libraryNextPage,
-        };
-        order.AddRange(_libraryResultKeyViews);
         for (var i = 0; i < order.Count; i++)
         {
             order[i].NextKeyView = order[(i + 1) % order.Count];
@@ -657,6 +688,8 @@ public sealed partial class MainWindow
             Ok = true,
             Controls =
             [
+                new UiControl { Id = "LibrarySidebar", Kind = "list", Name = _librarySidebarScroll?.AccessibilityLabel ?? "" },
+                new UiControl { Id = "LibraryNavigationBack", Kind = "button", Name = ((NSView?)_libraryNavigationBack)?.AccessibilityLabel ?? "", Enabled = _libraryNavigationBack?.Enabled == true },
                 new UiControl { Id = "LibrarySearch", Kind = "search", Name = ((NSView)_librarySearch).AccessibilityLabel ?? "", Text = _librarySearch.StringValue },
                 new UiControl { Id = "LibraryCategory", Kind = "choice", Name = ((NSView)_libraryCategory).AccessibilityLabel ?? "", Text = _libraryCategory.TitleOfSelectedItem },
                 new UiControl { Id = "LibraryResults", Kind = "list", Name = _libraryScroll.AccessibilityLabel ?? "" },
@@ -685,18 +718,11 @@ public sealed partial class MainWindow
             return AutomationReply.Failed("Open the library before checking keyboard navigation.");
         }
 
-        if (_libraryAddButton is null || _libraryRescanButton is null || _libraryBackButton is null ||
-            _libraryPreviousPage is null || _libraryNextPage is null)
+        if (LibraryKeyViewOrder() is not { } order)
         {
             return AutomationReply.Failed("The library action or page controls are missing.");
         }
 
-        var order = new List<NSView>
-        {
-            _librarySearch, _libraryCategory, _libraryAddButton, _libraryRescanButton,
-            _libraryBackButton, _libraryPreviousPage, _libraryNextPage,
-        };
-        order.AddRange(_libraryResultKeyViews);
         for (var i = 0; i < order.Count; i++)
         {
             var following = order[(i + 1) % order.Count];
@@ -747,6 +773,7 @@ public sealed partial class MainWindow
             "LibraryFirstQueue" => _libraryFirstQueue,
             "LibraryRescan" => _libraryRescanButton,
             "LibraryBack" => _libraryBackButton,
+            "LibraryNavigationBack" => _libraryNavigationBack,
             _ => null,
         };
         if (_libraryWindow?.IsVisible != true || button?.Enabled != true)
@@ -771,16 +798,20 @@ public sealed partial class MainWindow
         return new AutomationReply { Ok = true, Text = _librarySummary?.StringValue };
     }
 
+    /// <summary>
+    /// Sizes the window so the list page beside the fixed sidebar is <paramref name="width"/> wide:
+    /// the width scripts name is the page's, the same surface the screenshot baselines show.
+    /// </summary>
     private AutomationReply ResizeLibraryWindow(double? width)
     {
         if (_libraryWindow?.IsVisible != true || width is not { } requested ||
-            !double.IsFinite(requested) || requested < _libraryWindow.MinSize.Width)
+            !double.IsFinite(requested) || requested < MinimumLibraryPageWidth)
         {
             return AutomationReply.Failed("Open the library and choose a supported width.");
         }
 
         var frame = _libraryWindow.Frame;
-        _libraryWindow.SetFrame(new CGRect(frame.X, frame.Y, requested, _libraryWindow.MinSize.Height), true);
+        _libraryWindow.SetFrame(new CGRect(frame.X, frame.Y, requested + LibrarySidebarTotalWidth, _libraryWindow.MinSize.Height), true);
         RefreshLibrary();
         return new AutomationReply { Ok = true };
     }
@@ -791,10 +822,13 @@ public sealed partial class MainWindow
         public override bool IsFlipped => true;
     }
 
-    /// <summary>Capture the native library surface for scripted macOS UI checks.</summary>
+    /// <summary>
+    /// Capture the native library list page for scripted macOS UI checks. The page, not the whole
+    /// window, is captured so the reviewed baselines taken before the sidebar existed still match.
+    /// </summary>
     private void CaptureLibraryScreenshot(string path)
     {
-        if (_libraryWindow?.IsVisible != true || _libraryWindow.ContentView is not { } content)
+        if (_libraryWindow?.IsVisible != true || _libraryListPage is not { } content)
         {
             throw new InvalidOperationException("Open the library before capturing its screenshot.");
         }
@@ -840,6 +874,24 @@ public sealed partial class MainWindow
         if (_libraryWindow?.IsVisible != true || _libraryCategory is null || _librarySearch is null)
         {
             return false;
+        }
+
+        if (action == "sidebar")
+        {
+            _librarySmokeAnswer = LibrarySidebarSummary();
+            return true;
+        }
+
+        if (action is not null && action.StartsWith("sidebar-select:", StringComparison.Ordinal))
+        {
+            // Mirror a click: only a section the sidebar lists can be chosen.
+            return FindLibrarySidebarSection(action["sidebar-select:".Length..]) is { } section &&
+                _librarySections.IsShown(section) && SelectLibrarySection(section);
+        }
+
+        if (action == "back")
+        {
+            return NavigateLibraryBack();
         }
 
         if (action is "songs" or "videos" or "folders")
@@ -903,7 +955,7 @@ public sealed partial class MainWindow
 
         if (action == "minimum")
         {
-            return ResizeLibraryWindow(_libraryWindow.MinSize.Width).Ok;
+            return ResizeLibraryWindow(MinimumLibraryPageWidth).Ok;
         }
 
         if (action is "capture-empty" or "capture-populated" or "capture-videos" or "capture-minimum"
@@ -917,7 +969,7 @@ public sealed partial class MainWindow
 
             Directory.CreateDirectory(output);
             File.WriteAllText(Path.Combine(output, "provenance.txt"),
-                "Capture origin: native AppKit content view" + Environment.NewLine
+                "Capture origin: native AppKit library page view" + Environment.NewLine
                 + "Platform: native macOS AppKit" + Environment.NewLine
                 + "Application version: " + typeof(MainWindow).Assembly.GetName().Version + Environment.NewLine
                 + "Source: automated smoke test, synthetic local media fixtures" + Environment.NewLine
@@ -931,6 +983,13 @@ public sealed partial class MainWindow
 
     private string LibrarySmokeTitle()
     {
+        // A smoke action with its own answer (the sidebar summary) rides the next title once.
+        if (_librarySmokeAnswer is { } answer)
+        {
+            _librarySmokeAnswer = null;
+            return answer;
+        }
+
         var items = _libraryMatchingCount;
         var folders = _libraryFolderCount;
         var query = _librarySearch?.StringValue.Trim();
@@ -946,6 +1005,8 @@ public sealed partial class MainWindow
         _libraryPeriodicScan = null;
         _libraryScanner?.Dispose();
         _libraryScanner = null;
+        CloseLibrarySidebar();
+        CloseLibraryNavigation();
         _libraryWindow?.Close();
         _libraryWindow?.Dispose();
         _libraryWindow = null;
