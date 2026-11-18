@@ -28,6 +28,7 @@ __pycache__/
 .vs/
 .idea/
 .vscode/
+.claude/
 *.user
 *.suo
 .DS_Store

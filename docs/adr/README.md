@@ -24,3 +24,4 @@ Each record states a decision rexplayer is built on. Change one only with a new 
 - [ADR-0020: Parity between platforms: one ledger, one release](0020-parity-one-ledger-one-release.md)
 - [ADR-0021: The Mac's edges in plain .NET](0021-macos-edges-in-plain-dotnet.md)
 - [ADR-0022: Camera perception for the visualisations and the conductor](0022-camera-perception-models.md)
+- [ADR-0023: Speech recognition through Whisper.net](0023-speech-recognition-through-whisper-net.md)
