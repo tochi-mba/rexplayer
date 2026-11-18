@@ -8,8 +8,12 @@ Every version of rexplayer that reaches users, newest first. CI publishes a vers
 
 - **The Mac library has a sidebar.** Home, Songs, Videos, Pictures, Continue watching, Recently played, Recently added and Folders sit beside the results, each shown only when it has something in it, with a Back button that retraces where you have been.
 - **Mac Preferences in sections, with search.** Playback, Video and pictures, Snapshots, Window, History and resume, Opening files and Diagnostics each have their own page; typing in the search field jumps to the page that has what you asked for.
-- **Picture looks on the Mac.** The Mac's video drawing now applies every picture look Windows has, with the same intensity and detail.
+- **Album and artist pages on the Mac.** Click a song's cover, or choose Go to album or Go to artist from its menu: the album page lists its songs disc by disc with Play album and more by the same artist; the artist page has their top songs, albums, the songs they are featured on and artists like them.
+- **A lyrics window on the Mac.** Open lyrics window, on the music stage, shows the words large in a window of their own, keeping the line being sung in the middle and lighting word-timed lyrics word by word; click a line to go there.
+- **A transcript reader on the Mac.** Read transcript, in the Subtitles menu, lists every line with its time; search it, click a line to go there, and switch between versions of the transcript. The timeline shows how much of the video has a transcript, and copies can be saved as SRT beside the video.
 - **Pictures, cover art and thumbnails decoded by the Mac itself.** PNG, JPEG, BMP, TIFF and WebP pictures open through macOS, upright whatever way the camera held them.
+- **Every channel on the Mac.** Surround sound plays on every speaker a Mac's output has, folded down only when it has fewer, and the sound follows you when you change the Mac's output.
+- **Groundwork for picture looks on the Mac.** The Mac's video drawing can now apply every picture look Windows has; the Mac's controls for choosing one come next.
 - **Four more Mac commands.** Clear the queue, save the transcript, the keyboard shortcut reference and the zoom navigator (a small map of the whole picture while zoomed in, which you can drag to look elsewhere) now work on the Mac instead of saying they are coming.
 
 ### Fixed
