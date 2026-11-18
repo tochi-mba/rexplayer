@@ -68,7 +68,9 @@ internal sealed class TimelineSlider : NSSlider
         if (Coverage.Count == 0) return;
         var width = Bounds.Width - 6;
         // Below the track, clipped around the knob so the knob always reads as on top.
+#pragma warning disable CA1422 // NSSlider exposes its knob rectangle only through its cell.
         var knob = Cell is NSSliderCell cell ? cell.KnobRectFlipped(IsFlipped) : CGRect.Empty;
+#pragma warning restore CA1422
         NSGraphicsContext.GlobalSaveGraphicsState();
         var clip = NSBezierPath.FromRect(Bounds);
         if (!knob.IsEmpty) clip.AppendPath(NSBezierPath.FromOvalInRect(knob));

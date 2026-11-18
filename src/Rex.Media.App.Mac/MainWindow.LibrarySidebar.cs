@@ -56,7 +56,7 @@ public sealed partial class MainWindow
             RowHeight = 26,
         };
         table.AddColumn(new NSTableColumn("library-section") { Editable = false, Width = 172 });
-        table.AccessibilityLabel = "Library sections";
+        ((NSView)table).AccessibilityLabel = "Library sections";
         _librarySidebarSource = new LibrarySidebarSource(this);
         table.Source = _librarySidebarSource;
         _librarySidebar = table;

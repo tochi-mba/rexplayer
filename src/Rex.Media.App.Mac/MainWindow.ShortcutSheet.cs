@@ -124,7 +124,7 @@ public sealed partial class MainWindow
 
         /// <summary>The responder message Esc sends; answering it here closes the window.</summary>
         [Export("cancelOperation:")]
-        public void CloseOnCancel(NSObject? sender) => Window?.Close();
+        public void CloseOnCancel(NSObject? _) => Window?.Close();
     }
 
     /// <summary>Rows for the sheet's table: full-width group headings, then command and keys.</summary>

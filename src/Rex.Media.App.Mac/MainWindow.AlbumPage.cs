@@ -332,15 +332,15 @@ public sealed partial class MainWindow
     private LibraryGroup FullLibraryAlbum(LibraryGroup album) =>
         _mediaLibrary is null ? album
             : LibraryMemo.Albums(_mediaLibrary.Entries).FirstOrDefault(candidate =>
-                string.Equals(candidate.Name, album.Name, StringComparison.CurrentCultureIgnoreCase) &&
-                string.Equals(candidate.Detail, album.Detail, StringComparison.CurrentCultureIgnoreCase)) ?? album;
+                string.Equals(candidate.Name, album.Name, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(candidate.Detail, album.Detail, StringComparison.OrdinalIgnoreCase)) ?? album;
 
     /// <summary>A borderless, link-coloured button that opens another page.</summary>
     private static NSButton LibraryLink(string title, string label, Action open)
     {
         var link = NSButton.CreateButton(title, open);
         link.Bordered = false;
-        link.ContentTintColor = NSColor.LinkColor;
+        link.ContentTintColor = NSColor.Link;
         link.LineBreakMode = NSLineBreakMode.TruncatingTail;
         link.ToolTip = label;
         ((NSView)link).AccessibilityLabel = label;
