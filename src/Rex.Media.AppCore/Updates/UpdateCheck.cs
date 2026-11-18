@@ -43,9 +43,11 @@ public static class UpdateCheck
     /// <summary>
     /// The offer in the GitHub API's description of the latest release, when it is newer than
     /// <paramref name="current"/> and carries an installer with its checksum; null otherwise, and
-    /// for anything that is not such a description.
+    /// for anything that is not such a description. With <paramref name="trustedOrigin"/> (the
+    /// origin of a feed the operator chose over the published one, for driving the updater against
+    /// a stand-in release server), assets are accepted from that origin alone.
     /// </summary>
-    public static UpdateOffer? Offer(string releaseJson, string current, string? assetName = null)
+    public static UpdateOffer? Offer(string releaseJson, string current, string? assetName = null, Uri? trustedOrigin = null)
     {
         ArgumentNullException.ThrowIfNull(releaseJson);
         if (!TryVersion(current, out var running))
@@ -72,9 +74,13 @@ public static class UpdateCheck
             foreach (var asset in assets.EnumerateArray())
             {
                 if (asset.TryGetProperty("name", out var name) && asset.TryGetProperty("browser_download_url", out var url)
-                    && Uri.TryCreate(url.GetString(), UriKind.Absolute, out var link) && link.Scheme == Uri.UriSchemeHttps
-                    && (assetName is null || link.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase)
-                        && link.AbsolutePath.StartsWith("/tochi-mba/rexplayer/releases/download/", StringComparison.OrdinalIgnoreCase)))
+                    && Uri.TryCreate(url.GetString(), UriKind.Absolute, out var link)
+                    && (trustedOrigin is not null
+                        ? link.Scheme == trustedOrigin.Scheme && link.Host.Equals(trustedOrigin.Host, StringComparison.OrdinalIgnoreCase)
+                            && link.Port == trustedOrigin.Port
+                        : link.Scheme == Uri.UriSchemeHttps
+                            && (assetName is null || link.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase)
+                                && link.AbsolutePath.StartsWith("/tochi-mba/rexplayer/releases/download/", StringComparison.OrdinalIgnoreCase))))
                 {
                     if (name.GetString() == installerName)
                     {

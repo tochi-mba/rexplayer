@@ -3643,7 +3643,7 @@
       "oracles": "NET (FakeOrigin)",
       "status": {
         "windows": "verified",
-        "macos": "built"
+        "macos": "verified"
       }
     },
     {

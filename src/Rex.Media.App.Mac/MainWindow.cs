@@ -363,6 +363,9 @@ public sealed partial class MainWindow : IDisposable
                 case "mac-snapshot":
                     answered.SetResult(SnapshotSmokeAction(request.Id, request.Path));
                     return;
+                case "mac-updates":
+                    answered.SetResult(MacUpdateSmokeAction(request.Id));
+                    return;
                 case "status":
                     break;
                 case "ui.add-folder":

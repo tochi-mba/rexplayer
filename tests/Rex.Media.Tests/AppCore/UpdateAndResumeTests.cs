@@ -98,6 +98,39 @@ public sealed class UpdateAndResumeTests : IDisposable
     }
 
     [Fact]
+    [Capability("SEC-05")]
+    public void ATrustedFeedOriginAcceptsItsOwnAssetsAlone()
+    {
+        const string json = """
+            {
+              "tag_name": "v0.40.0",
+              "assets": [
+                { "name": "rexplayer-mac-universal.zip",
+                  "browser_download_url": "http://127.0.0.1:8123/rexplayer-mac-universal.zip",
+                  "size": 98765 },
+                { "name": "rexplayer-mac-universal.zip.sha256",
+                  "browser_download_url": "http://127.0.0.1:8123/rexplayer-mac-universal.zip.sha256" }
+              ]
+            }
+            """;
+        var origin = new Uri("http://127.0.0.1:8123/");
+        var offer = UpdateCheck.Offer(json, "0.39.0", "rexplayer-mac-universal.zip", origin);
+        Assert.NotNull(offer);
+        Assert.Equal("http://127.0.0.1:8123/rexplayer-mac-universal.zip", offer.Installer.ToString());
+
+        // The stand-in origin narrows trust: another host, another port, another scheme, and even
+        // the published release host are all refused while it is set.
+        Assert.Null(UpdateCheck.Offer(json.Replace("127.0.0.1:8123/rexplayer-mac-universal.zip\"",
+            "other.example:8123/rexplayer-mac-universal.zip\"", StringComparison.Ordinal),
+            "0.39.0", "rexplayer-mac-universal.zip", origin));
+        Assert.Null(UpdateCheck.Offer(json, "0.39.0", "rexplayer-mac-universal.zip", new Uri("http://127.0.0.1:9999/")));
+        Assert.Null(UpdateCheck.Offer(json, "0.39.0", "rexplayer-mac-universal.zip", new Uri("https://127.0.0.1:8123/")));
+        Assert.Null(UpdateCheck.Offer(json.Replace("http://127.0.0.1:8123/rexplayer-mac-universal.zip\"",
+            "https://github.com/tochi-mba/rexplayer/releases/download/v0.40.0/rexplayer-mac-universal.zip\"", StringComparison.Ordinal),
+            "0.39.0", "rexplayer-mac-universal.zip", origin));
+    }
+
+    [Fact]
     public void AnOfferCarriesTheInstallersSizeAndTheReleaseNotes()
     {
         var release = Release("v0.4.0")

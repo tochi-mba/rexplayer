@@ -5,7 +5,7 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
 Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 147 planned, 47 built, 98 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
+macOS: 147 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
 
 ## Playback core
 
@@ -365,7 +365,7 @@ macOS: 147 planned, 47 built, 98 verified, 1 verified-hardware, 27 post-1.0, 2 n
 | TOOL-06 | Single instance | "Use only one instance" (default on), "enqueue instead of play" (default off), explicit `--new-instance` | M4 | must | verified | verified |
 | TOOL-07 | Extensions | §7.8 model; extension points: commands/menus, playback observers, metadata/art/lyrics providers, link resolvers, subtitle providers, service-discovery providers, visualisers (C); manager UI (enable/disable/remove, declared capabilities shown at install); install from local `.rexext` packages; sample extensions + SDK docs + template in the repo | M14 | must | planned | planned |
 | TOOL-08 | Program guide | EPG from transport-stream EIT tables | M12 | could | planned | planned |
-| TOOL-09 | Updater | Automatic check (off / daily / weekly), background resumable download + sha256 verify, install automatically, on close, tonight or now with the session restored paused, remind / skip, release notes shown | M4 | should | verified | built |
+| TOOL-09 | Updater | Automatic check (off / daily / weekly), background resumable download + sha256 verify, install automatically, on close, tonight or now with the session restored paused, remind / skip, release notes shown | M4 | should | verified | verified |
 | TOOL-10 | Diagnostics bundle | Logs + redacted settings + system/codec report → zip for issue reports | M4 | should | verified | verified |
 | TOOL-11 | System probe | `rexplay probe --system`: MF decoders/encoders present, hardware decode caps per codec/resolution, audio endpoints, displays/HDR state | M3 | must | verified | verified |
 | TOOL-12 | Portable mode | Settings and library beside the exe when `rexplayer.portable` exists | M15 | should | planned | planned |
