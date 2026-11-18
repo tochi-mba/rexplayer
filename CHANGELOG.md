@@ -2,6 +2,20 @@
 
 Every version of rexplayer that reaches users, newest first. CI publishes a version when its number reaches `main`.
 
+## 0.35.0 - 2026-11-18
+
+### Added
+
+- **The Mac library has a sidebar.** Home, Songs, Videos, Pictures, Continue watching, Recently played, Recently added and Folders sit beside the results, each shown only when it has something in it, with a Back button that retraces where you have been.
+- **Mac Preferences in sections, with search.** Playback, Video and pictures, Snapshots, Window, History and resume, Opening files and Diagnostics each have their own page; typing in the search field jumps to the page that has what you asked for.
+- **Picture looks on the Mac.** The Mac's video drawing now applies every picture look Windows has, with the same intensity and detail.
+- **Pictures, cover art and thumbnails decoded by the Mac itself.** PNG, JPEG, BMP, TIFF and WebP pictures open through macOS, upright whatever way the camera held them.
+- **Four more Mac commands.** Clear the queue, save the transcript, the keyboard shortcut reference and the zoom navigator (a small map of the whole picture while zoomed in, which you can drag to look elsewhere) now work on the Mac instead of saying they are coming.
+
+### Fixed
+
+- The Mac updater is now proved end to end: it downloads and checks a new version, replaces the app in place, and reopens it with what you were watching, paused.
+
 ## 0.34.0 - 2026-10-31
 
 ### Added
