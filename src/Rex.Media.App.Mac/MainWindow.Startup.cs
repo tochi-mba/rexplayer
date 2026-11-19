@@ -14,8 +14,33 @@ public sealed partial class MainWindow
     private NSWindow? _whatsNewWindow;
     private NSButton? _whatsNewDone;
 
-    private static string RunningVersion =>
-        typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "unknown";
+    private static readonly string RunningVersion = ReadRunningVersion();
+
+    /// <summary>
+    /// The assembly's version; under the update smoke test (TOOL-09) only, the version the
+    /// stand-in release's marker names, since that bundle is this build again and cannot be
+    /// rebuilt with another version. A relaunch then counts as the update it was handed.
+    /// </summary>
+    private static string ReadRunningVersion()
+    {
+        var built = typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "unknown";
+        if (Environment.GetEnvironmentVariable("REXPLAYER_MAC_UPDATE_TESTS") != "1"
+            || NSBundle.MainBundle.ResourcePath is not { } resources)
+        {
+            return built;
+        }
+
+        var marker = Path.Combine(resources, "rexplayer-update-smoke.txt");
+        try
+        {
+            return File.Exists(marker) && Version.TryParse(File.ReadAllText(marker).Trim(), out var stated)
+                ? stated.ToString(3) : built;
+        }
+        catch (IOException)
+        {
+            return built;
+        }
+    }
 
     private void ShowStartupGuidance()
     {
