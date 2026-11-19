@@ -1,0 +1,59 @@
+# Merges a Dependabot pull request once CI has passed on it, the way earlier updates were
+# merged by hand (rebased, keeping Dependabot's own commit).
+#
+# main has no branch protection, so GitHub's own auto-merge would merge at once without
+# waiting for CI. This waits for the whole CI run instead: it fires when CI completes, and
+# merges only a passing run on a Dependabot branch whose head is still the commit CI tested.
+#
+# A workflow_run trigger only takes effect from the default branch.
+name: Dependabot auto-merge
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependabot-merge-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    name: Merge a passing Dependabot update
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      startsWith(github.event.workflow_run.head_branch, 'dependabot/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      # Starting Pages: a merge made with this token does not trigger push workflows.
+      actions: write
+    steps:
+      - name: Merge the pull request CI passed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          pr=$(gh pr list --repo "$REPO" --head "$HEAD_BRANCH" --state open \
+            --json number,author,headRefOid \
+            --jq '.[] | select(.author.login == "app/dependabot" and .headRefOid == env.HEAD_SHA) | .number')
+          if [ -z "$pr" ]; then
+            echo "No open Dependabot pull request has $HEAD_SHA at its head; nothing to merge."
+            exit 0
+          fi
+
+          # --match-head-commit refuses the merge if Dependabot pushed again after this run.
+          gh pr merge "$pr" --repo "$REPO" --rebase --delete-branch --match-head-commit "$HEAD_SHA"
+          echo "Merged #$pr."
+
+          # CI already ran on the merged result; Pages builds the site from main.
+          gh workflow run pages.yml --repo "$REPO" --ref main
