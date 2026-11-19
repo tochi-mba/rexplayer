@@ -37,13 +37,14 @@ public sealed partial class MacAppSmokeTests
         });
 
         // The update on offer is this bundle again, told apart by a marker file: the assembly
-        // version cannot change without a rebuild, so the proof of the swap is the marker, the
-        // helper's record, and the session coming back paused.
+        // version cannot change without a rebuild, so the marker names the version the swapped
+        // bundle reports under REXPLAYER_MAC_UPDATE_TESTS. The proof of the swap is the marker,
+        // the helper's record, and the session coming back paused into that version.
         const string markerName = "rexplayer-update-smoke.txt";
         var release = Path.Combine(root, "release");
         var staged = Path.Combine(release, "rexplayer.app");
         Tool("ditto", bundle, staged);
-        File.WriteAllText(Path.Combine(staged, "Contents", "Resources", markerName), "A newer rexplayer, as far as this journey cares.");
+        File.WriteAllText(Path.Combine(staged, "Contents", "Resources", markerName), "99.0.0");
         Tool("codesign", "--force", "--deep", "--sign", "-", staged);
         var zip = Path.Combine(release, "rexplayer-mac-universal.zip");
         Tool("ditto", "-c", "-k", "--keepParent", staged, zip);
