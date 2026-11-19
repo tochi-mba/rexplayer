@@ -138,8 +138,15 @@ public sealed partial class MacAppSmokeTests
                 restored = await Ask(pipe, new AutomationRequest { Command = "status" });
             }
 
+            // Quitting may end the app before its reply is written, so the proof is that it is gone.
             var quit = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.Quit });
-            Assert.True(quit?.Ok == true, "The updated Mac app could not quit: " + (quit?.Error ?? "no reply") + LogTail(root));
+            var quitting = Stopwatch.StartNew();
+            while (IsRunning(Path.Combine(bundle, "Contents", "MacOS", "rexplayer")))
+            {
+                Assert.True(quitting.Elapsed < Patience,
+                    "The updated Mac app did not quit: " + (quit?.Error ?? (quit is null ? "no reply" : "ok")) + LogTail(root));
+                await Task.Delay(200, TestContext.Current.CancellationToken);
+            }
         }
         finally
         {
@@ -210,6 +217,18 @@ public sealed partial class MacAppSmokeTests
         using var process = Process.Start(start)!;
         process.WaitForExit();
         Assert.Contains(process.ExitCode, exitCodes);
+    }
+
+    /// <summary>Whether a process runs from <paramref name="executable"/>, as pgrep sees it.</summary>
+    private static bool IsRunning(string executable)
+    {
+        var start = new ProcessStartInfo("pgrep") { UseShellExecute = false, RedirectStandardOutput = true };
+        start.ArgumentList.Add("-f");
+        start.ArgumentList.Add(executable);
+        using var process = Process.Start(start)!;
+        process.StandardOutput.ReadToEnd();
+        process.WaitForExit();
+        return process.ExitCode == 0;
     }
 
     private static int FreePort()

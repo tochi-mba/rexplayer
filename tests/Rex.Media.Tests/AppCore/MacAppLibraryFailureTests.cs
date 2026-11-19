@@ -139,12 +139,15 @@ public sealed partial class MacAppSmokeTests
         if (Environment.GetEnvironmentVariable("REXPLAYER_MAC_SCREENSHOT_BASELINES") == "1")
         {
             var target = "mac-library-" + name + ".png";
-            var baseline = File.ReadLines(RepoPaths.Combine("tests", "mac-library-screenshots.sha256"))
+            // A shot may list one approved hash per runner image in service; any of them passes.
+            var approved = File.ReadLines(RepoPaths.Combine("tests", "mac-library-screenshots.sha256"))
                 .Where(line => !line.StartsWith('#') && line.EndsWith("  " + target, StringComparison.Ordinal))
                 .Select(line => line.Split(' ', 2)[0])
-                .Single();
+                .ToList();
+            Assert.NotEmpty(approved);
+            var baseline = string.Join(" or ", approved);
             var actual = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();
-            if (!string.Equals(baseline, actual, StringComparison.Ordinal))
+            if (!approved.Contains(actual, StringComparer.Ordinal))
             {
                 var message = "Native Mac screenshot " + target + " changed. Review the mac-library-screenshots CI artifact before approving a new baseline." +
                     Environment.NewLine + "Expected: " + baseline + Environment.NewLine + "Actual:   " + actual;
