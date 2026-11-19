@@ -126,10 +126,11 @@ public sealed partial class MacAppSmokeTests
             Assert.True(File.Exists(Path.Combine(bundle, "Contents", "Resources", markerName)),
                 "The bundle on disk is still the old one; the update was not installed in place.");
 
-            // The same video, paused where the install left it.
+            // The same video, paused where the install left it: opened paused, it reads Ready
+            // until it has played, as the portable restore tests accept.
             AutomationReply? restored = null;
             var waiting = Stopwatch.StartNew();
-            while (restored is not { Ok: true, Title: not null, State: "Paused" })
+            while (restored is not { Ok: true, Title: not null, State: "Paused" or "Ready" })
             {
                 Assert.True(waiting.Elapsed < InstallPatience,
                     "The relaunched Mac app never restored the paused session; its last answer: " + Described(restored) + ". Its log ends:" + LogTail(root));
