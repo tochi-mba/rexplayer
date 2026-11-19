@@ -26,6 +26,9 @@ public sealed partial class MacAppSmokeTests
         {
             FirstRunDone = true,
             LastSeenVersion = "0.0.0",
+            // The fixture lasts about six tenths of a second; repeating it keeps the song (and
+            // its lyrics) loaded however long the steps below take on a slow runner.
+            Repeat = RepeatMode.One,
         });
         var songs = Path.Combine(root, "songs");
         Directory.CreateDirectory(songs);
@@ -51,6 +54,19 @@ public sealed partial class MacAppSmokeTests
             var stage = await Until(() => Ask(pipe, new AutomationRequest { Command = "mac-music" }),
                 reply => reply?.Text?.Contains(";lyrics=True", StringComparison.Ordinal) == true, app, root);
             Assert.Contains("companion=False", stage.Text, StringComparison.Ordinal);
+
+            // Hold the song still so the checks below do not race its end; seeks still move it.
+            // A pause sent while the repeat reopens the song can be lost, so it is sent again.
+            await Until(async () =>
+            {
+                var now = await Ask(pipe, new AutomationRequest { Command = "status" });
+                if (now is { State: "Playing" })
+                {
+                    await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.PlayPause });
+                }
+
+                return now;
+            }, reply => reply is { State: "Paused" }, app, root);
 
             var companion = await Ask(pipe, new AutomationRequest { Command = "mac-music", Id = "companion-open" });
             Assert.True(companion?.Ok == true, "The stage did not open the lyrics window: " + (companion?.Error ?? "no reply") + LogTail(root));
