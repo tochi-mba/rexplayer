@@ -1,9 +1,9 @@
 # SHA-256 baselines for CI-generated native macOS library screenshots.
-# Captured and visually approved from macOS arm64 GitHub Actions runs 1951 and 1961;
+# Captured and approved from macOS arm64 GitHub Actions runs 44404880922 and 44409155674;
 # both runs produced byte-identical PNGs. A changed shot fails only in this CI lane.
 # Review artifacts/mac-library-screenshots in the failing run before updating a baseline.
-d2125a60c8eabaea5c03a0706f0850e3453a3d2bf489ed6ab298aa3e85dc9486  mac-library-empty.png
-a3ffb59241b35ab74417912d0b9d6bd3031e9b8bb27f040547f4e23c8e5eb94f  mac-library-minimum-width.png
-48ae7527363511d4a71719a0dbf654a312e47520943657c0ffab640ab0d648e0  mac-library-no-matches.png
-33761b8aaa378842125fbad3156bad9ae8a361a9c08082ef0974918b3dfe0891  mac-library-populated.png
-5024c901c8485f6e0ed5cc2a99c61584d1784c7280564f23d043ab7fb14b80d1  mac-library-searched.png
+bc1bf5293d4ff39a77738727c95663320ac7f5ffa56e68b779ff9763686a60c3  mac-library-empty.png
+84cfdddbd57b53be593000df7cf962b10f887ac72dc483a0ea9f899c1503347a  mac-library-minimum-width.png
+64b43eb562b210a3879e849da4f723cfaf10bbeeb26cd4d37310f5e35a3c9f7e  mac-library-no-matches.png
+fd09793f141afb662f9e20acf99e627c1522a1d7a850ffb873d1ec1d73a272b3  mac-library-populated.png
+539af7545a3dd072a21a1d57c730673906ccc17ab27ad3a7b6940ae7a3fba126  mac-library-searched.png
