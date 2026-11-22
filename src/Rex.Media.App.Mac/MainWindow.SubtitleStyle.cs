@@ -1,10 +1,16 @@
 using System.Globalization;
 using Rex.Media.AppCore.Automation;
+using Rex.Media.AppCore.Design;
 using Rex.Media.Settings;
 
 namespace Rex.Media.App.Mac;
 
-/// <summary>Editable Mac subtitle appearance, shared through PlayerSettings with other shells.</summary>
+/// <summary>
+/// Editable Mac subtitle appearance, shared through PlayerSettings with other shells. Laid out as
+/// a settings page in the Windows Subtitles section's words: a preview on the stage that shows the
+/// style as it is chosen, then cards for the text, its outline and shadow, the box behind it and
+/// where it sits. The colours chosen here are the subtitles' own, not the theme's.
+/// </summary>
 public sealed partial class MainWindow
 {
     private AutomationReply SubtitleStyleSmokeAction(string? action)
@@ -48,8 +54,11 @@ public sealed partial class MainWindow
         };
     }
 
+    /// <summary>The height of the preview stage.</summary>
+    private const double SubtitlePreviewHeight = 160;
+
     private NSWindow? _subtitleStyleWindow;
-    private NSTextField? _styleFont;
+    private NSComboBox? _styleFont;
     private NSTextField? _styleColour;
     private NSSlider? _styleSize;
     private NSSlider? _styleOpacity;
@@ -59,53 +68,60 @@ public sealed partial class MainWindow
     private NSButton? _styleForceBottom;
     private NSPopUpButton? _styleOutline;
     private NSPopUpButton? _stylePolicy;
-    private NSTextField? _styleNotice;
+    private RexLabel? _styleNotice;
     private NSTextField? _styleOutlineColour;
     private NSTextField? _styleShadowColour;
     private NSTextField? _styleBoxColour;
     private NSSlider? _styleShadowOpacity;
     private NSSlider? _styleShadowOffset;
     private NSSlider? _styleBoxOpacity;
+    private RexPanel? _stylePreviewBox;
+    private NSTextField? _stylePreviewText;
+    private NSLayoutConstraint? _stylePreviewGap;
+    private readonly List<(NSSlider Slider, NSTextField Value, string Unit)> _styleValues = [];
 
     private void ShowSubtitleStyle()
     {
         if (_subtitleStyleWindow is null)
         {
-            _subtitleStyleWindow = new NSWindow(new CGRect(0, 0, 560, 490),
+            _subtitleStyleWindow = new NSWindow(new CGRect(0, 0, 640, 720),
                 NSWindowStyle.Titled | NSWindowStyle.Closable | NSWindowStyle.Resizable,
                 NSBackingStore.Buffered, false)
             {
                 Title = "Subtitle appearance - rexplayer",
-                MinSize = new CGSize(530, 420),
+                MinSize = new CGSize(560, 480),
+                AutorecalculatesKeyViewLoop = true,
             };
             _subtitleStyleWindow.ReleaseWhenClosed(false);
-            var heading = NSTextField.CreateLabel("Subtitle appearance");
-            heading.Font = NSFont.SystemFontOfSize(22, NSFontWeight.Semibold)!;
-            var intro = NSTextField.CreateWrappingLabel(
+            MacTheme.Style(_subtitleStyleWindow);
+            var page = new SettingsPage("Subtitle appearance",
                 "These choices change live subtitles. Use a family installed on this Mac; " +
                 "macOS chooses per-script font fallback when needed.");
-            intro.TextColor = NSColor.SecondaryLabel;
 
-            _styleFont = new NSTextField(new CGRect(0, 0, 265, 24));
-            _styleColour = new NSTextField(new CGRect(0, 0, 125, 24));
-            _styleSize = NSSlider.FromValue(100, 50, 400, () => { });
-            _styleOpacity = NSSlider.FromValue(100, 0, 100, () => { });
-            _styleMargin = NSSlider.FromValue(5, 0, 40, () => { });
-            _styleBold = NSButton.CreateCheckbox("Bold subtitle text", () => { });
-            _styleInBars = NSButton.CreateCheckbox("Place subtitles in letterbox bars when possible", () => { });
-            _styleForceBottom = NSButton.CreateCheckbox("Force subtitles to the bottom", () => { });
-            _styleOutline = EffectChoices(["No outline", "Thin", "Normal", "Thick"]);
-            _styleOutlineColour = new NSTextField(new CGRect(0, 0, 125, 24));
-            _styleShadowColour = new NSTextField(new CGRect(0, 0, 125, 24));
-            _styleBoxColour = new NSTextField(new CGRect(0, 0, 125, 24));
-            _styleShadowOpacity = NSSlider.FromValue(60, 0, 100, () => { });
-            _styleShadowOffset = NSSlider.FromValue(2, 0, 10, () => { });
-            _styleBoxOpacity = NSSlider.FromValue(0, 0, 100, () => { });
-            _stylePolicy = EffectChoices(["Respect embedded subtitle styles", "Use my chosen style"]);
-            _styleNotice = NSTextField.CreateWrappingLabel("");
-            _styleNotice.TextColor = NSColor.SecondaryLabel;
-            var save = NSButton.CreateButton("Apply", ApplySubtitleStyle);
-            var defaults = NSButton.CreateButton("Default style", () =>
+            _styleFont = new NSComboBox { Completes = true, TranslatesAutoresizingMaskIntoConstraints = false };
+            _styleFont.Add([.. NSFontManager.SharedFontManager.AvailableFontFamilies.Select(family => (NSObject)new NSString(family))]);
+            _styleFont.WidthAnchor.ConstraintEqualTo(220).Active = true;
+            _styleFont.Changed += (_, _) => PreviewSubtitleStyle();
+            _styleFont.SelectionChanged += (_, _) => OnWindowThread(PreviewSubtitleStyle);
+            _styleColour = StyleColourField();
+            _styleSize = StyleSlider(100, 50, 400, "%");
+            _styleOpacity = StyleSlider(100, 0, 100, "%");
+            _styleMargin = StyleSlider(5, 0, 40, "%");
+            _styleBold = StyleCheck();
+            _styleInBars = StyleCheck();
+            _styleForceBottom = StyleCheck();
+            _styleOutline = MacSettings.Choices(["None", "Thin", "Normal", "Thick"]);
+            _styleOutline.Activated += (_, _) => PreviewSubtitleStyle();
+            _styleOutlineColour = StyleColourField();
+            _styleShadowColour = StyleColourField();
+            _styleBoxColour = StyleColourField();
+            _styleShadowOpacity = StyleSlider(60, 0, 100, "%");
+            _styleShadowOffset = StyleSlider(2, 0, 10, "pt");
+            _styleBoxOpacity = StyleSlider(0, 0, 100, "%");
+            _stylePolicy = MacSettings.Choices(["Use the file's colours and weights", "Always use mine"]);
+            _styleNotice = MacTheme.WrappingLabel("", 1, DesignRole.TextSecondary);
+            var save = MacTheme.TextButton("Apply", ApplySubtitleStyle, RexButtonLook.Accent, label: "Apply the subtitle appearance");
+            var defaults = MacTheme.TextButton("Default style", () =>
             {
                 _styleFont!.StringValue = "Helvetica Neue";
                 _styleColour!.StringValue = "FFFFFF";
@@ -124,39 +140,37 @@ public sealed partial class MainWindow
                 _styleBoxOpacity!.DoubleValue = 0;
                 _stylePolicy!.SelectItem((int)SubtitleStyleChoice.Respect);
                 ApplySubtitleStyle();
-            });
-            var actions = NSStackView.FromViews([save, defaults]);
-            actions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            actions.Spacing = 10;
-            var stack = NSStackView.FromViews([
-                heading, intro,
-                TimingRow("Font", _styleFont),
-                TimingRow("Text colour (#RRGGBB)", _styleColour),
-                StyleSliderRow("Size, 50-400%", _styleSize),
-                StyleSliderRow("Opacity, 0-100%", _styleOpacity),
-                StyleSliderRow("Bottom margin %", _styleMargin),
-                _styleBold, _styleInBars, _styleForceBottom,
-                EffectChoiceRow("Text outline", _styleOutline),
-                TimingRow("Outline colour (#RRGGBB)", _styleOutlineColour),
-                TimingRow("Shadow colour (#RRGGBB)", _styleShadowColour),
-                StyleSliderRow("Shadow opacity %", _styleShadowOpacity),
-                StyleSliderRow("Shadow offset", _styleShadowOffset),
-                TimingRow("Background colour (#RRGGBB)", _styleBoxColour),
-                StyleSliderRow("Background opacity %", _styleBoxOpacity),
-                EffectChoiceRow("Embedded styles", _stylePolicy),
-                actions, _styleNotice,
-            ]);
-            stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-            stack.Alignment = NSLayoutAttribute.Leading;
-            stack.Spacing = 10;
-            stack.EdgeInsets = new NSEdgeInsets(20, 24, 20, 24);
-            stack.Frame = new CGRect(0, 0, 540, 880);
-            var scroll = new NSScrollView(new CGRect(0, 0, 560, 490))
-            {
-                HasVerticalScroller = true,
-                DocumentView = stack,
-            };
+            }, label: "Restore the default subtitle style");
+
+            const string ColourHint = "Six hexadecimal digits, such as FFFFFF.";
+            page.Add(
+                SubtitlePreview(),
+                MacSettings.Card("Text",
+                    MacSettings.Row("Subtitle font", null, _styleFont),
+                    MacSettings.Row("Subtitle size (%)", null, StyleSliderControl(_styleSize)),
+                    MacSettings.Row("Subtitle colour", ColourHint, _styleColour),
+                    MacSettings.Row("Subtitle opacity (%)", null, StyleSliderControl(_styleOpacity)),
+                    MacSettings.Row("Bold subtitles", null, _styleBold)),
+                MacSettings.Card("Outline and shadow",
+                    MacSettings.Row("Outline", null, _styleOutline),
+                    MacSettings.Row("Outline colour", ColourHint, _styleOutlineColour),
+                    MacSettings.Row("Shadow colour", ColourHint, _styleShadowColour),
+                    MacSettings.Row("Shadow opacity (%, 0 for none)", null, StyleSliderControl(_styleShadowOpacity)),
+                    MacSettings.Row("Shadow offset", null, StyleSliderControl(_styleShadowOffset))),
+                MacSettings.Card("Background box",
+                    MacSettings.Row("Background box colour", ColourHint, _styleBoxColour),
+                    MacSettings.Row("Background box opacity (%, 0 for none)", null, StyleSliderControl(_styleBoxOpacity))),
+                MacSettings.Card("Position",
+                    MacSettings.Row("Gap from the edge of the picture (% of its height)", null, StyleSliderControl(_styleMargin)),
+                    MacSettings.Row("Put subtitles in the black bars below a wide picture", null, _styleInBars),
+                    MacSettings.Row("Keep every subtitle at the bottom", null, _styleForceBottom)),
+                MacSettings.Card(null,
+                    MacSettings.Row("Styled subtitles", "Whether a subtitle file's own colours and weights win over the style above.", _stylePolicy)),
+                _styleNotice);
+            page.AddFitted(MacSettings.Buttons(save, defaults));
+            var scroll = MacSettings.Scroller();
             _subtitleStyleWindow.ContentView = scroll;
+            MacSettings.Show(scroll, page);
             _subtitleStyleWindow.Center();
         }
 
@@ -176,19 +190,122 @@ public sealed partial class MainWindow
         _styleBoxColour!.StringValue = _settings.SubtitleBoxColor.ToString("X6", CultureInfo.InvariantCulture);
         _styleBoxOpacity!.DoubleValue = _settings.SubtitleBoxOpacity;
         _stylePolicy!.SelectItem((int)_settings.SubtitleStyles);
+        PreviewSubtitleStyle();
         _subtitleStyleWindow.MakeKeyAndOrderFront(null);
     }
 
-    private static NSStackView StyleSliderRow(string title, NSSlider slider)
+    /// <summary>A slider that redraws the preview as it moves; its value is said beside it.</summary>
+    private NSSlider StyleSlider(double initial, double minimum, double maximum, string unit)
     {
-        var label = NSTextField.CreateLabel(title);
-        ((NSView)slider).AccessibilityLabel = title;
-        label.WidthAnchor.ConstraintEqualTo(170).Active = true;
-        slider.WidthAnchor.ConstraintGreaterThanOrEqualTo(225).Active = true;
-        var row = NSStackView.FromViews([label, slider]);
-        row.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-        row.Spacing = 8;
-        return row;
+        var slider = NSSlider.FromValue(initial, minimum, maximum, PreviewSubtitleStyle);
+        slider.Continuous = true;
+        _styleValues.Add((slider, MacSettings.ValueLabel(), unit));
+        return slider;
+    }
+
+    private NSStackView StyleSliderControl(NSSlider slider) =>
+        MacSettings.SliderWithValue(slider, _styleValues.First(entry => entry.Slider == slider).Value);
+
+    private NSButton StyleCheck()
+    {
+        var check = MacSettings.Check(false);
+        check.Activated += (_, _) => PreviewSubtitleStyle();
+        return check;
+    }
+
+    private NSTextField StyleColourField()
+    {
+        var field = new NSTextField { PlaceholderString = "FFFFFF", TranslatesAutoresizingMaskIntoConstraints = false };
+        field.WidthAnchor.ConstraintEqualTo(100).Active = true;
+        field.Changed += (_, _) => PreviewSubtitleStyle();
+        return field;
+    }
+
+    /// <summary>The preview: sample subtitle text on the stage, drawn in the style chosen.</summary>
+    private RexPanel SubtitlePreview()
+    {
+        var stage = MacTheme.Panel(MacTheme.Stage, 2);
+        stage.HeightAnchor.ConstraintEqualTo((nfloat)SubtitlePreviewHeight).Active = true;
+        stage.AccessibilityLabel = "Subtitle preview";
+        _stylePreviewBox = MacTheme.Panel(NSColor.Clear, 0);
+        _stylePreviewText = new NSTextField
+        {
+            Editable = false,
+            Selectable = false,
+            Bordered = false,
+            DrawsBackground = false,
+            Alignment = NSTextAlignment.Center,
+            TranslatesAutoresizingMaskIntoConstraints = false,
+        };
+        _stylePreviewText.AccessibilityElement = false;
+        _stylePreviewBox.AddSubview(_stylePreviewText);
+        MacTheme.Fill(_stylePreviewBox, _stylePreviewText, (double)MacTheme.Space(0));
+        stage.AddSubview(_stylePreviewBox);
+        _stylePreviewBox.CenterXAnchor.ConstraintEqualTo(stage.CenterXAnchor).Active = true;
+        _stylePreviewBox.WidthAnchor.ConstraintLessThanOrEqualTo(stage.WidthAnchor, 1, -MacTheme.Space(4)).Active = true;
+        _stylePreviewGap = _stylePreviewBox.BottomAnchor.ConstraintEqualTo(stage.BottomAnchor, -MacTheme.Space(1));
+        _stylePreviewGap.Active = true;
+        return stage;
+    }
+
+    /// <summary>Draws the preview from the controls as they are now; a colour half typed keeps the last good one.</summary>
+    private void PreviewSubtitleStyle()
+    {
+        foreach (var (slider, value, unit) in _styleValues)
+        {
+            value.StringValue = $"{Math.Round(slider.DoubleValue):0} {unit}";
+        }
+
+        if (_stylePreviewText is null || _stylePreviewBox is null || _styleSize is null)
+        {
+            return;
+        }
+
+        var size = (nfloat)Math.Clamp(20 * _styleSize.DoubleValue / 100, 8, 64);
+        var family = string.IsNullOrWhiteSpace(_styleFont?.StringValue) ? "Helvetica Neue" : _styleFont!.StringValue.Trim();
+        var bold = IsChecked(_styleBold);
+        var font = NSFontManager.SharedFontManager.FontWithFamily(family, bold ? NSFontTraitMask.Bold : 0, bold ? 9 : 5, size)
+            ?? NSFont.SystemFontOfSize(size, bold ? NSFontWeight.Bold : NSFontWeight.Regular)!;
+        var text = SubtitleColour(_styleColour, 0xFFFFFF, _styleOpacity!.DoubleValue);
+        var outline = (OutlineChoice)(int)_styleOutline!.IndexOfSelectedItem;
+        var attributes = new NSStringAttributes
+        {
+            Font = font,
+            ForegroundColor = text,
+            ParagraphStyle = new NSMutableParagraphStyle { Alignment = NSTextAlignment.Center },
+            Shadow = new NSShadow
+            {
+                ShadowColor = SubtitleColour(_styleShadowColour, 0, _styleShadowOpacity!.DoubleValue),
+                ShadowOffset = new CGSize(_styleShadowOffset!.DoubleValue, -_styleShadowOffset.DoubleValue),
+                ShadowBlurRadius = 2,
+            },
+        };
+        if (outline != OutlineChoice.None)
+        {
+            // A negative width strokes the outline round the filled letters rather than instead of them.
+            attributes.StrokeWidth = outline switch
+            {
+                OutlineChoice.Thin => -2f,
+                OutlineChoice.Thick => -6f,
+                _ => -4f,
+            };
+            attributes.StrokeColor = SubtitleColour(_styleOutlineColour, 0, 100);
+        }
+
+        _stylePreviewText.AttributedStringValue = new NSAttributedString("Subtitles look like this.", attributes);
+        _stylePreviewBox.Fill = SubtitleColour(_styleBoxColour, 0, _styleBoxOpacity!.DoubleValue);
+        if (_stylePreviewGap is not null)
+        {
+            _stylePreviewGap.Constant = -(nfloat)Math.Max(MacTheme.Space(1), SubtitlePreviewHeight * _styleMargin!.DoubleValue / 100);
+        }
+    }
+
+    /// <summary>A subtitle colour from a hexadecimal field at an opacity in per cent; <paramref name="fallback"/> while the field does not hold one.</summary>
+    private static NSColor SubtitleColour(NSTextField? field, int fallback, double opacity)
+    {
+        var rgb = TrySubtitleColour(field, out var typed) ? typed : fallback;
+        return NSColor.FromSrgb((nfloat)(((rgb >> 16) & 0xFF) / 255.0), (nfloat)(((rgb >> 8) & 0xFF) / 255.0),
+            (nfloat)((rgb & 0xFF) / 255.0), (nfloat)Math.Clamp(opacity / 100, 0, 1));
     }
 
     private void ApplySubtitleStyle()
@@ -222,6 +339,7 @@ public sealed partial class MainWindow
             SubtitleBoxOpacity = (int)Math.Round(_styleBoxOpacity!.DoubleValue),
             SubtitleStyles = (SubtitleStyleChoice)(int)_stylePolicy!.IndexOfSelectedItem,
         }).Normalize();
+        PreviewSubtitleStyle();
         try
         {
             SettingsStore.Save(_roots.SettingsPath, updated);
@@ -249,5 +367,6 @@ public sealed partial class MainWindow
         _subtitleStyleWindow?.Close();
         _subtitleStyleWindow?.Dispose();
         _subtitleStyleWindow = null;
+        _styleValues.Clear();
     }
 }
