@@ -1,3 +1,5 @@
+using Rex.Media.AppCore.Design;
+
 namespace Rex.Media.App.Mac;
 
 /// <summary>Native access to playback history and the shared remembered quick slots.</summary>
@@ -5,9 +7,20 @@ public sealed partial class MainWindow
 {
     private NSWindow? _historyWindow;
     private NSPopUpButton? _recentPicker;
-    private NSTextField? _recentSummary;
-    private readonly List<NSButton> _quickSlotOpenButtons = [];
-    private readonly List<NSButton> _quickSlotSaveButtons = [];
+    private RexLabel? _recentSummary;
+    private readonly List<RexButton> _quickSlotOpenButtons = [];
+    private readonly List<RexButton> _quickSlotSaveButtons = [];
+
+    /// <summary>The history window's scrolled page, laid out from the top down as a page reads.</summary>
+    private sealed class HistoryDocumentView : NSView
+    {
+        public HistoryDocumentView()
+        {
+            TranslatesAutoresizingMaskIntoConstraints = false;
+        }
+
+        public override bool IsFlipped => true;
+    }
 
     private void ShowHistory()
     {
@@ -21,25 +34,26 @@ public sealed partial class MainWindow
                 MinSize = new CGSize(520, 420),
             };
             _historyWindow.ReleaseWhenClosed(false);
-            var heading = NSTextField.CreateLabel("Recent media & quick slots");
-            heading.Font = NSFont.SystemFontOfSize(23, NSFontWeight.Semibold)!;
-            var explanation = NSTextField.CreateWrappingLabel(
+            MacTheme.Style(_historyWindow);
+            var heading = MacTheme.Label("Recent media & quick slots", 4, semibold: true);
+            var explanation = MacTheme.WrappingLabel(
                 "Open a recently played file, or save this moment to a numbered shortcut " +
-                "you can return to later.");
-            explanation.TextColor = NSColor.SecondaryLabel;
-            _recentPicker = new NSPopUpButton(new CGRect(0, 0, 500, 28), false);
+                "you can return to later.", 2, DesignRole.TextSecondary);
+            _recentPicker = new NSPopUpButton(new CGRect(0, 0, 500, 28), false)
+            {
+                TranslatesAutoresizingMaskIntoConstraints = false,
+            };
             ((NSView)_recentPicker).AccessibilityLabel = "Recently played file";
-            _recentSummary = NSTextField.CreateLabel("");
-            _recentSummary.TextColor = NSColor.SecondaryLabel;
-            var open = NSButton.CreateButton("Open selected", () =>
+            _recentSummary = MacTheme.Label("", 1, DesignRole.TextSecondary);
+            var open = MacTheme.TextButton("Open selected", () =>
             {
                 var index = (int)_recentPicker.IndexOfSelectedItem;
                 if (index >= 0 && index < _player.Recent.Count)
                 {
                     _player.Open([_player.Recent[index]]);
                 }
-            });
-            var clear = NSButton.CreateButton("Clear history…", () =>
+            }, RexButtonLook.Accent);
+            var clear = MacTheme.TextButton("Clear history…", () =>
             {
                 ConfirmInWindow("Clear recent media and saved positions? Your files will remain untouched.", () =>
                 {
@@ -47,46 +61,71 @@ public sealed partial class MainWindow
                     RefreshHistory();
                 });
             });
-            var controls = NSStackView.FromViews([open, clear]);
-            controls.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            controls.Spacing = 8;
+            var controls = MacTheme.Stack(false, 1, open, clear);
+            var recent = MacTheme.Stack(true, 1, _recentPicker, _recentSummary, controls);
 
-            var items = new List<NSView>
-            {
-                heading, explanation, _recentPicker, _recentSummary, controls,
-                EffectsHeading("Saved quick slots"),
-            };
+            // The nine slots sit on one card, a line each: the slot to open, then saving to it.
+            var slotRows = new List<NSView>();
+            var keyViews = new List<NSView> { _recentPicker, open, clear };
             for (var number = 1; number <= 9; number++)
             {
                 var slot = number;
-                var openSlot = NSButton.CreateButton(slot + ": Empty", () => _player.PlaySlot(slot));
-                openSlot.Alignment = NSTextAlignment.Left;
-                openSlot.WidthAnchor.ConstraintGreaterThanOrEqualTo(330).Active = true;
+                var openSlot = MacTheme.TextButton(slot + ": Empty", () => _player.PlaySlot(slot), label: "Open quick slot " + slot);
+                openSlot.SetContentHuggingPriorityForOrientation(1, NSLayoutConstraintOrientation.Horizontal);
                 _quickSlotOpenButtons.Add(openSlot);
-                var saveSlot = NSButton.CreateButton("Save this moment", () =>
+                var saveSlot = MacTheme.TextButton("Save this moment", () =>
                 {
                     _player.SetSlot(slot);
                     RefreshHistory();
-                });
+                }, label: "Save this moment to quick slot " + slot);
                 _quickSlotSaveButtons.Add(saveSlot);
-                var row = NSStackView.FromViews([openSlot, saveSlot]);
-                row.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-                row.Spacing = 8;
-                items.Add(row);
+                keyViews.Add(openSlot);
+                keyViews.Add(saveSlot);
+                var row = MacTheme.Stack(false, 1, openSlot, saveSlot);
+                slotRows.Add(row);
             }
 
-            var stack = NSStackView.FromViews([.. items]);
-            stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-            stack.Alignment = NSLayoutAttribute.Leading;
-            stack.Spacing = 11;
-            stack.EdgeInsets = new NSEdgeInsets(16, 24, 16, 24);
-            stack.Frame = new CGRect(0, 0, 580, 820);
+            var slots = MacTheme.Stack(true, 1, [.. slotRows]);
+            slots.EdgeInsets = new NSEdgeInsets(MacTheme.Space(2), MacTheme.Space(2), MacTheme.Space(2), MacTheme.Space(2));
+            var slotCard = MacTheme.Panel(DesignRole.Surface, 2, hairline: true);
+            MacTheme.Fill(slotCard, slots);
+            foreach (var row in slotRows)
+            {
+                row.WidthAnchor.ConstraintEqualTo(slots.WidthAnchor, 1, -MacTheme.Space(2) * 2).Active = true;
+            }
+
+            var slotSection = MacTheme.Stack(true, 1, MacTheme.Label("Saved quick slots", 3, semibold: true), slotCard);
+            var words = MacTheme.Stack(true, 1, heading, explanation);
+            var stack = MacTheme.Stack(true, 3, words, recent, slotSection);
+            stack.EdgeInsets = new NSEdgeInsets(MacTheme.Space(4), MacTheme.Space(4), MacTheme.Space(4), MacTheme.Space(4));
+            var document = new HistoryDocumentView();
+            MacTheme.Fill(document, stack);
+            var wide = MacTheme.Space(4) * 2;
+            foreach (var group in new NSView[] { words, recent, slotSection })
+            {
+                group.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -wide).Active = true;
+            }
+
+            explanation.WidthAnchor.ConstraintEqualTo(words.WidthAnchor).Active = true;
+            _recentPicker.WidthAnchor.ConstraintEqualTo(recent.WidthAnchor).Active = true;
+            slotCard.WidthAnchor.ConstraintEqualTo(slotSection.WidthAnchor).Active = true;
             var scroll = new NSScrollView(new CGRect(0, 0, 610, 550))
             {
                 HasVerticalScroller = true,
+                DrawsBackground = false,
+                BorderType = NSBorderType.NoBorder,
             };
-            scroll.DocumentView = stack;
+            scroll.DocumentView = document;
+            document.LeadingAnchor.ConstraintEqualTo(scroll.ContentView.LeadingAnchor).Active = true;
+            document.TopAnchor.ConstraintEqualTo(scroll.ContentView.TopAnchor).Active = true;
+            document.WidthAnchor.ConstraintEqualTo(scroll.ContentView.WidthAnchor).Active = true;
             _historyWindow.ContentView = scroll;
+            for (var i = 0; i < keyViews.Count; i++)
+            {
+                keyViews[i].NextKeyView = keyViews[(i + 1) % keyViews.Count];
+            }
+
+            _historyWindow.InitialFirstResponder = _recentPicker;
             _historyWindow.Center();
         }
 
@@ -121,11 +160,17 @@ public sealed partial class MainWindow
         {
             var button = _quickSlotOpenButtons[i];
             var slot = _player.Memory.Slot(i + 1);
-            button.Title = slot is null
+            button.Text = slot is null
                 ? (i + 1) + ": Empty"
                 : (i + 1) + ": " + Path.GetFileName(slot.Location);
             button.Enabled = slot is not null;
-            button.ToolTip = slot?.Location;
+            button.Label = slot is null
+                ? "Quick slot " + (i + 1) + " is empty"
+                : "Open quick slot " + (i + 1) + ": " + Path.GetFileName(slot.Location);
+            if (slot is not null)
+            {
+                button.ToolTip = slot.Location;
+            }
         }
     }
 

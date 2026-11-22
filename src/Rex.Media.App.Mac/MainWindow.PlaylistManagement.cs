@@ -1,3 +1,5 @@
+using Rex.Media.AppCore.Design;
+
 namespace Rex.Media.App.Mac;
 
 /// <summary>Native saved-playlist editing and file import/export over shared playlist storage.</summary>
@@ -5,17 +7,17 @@ public sealed partial class MainWindow
 {
     private NSWindow? _savedPlaylistsWindow;
     private NSPopUpButton? _savedPlaylistPicker;
-    private NSTextField? _savedPlaylistSummary;
+    private RexLabel? _savedPlaylistSummary;
     private NSStackView? _savedPlaylistNameEditor;
-    private NSTextField? _savedPlaylistNamePrompt;
+    private RexLabel? _savedPlaylistNamePrompt;
     private NSTextField? _savedPlaylistNameField;
     private Action<string>? _savePlaylistName;
-    private NSButton? _savedPlaylistCreate;
-    private NSButton? _savedPlaylistPlay;
-    private NSButton? _savedPlaylistAppend;
-    private NSButton? _savedPlaylistRename;
-    private NSButton? _savedPlaylistDuplicate;
-    private NSButton? _savedPlaylistRemove;
+    private RexButton? _savedPlaylistCreate;
+    private RexButton? _savedPlaylistPlay;
+    private RexButton? _savedPlaylistAppend;
+    private RexButton? _savedPlaylistRename;
+    private RexButton? _savedPlaylistDuplicate;
+    private RexButton? _savedPlaylistRemove;
 
     private void SavePlaylistWithPanel()
     {
@@ -56,43 +58,45 @@ public sealed partial class MainWindow
     {
         if (_savedPlaylistsWindow is null)
         {
-            _savedPlaylistsWindow = new NSWindow(new CGRect(0, 0, 560, 310),
+            _savedPlaylistsWindow = new NSWindow(new CGRect(0, 0, 560, 360),
                 NSWindowStyle.Titled | NSWindowStyle.Closable,
                 NSBackingStore.Buffered, false)
             {
                 Title = "Named playlists - rexplayer",
             };
             _savedPlaylistsWindow.ReleaseWhenClosed(false);
-            var heading = NSTextField.CreateLabel("Your playlists");
-            heading.Font = NSFont.SystemFontOfSize(24, NSFontWeight.Semibold)!;
-            var hint = NSTextField.CreateWrappingLabel(
-                "Saved playlists keep their own names and entries, separately from Up Next.");
-            hint.TextColor = NSColor.SecondaryLabel;
-            _savedPlaylistPicker = new NSPopUpButton(new CGRect(0, 0, 500, 28), false);
+            MacTheme.Style(_savedPlaylistsWindow);
+            var heading = MacTheme.Label("Your playlists", 4, semibold: true);
+            var hint = MacTheme.WrappingLabel(
+                "Saved playlists keep their own names and entries, separately from Up Next.", 2, DesignRole.TextSecondary);
+            _savedPlaylistPicker = new NSPopUpButton(new CGRect(0, 0, 500, 28), false)
+            {
+                TranslatesAutoresizingMaskIntoConstraints = false,
+            };
             ((NSView)_savedPlaylistPicker).AccessibilityLabel = "Saved playlist";
             _savedPlaylistPicker.Activated += (_, _) => RefreshSavedPlaylists();
-            _savedPlaylistSummary = NSTextField.CreateLabel("");
-            _savedPlaylistSummary.TextColor = NSColor.SecondaryLabel;
-            _savedPlaylistNamePrompt = NSTextField.CreateLabel("");
+            _savedPlaylistSummary = MacTheme.Label("", 1, DesignRole.TextSecondary);
+            _savedPlaylistNamePrompt = MacTheme.Label("", 2);
             _savedPlaylistNameField = new NSTextField(new CGRect(0, 0, 465, 24))
             {
                 PlaceholderString = "Playlist name",
+                TranslatesAutoresizingMaskIntoConstraints = false,
             };
             ((NSView)_savedPlaylistNameField).AccessibilityLabel = "Playlist name";
-            var saveName = NSButton.CreateButton("Save name", CommitSavedPlaylistName);
+            var saveName = MacTheme.TextButton("Save name", CommitSavedPlaylistName, RexButtonLook.Accent);
             saveName.KeyEquivalent = "\r";
-            var cancelName = NSButton.CreateButton("Cancel", HideSavedPlaylistNameEditor);
-            var nameActions = NSStackView.FromViews([saveName, cancelName]);
-            nameActions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            nameActions.Spacing = 8;
-            _savedPlaylistNameEditor = NSStackView.FromViews([
-                _savedPlaylistNamePrompt, _savedPlaylistNameField, nameActions,
-            ]);
-            _savedPlaylistNameEditor.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-            _savedPlaylistNameEditor.Spacing = 8;
+            var cancelName = MacTheme.TextButton("Cancel", HideSavedPlaylistNameEditor);
+            var nameActions = MacTheme.Stack(false, 1, saveName, cancelName);
+            // The naming editor sits on a raised card, so it reads as one step apart from the list.
+            var nameFields = MacTheme.Stack(true, 1, _savedPlaylistNamePrompt, _savedPlaylistNameField, nameActions);
+            nameFields.EdgeInsets = new NSEdgeInsets(MacTheme.Space(2), MacTheme.Space(2), MacTheme.Space(2), MacTheme.Space(2));
+            var nameCard = MacTheme.Panel(DesignRole.Surface, 2, hairline: true);
+            MacTheme.Fill(nameCard, nameFields);
+            _savedPlaylistNameField.WidthAnchor.ConstraintEqualTo(nameFields.WidthAnchor, 1, -MacTheme.Space(2) * 2).Active = true;
+            _savedPlaylistNameEditor = MacTheme.Stack(true, 0, nameCard);
             _savedPlaylistNameEditor.Hidden = true;
 
-            var create = NSButton.CreateButton("Save queue as new…", () =>
+            var create = MacTheme.TextButton("Save queue as new…", () =>
             {
                 ShowSavedPlaylistNameEditor("Name the playlist", "My playlist", name =>
                 {
@@ -101,12 +105,12 @@ public sealed partial class MainWindow
                 });
             });
             _savedPlaylistCreate = create;
-            var play = NSButton.CreateButton("Play", () =>
+            var play = MacTheme.TextButton("Play", () =>
             {
                 if (SelectedSavedPlaylistId() is { } id) _player.PlayPlaylist(id);
-            });
+            }, RexButtonLook.Accent);
             _savedPlaylistPlay = play;
-            var append = NSButton.CreateButton("Add current queue", () =>
+            var append = MacTheme.TextButton("Add current queue", () =>
             {
                 if (SelectedSavedPlaylistId() is { } id)
                 {
@@ -115,7 +119,7 @@ public sealed partial class MainWindow
                 }
             });
             _savedPlaylistAppend = append;
-            var rename = NSButton.CreateButton("Rename…", () =>
+            var rename = MacTheme.TextButton("Rename…", () =>
             {
                 if (SelectedSavedPlaylistId() is not { } id) return;
                 var originalName = _player.NamedPlaylists.First(p => p.Id == id).Name;
@@ -126,7 +130,7 @@ public sealed partial class MainWindow
                 });
             });
             _savedPlaylistRename = rename;
-            var duplicate = NSButton.CreateButton("Duplicate", () =>
+            var duplicate = MacTheme.TextButton("Duplicate", () =>
             {
                 if (SelectedSavedPlaylistId() is { } id)
                 {
@@ -135,7 +139,7 @@ public sealed partial class MainWindow
                 }
             });
             _savedPlaylistDuplicate = duplicate;
-            var remove = NSButton.CreateButton("Delete…", () =>
+            var remove = MacTheme.TextButton("Delete…", () =>
             {
                 if (SelectedSavedPlaylistId() is not { } id) return;
                 ConfirmInWindow("Delete this saved playlist? The media files will not be deleted.", () =>
@@ -145,23 +149,36 @@ public sealed partial class MainWindow
                 });
             });
             _savedPlaylistRemove = remove;
-            var first = NSStackView.FromViews([create, play, append]);
-            first.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            first.Spacing = 8;
-            var second = NSStackView.FromViews([rename, duplicate, remove]);
-            second.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            second.Spacing = 8;
-            var stack = NSStackView.FromViews([
-                heading, hint, _savedPlaylistPicker, _savedPlaylistSummary,
-                _savedPlaylistNameEditor, first, second,
-            ]);
-            stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-            stack.Alignment = NSLayoutAttribute.Leading;
-            stack.Spacing = 12;
-            stack.EdgeInsets = new NSEdgeInsets(20, 24, 20, 24);
-            _savedPlaylistsWindow.ContentView = stack;
-            hint.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            _savedPlaylistPicker.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
+            var first = MacTheme.Stack(false, 1, create, play, append);
+            var second = MacTheme.Stack(false, 1, rename, duplicate, remove);
+            var words = MacTheme.Stack(true, 1, heading, hint);
+            var choice = MacTheme.Stack(true, 1, _savedPlaylistPicker, _savedPlaylistSummary);
+            var actions = MacTheme.Stack(true, 1, first, second);
+            var stack = MacTheme.Stack(true, 3, words, choice, _savedPlaylistNameEditor, actions);
+            stack.EdgeInsets = new NSEdgeInsets(MacTheme.Space(4), MacTheme.Space(4), MacTheme.Space(4), MacTheme.Space(4));
+            var container = new NSView(new CGRect(0, 0, 560, 360));
+            MacTheme.Fill(container, stack);
+            _savedPlaylistsWindow.ContentView = container;
+            var wide = MacTheme.Space(4) * 2;
+            foreach (var group in new NSView[] { words, choice, _savedPlaylistNameEditor })
+            {
+                group.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -wide).Active = true;
+            }
+
+            hint.WidthAnchor.ConstraintEqualTo(words.WidthAnchor).Active = true;
+            _savedPlaylistPicker.WidthAnchor.ConstraintEqualTo(choice.WidthAnchor).Active = true;
+            nameCard.WidthAnchor.ConstraintEqualTo(_savedPlaylistNameEditor.WidthAnchor).Active = true;
+            _savedPlaylistPicker.NextKeyView = _savedPlaylistNameField;
+            _savedPlaylistNameField.NextKeyView = saveName;
+            saveName.NextKeyView = cancelName;
+            cancelName.NextKeyView = create;
+            create.NextKeyView = play;
+            play.NextKeyView = append;
+            append.NextKeyView = rename;
+            rename.NextKeyView = duplicate;
+            duplicate.NextKeyView = remove;
+            remove.NextKeyView = _savedPlaylistPicker;
+            _savedPlaylistsWindow.InitialFirstResponder = _savedPlaylistPicker;
             _savedPlaylistsWindow.Center();
         }
 
