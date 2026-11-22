@@ -15,16 +15,16 @@ public sealed partial class MainWindow
     private NSScrollView? _lyricsCompanionScroll;
     private NSStackView? _lyricsCompanionLines;
     private NSView? _lyricsCompanionDocument;
-    private NSTextField? _lyricsCompanionHeading;
-    private NSTextField? _lyricsCompanionEvidence;
-    private NSButton? _lyricsCompanionFollow;
-    private NSButton? _musicLyricsWindowButton;
+    private RexLabel? _lyricsCompanionHeading;
+    private RexLabel? _lyricsCompanionEvidence;
+    private RexButton? _lyricsCompanionFollow;
+    private RexButton? _musicLyricsWindowButton;
     private NSObject? _lyricsCompanionScrollWatch;
     private Lyrics? _lyricsCompanionSource;
     private bool _lyricsCompanionBuilt;
     private bool _lyricsCompanionWasLoading;
     private bool _lyricsCompanionWasHidden;
-    private readonly List<NSTextField> _lyricsCompanionTexts = [];
+    private readonly List<RexLabel> _lyricsCompanionTexts = [];
     private int _lyricsCompanionLine = -1;
     private int _lyricsCompanionWord = -2;
     private bool _lyricsCompanionFollows = true;
@@ -32,11 +32,12 @@ public sealed partial class MainWindow
     private bool LyricsCompanionOpen => _lyricsCompanion?.IsVisible == true;
 
     /// <summary>The stage button that opens the window, shown only while the song has lyrics.</summary>
-    private NSButton CreateLyricsWindowButton()
+    private RexButton CreateLyricsWindowButton()
     {
-        _musicLyricsWindowButton = NSButton.CreateButton("Open lyrics window", OpenLyricsCompanion);
+        _musicLyricsWindowButton = MacTheme.TextButton("Open lyrics window", OpenLyricsCompanion, RexButtonLook.Overlay,
+            label: "Open the lyrics in their own window");
+        _musicLyricsWindowButton.ToolTip = "Open a separately resizable lyrics window";
         _musicLyricsWindowButton.Hidden = true;
-        ((NSView)_musicLyricsWindowButton).AccessibilityLabel = "Open the lyrics in their own window";
         return _musicLyricsWindowButton;
     }
 
@@ -67,32 +68,35 @@ public sealed partial class MainWindow
             MinSize = new CGSize(320, 240),
         };
         window.ReleaseWhenClosed(false);
+        // A stage of its own: black in every theme, with the stage's text, so the lyrics read as
+        // they do over the music and its stock scroller is drawn dark to match.
+        window.Appearance = NSAppearance.GetAppearance(NSAppearance.NameDarkAqua);
+        window.TitlebarAppearsTransparent = true;
+        window.BackgroundColor = MacTheme.Stage;
 
-        var heading = NSTextField.CreateWrappingLabel("");
+        var heading = MacTheme.WrappingLabel("", 3, MacTheme.OverlayText, semibold: true);
         heading.Font = NSFont.SystemFontOfSize(18, NSFontWeight.Semibold)!;
         ((NSView)heading).AccessibilityLabel = "Song";
-        var evidence = NSTextField.CreateLabel("");
+        var evidence = MacTheme.Label("", 1, MacTheme.OverlaySecondaryText);
         evidence.Font = NSFont.SystemFontOfSize(13)!;
-        evidence.TextColor = NSColor.SecondaryLabel;
-        var follow = NSButton.CreateButton("Follow current line", () =>
+        var follow = MacTheme.TextButton("Follow current line", () =>
         {
             _lyricsCompanionFollows = true;
             if (_lyricsCompanionFollow is { } button) button.Hidden = true;
             BringCompanionLyricIntoView();
-        });
+        }, RexButtonLook.Overlay, label: "Resume following the current lyric line");
         follow.Hidden = true;
-        ((NSView)follow).AccessibilityLabel = "Resume following the current lyric line";
 
         var header = NSStackView.FromViews([heading, follow]);
         header.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-        header.Spacing = 8;
+        header.Spacing = MacTheme.Space(1);
         heading.SetContentHuggingPriorityForOrientation(1, NSLayoutConstraintOrientation.Horizontal);
 
         var lines = NSStackView.FromViews([]);
         lines.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
         lines.Alignment = NSLayoutAttribute.Leading;
-        lines.Spacing = 10;
-        lines.EdgeInsets = new NSEdgeInsets(8, 4, 8, 4);
+        lines.Spacing = MacTheme.Space(2);
+        lines.EdgeInsets = new NSEdgeInsets(MacTheme.Space(1), MacTheme.Space(0), MacTheme.Space(1), MacTheme.Space(0));
         lines.TranslatesAutoresizingMaskIntoConstraints = false;
 
         // A flipped document keeps the first line at the top, as reading order expects.
@@ -117,8 +121,8 @@ public sealed partial class MainWindow
         var root = NSStackView.FromViews([header, evidence, scroll]);
         root.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
         root.Alignment = NSLayoutAttribute.Leading;
-        root.Spacing = 10;
-        root.EdgeInsets = new NSEdgeInsets(16, 16, 16, 16);
+        root.Spacing = MacTheme.Space(2);
+        root.EdgeInsets = new NSEdgeInsets(MacTheme.Space(3), MacTheme.Space(3), MacTheme.Space(3), MacTheme.Space(3));
         root.TranslatesAutoresizingMaskIntoConstraints = false;
         var content = window.ContentView!;
         content.AddSubview(root);
@@ -149,7 +153,7 @@ public sealed partial class MainWindow
     private void CloseLyricsCompanion()
     {
         _lyricsCompanion?.Close();
-        if (_musicLyricsWindowButton is { } button) button.Title = "Open lyrics window";
+        if (_musicLyricsWindowButton is { } button) button.Text = "Open lyrics window";
     }
 
     private void PauseCompanionFollow()
@@ -194,9 +198,14 @@ public sealed partial class MainWindow
             ? _player.Lyrics : null;
         if (_musicLyricsWindowButton is { } stageButton)
         {
-            stageButton.Hidden = lyrics is null;
             var title = LyricsCompanionOpen ? "Focus lyrics window" : "Open lyrics window";
-            if (stageButton.Title != title) stageButton.Title = title;
+            if (stageButton.Hidden != (lyrics is null) || stageButton.Text != title)
+            {
+                stageButton.Hidden = lyrics is null;
+                stageButton.Text = title;
+                // The stage's foot makes room for the button, or gives it back.
+                if (_musicStage is not null) _musicStage.NeedsLayout = true;
+            }
         }
 
         if (!LyricsCompanionOpen || _lyricsCompanion is not { } window || _lyricsCompanionLines is not { } content
@@ -231,12 +240,12 @@ public sealed partial class MainWindow
             if (lyrics is null || lyrics.Lines.Count == 0)
             {
                 evidence.StringValue = "";
-                var message = NSTextField.CreateWrappingLabel(
+                var message = MacTheme.WrappingLabel(
                     !_musicShowLyrics ? "Lyrics are hidden in settings."
                     : hasVideo ? "This track does not show music lyrics."
                     : waitingForMetadata ? "Loading local lyrics…"
-                    : _player.LyricsProblem ?? "No lyrics are available for this track.");
-                message.Font = NSFont.SystemFontOfSize(16)!;
+                    : _player.LyricsProblem ?? "No lyrics are available for this track.",
+                    3, MacTheme.OverlaySecondaryText);
                 content.AddArrangedSubview(message);
                 message.WidthAnchor.ConstraintEqualTo(content.WidthAnchor, 1, -8).Active = true;
             }
@@ -253,9 +262,7 @@ public sealed partial class MainWindow
                 };
                 foreach (var line in lyrics.Lines)
                 {
-                    var text = NSTextField.CreateWrappingLabel(line.Text.Length == 0 ? " " : line.Text);
-                    text.Font = NSFont.SystemFontOfSize(20)!;
-                    text.TextColor = NSColor.SecondaryLabel;
+                    var text = MacTheme.WrappingLabel(line.Text.Length == 0 ? " " : line.Text, 4, MacTheme.OverlaySecondaryText);
                     if (line.At is { } at)
                     {
                         var described = $"Go to {TimeText.Format(at, _player.Duration)}: {line.Text}";
@@ -291,8 +298,8 @@ public sealed partial class MainWindow
             if (_lyricsCompanionLine >= 0 && _lyricsCompanionLine < _lyricsCompanionTexts.Count && lyrics is not null)
             {
                 var prior = _lyricsCompanionTexts[_lyricsCompanionLine];
-                prior.Font = NSFont.SystemFontOfSize(20)!;
-                prior.TextColor = NSColor.SecondaryLabel;
+                prior.Font = MacTheme.Font(4);
+                prior.FixedColor = MacTheme.OverlaySecondaryText;
                 prior.StringValue = LineText(lyrics.Lines[_lyricsCompanionLine]);
             }
 
@@ -301,8 +308,8 @@ public sealed partial class MainWindow
             if (current >= 0 && current < _lyricsCompanionTexts.Count)
             {
                 var row = _lyricsCompanionTexts[current];
-                row.Font = NSFont.SystemFontOfSize(20, NSFontWeight.Semibold)!;
-                row.TextColor = NSColor.ControlAccent;
+                row.Font = MacTheme.Font(4, semibold: true);
+                row.FixedColor = MacTheme.OverlayText;
                 if (_lyricsCompanionFollows) BringCompanionLyricIntoView();
             }
         }
@@ -315,9 +322,10 @@ public sealed partial class MainWindow
             if (word != _lyricsCompanionWord)
             {
                 _lyricsCompanionWord = word;
-                var font = NSFont.SystemFontOfSize(20, NSFontWeight.Semibold)!;
-                var reached = new NSStringAttributes { Font = font, ForegroundColor = NSColor.ControlAccent };
-                var ahead = new NSStringAttributes { Font = font, ForegroundColor = NSColor.SecondaryLabel };
+                // The words already sung take the signal colour; the rest wait in the quieter text.
+                var font = MacTheme.Font(4, semibold: true);
+                var reached = new NSStringAttributes { Font = font, ForegroundColor = MacTheme.Signal };
+                var ahead = new NSStringAttributes { Font = font, ForegroundColor = MacTheme.OverlaySecondaryText };
                 var coloured = new NSMutableAttributedString();
                 for (var i = 0; i < sung.Words.Count; i++)
                 {
