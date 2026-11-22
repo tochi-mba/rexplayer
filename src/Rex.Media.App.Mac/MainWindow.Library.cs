@@ -1,33 +1,53 @@
 using Rex.Media.AppCore.Automation;
+using Rex.Media.AppCore.Design;
 using Rex.Media.AppCore.Library;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Library;
+using Rex.Media.Settings;
 
 namespace Rex.Media.App.Mac;
 
 /// <summary>
-/// The native Mac library browser over the same persisted catalogue and scanner used on Windows.
-/// It deliberately uses AppKit views rather than embedding a web view or duplicating catalogue rules.
+/// The native Mac library over the same persisted catalogue and scanner used on Windows, laid out
+/// as the Windows library pane is: a navigation column of views at the left and, on a rounded page
+/// at the right, the view's banner (artwork, kicker, title, what it holds and what to do with it),
+/// the search, the view's order, grouping and filter, then its results. It fills the player
+/// window's library host over the stage, so playback carries on behind it.
 /// </summary>
 public sealed partial class MainWindow
 {
     private Rex.Media.Library.MediaLibrary? _mediaLibrary;
     private LibraryScanner? _libraryScanner;
     private NSTimer? _libraryPeriodicScan;
-    private NSWindow? _libraryWindow;
+    private LibraryPaneView? _libraryRoot;
     private NSSearchField? _librarySearch;
     private NSPopUpButton? _libraryCategory;
+    private NSPopUpButton? _librarySort;
+    private NSPopUpButton? _libraryGrouping;
     private NSScrollView? _libraryScroll;
-    private NSTextField? _librarySummary;
-    private NSTextField? _libraryPageSummary;
-    private NSButton? _libraryPreviousPage;
-    private NSButton? _libraryNextPage;
+    private NSView? _libraryEmpty;
+    private NSStackView? _libraryPager;
+    private NSView? _libraryPagerHolder;
+    private RexLabel? _librarySummary;
+    private RexLabel? _libraryPageSummary;
+    private RexButton? _libraryPreviousPage;
+    private RexButton? _libraryNextPage;
     private NSButton? _libraryFirstPlay;
     private NSButton? _libraryFirstQueue;
-    private NSButton? _libraryAddButton;
-    private NSButton? _libraryRescanButton;
-    private NSButton? _libraryBackButton;
+    private RexButton? _libraryAddButton;
+    private RexButton? _libraryRescanButton;
+    private RexButton? _libraryBackButton;
+    private LibraryHero? _libraryListHero;
+    private RexButton? _libraryPlayAll;
+    private RexButton? _libraryShuffleAll;
+    private RexButton? _libraryQueueAll;
+    private RexButton? _libraryMore;
+    private NSStackView? _libraryFolderActions;
+    private readonly List<NSView> _libraryFolderActionKeys = [];
     private readonly List<NSView> _libraryResultKeyViews = [];
+    private readonly List<(string Path, RexTextButton Title)> _libraryRowTitles = [];
+    private LibraryResultRow? _libraryChosenRow;
+    private string? _libraryMarkedPlaying;
     private IReadOnlyList<LibraryEntry> _libraryCurrentSelection = [];
     private int _libraryMatchingCount;
     private int _libraryTotalCount;
@@ -35,16 +55,42 @@ public sealed partial class MainWindow
     private int _libraryVisibleResultCount;
     private IReadOnlyList<LibraryEntry> _libraryRenderedEntries = [];
     private int _libraryRenderedPage = -1;
-    private string? _libraryRenderedEmptyLabel;
+    private string? _libraryRenderedKey;
     private int _libraryPageIndex;
     private const int LibraryPageSize = 80;
     private const double MinimumLibraryPageWidth = 590;
+    private const double LibraryHeroArtworkSize = 144;
+    private const double LibraryRowHeight = 52;
     private bool _closingLibrary;
     private bool _libraryTemporaryStore;
     private RexStore? _libraryStore;
     private readonly Dictionary<string, NSImage> _libraryThumbnails = new(StringComparer.OrdinalIgnoreCase);
     private readonly Queue<string> _libraryThumbnailOrder = new();
     private const int LibraryThumbnailLimit = 160;
+
+    /// <summary>The orders a view can take, named as Windows names them; the first is the view's own.</summary>
+    private static readonly (LibrarySort Sort, string Name)[] LibrarySortNames =
+    [
+        (LibrarySort.Natural, "Natural order"), (LibrarySort.Title, "Title"), (LibrarySort.Artist, "Artist"), (LibrarySort.Album, "Album"),
+        (LibrarySort.Year, "Year"), (LibrarySort.Added, "Date added"), (LibrarySort.Played, "Last played"), (LibrarySort.MostPlayed, "Most played"),
+        (LibrarySort.Length, "Duration"), (LibrarySort.Modified, "Date modified"),
+        (LibrarySort.Size, "File size"), (LibrarySort.Path, "Folder and path"),
+    ];
+
+    /// <summary>The headings a view can be gathered under, named as Windows names them.</summary>
+    private static readonly (LibraryGrouping Grouping, string Name)[] LibraryGroupingNames =
+    [
+        (LibraryGrouping.None, "No groups"), (LibraryGrouping.Letter, "First letter"), (LibraryGrouping.Artist, "Artist"), (LibraryGrouping.Album, "Album"),
+        (LibraryGrouping.Genre, "Genre"), (LibraryGrouping.Year, "Year"), (LibraryGrouping.Decade, "Decade"), (LibraryGrouping.Folder, "Folder"),
+        (LibraryGrouping.Added, "Date added"), (LibraryGrouping.Length, "Length"),
+    ];
+
+    /// <summary>
+    /// A page's banner: the aside holding Back over the artwork, the artwork, the kicker, title and
+    /// summary, the column of words (an album adds its artists there) and the row of actions.
+    /// </summary>
+    private sealed record LibraryHero(NSView View, NSStackView Aside, LibraryArtView Art, RexLabel Kicker, RexLabel Title,
+        RexLabel Summary, NSStackView Words, NSStackView Actions);
 
     private void InitializeLibrary()
     {
@@ -67,161 +113,299 @@ public sealed partial class MainWindow
         _mediaLibrary.Changed += (_, _) => OnWindowThread(RefreshLibrary);
         // Status-only changes do not require sorting the entire catalogue on the UI thread.
         _libraryScanner.StatusChanged += (_, _) => OnWindowThread(UpdateLibraryStatus);
+        // The playing line wears the signal colour; only a change of item repaints it.
+        _player.Changed += (_, _) => OnWindowThread(MarkLibraryPlaying);
         _libraryScanner.Request();
         _libraryPeriodicScan = NSTimer.CreateRepeatingScheduledTimer(TimeSpan.FromMinutes(5),
             _ => _libraryScanner?.Request());
     }
 
+    /// <summary>Shows the library over the stage, building it the first time, and puts the keyboard in its search.</summary>
     private void ShowLibrary()
     {
-        if (_libraryWindow is null)
+        if (_libraryHost is null)
         {
-            _libraryWindow = new NSWindow(new CGRect(0, 0, 820, 620),
-                NSWindowStyle.Titled | NSWindowStyle.Closable | NSWindowStyle.Miniaturizable | NSWindowStyle.Resizable,
-                NSBackingStore.Buffered, false)
-            {
-                Title = "Your library - rexplayer",
-            };
-            _libraryWindow.ReleaseWhenClosed(false);
-            // The key-view order is explicit: AppKit's automatic geometric ordering
-            // can discard links after we replace paginated result rows.
-            _libraryWindow.AutorecalculatesKeyViewLoop = false;
+            return;
+        }
 
-            var headline = NSTextField.CreateLabel("Your library");
-            headline.Font = NSFont.SystemFontOfSize(26, NSFontWeight.Semibold)!;
-            var description = NSTextField.CreateLabel("Your files stay on this Mac. Choose folders to keep them organised.");
-            description.TextColor = NSColor.SecondaryLabel;
-            var add = NSButton.CreateButton("Add folder…", AddLibraryFolder);
-            var rescan = NSButton.CreateButton("Rescan", () => _libraryScanner?.Request());
-            var close = NSButton.CreateButton("Back to player", HideLibrary);
-            _libraryAddButton = add;
-            _libraryRescanButton = rescan;
-            _libraryBackButton = close;
-            ((NSView)add).AccessibilityLabel = "Add a folder to the library";
-            ((NSView)rescan).AccessibilityLabel = "Rescan watched library folders";
-            ((NSView)close).AccessibilityLabel = "Back to player";
-            var actions = NSStackView.FromViews([add, rescan, close]);
-            actions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            actions.Spacing = 10;
-            var suggestions = NSStackView.FromViews(
-            [
-                SuggestedLibraryFolder("Add music", "Music", Environment.SpecialFolder.MyMusic),
-                SuggestedLibraryFolder("Add videos", "Videos", Environment.SpecialFolder.MyVideos),
-                SuggestedLibraryFolder("Add pictures", "Pictures", Environment.SpecialFolder.MyPictures),
-            ]);
-            suggestions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            suggestions.Spacing = 8;
-
-            _librarySearch = new NSSearchField(new CGRect(0, 0, 400, 30))
-            {
-                PlaceholderString = "Search titles, artists, albums and folders",
-            };
-            _librarySearch.Changed += (_, _) => ChangeLibraryView();
-            _librarySearch.Activated += (_, _) => ChangeLibraryView();
-            _librarySearch.ToolTip = "Type to filter your local library";
-            _librarySearch.AccessibilityLabel = "Search library";
-
-            _libraryCategory = new NSPopUpButton(new CGRect(0, 0, 220, 30), false);
-            foreach (var name in new[] { "All media", "Music", "Videos", "Pictures", "Recently added", "Recently played", "Continue watching", "Folders" })
-            {
-                _libraryCategory.AddItem(name);
-            }
-
-            _libraryCategory.Activated += (_, _) => ChangeLibraryView();
-            ((NSView)_libraryCategory).AccessibilityLabel = "Media category";
-            var filters = NSStackView.FromViews([_librarySearch, _libraryCategory]);
-            filters.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            filters.Spacing = 12;
-            _librarySearch.WidthAnchor.ConstraintGreaterThanOrEqualTo(220).Active = true;
-            _libraryCategory.WidthAnchor.ConstraintEqualTo(190).Active = true;
-
-            _librarySummary = NSTextField.CreateLabel("");
-            _librarySummary.TextColor = NSColor.SecondaryLabel;
-            _librarySummary.Font = NSFont.SystemFontOfSize(12, NSFontWeight.Regular)!;
-            _librarySummary.LineBreakMode = NSLineBreakMode.TruncatingTail;
-
-            _libraryPreviousPage = NSButton.CreateButton("Previous", () =>
-            {
-                if (_libraryPageIndex > 0)
-                {
-                    _libraryPageIndex--;
-                    RefreshLibrary();
-                    ScrollLibraryToStart();
-                }
-            });
-            _libraryPreviousPage.ToolTip = "Show the previous library results";
-            ((NSView)_libraryPreviousPage).AccessibilityLabel = "Previous results page";
-            _libraryNextPage = NSButton.CreateButton("Next", () =>
-            {
-                _libraryPageIndex++;
-                RefreshLibrary();
-                ScrollLibraryToStart();
-            });
-            _libraryNextPage.ToolTip = "Show the next library results";
-            ((NSView)_libraryNextPage).AccessibilityLabel = "Next results page";
-            _libraryPageSummary = NSTextField.CreateLabel("");
-            _libraryPageSummary.TextColor = NSColor.SecondaryLabel;
-
-            // Search/Category are linked once the controls belong to the window.
-            // AppKit must first calculate the dynamic row controls in the key loop.
-            var pages = NSStackView.FromViews([_libraryPreviousPage, _libraryPageSummary, _libraryNextPage]);
-            pages.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            pages.Spacing = 12;
-
-            _libraryScroll = new NSScrollView(new CGRect(0, 0, 740, 390))
-            {
-                HasVerticalScroller = true,
-            };
-            _libraryScroll.HeightAnchor.ConstraintGreaterThanOrEqualTo(170).Active = true;
-            _libraryScroll.AccessibilityLabel = "Library results";
-
-            var stack = NSStackView.FromViews([headline, description, actions, suggestions, filters, _librarySummary, pages, _libraryScroll]);
-            stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-            stack.Alignment = NSLayoutAttribute.Leading;
-            stack.Spacing = 14;
-            stack.EdgeInsets = new NSEdgeInsets(22, 24, 22, 24);
-            stack.TranslatesAutoresizingMaskIntoConstraints = false;
-            // The split view adds navigation chrome beside the existing page: the sidebar
-            // column keeps a fixed width, so the list page keeps the exact layout the
-            // reviewed screenshot baselines were taken of, and the window grows instead.
-            _librarySplit = new NSSplitView
-            {
-                IsVertical = true,
-                DividerStyle = NSSplitViewDividerStyle.Thin,
-            };
-            _librarySplit.AddArrangedSubview(BuildLibrarySidebar());
-            _librarySplit.AddArrangedSubview(BuildLibraryPageHost(stack));
-            _librarySplit.SetHoldingPriority(490, 0);
-            _libraryWindow.ContentView = _librarySplit;
-            _libraryScroll.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            _librarySummary.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            _libraryWindow.SetFrame(new CGRect(0, 0, 820 + LibrarySidebarTotalWidth, 620), false);
-            _libraryWindow.MinSize = new CGSize(MinimumLibraryPageWidth + LibrarySidebarTotalWidth, 460);
-            _libraryWindow.Center();
+        if (_libraryRoot is null)
+        {
+            BuildLibraryPane(_libraryHost);
         }
 
         RefreshLibrary(force: true);
-        _libraryWindow.MakeKeyAndOrderFront(null);
+        SetLibraryShown(true);
+        _libraryHost.LayoutSubtreeIfNeeded();
         WireLibraryKeyViews();
-        _libraryWindow.MakeFirstResponder(_librarySearch);
+        _window.MakeFirstResponder(_librarySearch);
         ShowChecks();
     }
 
-    private NSButton SuggestedLibraryFolder(string title, string folder, Environment.SpecialFolder specialFolder)
+    /// <summary>Hides the library and returns the keyboard to playback.</summary>
+    private void HideLibrary()
     {
-        var path = Environment.GetFolderPath(specialFolder);
-        var button = NSButton.CreateButton(title, () =>
+        SetLibraryShown(false);
+        if (_libraryHost is not null && _window.FirstResponder is NSView focused && focused.IsDescendantOf(_libraryHost))
         {
-            if (!string.IsNullOrWhiteSpace(path))
+            _window.MakeFirstResponder(_playPause);
+        }
+
+        ShowChecks();
+    }
+
+    /// <summary>The library's toggle: shows it while hidden, hides it while shown.</summary>
+    private void ToggleLibrary()
+    {
+        if (LibraryShown)
+        {
+            HideLibrary();
+        }
+        else
+        {
+            ShowLibrary();
+        }
+    }
+
+    /// <summary>The pane: the navigation column at the left, the page panel inset beside it.</summary>
+    private void BuildLibraryPane(NSView host)
+    {
+        var root = new LibraryPaneView(HideLibrary, OnLibraryPaneResized);
+        var navigation = BuildLibrarySidebar();
+        var panel = MacTheme.Panel(DesignRole.Surface, 3, hairline: true);
+        var pages = BuildLibraryPageHost(BuildLibraryListPage());
+        MacTheme.Fill(panel, pages);
+
+        // Back to player closes the pane from any of its pages, so it sits on the panel itself.
+        var close = MacTheme.IconButton("xmark", "Back to player", HideLibrary);
+        _libraryBackButton = close;
+        panel.AddSubview(close);
+        close.TopAnchor.ConstraintEqualTo(panel.TopAnchor, MacTheme.Space(1)).Active = true;
+        close.TrailingAnchor.ConstraintEqualTo(panel.TrailingAnchor, -MacTheme.Space(1)).Active = true;
+
+        root.AddSubview(navigation);
+        root.AddSubview(panel);
+        navigation.TopAnchor.ConstraintEqualTo(root.TopAnchor).Active = true;
+        navigation.BottomAnchor.ConstraintEqualTo(root.BottomAnchor).Active = true;
+        navigation.LeadingAnchor.ConstraintEqualTo(root.LeadingAnchor).Active = true;
+        panel.TopAnchor.ConstraintEqualTo(root.TopAnchor, MacTheme.Space(2)).Active = true;
+        panel.BottomAnchor.ConstraintEqualTo(root.BottomAnchor, -MacTheme.Space(2)).Active = true;
+        panel.LeadingAnchor.ConstraintEqualTo(navigation.TrailingAnchor, MacTheme.Space(2)).Active = true;
+        panel.TrailingAnchor.ConstraintEqualTo(root.TrailingAnchor, -MacTheme.Space(2)).Active = true;
+        _libraryRoot = root;
+        MacTheme.Fill(host, root);
+        host.LayoutSubtreeIfNeeded();
+    }
+
+    /// <summary>
+    /// The list page: the banner, the search across the page, the row of view options with the
+    /// scan status at its end, the results (or the empty state in their place) and the pager.
+    /// </summary>
+    private NSView BuildLibraryListPage()
+    {
+        var hero = BuildLibraryHero("house");
+        _libraryListHero = hero;
+        _libraryPlayAll = MacTheme.TextButton("Play", () => PlayLibrarySelection(shuffled: false), RexButtonLook.Accent, "play.fill",
+            "Play the chosen view");
+        _libraryShuffleAll = MacTheme.TextButton("Shuffle", () => PlayLibrarySelection(shuffled: true), RexButtonLook.Standard, "shuffle",
+            "Play the chosen view, shuffled");
+        _libraryQueueAll = MacTheme.TextButton("Add to queue", () => QueueLibraryEntries(_libraryCurrentSelection, "this view"),
+            RexButtonLook.Standard, "plus", "Add the view to the end of Up Next");
+        hero.Actions.AddArrangedSubview(_libraryPlayAll);
+        hero.Actions.AddArrangedSubview(_libraryShuffleAll);
+        hero.Actions.AddArrangedSubview(_libraryQueueAll);
+
+        // The Folders view's own actions, as Windows shows them in the banner there.
+        var addFolders = MacTheme.TextButton("Add folders...", AddLibraryFolder, RexButtonLook.Standard, label: "Add folders to the library");
+        _libraryRescanButton = MacTheme.TextButton("Rescan folders", () => _libraryScanner?.Request(), RexButtonLook.Standard,
+            label: "Rescan watched library folders");
+        var backUp = MacTheme.TextButton("Back up...", BackUpLibrary, RexButtonLook.Standard,
+            label: "Keep the library, its play counts and your playlists in a folder you choose");
+        var restore = MacTheme.TextButton("Restore backup...", RestoreLibraryBackup, RexButtonLook.Standard,
+            label: "Add a backup's folders, play counts and playlists to the library");
+        _libraryFolderActionKeys.AddRange([addFolders, _libraryRescanButton, backUp, restore]);
+        _libraryFolderActions = MacTheme.Stack(false, 1, addFolders, _libraryRescanButton, backUp, restore);
+        hero.Actions.AddArrangedSubview(_libraryFolderActions);
+        _libraryMore = MacTheme.IconButton("ellipsis", "More library actions", ShowLibraryMoreMenu);
+        hero.Actions.AddArrangedSubview(_libraryMore);
+
+        _librarySearch = new NSSearchField
+        {
+            PlaceholderString = "Search the library",
+            TranslatesAutoresizingMaskIntoConstraints = false,
+        };
+        _librarySearch.Changed += (_, _) => ChangeLibraryView();
+        _librarySearch.Activated += (_, _) => ChangeLibraryView();
+        _librarySearch.ToolTip = "Search by title, artist, album or filename";
+        _librarySearch.AccessibilityLabel = "Search library";
+
+        _librarySort = LibraryChoice("Sort order", "What the view is ordered by", LibrarySortNames.Select(item => item.Name));
+        _libraryGrouping = LibraryChoice("Grouping", "What the view is gathered under", LibraryGroupingNames.Select(item => item.Name));
+        _libraryCategory = LibraryChoice("Media category", "Filter this view by media type",
+            ["All media", "Music", "Videos", "Pictures", "Recently added", "Recently played", "Continue watching", "Folders"]);
+
+        _librarySummary = MacTheme.Label("", 1, DesignRole.TextSecondary);
+        _librarySummary.SetContentCompressionResistancePriority(200, NSLayoutConstraintOrientation.Horizontal);
+        _librarySummary.SetContentHuggingPriorityForOrientation(200, NSLayoutConstraintOrientation.Horizontal);
+        _librarySummary.Alignment = NSTextAlignment.Right;
+        var options = MacTheme.Stack(false, 1, _librarySort, _libraryGrouping, _libraryCategory, _librarySummary);
+
+        _libraryScroll = new NSScrollView
+        {
+            HasVerticalScroller = true,
+            AutohidesScrollers = true,
+            TranslatesAutoresizingMaskIntoConstraints = false,
+        };
+        _libraryScroll.DrawsBackground = false;
+        _libraryScroll.BorderType = NSBorderType.NoBorder;
+        _libraryScroll.AccessibilityLabel = "Library results";
+        _libraryEmpty = new NSView { TranslatesAutoresizingMaskIntoConstraints = false, Hidden = true };
+        var results = new NSView { TranslatesAutoresizingMaskIntoConstraints = false };
+        MacTheme.Fill(results, _libraryScroll);
+        MacTheme.Fill(results, _libraryEmpty);
+
+        _libraryPreviousPage = MacTheme.TextButton("Previous", () =>
+        {
+            if (_libraryPageIndex > 0)
             {
-                var answer = AddLibraryFolders([path]);
-                Say(answer.Ok ? folder + " is now watched." : answer.Error ?? "That folder could not be added.");
+                _libraryPageIndex--;
+                RefreshLibrary();
+                ScrollLibraryToStart();
             }
-        });
-        button.Enabled = !string.IsNullOrWhiteSpace(path) && Directory.Exists(path);
-        button.ToolTip = button.Enabled ? "Watch " + path : "This standard folder is not available";
-        ((NSView)button).AccessibilityLabel = title + " folder suggestion";
-        return button;
+        }, RexButtonLook.Standard, "chevron.left", "Previous results page");
+        _libraryNextPage = MacTheme.TextButton("Next", () =>
+        {
+            _libraryPageIndex++;
+            RefreshLibrary();
+            ScrollLibraryToStart();
+        }, RexButtonLook.Standard, "chevron.right", "Next results page");
+        _libraryPageSummary = MacTheme.Label("", 1, DesignRole.TextSecondary);
+        _libraryPager = MacTheme.Stack(false, 2, _libraryPreviousPage, _libraryPageSummary, _libraryNextPage);
+
+        var page = MacTheme.Stack(true, 2,
+            hero.View,
+            LibraryInset(_librarySearch, MacTheme.Space(4)),
+            LibraryInset(options, MacTheme.Space(4)),
+            LibraryInset(results, 18),
+            _libraryPagerHolder = LibraryInset(_libraryPager, MacTheme.Space(4), centred: true));
+        page.Alignment = NSLayoutAttribute.Width;
+        page.Distribution = NSStackViewDistribution.Fill;
+        page.EdgeInsets = new NSEdgeInsets(0, 0, MacTheme.Space(2), 0);
+        page.DetachesHiddenViews = true;
+        results.Superview!.SetContentHuggingPriorityForOrientation(1, NSLayoutConstraintOrientation.Vertical);
+        results.Superview.SetContentCompressionResistancePriority(1, NSLayoutConstraintOrientation.Vertical);
+        results.HeightAnchor.ConstraintGreaterThanOrEqualTo(120).Active = true;
+        return page;
+    }
+
+    /// <summary>A stock pop-up for one of the view options, named for VoiceOver.</summary>
+    private NSPopUpButton LibraryChoice(string label, string tip, IEnumerable<string> names)
+    {
+        var choice = new NSPopUpButton(new CGRect(0, 0, 160, 28), false) { TranslatesAutoresizingMaskIntoConstraints = false };
+        foreach (var name in names)
+        {
+            choice.AddItem(name);
+        }
+
+        choice.Activated += (_, _) => ChangeLibraryView();
+        choice.ToolTip = tip;
+        ((NSView)choice).AccessibilityLabel = label;
+        return choice;
+    }
+
+    /// <summary><paramref name="view"/> in a holder that keeps it <paramref name="inset"/> from each side.</summary>
+    private static NSView LibraryInset(NSView view, nfloat inset, bool centred = false)
+    {
+        var holder = new NSView { TranslatesAutoresizingMaskIntoConstraints = false };
+        view.TranslatesAutoresizingMaskIntoConstraints = false;
+        holder.AddSubview(view);
+        view.TopAnchor.ConstraintEqualTo(holder.TopAnchor).Active = true;
+        view.BottomAnchor.ConstraintEqualTo(holder.BottomAnchor).Active = true;
+        if (centred)
+        {
+            view.CenterXAnchor.ConstraintEqualTo(holder.CenterXAnchor).Active = true;
+            view.LeadingAnchor.ConstraintGreaterThanOrEqualTo(holder.LeadingAnchor, inset).Active = true;
+        }
+        else
+        {
+            view.LeadingAnchor.ConstraintEqualTo(holder.LeadingAnchor, inset).Active = true;
+            view.TrailingAnchor.ConstraintEqualTo(holder.TrailingAnchor, -inset).Active = true;
+        }
+
+        return holder;
+    }
+
+    /// <summary>
+    /// A banner as Windows draws one: the artwork square (Back above it when there is somewhere to
+    /// go back to) beside the kicker, the title, the summary and the actions, set on the page.
+    /// </summary>
+    private static LibraryHero BuildLibraryHero(string glyph, bool round = false)
+    {
+        var art = new LibraryArtView(LibraryHeroArtworkSize,
+            round ? (nfloat)(LibraryHeroArtworkSize / 2) : MacTheme.Radius(2), glyph);
+        var aside = MacTheme.Stack(true, 2, art);
+        aside.Alignment = NSLayoutAttribute.Leading;
+        aside.DetachesHiddenViews = true;
+        var kicker = MacTheme.Kicker("");
+        var title = MacTheme.Label("", 2, DesignRole.TextPrimary);
+        title.Font = NSFont.SystemFontOfSize(40, NSFontWeight.Semibold)!;
+        title.SetContentCompressionResistancePriority(250, NSLayoutConstraintOrientation.Horizontal);
+        var summary = MacTheme.Label("", 2, DesignRole.TextSecondary);
+        summary.SetContentCompressionResistancePriority(250, NSLayoutConstraintOrientation.Horizontal);
+        var actions = MacTheme.Stack(false, 1);
+        actions.DetachesHiddenViews = true;
+        var words = MacTheme.Stack(true, 1, kicker, title, summary, actions);
+        words.SetCustomSpacing(MacTheme.Space(0), kicker);
+        words.SetCustomSpacing(MacTheme.Space(2), summary);
+        words.DetachesHiddenViews = true;
+        var row = MacTheme.Stack(false, 4, aside, words);
+        row.Alignment = NSLayoutAttribute.Bottom;
+        row.EdgeInsets = new NSEdgeInsets(20, MacTheme.Space(4), 8, MacTheme.Space(4) + (nfloat)MacTheme.ControlSize);
+        words.SetContentCompressionResistancePriority(250, NSLayoutConstraintOrientation.Horizontal);
+        return new LibraryHero(row, aside, art, kicker, title, summary, words, actions);
+    }
+
+    /// <summary>The overflow menu: adding folders, the usual places, rescanning and backups.</summary>
+    private void ShowLibraryMoreMenu()
+    {
+        if (_libraryMore is null)
+        {
+            return;
+        }
+
+        var menu = new NSMenu();
+        menu.AddItem(new NSMenuItem("Add folder…", (_, _) => AddLibraryFolder()));
+        foreach (var (title, folder, special) in new[]
+                 {
+                     ("Add your Music folder", "Music", Environment.SpecialFolder.MyMusic),
+                     ("Add your Videos folder", "Videos", Environment.SpecialFolder.MyVideos),
+                     ("Add your Pictures folder", "Pictures", Environment.SpecialFolder.MyPictures),
+                 })
+        {
+            var path = Environment.GetFolderPath(special);
+            var item = new NSMenuItem(title, (_, _) => AddSuggestedLibraryFolder(path, folder))
+            {
+                Enabled = !string.IsNullOrWhiteSpace(path) && Directory.Exists(path),
+                ToolTip = path,
+            };
+            menu.AddItem(item);
+        }
+
+        menu.AutoEnablesItems = false;
+        menu.AddItem(NSMenuItem.SeparatorItem);
+        menu.AddItem(new NSMenuItem("Rescan folders", (_, _) => _libraryScanner?.Request()));
+        menu.AddItem(new NSMenuItem("Back up…", (_, _) => BackUpLibrary()));
+        menu.AddItem(new NSMenuItem("Restore backup…", (_, _) => RestoreLibraryBackup()));
+        menu.PopUpMenu(null, new CGPoint(0, _libraryMore.Bounds.Height + 4), _libraryMore);
+    }
+
+    /// <summary>Watches one of the usual places (Music, Videos, Pictures) and says how it went.</summary>
+    private void AddSuggestedLibraryFolder(string path, string folder)
+    {
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            var answer = AddLibraryFolders([path]);
+            Say(answer.Ok ? folder + " is now watched." : answer.Error ?? "That folder could not be added.");
+        }
     }
 
     private void AddLibraryFolder()
@@ -297,7 +481,7 @@ public sealed partial class MainWindow
             : AutomationReply.Failed("Could not add one or more folders: " + string.Join("; ", errors));
     }
 
-    /// <summary>Start from the first page when the search text or media category changes.</summary>
+    /// <summary>Start from the first page when the search text, order, grouping or media category changes.</summary>
     private void ChangeLibraryView()
     {
         _libraryPageIndex = 0;
@@ -317,33 +501,34 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// Keep background scanning independent of playback: a hidden library window does not
-    /// render 80 AppKit rows on every catalogue change. Opening it forces a fresh snapshot.
+    /// Keep background scanning independent of playback: a hidden library does not render 80
+    /// AppKit rows on every catalogue change. Showing it forces a fresh snapshot.
     /// </summary>
     private void RefreshLibrary() => RefreshLibrary(force: false);
 
     private void RefreshLibrary(bool force)
     {
-        if (_closingLibrary || _libraryWindow is null || _libraryScroll is null ||
+        if (_closingLibrary || _libraryRoot is null || _libraryScroll is null ||
             _librarySummary is null || _mediaLibrary is null ||
-            (!force && !_libraryWindow.IsVisible))
+            (!force && !LibraryShown))
         {
             return;
         }
 
         var all = _mediaLibrary.Entries;
-        var query = _librarySearch?.StringValue.Trim();
+        var query = _librarySearch?.StringValue.Trim() ?? "";
         // Search the immutable snapshot before sorting a category. For a large
         // catalogue this avoids sorting every unrelated item on each keystroke,
         // while retaining the shared search rules and category-specific ordering.
-        IReadOnlyList<LibraryEntry> candidates = string.IsNullOrEmpty(query)
+        IReadOnlyList<LibraryEntry> candidates = query.Length == 0
             ? all
             : LibraryViews.Search(all, query, entry => [Path.GetFileName(Path.GetDirectoryName(entry.Path))]);
         var category = (int)(_libraryCategory?.IndexOfSelectedItem ?? 0);
-        var watchedFolders = category == 7
+        var folders = category == 7;
+        var watchedFolders = folders
             ? _mediaLibrary.Folders.OrderBy(folder => folder, StringComparer.CurrentCultureIgnoreCase).ToArray()
             : Array.Empty<string>();
-        IReadOnlyList<LibraryEntry> entries = category switch
+        IReadOnlyList<LibraryEntry> natural = category switch
         {
             1 => LibraryViews.Songs(candidates),
             2 => LibraryViews.Videos(candidates),
@@ -355,158 +540,126 @@ public sealed partial class MainWindow
             _ => candidates.OrderBy(entry => entry.Title, StringComparer.CurrentCultureIgnoreCase).ToList(),
         };
 
+        // The view's order and headings come from the same shared rules Windows arranges with.
+        var sort = LibrarySortNames[Math.Clamp((int)(_librarySort?.IndexOfSelectedItem ?? 0), 0, LibrarySortNames.Length - 1)].Sort;
+        var grouping = LibraryGroupingNames[Math.Clamp((int)(_libraryGrouping?.IndexOfSelectedItem ?? 0), 0, LibraryGroupingNames.Length - 1)].Grouping;
+        var sorted = sort == LibrarySort.Natural ? natural : LibraryArrangement.Sort(natural, sort, descending: false);
+        var sections = LibraryArrangement.Group(sorted, grouping, DateTime.UtcNow);
+        IReadOnlyList<LibraryEntry> entries = grouping == LibraryGrouping.None ? sorted : [.. sections.SelectMany(section => section.Entries)];
+
         var lastPage = Math.Max(0, (entries.Count - 1) / LibraryPageSize);
         _libraryPageIndex = Math.Clamp(_libraryPageIndex, 0, lastPage);
         var shown = entries.Skip(_libraryPageIndex * LibraryPageSize).Take(LibraryPageSize).ToList();
-        if (_libraryPreviousPage is not null && _libraryNextPage is not null && _libraryPageSummary is not null)
+        if (_libraryPreviousPage is not null && _libraryNextPage is not null && _libraryPageSummary is not null && _libraryPager is not null)
         {
             _libraryPreviousPage.Enabled = _libraryPageIndex > 0;
             _libraryNextPage.Enabled = _libraryPageIndex < lastPage;
             _libraryPageSummary.StringValue = $"Page {_libraryPageIndex + 1} of {lastPage + 1}";
             _libraryPageSummary.AccessibilityLabel = "Library results " + _libraryPageSummary.StringValue;
+            // One page needs no pager; the controls keep answering scripts while it is hidden.
+            if (_libraryPagerHolder is not null)
+            {
+                _libraryPagerHolder.Hidden = lastPage == 0;
+            }
         }
+
         _libraryCurrentSelection = entries;
-        var emptyLabel = category == 7
-            ? watchedFolders.Length == 0 ? "No watched folders. Add a folder to get started." : null
-            : shown.Count == 0
-                ? all.Count == 0 ? "No media yet. Add a music, video or picture folder to get started."
-                    : "Nothing matches this view. Try another category or search."
-                : null;
+        var empty = (folders ? watchedFolders.Length == 0 : shown.Count == 0)
+            ? LibraryEmptyFor(category, query.Length > 0)
+            : null;
+        var showPlays = category == 1 && ViewFacts.SongsShowPlays(entries.Select(entry => entry.Plays));
+        var key = string.Join("|", category, sort, grouping, showPlays, empty?.Text, empty?.Heading,
+            string.Join("\n", watchedFolders));
         // Scanner progress and unrelated catalogue changes should not destroy focused
         // native buttons or reset scrolling when this page still contains the same rows.
         if (_libraryRenderedPage != _libraryPageIndex ||
-            _libraryRenderedEmptyLabel != emptyLabel ||
+            _libraryRenderedKey != key ||
             !_libraryRenderedEntries.SequenceEqual(shown) || category == 6)
         {
             _libraryRenderedPage = _libraryPageIndex;
-            _libraryRenderedEmptyLabel = emptyLabel;
+            _libraryRenderedKey = key;
             _libraryRenderedEntries = shown;
-            var views = new List<NSView>();
-            _libraryFirstPlay = null;
-            _libraryFirstQueue = null;
-            _libraryResultKeyViews.Clear();
-            if (shown.Count == 0 && watchedFolders.Length == 0)
-            {
-                var hint = NSTextField.CreateLabel(emptyLabel!);
-                hint.TextColor = NSColor.SecondaryLabel;
-                views.Add(hint);
-            }
-    
-            foreach (var folder in watchedFolders)
-            {
-                var name = NSTextField.CreateLabel(folder);
-                name.LineBreakMode = NSLineBreakMode.TruncatingMiddle;
-                name.ToolTip = folder;
-                name.WidthAnchor.ConstraintLessThanOrEqualTo(370).Active = true;
-                var stop = NSButton.CreateButton("Stop watching: " + Path.GetFileName(folder), () =>
-                {
-                    if (_mediaLibrary.RemoveFolder(folder))
-                    {
-                        _libraryScanner?.Request();
-                        RefreshLibrary(force: true);
-                    }
-                });
-                ((NSView)stop).AccessibilityLabel = "Stop watching folder: " + folder;
-                stop.ToolTip = "Stop watching this folder without deleting its files";
-                _libraryResultKeyViews.Add(stop);
-                var row = NSStackView.FromViews([name, stop]);
-                row.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-                row.Spacing = 12;
-                views.Add(row);
-            }
-
-            foreach (var entry in shown)
-            {
-                var title = entry.Title;
-                var secondary = LibraryEntryDescription(entry);
-                var play = NSButton.CreateButton(title, () => PlayLibraryEntry(entry, _libraryCurrentSelection));
-                _libraryFirstPlay ??= play;
-                _libraryResultKeyViews.Add(play);
-                play.ToolTip = entry.Path;
-                ((NSView)play).AccessibilityLabel = "Play: " + entry.Title;
-                play.Alignment = NSTextAlignment.Left;
-                play.LineBreakMode = NSLineBreakMode.TruncatingTail;
-                play.WidthAnchor.ConstraintGreaterThanOrEqualTo(250).Active = true;
-                // Very long titles must not push Queue out of the minimum-width viewport.
-                play.WidthAnchor.ConstraintLessThanOrEqualTo(370).Active = true;
-                var detail = NSTextField.CreateLabel(secondary);
-                detail.TextColor = NSColor.SecondaryLabel;
-                detail.Font = NSFont.SystemFontOfSize(11, NSFontWeight.Regular)!;
-                detail.LineBreakMode = NSLineBreakMode.TruncatingTail;
-                // A very long artist/album/folder name must not widen the metadata
-                // column beyond Play, or the separate Queue action is pushed offscreen.
-                detail.WidthAnchor.ConstraintLessThanOrEqualTo(370).Active = true;
-                var words = NSStackView.FromViews([play, detail]);
-                words.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-                words.Alignment = NSLayoutAttribute.Leading;
-                words.Spacing = 2;
-                var thumbnail = new NSImageView(new CGRect(0, 0, 48, 48))
-                {
-                    Image = LibraryThumbnail(entry),
-                    ImageScaling = NSImageScale.ProportionallyUpOrDown,
-                };
-                ((NSView)thumbnail).AccessibilityLabel = entry.Kind switch
-                {
-                    LibraryKind.Music => "Artwork for " + entry.Title,
-                    LibraryKind.Picture => "Thumbnail of " + entry.Title,
-                    _ => "Preview of " + entry.Title,
-                };
-                thumbnail.WidthAnchor.ConstraintEqualTo(48).Active = true;
-                thumbnail.HeightAnchor.ConstraintEqualTo(48).Active = true;
-                var queue = NSButton.CreateButton("Queue", () =>
-                {
-                    if (!File.Exists(entry.Path))
-                    {
-                        _libraryScanner?.Request();
-                        Say("This file is missing. Rescanning your library.");
-                        return;
-                    }
-
-                    _player.EnqueueFromLibrary([entry]);
-                    Say("Added to Up Next: " + entry.Title);
-                });
-                _libraryFirstQueue ??= queue;
-                _libraryResultKeyViews.Add(queue);
-                queue.ToolTip = "Add to Up Next without replacing what is playing";
-                ((NSView)queue).AccessibilityLabel = "Add " + entry.Title + " to Up Next";
-                var row = NSStackView.FromViews([thumbnail, words, queue]);
-                row.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-                row.Spacing = 14;
-                row.WidthAnchor.ConstraintGreaterThanOrEqualTo(490).Active = true;
-                if (entry.Kind == LibraryKind.Music)
-                {
-                    // A song leads to its album and artist without changing the row's look: its
-                    // artwork opens the album, and the row's menu offers both pages.
-                    LinkMusicRow(entry, row, play, thumbnail);
-                }
-
-                views.Add(row);
-            }
-    
-            // AppKit views use bottom-left coordinates by default. A flipped document and
-            // top-anchored stack keep the first result and empty state at the top of the list.
-            var document = new TopAlignedLibraryDocument
-            {
-                Frame = new CGRect(0, 0, Math.Max(510, _libraryScroll.ContentSize.Width), Math.Max(340, (shown.Count + watchedFolders.Length) * 59 + 35)),
-            };
-            var content = NSStackView.FromViews([.. views]);
-            content.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-            content.Alignment = NSLayoutAttribute.Leading;
-            content.Spacing = 9;
-            content.TranslatesAutoresizingMaskIntoConstraints = false;
-            document.AddSubview(content);
-            content.TopAnchor.ConstraintEqualTo(document.TopAnchor, 12).Active = true;
-            content.LeadingAnchor.ConstraintEqualTo(document.LeadingAnchor, 14).Active = true;
-            content.TrailingAnchor.ConstraintLessThanOrEqualTo(document.TrailingAnchor, -12).Active = true;
-            _libraryScroll.DocumentView = document;
-            WireLibraryKeyViews();
+            RenderLibraryResults(shown, watchedFolders, category, grouping, sections, showPlays, empty);
         }
-        _libraryMatchingCount = category == 7 ? watchedFolders.Length : entries.Count;
+
+        _libraryMatchingCount = folders ? watchedFolders.Length : entries.Count;
         _libraryTotalCount = all.Count;
         _libraryFolderCount = _mediaLibrary.Folders.Count;
         _libraryVisibleResultCount = shown.Count;
+        UpdateLibraryHero(all, entries, category, query, watchedFolders.Length);
         UpdateLibraryStatus();
         RefreshLibrarySidebar();
+    }
+
+    /// <summary>The list page's banner and actions for the view shown: its glyph, kicker, title and what it holds.</summary>
+    private void UpdateLibraryHero(IReadOnlyList<LibraryEntry> all, IReadOnlyList<LibraryEntry> entries, int category, string query, int folders)
+    {
+        if (_libraryListHero is not { } hero)
+        {
+            return;
+        }
+
+        var item = LibrarySidebarCatalog.FirstOrDefault(candidate => candidate.Category == category);
+        string kicker, title, summary;
+        if (query.Length > 0)
+        {
+            (kicker, title, summary) = ("SEARCH", query, LibraryActions.Count(entries.Count, "result"));
+        }
+        else if (category == 0)
+        {
+            var (music, videos, pictures) = LibraryMemo.Counts(all);
+            (kicker, title, summary) = ("YOUR LIBRARY", item.Title, ViewFacts.Home(music, videos, pictures, 0, 0, 0));
+        }
+        else if (category == 7)
+        {
+            (kicker, title, summary) = ("LIBRARY", item.Title, LibraryActions.Count(folders, "folder") + " watched");
+        }
+        else
+        {
+            var noun = category switch { 3 => "picture", 2 or 6 => "video", _ => "item" };
+            (kicker, title, summary) = ("LIBRARY", item.Title, ViewFacts.Join(LibraryActions.Count(entries.Count, noun),
+                category == 3 ? null : ViewFacts.Length(entries.Select(entry => entry.Duration))));
+        }
+
+        hero.Kicker.Text = kicker;
+        hero.Title.StringValue = title;
+        hero.Summary.StringValue = summary;
+        hero.Summary.Hidden = summary.Length == 0;
+        hero.Art.Glyph = query.Length > 0 ? "magnifyingglass" : item.Symbol;
+        var folderView = category == 7;
+        if (_libraryPlayAll is not null && _libraryShuffleAll is not null && _libraryQueueAll is not null && _libraryFolderActions is not null)
+        {
+            _libraryPlayAll.Hidden = _libraryShuffleAll.Hidden = _libraryQueueAll.Hidden = folderView;
+            _libraryPlayAll.Enabled = _libraryShuffleAll.Enabled = _libraryQueueAll.Enabled = entries.Count > 0;
+            _libraryFolderActions.Hidden = !folderView;
+        }
+
+        if (_librarySort is not null && _libraryGrouping is not null)
+        {
+            _librarySort.Hidden = _libraryGrouping.Hidden = folderView;
+        }
+    }
+
+    /// <summary>Plays the view from its first item, or from a random one with shuffle turned on.</summary>
+    private void PlayLibrarySelection(bool shuffled)
+    {
+        var selection = _libraryCurrentSelection;
+        if (selection.Count == 0)
+        {
+            Say("There is nothing here to play yet.");
+            return;
+        }
+
+        if (shuffled)
+        {
+            _player.Playlist.Shuffle = true;
+        }
+
+        PlayLibraryEntry(selection[shuffled ? Random.Shared.Next(selection.Count) : 0], selection);
+        if (shuffled)
+        {
+            Say("Shuffle on");
+        }
     }
 
     private string LibraryEntryDescription(LibraryEntry entry)
@@ -572,44 +725,50 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// The one native focus loop both the wiring and the keyboard probe follow: the sidebar and its
-    /// Back button, the filters, the action toolbar, paging, then the current page of row buttons.
-    /// While an album's or artist's page shows, the sidebar and its Back button lead to that page's
-    /// own controls instead. Null while any of the fixed controls is missing.
+    /// The one native focus loop both the wiring and the keyboard probe follow, in the order the
+    /// pane reads: the navigation column, the banner's Back and actions, Back to player, the
+    /// search, the view options, the current page of results, then the pager. While an album's
+    /// or artist's page shows, its own controls follow Back instead. Null while any of the fixed
+    /// controls is missing.
     /// </summary>
     private List<NSView>? LibraryKeyViewOrder()
     {
-        if (_librarySidebar is null || _libraryNavigationBack is null ||
-            _librarySearch is null || _libraryCategory is null ||
+        if (_libraryNavToggle is null || _libraryNavigationBack is null ||
+            _librarySearch is null || _libraryCategory is null || _librarySort is null || _libraryGrouping is null ||
             _libraryAddButton is null || _libraryRescanButton is null || _libraryBackButton is null ||
+            _libraryPlayAll is null || _libraryShuffleAll is null || _libraryQueueAll is null || _libraryMore is null ||
             _libraryPreviousPage is null || _libraryNextPage is null)
         {
             return null;
         }
 
+        var order = new List<NSView> { _libraryNavToggle };
+        order.AddRange(_libraryNavItems.Select(item => (NSView)item.Item));
+        order.Add(_libraryAddButton);
+        order.Add(_libraryNavigationBack);
         if (_libraryCurrentPage is LibraryDetailPage detail)
         {
-            return [_librarySidebar, _libraryNavigationBack, .. detail.KeyViews];
+            order.Add(_libraryBackButton);
+            order.AddRange(detail.KeyViews);
+            return order;
         }
 
-        var order = new List<NSView>
-        {
-            _librarySidebar, _libraryNavigationBack,
-            _librarySearch, _libraryCategory, _libraryAddButton, _libraryRescanButton,
-            _libraryBackButton, _libraryPreviousPage, _libraryNextPage,
-        };
+        order.AddRange([_libraryPlayAll, _libraryShuffleAll, _libraryQueueAll]);
+        order.AddRange(_libraryFolderActionKeys);
+        order.AddRange([_libraryMore, _libraryBackButton, _librarySearch, _librarySort, _libraryGrouping, _libraryCategory]);
         order.AddRange(_libraryResultKeyViews);
+        order.AddRange([_libraryPreviousPage, _libraryNextPage]);
         return order;
     }
 
     /// <summary>
-    /// Include the sidebar, action toolbar, filters, paging and the current page of row buttons
-    /// in a stable, reversible native focus loop. The row views are replaced after scans
-    /// or filters, so AppKit's automatic geometric loop must not retain stale buttons.
+    /// Links the pane's controls in one closed, reversible loop: its last control leads back to
+    /// its first. The result rows are replaced after scans or filters, so AppKit's automatic
+    /// geometric loop must not retain stale buttons.
     /// </summary>
     private void WireLibraryKeyViews()
     {
-        if (_libraryWindow is null || LibraryKeyViewOrder() is not { } order)
+        if (_libraryRoot is null || LibraryKeyViewOrder() is not { } order)
         {
             return;
         }
@@ -618,14 +777,6 @@ public sealed partial class MainWindow
         {
             order[i].NextKeyView = order[(i + 1) % order.Count];
         }
-    }
-
-    /// <summary>Return focus to playback when the library is dismissed.</summary>
-    private void HideLibrary()
-    {
-        _libraryWindow?.OrderOut(null);
-        _window.MakeKeyAndOrderFront(null);
-        ShowChecks();
     }
 
     private void PlayLibraryEntry(LibraryEntry chosen, IReadOnlyList<LibraryEntry> selection)
@@ -666,13 +817,13 @@ public sealed partial class MainWindow
     /// </summary>
     private AutomationReply VerifyLibraryResultLayout()
     {
-        if (_libraryWindow?.IsVisible != true || _libraryScroll is null ||
+        if (!LibraryShown || _libraryScroll is null ||
             _libraryFirstPlay is null || _libraryFirstQueue is null)
         {
             return AutomationReply.Failed("Open the library with a matching media result.");
         }
 
-        _libraryWindow.ContentView?.LayoutSubtreeIfNeeded();
+        _libraryRoot?.LayoutSubtreeIfNeeded();
         var play = _libraryFirstPlay.ConvertRectToView(_libraryFirstPlay.Bounds, _libraryScroll);
         var queue = _libraryFirstQueue.ConvertRectToView(_libraryFirstQueue.Bounds, _libraryScroll);
         var visibleWidth = _libraryScroll.ContentView.Bounds.Width;
@@ -689,7 +840,7 @@ public sealed partial class MainWindow
     /// <summary>Report real AppKit control labels and enabled states for automation checks.</summary>
     private AutomationReply LibraryControlTree()
     {
-        if (_libraryWindow?.IsVisible != true || _librarySearch is null || _libraryCategory is null ||
+        if (!LibraryShown || _librarySearch is null || _libraryCategory is null ||
             _libraryScroll is null || _libraryPreviousPage is null || _libraryNextPage is null ||
             _libraryPageSummary is null || _librarySummary is null)
         {
@@ -726,7 +877,7 @@ public sealed partial class MainWindow
     /// </summary>
     private AutomationReply ProbeLibraryKeyboard()
     {
-        if (_libraryWindow?.IsVisible != true || _librarySearch is null || _libraryCategory is null)
+        if (!LibraryShown || _librarySearch is null || _libraryCategory is null)
         {
             return AutomationReply.Failed("Open the library before checking keyboard navigation.");
         }
@@ -746,8 +897,8 @@ public sealed partial class MainWindow
             }
         }
 
-        _libraryWindow.MakeFirstResponder(_librarySearch);
-        var initialResponder = _libraryWindow.FirstResponder?.Handle;
+        _window.MakeFirstResponder(_librarySearch);
+        var initialResponder = _window.FirstResponder?.Handle;
         var next = _librarySearch.NextValidKeyView;
         if (next is null || next.Handle == _librarySearch.Handle)
         {
@@ -761,16 +912,16 @@ public sealed partial class MainWindow
             };
         }
 
-        _libraryWindow.SelectKeyViewFollowingView(_librarySearch);
-        if (_libraryWindow.FirstResponder?.Handle != next.Handle)
+        _window.SelectKeyViewFollowingView(_librarySearch);
+        if (_window.FirstResponder?.Handle != next.Handle)
         {
-            _libraryWindow.MakeFirstResponder(_librarySearch);
+            _window.MakeFirstResponder(_librarySearch);
             return AutomationReply.Failed("AppKit did not advance to the next eligible key view.");
         }
 
-        _libraryWindow.SelectKeyViewPrecedingView(next);
-        var reversed = _libraryWindow.FirstResponder?.Handle == initialResponder;
-        _libraryWindow.MakeFirstResponder(_librarySearch);
+        _window.SelectKeyViewPrecedingView(next);
+        var reversed = _window.FirstResponder?.Handle == initialResponder;
+        _window.MakeFirstResponder(_librarySearch);
         return reversed
             ? new AutomationReply { Ok = true, Text = "Native key-view link verified; AppKit advanced and reversed focus." }
             : AutomationReply.Failed("AppKit did not return focus to the search field.");
@@ -778,7 +929,7 @@ public sealed partial class MainWindow
 
     private AutomationReply PressLibraryControl(string? target)
     {
-        var button = target switch
+        NSButton? button = target switch
         {
             "LibraryPrevious" => _libraryPreviousPage,
             "LibraryNext" => _libraryNextPage,
@@ -789,7 +940,7 @@ public sealed partial class MainWindow
             "LibraryNavigationBack" => _libraryNavigationBack,
             _ => null,
         };
-        if (_libraryWindow?.IsVisible != true || button?.Enabled != true)
+        if (!LibraryShown || button?.Enabled != true)
         {
             return AutomationReply.Failed("The library control is not available: " + target);
         }
@@ -800,7 +951,7 @@ public sealed partial class MainWindow
 
     private AutomationReply ChangeLibraryCategory(double? value)
     {
-        if (_libraryWindow?.IsVisible != true || _libraryCategory is null || value is not { } index ||
+        if (!LibraryShown || _libraryCategory is null || value is not { } index ||
             !double.IsFinite(index) || index != Math.Truncate(index) || index < 0 || index >= 8)
         {
             return AutomationReply.Failed("Choose a valid library category index.");
@@ -812,19 +963,24 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// Sizes the window so the list page beside the fixed sidebar is <paramref name="width"/> wide:
-    /// the width scripts name is the page's, the same surface the screenshot baselines show.
+    /// Sizes the player window so the library's page, beside its navigation column, is
+    /// <paramref name="width"/> wide: the width scripts name is the page's. The narrowest page
+    /// leaves the navigation as its icon rail, as Windows does below its breakpoint.
     /// </summary>
     private AutomationReply ResizeLibraryWindow(double? width)
     {
-        if (_libraryWindow?.IsVisible != true || width is not { } requested ||
+        if (!LibraryShown || _libraryHost is null || width is not { } requested ||
             !double.IsFinite(requested) || requested < MinimumLibraryPageWidth)
         {
             return AutomationReply.Failed("Open the library and choose a supported width.");
         }
 
-        var frame = _libraryWindow.Frame;
-        _libraryWindow.SetFrame(new CGRect(frame.X, frame.Y, requested + LibrarySidebarTotalWidth, _libraryWindow.MinSize.Height), true);
+        var pane = requested + (_libraryNavCollapsed || requested + LibraryNavigationCompactWidth < LibraryNavigationBreakpoint
+            ? LibraryNavigationCompactWidth
+            : LibraryNavigationExpandedWidth);
+        var frame = _window.Frame;
+        var grow = pane - (double)_libraryHost.Frame.Width;
+        _window.SetFrame(new CGRect(frame.X, frame.Y, (double)frame.Width + grow, frame.Height), true);
         RefreshLibrary();
         return new AutomationReply { Ok = true };
     }
@@ -845,9 +1001,9 @@ public sealed partial class MainWindow
         _libraryScanner = null;
         CloseLibrarySidebar();
         CloseLibraryNavigation();
-        _libraryWindow?.Close();
-        _libraryWindow?.Dispose();
-        _libraryWindow = null;
+        _libraryRoot?.RemoveFromSuperview();
+        _libraryRoot?.Dispose();
+        _libraryRoot = null;
         foreach (var image in _libraryThumbnails.Values) image.Dispose();
         _libraryThumbnails.Clear();
         _libraryThumbnailOrder.Clear();
