@@ -457,7 +457,9 @@ AudioRules.cs
 LibrarySections.cs
 ListeningViews.cs
 LazySections.cs
+DesignRoles.cs
 DesignTokens.cs
+ShellScreens.cs
 OnScreenMessage.cs
 Legibility.cs
 LibraryHeaderLayout.cs

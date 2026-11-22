@@ -35,6 +35,15 @@ universal app must also **launch, play a test video and quit on a macOS 15 Sequo
 CI. That detects crashes the build-host smoke test alone would miss. Passing macOS 15 CI is
 not a substitute for checking the originally affected physical Mac running 15.8.1.
 
+## The Mac look
+
+The Mac shell draws with the same design tokens and colour roles as Windows, so its window, pages
+and controls share the REX look. The library and Up Next are inside the player window, as on
+Windows, and the visualisations are drawn on the stage, sized to it rather than stretched. The
+matrix's Look rows (`LOOK-01` to `LOOK-07`) say `built`, not `verified`, until the look tests run
+and the screens have been checked on a real Mac. How the two shells are kept alike is in
+[look parity](look-parity.md).
+
 ## Installing
 
 1. Open the zip (double-click). You get **rexplayer.app**.
