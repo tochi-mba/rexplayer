@@ -20,29 +20,13 @@ public sealed partial class MainWindow
                 OpenPastedLocation();
                 return true;
             case CommandCatalog.TogglePlaylist:
-                if (_queueWindow?.IsVisible == true)
-                {
-                    _queueWindow.OrderOut(null);
-                }
-                else
-                {
-                    ShowQueue();
-                }
-
+                ToggleQueue();
                 return true;
             case CommandCatalog.Quit:
                 NSApplication.SharedApplication.Terminate(null);
                 return true;
             case CommandCatalog.ToggleLibrary:
-                if (_libraryWindow?.IsVisible == true)
-                {
-                    HideLibrary();
-                }
-                else
-                {
-                    ShowLibrary();
-                }
-
+                ToggleLibrary();
                 return true;
             case CommandCatalog.ToggleFullScreen:
                 _window.ToggleFullScreen(null);
@@ -53,6 +37,7 @@ public sealed partial class MainWindow
                 {
                     _window.ToggleFullScreen(null);
                     if (_chrome is not null) _chrome.Hidden = false;
+                    PlaceChrome();
                 }
 
                 return true;
@@ -115,7 +100,8 @@ public sealed partial class MainWindow
                 return true;
             case CommandCatalog.MinimalInterface:
                 _minimalInterface = !_minimalInterface;
-                if (_chrome is not null)
+                PlaceChrome();
+                if (_chrome is not null && IsFullScreen)
                 {
                     _chrome.Hidden = _minimalInterface;
                 }

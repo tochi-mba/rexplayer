@@ -8,32 +8,35 @@ namespace Rex.Media.App.Mac;
 /// <summary>Native stats overlay reading the same engine counters as the shared shell.</summary>
 public sealed partial class MainWindow
 {
-    private NSTextField? _statsOverlay;
+    private RexLabel? _statsOverlay;
+    private RexPanel? _statsPanel;
     private NSTimer? _statsTimer;
     private SessionStats? _previousStats;
     private DateTimeOffset _previousStatsAt;
     private bool _statsVisible;
     private bool _statsBusy;
 
+    /// <summary>Lays the statistics card over the picture's top left corner, drawn as Windows draws its overlays.</summary>
     private void AddStatsOverlay(NSView container)
     {
-        _statsOverlay = NSTextField.CreateWrappingLabel("");
-        _statsOverlay.Font = NSFont.UserFixedPitchFontOfSize(12)!;
-        _statsOverlay.TextColor = NSColor.White;
+        _statsOverlay = MacTheme.WrappingLabel("", 1, MacTheme.OverlayText);
+        _statsOverlay.Font = NSFont.MonospacedSystemFont(MacTheme.TypeSize(1), NSFontWeight.Regular)!;
         _statsOverlay.Alignment = NSTextAlignment.Left;
-        _statsOverlay.Hidden = true;
-        _statsOverlay.TranslatesAutoresizingMaskIntoConstraints = false;
+        _statsOverlay.PreferredMaxLayoutWidth = 460 - 2 * MacTheme.Space(2);
         ((NSView)_statsOverlay).AccessibilityLabel = "Playback statistics";
-        container.AddSubview(_statsOverlay);
-        _statsOverlay.TopAnchor.ConstraintEqualTo(_picture!.TopAnchor, 12).Active = true;
-        _statsOverlay.LeadingAnchor.ConstraintEqualTo(_picture.LeadingAnchor, 16).Active = true;
-        _statsOverlay.WidthAnchor.ConstraintLessThanOrEqualTo(460).Active = true;
+        _statsPanel = MacTheme.Panel(MacTheme.Overlay, 1, MacTheme.OverlayHairline);
+        _statsPanel.Hidden = true;
+        MacTheme.Fill(_statsPanel, _statsOverlay, (double)MacTheme.Space(2));
+        container.AddSubview(_statsPanel);
+        _statsPanel.TopAnchor.ConstraintEqualTo(_picture!.TopAnchor, MacTheme.Space(2)).Active = true;
+        _statsPanel.LeadingAnchor.ConstraintEqualTo(_picture.LeadingAnchor, MacTheme.Space(3)).Active = true;
+        _statsPanel.WidthAnchor.ConstraintLessThanOrEqualTo(460).Active = true;
     }
 
     private void ToggleStatsOverlay()
     {
         _statsVisible = !_statsVisible;
-        _statsOverlay!.Hidden = !_statsVisible;
+        _statsPanel!.Hidden = !_statsVisible;
         _previousStats = null;
         _statsTimer?.Invalidate();
         _statsTimer = null;

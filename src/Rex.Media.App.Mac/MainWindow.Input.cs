@@ -6,8 +6,34 @@ namespace Rex.Media.App.Mac;
 /// <summary>Mouse and trackpad preferences map events to the same command ids as keyboard bindings.</summary>
 public sealed partial class MainWindow
 {
+    /// <summary>
+    /// Whether <paramref name="pointer"/> fell on the picture itself, and not on the bar, the Up Next
+    /// pane or the library over the stage: only the picture answers wheel, drag and double-click.
+    /// </summary>
+    private bool IsOnStage(NSEvent pointer)
+    {
+        if (_picture is not { } picture || LibraryShown)
+        {
+            return false;
+        }
+
+        var point = picture.ConvertPointFromView(pointer.LocationInWindow, null);
+        if (!picture.Bounds.Contains(point))
+        {
+            return false;
+        }
+
+        return _chrome is not { Hidden: false } chrome
+            || !chrome.Bounds.Contains(chrome.ConvertPointFromView(pointer.LocationInWindow, null));
+    }
+
     private void HandlePictureWheel(NSEvent wheel)
     {
+        if (!IsOnStage(wheel))
+        {
+            return;
+        }
+
         // For trackpads use the dominant axis so a sideways gesture does not also seek vertically.
         var sideways = Math.Abs(wheel.ScrollingDeltaX) > Math.Abs(wheel.ScrollingDeltaY);
         var delta = sideways ? wheel.ScrollingDeltaX : wheel.ScrollingDeltaY;
@@ -49,7 +75,7 @@ public sealed partial class MainWindow
     private void HandlePictureDrag(NSEvent drag)
     {
         var picture = _picture;
-        if (_videoZoom <= 1 || picture is null)
+        if (_videoZoom <= 1 || picture is null || !IsOnStage(drag))
         {
             return;
         }
@@ -61,7 +87,7 @@ public sealed partial class MainWindow
 
     private void HandlePictureClick(NSEvent click)
     {
-        if (click.ClickCount >= 2)
+        if (click.ClickCount >= 2 && IsOnStage(click))
         {
             Run(CommandCatalog.ToggleFullScreen);
         }

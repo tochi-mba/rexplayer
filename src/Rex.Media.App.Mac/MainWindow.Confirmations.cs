@@ -1,50 +1,56 @@
+using Rex.Media.AppCore.Design;
+
 namespace Rex.Media.App.Mac;
 
 /// <summary>Reusable nonmodal confirmation banner: a decision does not block playback or the run loop.</summary>
 public sealed partial class MainWindow
 {
-    private NSStackView? _confirmationBanner;
-    private NSTextField? _confirmationText;
+    private NSView? _confirmationBanner;
+    private RexLabel? _confirmationText;
     private Action? _confirmationAccept;
-    private NSStackView? _entryBanner;
-    private NSTextField? _entryPrompt;
+    private NSView? _entryBanner;
+    private RexLabel? _entryPrompt;
     private NSTextField? _entryField;
     private Action<string>? _entryAccepted;
 
-    private void AddConfirmationBanner(NSStackView chrome)
+    /// <summary>
+    /// A banner above the seek row: a raised, rounded row holding <paramref name="views"/>, hidden
+    /// until it has something to ask. Every banner in the bar is drawn the same way.
+    /// </summary>
+    private static RexPanel Banner(bool vertical, params NSView[] views)
     {
-        _confirmationText = NSTextField.CreateWrappingLabel("");
-        _confirmationText.TextColor = NSColor.SecondaryLabel;
-        var accept = NSButton.CreateButton("Continue", () =>
+        var panel = MacTheme.Panel(DesignRole.Raised, 1);
+        var row = MacTheme.Stack(vertical, 1, views);
+        MacTheme.Fill(panel, row, (double)MacTheme.Space(1));
+        panel.Hidden = true;
+        return panel;
+    }
+
+    /// <summary>The in-window question and the in-window text prompt, for the bar to stack above its seek row.</summary>
+    private (NSView Confirmation, NSView Entry) BuildConfirmationBanners()
+    {
+        _confirmationText = MacTheme.WrappingLabel("");
+        _confirmationText.SetContentHuggingPriorityForOrientation(1, NSLayoutConstraintOrientation.Horizontal);
+        var accept = MacTheme.TextButton("Continue", () =>
         {
             var action = _confirmationAccept;
             HideConfirmation();
             action?.Invoke();
-        });
-        var cancel = NSButton.CreateButton("Cancel", HideConfirmation);
-        _confirmationBanner = NSStackView.FromViews([_confirmationText, accept, cancel]);
-        _confirmationBanner.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-        _confirmationBanner.Spacing = 10;
-        _confirmationBanner.Hidden = true;
+        }, RexButtonLook.Accent);
+        var cancel = MacTheme.TextButton("Cancel", HideConfirmation);
         _confirmationText.WidthAnchor.ConstraintGreaterThanOrEqualTo(230).Active = true;
-        chrome.InsertArrangedSubview(_confirmationBanner, 1);
+        _confirmationBanner = Banner(false, _confirmationText, accept, cancel);
 
-        _entryPrompt = NSTextField.CreateWrappingLabel("");
-        _entryPrompt.TextColor = NSColor.SecondaryLabel;
-        _entryField = new NSTextField(new CGRect(0, 0, 340, 24));
+        _entryPrompt = MacTheme.WrappingLabel("");
+        _entryField = new NSTextField(new CGRect(0, 0, 340, 24)) { TranslatesAutoresizingMaskIntoConstraints = false };
         ((NSView)_entryField).AccessibilityLabel = "Command input";
         _entryField.WidthAnchor.ConstraintGreaterThanOrEqualTo(220).Active = true;
-        var submit = NSButton.CreateButton("Apply", SubmitEntryPrompt);
+        var submit = MacTheme.TextButton("Apply", SubmitEntryPrompt, RexButtonLook.Accent);
         submit.KeyEquivalent = "\r";
-        var dismiss = NSButton.CreateButton("Cancel", HideEntryPrompt);
-        var actions = NSStackView.FromViews([submit, dismiss]);
-        actions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-        actions.Spacing = 8;
-        _entryBanner = NSStackView.FromViews([_entryPrompt, _entryField, actions]);
-        _entryBanner.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-        _entryBanner.Spacing = 8;
-        _entryBanner.Hidden = true;
-        chrome.InsertArrangedSubview(_entryBanner, 2);
+        var dismiss = MacTheme.TextButton("Cancel", HideEntryPrompt);
+        var actions = MacTheme.Stack(false, 1, submit, dismiss);
+        _entryBanner = Banner(true, _entryPrompt, _entryField, actions);
+        return (_confirmationBanner, _entryBanner);
     }
 
     private void ConfirmInWindow(string question, Action accept)
@@ -86,8 +92,10 @@ public sealed partial class MainWindow
         if (_minimalInterface)
         {
             _minimalInterface = false;
-            if (_chrome is not null) _chrome.Hidden = false;
+            PlaceChrome();
         }
+
+        RevealFullScreenController();
     }
 
     private void SubmitEntryPrompt()
