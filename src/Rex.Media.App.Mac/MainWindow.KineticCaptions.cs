@@ -1,5 +1,6 @@
 using Rex.Media.AppCore.Captions;
 using Rex.Media.AppCore.Automation;
+using Rex.Media.AppCore.Design;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
@@ -20,6 +21,8 @@ public sealed partial class MainWindow
     private NSWindow? _macCaptionSettings;
     private NSPopUpButton? _macCaptionPreset;
     private NSSlider? _macCaptionEnergy;
+    private RexLabel? _macCaptionEnergyValue;
+    private RexLabel? _macCaptionAbout;
     private NSButton? _macCaptionSubtitles;
     private NSPopUpButton? _macCaptionSource;
     private NSPopUpButton? _macCaptionLayout;
@@ -236,58 +239,52 @@ public sealed partial class MainWindow
     {
         if (_macCaptionSettings is null)
         {
-            _macCaptionSettings = new NSWindow(new CGRect(0, 0, 590, 480),
-                NSWindowStyle.Titled | NSWindowStyle.Closable,
-                NSBackingStore.Buffered, false)
-            {
-                Title = "Kinetic caption settings - rexplayer",
-            };
-            _macCaptionSettings.ReleaseWhenClosed(false);
-            var title = NSTextField.CreateLabel("Kinetic captions");
-            title.Font = NSFont.SystemFontOfSize(22, NSFontWeight.Semibold)!;
-            var hint = NSTextField.CreateWrappingLabel(
-                "Source-timed words arrive as speech is heard; movement and accent are " +
-                "computed by the shared caption director from local audio levels and tempo.");
-            hint.TextColor = NSColor.SecondaryLabel;
-            _macCaptionPreset = EffectChoices(Enum.GetNames<CaptionPreset>());
+            _macCaptionSettings = MacToolViews.ToolWindow("Kinetic caption settings - rexplayer", 620, 640, 540, 420);
+            _macCaptionPreset = EffectChoices([.. Enum.GetValues<CaptionPreset>().Select(CaptionPresets.Name)]);
             _macCaptionPreset.Activated += (_, _) => ApplyMacCaptionSettings();
+            _macCaptionAbout = MacTheme.WrappingLabel("", 1, DesignRole.TextSecondary);
             _macCaptionEnergy = NSSlider.FromValue(100, KineticCaptionSettings.LeastEnergy,
                 KineticCaptionSettings.MostEnergy, ApplyMacCaptionSettings);
+            _macCaptionEnergy.WidthAnchor.ConstraintGreaterThanOrEqualTo(180).Active = true;
+            ((NSView)_macCaptionEnergy).AccessibilityLabel = "Energy";
+            _macCaptionEnergyValue = MacTheme.Label("", 1, DesignRole.TextSecondary);
+            _macCaptionEnergyValue.Font = MacTheme.DigitFont(1);
+            _macCaptionEnergyValue.Alignment = NSTextAlignment.Right;
+            _macCaptionEnergyValue.WidthAnchor.ConstraintEqualTo(44).Active = true;
+            _macCaptionEnergy.Activated += (_, _) => ShowMacCaptionEnergy();
             _macCaptionSubtitles = NSButton.CreateCheckbox(
-                "Keep ordinary subtitles below kinetic words", ApplyMacCaptionSettings);
-            _macCaptionSource = EffectChoices(Enum.GetNames<CaptionWordSource>());
-            _macCaptionLayout = EffectChoices(Enum.GetNames<CaptionLayoutChoice>());
+                "Keep the ordinary subtitles as well", ApplyMacCaptionSettings);
+            _macCaptionSource = EffectChoices([.. Enum.GetValues<CaptionWordSource>().Select(CaptionCommands.WordsName)]);
+            _macCaptionLayout = EffectChoices([.. Enum.GetValues<CaptionLayoutChoice>().Select(CaptionCommands.LayoutName)]);
             _macCaptionPalette = EffectChoices(Enum.GetNames<CaptionColors>());
             foreach (var control in new[] { _macCaptionSource, _macCaptionLayout, _macCaptionPalette })
                 control.Activated += (_, _) => ApplyMacCaptionSettings();
-            _macCaptionGlyphs = NSButton.CreateCheckbox("Show glyphs beside supported words", ApplyMacCaptionSettings);
-            _macCaptionAccent = new NSTextField(new CGRect(0, 0, 180, 24))
+            _macCaptionGlyphs = NSButton.CreateCheckbox("Small pictures beside some words", ApplyMacCaptionSettings);
+            _macCaptionAccent = new NSTextField(new CGRect(0, 0, 120, 24))
             {
                 PlaceholderString = "FFB400",
             };
+            _macCaptionAccent.WidthAnchor.ConstraintEqualTo(100).Active = true;
+            _macCaptionAccent.Activated += (_, _) => ApplyMacCaptionSettings();
             ((NSView)_macCaptionAccent).AccessibilityLabel = "Kinetic captions accent colour in hex";
-            var toggle = NSButton.CreateButton("Toggle captions", ToggleMacKinetic);
-            var stack = NSStackView.FromViews([
-                title, hint, EffectChoiceRow("Style preset", _macCaptionPreset),
-                EffectChoiceRow("Word source", _macCaptionSource),
-                EffectChoiceRow("Layout", _macCaptionLayout),
-                EffectChoiceRow("Palette", _macCaptionPalette),
-                TimingRow("Accent (#RRGGBB)", _macCaptionAccent),
-                StyleSliderRow("Energy", _macCaptionEnergy),
-                _macCaptionGlyphs, _macCaptionSubtitles, toggle,
-            ]);
-            stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-            stack.Alignment = NSLayoutAttribute.Leading;
-            stack.Spacing = 15;
-            stack.EdgeInsets = new NSEdgeInsets(20, 24, 20, 24);
-            stack.Frame = new CGRect(0, 0, 560, 680);
-            var scroll = new NSScrollView(new CGRect(0, 0, 590, 480))
-            {
-                HasVerticalScroller = true,
-                AutohidesScrollers = true,
-                DocumentView = stack,
-            };
-            _macCaptionSettings.ContentView = scroll;
+            var toggle = MacTheme.TextButton("Toggle captions", ToggleMacKinetic, RexButtonLook.Accent);
+            var page = MacToolViews.ToolPage("Kinetic captions",
+                "Source-timed words arrive as speech is heard; movement and accent are " +
+                "computed by the shared caption director from local audio levels and tempo.",
+                MacToolViews.ToolCard("Captions",
+                    MacToolViews.ToolRow("Look", null, _macCaptionPreset),
+                    _macCaptionAbout,
+                    MacToolViews.ToolRow("Energy (%)", "How far the voice moves the words",
+                        MacToolViews.ToolButtons(_macCaptionEnergy, _macCaptionEnergyValue)),
+                    MacToolViews.ToolRow("Words from", null, _macCaptionSource),
+                    MacToolViews.ToolCheck(_macCaptionGlyphs),
+                    MacToolViews.ToolCheck(_macCaptionSubtitles)),
+                MacToolViews.ToolCard("Custom look",
+                    MacToolViews.ToolRow("Layout", null, _macCaptionLayout),
+                    MacToolViews.ToolRow("Colours for loud words", null, _macCaptionPalette),
+                    MacToolViews.ToolRow("Accent colour", "#RRGGBB", _macCaptionAccent)),
+                MacToolViews.ToolButtons(toggle));
+            MacToolViews.Host(_macCaptionSettings, page, scrolls: true);
             _macCaptionSettings.Center();
         }
 
@@ -299,7 +296,22 @@ public sealed partial class MainWindow
         _macCaptionPalette!.SelectItem((int)_settings.KineticCaptions.Colors);
         _macCaptionGlyphs!.State = State(_settings.KineticCaptions.Glyphs);
         _macCaptionAccent!.StringValue = _settings.KineticCaptions.Accent.ToString("X6", CultureInfo.InvariantCulture);
+        ShowMacCaptionEnergy();
         _macCaptionSettings.MakeKeyAndOrderFront(null);
+    }
+
+    /// <summary>The energy in figures beside its slider, and the chosen look described under its picker.</summary>
+    private void ShowMacCaptionEnergy()
+    {
+        if (_macCaptionEnergyValue is not null && _macCaptionEnergy is not null)
+        {
+            _macCaptionEnergyValue.StringValue = Math.Round(_macCaptionEnergy.DoubleValue).ToString("0", CultureInfo.InvariantCulture);
+        }
+
+        if (_macCaptionAbout is not null)
+        {
+            _macCaptionAbout.StringValue = CaptionPresets.Describe(_settings.KineticCaptions.Preset);
+        }
     }
 
     private void ApplyMacCaptionSettings()
@@ -337,6 +349,7 @@ public sealed partial class MainWindow
             _player.Settings = settings;
             ResetMacCaptionDirector();
             UpdateSubtitleOverlays();
+            ShowMacCaptionEnergy();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

@@ -189,18 +189,22 @@ public sealed partial class MainWindow
                 return;
             }
 
-            NSColor.Black.ColorWithAlphaComponent((System.Runtime.InteropServices.NFloat)0.55).SetFill();
-            NSBezierPath.FromRect(placed.Frame).Fill();
-            NSColor.White.ColorWithAlphaComponent((System.Runtime.InteropServices.NFloat)0.25).SetFill();
+            // Drawn as the Windows navigator is: an overlay panel with a hairline edge, and the
+            // part in view filled faintly and outlined in the signal colour.
+            var radius = MacTheme.Radius(1);
+            var frame = NSBezierPath.FromRoundedRect(placed.Frame, radius, radius);
+            MacTheme.Overlay.SetFill();
+            frame.Fill();
+            MacTheme.OverlayFill.SetFill();
             NSBezierPath.FromRect(placed.View).Fill();
             var box = NSBezierPath.FromRect(placed.View);
-            box.LineWidth = (System.Runtime.InteropServices.NFloat)1.5;
-            NSColor.White.SetStroke();
+            box.LineWidth = 2;
+            MacTheme.Signal.SetStroke();
             box.Stroke();
-            var frame = NSBezierPath.FromRect(placed.Frame);
-            frame.LineWidth = 1;
-            NSColor.White.ColorWithAlphaComponent((System.Runtime.InteropServices.NFloat)0.8).SetStroke();
-            frame.Stroke();
+            var edge = NSBezierPath.FromRoundedRect(placed.Frame.Inset((nfloat)0.5, (nfloat)0.5), radius, radius);
+            edge.LineWidth = 1;
+            MacTheme.OverlayHairline.SetStroke();
+            edge.Stroke();
         }
     }
 }

@@ -1,6 +1,7 @@
 using System.Reflection;
 using Rex.Media.AppCore;
 using Rex.Media.AppCore.Automation;
+using Rex.Media.AppCore.Design;
 using Rex.Media.Diagnostics;
 
 namespace Rex.Media.App.Mac;
@@ -29,14 +30,7 @@ public sealed partial class MainWindow
 
     private void BuildLogConsole()
     {
-        _logWindow = new NSWindow(new CGRect(0, 0, 820, 560),
-            NSWindowStyle.Titled | NSWindowStyle.Closable | NSWindowStyle.Miniaturizable | NSWindowStyle.Resizable,
-            NSBackingStore.Buffered, false)
-        {
-            Title = "Log - rexplayer",
-            MinSize = new CGSize(600, 380),
-        };
-        _logWindow.ReleaseWhenClosed(false);
+        _logWindow = MacToolViews.ToolWindow("Log - rexplayer", 860, 600, 640, 400, miniaturizable: true);
 
         _logLevel = new NSPopUpButton(new CGRect(0, 0, 120, 28), false);
         foreach (var level in new[] { "Debug", "Info", "Warning", "Error" })
@@ -52,43 +46,38 @@ public sealed partial class MainWindow
         _logSearch = new NSSearchField(new CGRect(0, 0, 260, 28)) { PlaceholderString = "Search log" };
         ((NSView)_logSearch).AccessibilityLabel = "Search log";
         _logSearch.Changed += (_, _) => RefreshLogConsole();
-        var filters = NSStackView.FromViews([_logLevel, _logSource, _logSearch]);
-        filters.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-        filters.Spacing = 10;
+        _logSearch.WidthAnchor.ConstraintGreaterThanOrEqualTo(200).Active = true;
+        _logSearch.SetContentHuggingPriorityForOrientation(1, NSLayoutConstraintOrientation.Horizontal);
+        var filters = MacTheme.Stack(false, 1, _logLevel, _logSource, _logSearch);
 
-        _logText = new NSTextView(new CGRect(0, 0, 760, 390))
+        _logText = new MacToolText(new CGRect(0, 0, 760, 390))
         {
-            Editable = false,
-            Selectable = true,
-            Font = NSFont.UserFixedPitchFontOfSize(11)!,
+            AppearanceChanged = RefreshLogConsole,
         };
+        ((NSView)_logText).AccessibilityLabel = "Log lines";
         var scroll = new NSScrollView(new CGRect(0, 0, 760, 390))
         {
             HasVerticalScroller = true,
+            HasHorizontalScroller = true,
+            AutohidesScrollers = true,
             DocumentView = _logText,
         };
-        scroll.HeightAnchor.ConstraintGreaterThanOrEqualTo(260).Active = true;
+        var well = MacToolViews.ToolWell(scroll);
+        well.HeightAnchor.ConstraintGreaterThanOrEqualTo(240).Active = true;
 
-        var copy = NSButton.CreateButton("Copy", CopyVisibleLog);
-        var save = NSButton.CreateButton("Save log…", SaveVisibleLog);
-        var clear = NSButton.CreateButton("Clear view", () =>
+        var copy = MacTheme.TextButton("Copy", CopyVisibleLog, symbol: "doc.on.doc");
+        var save = MacTheme.TextButton("Save log…", SaveVisibleLog, symbol: "square.and.arrow.down");
+        var clear = MacTheme.TextButton("Clear view", () =>
         {
             _logCleared = true;
             RefreshLogConsole();
         });
-        var bundle = NSButton.CreateButton("Save diagnostics…", SaveDiagnostics);
-        var openFolder = NSButton.CreateButton("Open log folder", () => Run(Rex.Media.AppCore.Commands.CommandCatalog.OpenLogFolder));
-        var actions = NSStackView.FromViews([copy, save, clear, bundle, openFolder]);
-        actions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-        actions.Spacing = 10;
+        var bundle = MacTheme.TextButton("Save diagnostics…", SaveDiagnostics, RexButtonLook.Accent);
+        var openFolder = MacTheme.TextButton("Open log folder", () => Run(Rex.Media.AppCore.Commands.CommandCatalog.OpenLogFolder), symbol: "folder");
+        var actions = MacToolViews.ToolButtons(copy, save, clear, openFolder, bundle);
 
-        var stack = NSStackView.FromViews([filters, scroll, actions]);
-        stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-        stack.Alignment = NSLayoutAttribute.Leading;
-        stack.Spacing = 12;
-        stack.EdgeInsets = new NSEdgeInsets(18, 18, 18, 18);
-        scroll.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -36).Active = true;
-        _logWindow.ContentView = stack;
+        var page = MacToolViews.ToolPage("Log", null, filters, actions, well);
+        MacToolViews.Host(_logWindow, page, scrolls: false, grows: well);
         _logWindow.Center();
         _log.EntryWritten += LogEntryWritten;
     }
@@ -121,9 +110,31 @@ public sealed partial class MainWindow
         var search = _logSearch.StringValue;
         var visible = entries.Where(entry => entry.Level >= minimum)
             .Where(entry => sourceFilter is null || entry.Source == sourceFilter)
-            .Where(entry => search.Length == 0 || entry.Format().Contains(search, StringComparison.CurrentCultureIgnoreCase));
-        _logText.Value = string.Join(Environment.NewLine, visible.Select(entry => entry.Format()));
+            .Where(entry => search.Length == 0 || entry.Format().Contains(search, StringComparison.CurrentCultureIgnoreCase))
+            .ToList();
+        _logText.TextStorage?.SetString(LogLines(visible, _logText.EffectiveAppearance));
         _logText.ScrollRangeToVisible(new NSRange(_logText.Value.Length, 0));
+    }
+
+    /// <summary>
+    /// The lines as the console shows them: errors in the attention colour, warnings in primary
+    /// text and everything quieter in secondary text, so a problem stands out of a long log.
+    /// </summary>
+    private static NSAttributedString LogLines(IReadOnlyList<LogEntry> entries, NSAppearance appearance)
+    {
+        var font = MacToolViews.MonoFont();
+        var text = new NSMutableAttributedString();
+        for (var i = 0; i < entries.Count; i++)
+        {
+            var entry = entries[i];
+            var colour = entry.Level >= LogLevel.Error ? MacTheme.Attention
+                : entry.Level == LogLevel.Warning ? MacTheme.Role(DesignRole.TextPrimary, appearance)
+                : MacTheme.Role(DesignRole.TextSecondary, appearance);
+            var line = i == entries.Count - 1 ? entry.Format() : entry.Format() + Environment.NewLine;
+            text.Append(new NSAttributedString(line, new NSStringAttributes { Font = font, ForegroundColor = colour }));
+        }
+
+        return text;
     }
 
     private void CopyVisibleLog()

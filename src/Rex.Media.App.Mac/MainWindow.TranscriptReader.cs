@@ -1,6 +1,7 @@
 using System.Globalization;
 using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Captions;
+using Rex.Media.AppCore.Design;
 using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Transcription;
 using Rex.Media.Settings;
@@ -138,18 +139,8 @@ public sealed partial class MainWindow
 
         if (_macReaderWindow is null)
         {
-            _macReaderWindow = new NSWindow(new CGRect(0, 0, 640, 560),
-                NSWindowStyle.Titled | NSWindowStyle.Closable | NSWindowStyle.Resizable | NSWindowStyle.Miniaturizable,
-                NSBackingStore.Buffered, false)
-            {
-                Title = "Transcript - rexplayer",
-                MinSize = new CGSize(420, 320),
-            };
-            _macReaderWindow.ReleaseWhenClosed(false);
-            var heading = NSTextField.CreateLabel("Read the transcript");
-            heading.Font = NSFont.SystemFontOfSize(22, NSFontWeight.Semibold)!;
-            _macReaderStatus = NSTextField.CreateWrappingLabel("");
-            _macReaderStatus.TextColor = NSColor.SecondaryLabel;
+            _macReaderWindow = MacToolViews.ToolWindow("Transcript - rexplayer", 640, 600, 420, 360, miniaturizable: true);
+            _macReaderStatus = MacTheme.WrappingLabel("", 2, DesignRole.TextSecondary);
             _macReaderVariants = new NSPopUpButton(new CGRect(0, 0, 220, 28), false);
             ((NSView)_macReaderVariants).AccessibilityLabel = "Transcript version";
             _macReaderVariants.ToolTip = "Which saved quality or edition to read";
@@ -161,17 +152,17 @@ public sealed partial class MainWindow
             _macReaderSearch = new NSSearchField(new CGRect(0, 0, 280, 28)) { PlaceholderString = "Find speech" };
             ((NSView)_macReaderSearch).AccessibilityLabel = "Find speech in the transcript";
             _macReaderSearch.Changed += (_, _) => FilterMacReader();
-            var tools = NSStackView.FromViews([_macReaderSearch, _macReaderVariants]);
-            tools.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            tools.Spacing = 10;
+            _macReaderSearch.WidthAnchor.ConstraintGreaterThanOrEqualTo(200).Active = true;
+            _macReaderSearch.SetContentHuggingPriorityForOrientation(1, NSLayoutConstraintOrientation.Horizontal);
+            var tools = MacTheme.Stack(false, 1, _macReaderSearch, _macReaderVariants);
             var column = new NSTableColumn("line") { Title = "Speech", Width = 580 };
             _macReaderTable = new NSTableView(new CGRect(0, 0, 592, 400))
             {
                 AllowsColumnReordering = false,
                 AllowsEmptySelection = true,
                 AllowsMultipleSelection = false,
-                UsesAlternatingRowBackgroundColors = true,
                 HeaderView = null,
+                RowHeight = 30,
                 ColumnAutoresizingStyle = NSTableViewColumnAutoresizingStyle.FirstColumnOnly,
             };
             _macReaderTable.AddColumn(column);
@@ -182,25 +173,16 @@ public sealed partial class MainWindow
             var scroll = new NSScrollView
             {
                 HasVerticalScroller = true,
+                AutohidesScrollers = true,
                 DocumentView = _macReaderTable,
             };
-            scroll.HeightAnchor.ConstraintGreaterThanOrEqualTo(200).Active = true;
-            var close = NSButton.CreateButton("Done", () => _macReaderWindow?.Close());
-            var stack = NSStackView.FromViews([heading, _macReaderStatus, tools, scroll, close]);
-            stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-            stack.Alignment = NSLayoutAttribute.Leading;
-            stack.Spacing = 12;
-            stack.EdgeInsets = new NSEdgeInsets(20, 24, 20, 24);
-            stack.TranslatesAutoresizingMaskIntoConstraints = false;
-            var root = new NSView(new CGRect(0, 0, 640, 560));
-            root.AddSubview(stack);
-            stack.TopAnchor.ConstraintEqualTo(root.TopAnchor).Active = true;
-            stack.BottomAnchor.ConstraintEqualTo(root.BottomAnchor).Active = true;
-            stack.LeadingAnchor.ConstraintEqualTo(root.LeadingAnchor).Active = true;
-            stack.TrailingAnchor.ConstraintEqualTo(root.TrailingAnchor).Active = true;
-            _macReaderStatus.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            scroll.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            _macReaderWindow.ContentView = root;
+            MacTheme.Style(_macReaderTable, scroll);
+            var well = MacToolViews.ToolWell(scroll);
+            well.HeightAnchor.ConstraintGreaterThanOrEqualTo(200).Active = true;
+            var close = MacTheme.TextButton("Done", () => _macReaderWindow?.Close());
+            var page = MacToolViews.ToolPage("Read the transcript", null,
+                _macReaderStatus, tools, well, MacToolViews.ToolButtons(close));
+            MacToolViews.Host(_macReaderWindow, page, scrolls: false, grows: well);
             _macReaderWindow.Center();
         }
 
@@ -402,7 +384,10 @@ public sealed partial class MainWindow
         _macReaderWindow = null;
     }
 
-    /// <summary>The reader's rows: a time and its words, the line being said in semibold.</summary>
+    /// <summary>
+    /// The reader's rows: a time in figures and its words, the line being said in semibold with the
+    /// signal's mark at its edge, and what the search found picked out in the words.
+    /// </summary>
     private sealed class MacReaderRows : NSTableViewSource
     {
         private readonly MainWindow _owner;
@@ -415,14 +400,48 @@ public sealed partial class MainWindow
         {
             var index = _owner._macReaderRows[(int)row];
             var cue = _owner._macReaderCues[index];
+            var current = index == _owner._macReaderCurrent;
             var time = TimeText.Format(cue.Start, _owner._player.Duration);
-            var label = NSTextField.CreateLabel(time + "   " + cue.Text.Replace('\n', ' '));
-            label.LineBreakMode = NSLineBreakMode.TruncatingTail;
-            label.Font = index == _owner._macReaderCurrent
-                ? NSFont.SystemFontOfSize(13, NSFontWeight.Semibold)!
-                : NSFont.SystemFontOfSize(13)!;
-            ((NSView)label).AccessibilityLabel = $"Jump to {time}. {cue.Text}";
-            return label;
+            var words = cue.Text.Replace('\n', ' ');
+            var marker = MacTheme.Panel(MacTheme.Signal, 0);
+            marker.WidthAnchor.ConstraintEqualTo(3).Active = true;
+            marker.HeightAnchor.ConstraintEqualTo(18).Active = true;
+            marker.Hidden = !current;
+            var at = MacTheme.Label(time, 1, DesignRole.TextTertiary);
+            at.Font = MacTheme.DigitFont(1);
+            at.SetContentHuggingPriorityForOrientation(750, NSLayoutConstraintOrientation.Horizontal);
+            var text = MacTheme.Label(words, 2, DesignRole.TextPrimary, semibold: current);
+            var query = (_owner._macReaderSearch?.StringValue ?? "").Trim();
+            if (query.Length > 0)
+            {
+                text.AttributedStringValue = Highlighted(words, query, text.Font!, MacTheme.Role(DesignRole.TextPrimary, tableView.EffectiveAppearance));
+            }
+
+            var line = MacTheme.Stack(false, 2, marker, at, text);
+            // The table sizes its cells by their frames, as it does any cell it is handed.
+            line.TranslatesAutoresizingMaskIntoConstraints = true;
+            line.EdgeInsets = new NSEdgeInsets(0, MacTheme.Space(1), 0, MacTheme.Space(1));
+            line.SetCustomSpacing(MacTheme.Space(1), marker);
+            line.AccessibilityElement = true;
+            ((NSView)line).AccessibilityLabel = $"Jump to {time}. {cue.Text}";
+            return line;
+        }
+
+        /// <summary><paramref name="words"/> with each place <paramref name="query"/> occurs marked in the signal colour.</summary>
+        private static NSAttributedString Highlighted(string words, string query, NSFont font, NSColor ink)
+        {
+            var text = new NSMutableAttributedString(words, new NSStringAttributes { Font = font, ForegroundColor = ink }.Dictionary);
+            var mark = new NSStringAttributes { BackgroundColor = MacTheme.Signal.ColorWithAlphaComponent((nfloat)0.35) };
+            var from = 0;
+            while (from < words.Length)
+            {
+                var found = words.IndexOf(query, from, StringComparison.OrdinalIgnoreCase);
+                if (found < 0) break;
+                text.AddAttributes(mark, new NSRange(found, query.Length));
+                from = found + Math.Max(1, query.Length);
+            }
+
+            return text;
         }
 
         public override void SelectionDidChange(NSNotification notification)

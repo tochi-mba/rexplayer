@@ -94,7 +94,12 @@ public sealed partial class MainWindow
         picker.AddItem("JPEG (photo)");
         picker.AddItem("BMP (uncompressed)");
         ((NSView)picker).AccessibilityLabel = "Snapshot image format";
-        panel.AccessoryView = picker;
+        // The save sheet sizes its accessory by the accessory's frame, so it is fitted to its contents.
+        var accessory = MacTheme.Stack(false, 1, MacTheme.Label("Format"), picker);
+        accessory.EdgeInsets = new NSEdgeInsets(MacTheme.Space(2), MacTheme.Space(3), MacTheme.Space(2), MacTheme.Space(3));
+        accessory.TranslatesAutoresizingMaskIntoConstraints = true;
+        accessory.Frame = new CGRect(CGPoint.Empty, accessory.FittingSize);
+        panel.AccessoryView = accessory;
         panel.Begin(response =>
         {
             if (response != 1 || panel.Url?.Path is not { } chosen) return;

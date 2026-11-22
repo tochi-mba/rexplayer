@@ -1,6 +1,7 @@
 using System.Globalization;
 using Rex.Media.AppCore.Commands;
 using Rex.Media.AppCore.Automation;
+using Rex.Media.AppCore.Design;
 using Rex.Media.AppCore.Player;
 using Rex.Media.Primitives;
 using Rex.Media.Settings;
@@ -12,12 +13,11 @@ public sealed partial class MainWindow
     private NSWindow? _playbackTools;
     private NSPopUpButton? _bookmarkPicker;
     private NSTextField? _bookmarkName;
-    private NSTextField? _audioDescription;
-    private NSTextField? _audioDelayDescription;
+    private RexLabel? _audioDescription;
+    private RexLabel? _audioDelayDescription;
     private NSTextField? _audioDelayEntry;
-    private NSTextField? _playbackToolsTitle;
+    private RexLabel? _playbackToolsTitle;
     private NSPopUpButton? _playbackSpeed;
-    private NSTextField? _playbackSpeedHint;
     private NSButton? _playbackPreservePitch;
     private NSButton? _nextAudioTrack;
     private readonly List<NSButton> _bookmarkActions = [];
@@ -33,27 +33,23 @@ public sealed partial class MainWindow
     {
         if (_playbackTools is null)
         {
-            _playbackTools = new NSWindow(new CGRect(0, 0, 520, 430),
-                NSWindowStyle.Titled | NSWindowStyle.Closable, NSBackingStore.Buffered, false)
-            {
-                Title = "Playback tools",
-            };
-            _playbackTools.ReleaseWhenClosed(false);
-            _playbackToolsTitle = NSTextField.CreateLabel("Open media to use playback tools.");
-            _playbackToolsTitle.Font = NSFont.SystemFontOfSize(18, NSFontWeight.Semibold)!;
-            _playbackToolsTitle.LineBreakMode = NSLineBreakMode.TruncatingTail;
+            _playbackTools = MacToolViews.ToolWindow("Playback tools", 560, 640, 500, 420);
+            _playbackToolsTitle = MacToolViews.ToolTitle("Open media to use playback tools.");
 
-            var resume = NSButton.CreateButton("Resume saved position", () => Run(CommandCatalog.Resume));
-            var restart = NSButton.CreateButton("Start from beginning", () => _player.StartOver());
+            var resume = MacTheme.TextButton("Resume saved position", () => Run(CommandCatalog.Resume), RexButtonLook.Accent);
+            var restart = MacTheme.TextButton("Start from beginning", () => _player.StartOver());
             _seekActions.AddRange([resume, restart]);
 
-            _bookmarkPicker = new NSPopUpButton(new CGRect(0, 0, 460, 28), false);
+            _bookmarkPicker = new NSPopUpButton(new CGRect(0, 0, 300, 28), false);
             _bookmarkPicker.Activated += (_, _) => ShowSelectedBookmarkName();
             _bookmarkPicker.ToolTip = "Choose a saved moment in this file";
             ((NSView)_bookmarkPicker).AccessibilityLabel = "Saved moment";
-            _bookmarkName = new NSTextField(new CGRect(0, 0, 460, 24)) { PlaceholderString = "Name this moment" };
+            _bookmarkPicker.WidthAnchor.ConstraintEqualTo(300).Active = true;
+            _bookmarkName = new NSTextField(new CGRect(0, 0, 300, 24)) { PlaceholderString = "Name this moment" };
             _bookmarkName.ToolTip = "Bookmark name";
-            var add = NSButton.CreateButton("Save this moment", () =>
+            ((NSView)_bookmarkName).AccessibilityLabel = "Bookmark name";
+            _bookmarkName.WidthAnchor.ConstraintEqualTo(300).Active = true;
+            var add = MacTheme.TextButton("Save this moment", () =>
             {
                 _player.AddBookmark(_bookmarkName.StringValue);
                 RefreshPlaybackTools();
@@ -62,18 +58,18 @@ public sealed partial class MainWindow
                     _bookmarkPicker.SelectItem(_player.Bookmarks.Count - 1);
                     ShowSelectedBookmarkName();
                 }
-            });
+            }, RexButtonLook.Accent, "plus");
             _bookmarkAdd = add;
             _seekActions.Add(add);
-            var jump = NSButton.CreateButton("Go to", () => _player.GoToBookmark((int)_bookmarkPicker.IndexOfSelectedItem));
+            var jump = MacTheme.TextButton("Go to", () => _player.GoToBookmark((int)_bookmarkPicker.IndexOfSelectedItem));
             _bookmarkJump = jump;
-            var rename = NSButton.CreateButton("Rename", () =>
+            var rename = MacTheme.TextButton("Rename", () =>
             {
                 _player.RenameBookmark((int)_bookmarkPicker.IndexOfSelectedItem, _bookmarkName.StringValue);
                 RefreshPlaybackTools();
             });
             _bookmarkRename = rename;
-            var remove = NSButton.CreateButton("Remove", () =>
+            var remove = MacTheme.TextButton("Remove", () =>
             {
                 var index = (int)_bookmarkPicker.IndexOfSelectedItem;
                 if (index < 0 || index >= _player.Bookmarks.Count) return;
@@ -83,29 +79,32 @@ public sealed partial class MainWindow
                     _player.DeleteBookmark(index);
                     RefreshPlaybackTools();
                 });
-            });
+            }, symbol: "trash");
             _bookmarkRemove = remove;
             _bookmarkActions.AddRange([jump, rename, remove]);
 
-            _audioDescription = NSTextField.CreateLabel("No audio track");
-            _audioDescription.LineBreakMode = NSLineBreakMode.TruncatingTail;
-            _nextAudioTrack = NSButton.CreateButton("Next audio track", () => Run(CommandCatalog.CycleAudioTrack));
-            _audioDelayDescription = NSTextField.CreateLabel("Audio in sync");
-            _audioDelayDescription.Font = NSFont.MonospacedDigitSystemFontOfSize(12, NSFontWeight.Regular)!;
+            _audioDescription = MacTheme.Label("No audio track", 2, DesignRole.TextSecondary);
+            _audioDescription.WidthAnchor.ConstraintLessThanOrEqualTo(240).Active = true;
+            _nextAudioTrack = MacTheme.TextButton("Next audio track", () => Run(CommandCatalog.CycleAudioTrack));
+            _audioDelayDescription = MacTheme.Label("Audio in sync");
+            _audioDelayDescription.Font = MacTheme.DigitFont(2);
             _audioDelayEntry = new NSTextField(new CGRect(0, 0, 120, 24))
             {
                 PlaceholderString = "Milliseconds",
                 ToolTip = "Audio delay from -10000 to 10000 milliseconds",
             };
-            var earlier = NSButton.CreateButton("Earlier 50 ms", () => _player.SetAudioDelay(_player.AudioDelay - TimeSpan.FromMilliseconds(50)));
-            var later = NSButton.CreateButton("Later 50 ms", () => _player.SetAudioDelay(_player.AudioDelay + TimeSpan.FromMilliseconds(50)));
-            var reset = NSButton.CreateButton("Reset sync", () => _player.SetAudioDelay(TimeSpan.Zero));
-            var apply = NSButton.CreateButton("Set exact delay", SetExactAudioDelay);
-            _playbackSpeed = new NSPopUpButton(new CGRect(0, 0, 250, 28), false);
+            ((NSView)_audioDelayEntry).AccessibilityLabel = "Audio delay in milliseconds";
+            _audioDelayEntry.WidthAnchor.ConstraintEqualTo(120).Active = true;
+            var earlier = MacTheme.TextButton("Earlier 50 ms", () => _player.SetAudioDelay(_player.AudioDelay - TimeSpan.FromMilliseconds(50)));
+            var later = MacTheme.TextButton("Later 50 ms", () => _player.SetAudioDelay(_player.AudioDelay + TimeSpan.FromMilliseconds(50)));
+            var reset = MacTheme.TextButton("Reset sync", () => _player.SetAudioDelay(TimeSpan.Zero));
+            var apply = MacTheme.TextButton("Set exact delay", SetExactAudioDelay);
+            _playbackSpeed = new NSPopUpButton(new CGRect(0, 0, 140, 28), false);
             foreach (var speed in PlayerController.SpeedSteps)
             {
                 _playbackSpeed.AddItem(speed.ToString("0.##", CultureInfo.InvariantCulture) + "×");
             }
+            _playbackSpeed.Font = MacTheme.DigitFont(2);
             _playbackSpeed.Activated += (_, _) =>
             {
                 var index = (int)_playbackSpeed.IndexOfSelectedItem;
@@ -116,8 +115,6 @@ public sealed partial class MainWindow
                 }
             };
             ((NSView)_playbackSpeed).AccessibilityLabel = "Playback speed, pitch preserved";
-            _playbackSpeedHint = NSTextField.CreateLabel("WSOLA keeps pitch, or use chipmunk mode.");
-            _playbackSpeedHint.TextColor = NSColor.SecondaryLabel;
             _playbackPreservePitch = NSButton.CreateCheckbox("Preserve pitch at different speeds", () =>
             {
                 var preserve = IsChecked(_playbackPreservePitch);
@@ -132,55 +129,28 @@ public sealed partial class MainWindow
                     _log.Warning(LogSource, "Pitch mode could not be saved: " + ex.Message);
                 }
             });
-            var hint = NSTextField.CreateLabel("Changes apply immediately. Bookmarks stay with this file.");
-            hint.TextColor = NSColor.SecondaryLabel;
 
-            var stack = NSStackView.FromViews([
-                _playbackToolsTitle,
-                PlaybackToolsRow(resume, restart),
-                PlaybackToolsHeading("Saved moments"),
-                _bookmarkPicker,
-                _bookmarkName,
-                PlaybackToolsRow(add, jump, rename, remove),
-                PlaybackToolsHeading("Sound & sync"),
-                PlaybackToolsRow(_audioDescription, _nextAudioTrack),
-                PlaybackToolsRow(PlaybackToolsHeading("Playback speed"), _playbackSpeed),
-                _playbackPreservePitch,
-                _playbackSpeedHint,
-                _audioDelayDescription,
-                PlaybackToolsRow(earlier, later, reset),
-                PlaybackToolsRow(_audioDelayEntry, apply),
-                hint,
-            ]);
-            stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-            stack.Alignment = NSLayoutAttribute.Leading;
-            stack.Spacing = 12;
-            stack.EdgeInsets = new NSEdgeInsets(24, 24, 24, 24);
-            _playbackTools.ContentView = stack;
-            _bookmarkPicker.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            _bookmarkName.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            _playbackToolsTitle.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            _audioDescription.WidthAnchor.ConstraintEqualTo(270).Active = true;
+            var page = MacToolViews.ToolPage(_playbackToolsTitle, null,
+                MacToolViews.ToolCard(null, MacToolViews.ToolButtons(resume, restart)),
+                MacToolViews.ToolCard("Saved moments",
+                    MacToolViews.ToolRow("Saved moment", null, _bookmarkPicker),
+                    MacToolViews.ToolRow("Name", null, _bookmarkName),
+                    MacToolViews.ToolButtons(add, jump, rename, remove)),
+                MacToolViews.ToolCard("Sound & sync",
+                    MacToolViews.ToolRow("Audio track", null, MacToolViews.ToolButtons(_audioDescription, _nextAudioTrack)),
+                    MacToolViews.ToolRow("Playback speed", "WSOLA keeps pitch, or use chipmunk mode.", _playbackSpeed),
+                    MacToolViews.ToolCheck(_playbackPreservePitch),
+                    MacTheme.Separator(),
+                    _audioDelayDescription,
+                    MacToolViews.ToolButtons(earlier, later, reset),
+                    MacToolViews.ToolRow("Exact delay", null, MacToolViews.ToolButtons(_audioDelayEntry, apply))),
+                MacTheme.WrappingLabel("Changes apply immediately. Bookmarks stay with this file.", 1, DesignRole.TextSecondary));
+            MacToolViews.Host(_playbackTools, page, scrolls: true);
             _playbackTools.Center();
         }
 
         RefreshPlaybackTools();
         _playbackTools.MakeKeyAndOrderFront(null);
-    }
-
-    private static NSStackView PlaybackToolsRow(params NSView[] views)
-    {
-        var row = NSStackView.FromViews(views);
-        row.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-        row.Spacing = 8;
-        return row;
-    }
-
-    private static NSTextField PlaybackToolsHeading(string title)
-    {
-        var label = NSTextField.CreateLabel(title);
-        label.Font = NSFont.SystemFontOfSize(13, NSFontWeight.Semibold)!;
-        return label;
     }
 
     private void ShowSelectedBookmarkName()

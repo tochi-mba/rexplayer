@@ -58,7 +58,7 @@ public sealed partial class MainWindow
         var label = NSTextField.CreateWrappingLabel("");
         label.Alignment = NSTextAlignment.Center;
         label.Font = NSFont.SystemFontOfSize(24, NSFontWeight.Semibold)!;
-        label.TextColor = NSColor.White;
+        label.TextColor = MacTheme.OverlayText;
         label.Hidden = true;
         label.TranslatesAutoresizingMaskIntoConstraints = false;
         ((NSView)label).AccessibilityLabel = accessibilityName;
