@@ -4,8 +4,8 @@ Everything rexplayer does or will do, generated from `capability-matrix.json`, w
 **verified** on a platform only while a test marked with its id passes there; **built** means the code exists but the
 row is not fully proved yet; **not-applicable** and **gap** rows are explained in the [parity ledger](parity.md).
 
-Windows: 149 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0.
-macOS: 147 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable.
+Windows: 149 planned, 53 built, 99 verified, 1 verified-hardware, 27 post-1.0.
+macOS: 147 planned, 54 built, 97 verified, 1 verified-hardware, 27 post-1.0, 2 not-applicable, 1 gap.
 
 ## Playback core
 
@@ -186,7 +186,7 @@ macOS: 147 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0, 2 n
 | AU-15 | Pitch-preserving speed | WSOLA time-stretch across 0.25–4×; toggle to "chipmunk" mode | M5 | must | verified | verified |
 | AU-16 | Pitch shift | ±12 semitones (fine cents) independent of speed | M11 | should | planned | planned |
 | AU-17 | Vocal reduction (karaoke) | Centre-channel cancellation with a band limit | M11 | could | planned | planned |
-| AU-18 | Visualisations | Spectrum, oscilloscope, meters and spectrogram, plus music-aware vinyl, halo, mirror wave, aurora, embers, resonance, ripples, strobe, camera silhouette, live beat edit and a scrolling groove of the spectrum, beat grid and drum hits, a flight through rings of light that pass on the beat, cymatics, ridgelines, a synthwave drive, fireworks, a lightning storm, a lava lamp, a constellation of the melody, a galaxy, a kaleidoscope, a murmuration, ink in water, a city skyline and a mandala, and from the camera clones of the listener's dance, a time warp, an aura, an LED wall, stardust, a hall of mirrors, light painting, a scanner, a shatter, spotlights, an infinity mirror and water, moving to levels measured against each song's own range, the beat-driven ones (vinyl, halo, embers, ripples, strobe and beat edit) to a beat clock that locks to the kicks at any frame rate; per-effect colours, sensitivity, motion and composition controls, and a beat meter | M5/M11 | should | verified | verified |
+| AU-18 | Visualisations | Spectrum, oscilloscope, meters and spectrogram, plus music-aware vinyl, halo, mirror wave, aurora, embers, resonance, ripples, strobe, camera silhouette, live beat edit and a scrolling groove of the spectrum, beat grid and drum hits, a flight through rings of light that pass on the beat, cymatics, ridgelines, a synthwave drive, fireworks, a lightning storm, a lava lamp, a constellation of the melody, a galaxy, a kaleidoscope, a murmuration, ink in water, a city skyline and a mandala, and from the camera clones of the listener's dance, a time warp, an aura, an LED wall, stardust, a hall of mirrors, light painting, a scanner, a shatter, spotlights, an infinity mirror and water, moving to levels measured against each song's own range, the beat-driven ones (vinyl, halo, embers, ripples, strobe and beat edit) to a beat clock that locks to the kicks at any frame rate; per-effect colours, sensitivity, motion and composition controls, and a beat meter | M5/M11 | should | verified | built |
 | AU-19 | Audio-only presentation | Large cover art, metadata, lyrics (META-09), optional visualiser | M6 | must | verified | verified |
 | AU-20 | Resampler quality | Fast / normal (default) / high windowed-sinc polyphase | M2 | must | built | built |
 | AU-21 | Language preferences | Ordered list (e.g. `en, fr`), "original language" option, commentary tracks deprioritised | M5 | must | verified | verified |
@@ -334,7 +334,7 @@ macOS: 147 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0, 2 n
 
 | ID | Capability | Details | Milestone | Priority | Windows | macOS |
 |---|---|---|---|---|---|---|
-| UI-01 | Main window | Video surface; seek bar (elapsed/remaining toggle on click, chapter ticks, buffered ranges, hover thumbnails); transport (play/pause, stop, previous, next, fullscreen, playlist, effects, loop, shuffle); volume + mute; status chips (hardware decode, cast target, recording, speed) | M4 | must | verified | verified |
+| UI-01 | Main window | Video surface; seek bar (elapsed/remaining toggle on click, chapter ticks, buffered ranges, hover thumbnails); transport (play/pause, stop, previous, next, fullscreen, playlist, effects, loop, shuffle); volume + mute; status chips (hardware decode, cast target, recording, speed) | M4 | must | verified | built |
 | UI-02 | Menu system | Classic menu bar (toggle) + command bar. Media: open file/multiple/folder/disc/network/capture, open location from clipboard, recent media, save playlist, convert/save, stream, quit at end of playlist, quit. Playback: title, chapter, program, bookmarks, play on (renderer), speed, jump forward/back, go to time, play/stop/previous/next, record, A-B loop, frame step, sleep timer. Audio: track, device, stereo mode, visualisation, volume up/down, mute. Video: track, fullscreen, fit window, zoom, aspect, crop, deinterlace + mode, snapshot, always on top, transform, 360°, stats overlay. Subtitle: add file, track, secondary track, text scale, delay and sync. Tools: effects and filters, track synchronisation, media information, codec information, program guide, log console, extensions, customise interface, preferences, keyboard shortcuts. View: playlist, dock playlist, library, minimal interface, fullscreen interface, picture-in-picture, always on top, status strip. Help: help, shortcuts, what's new, check for updates, report a problem, about | M4–M15 | must | built | built |
 | UI-03 | Video context menu | The same tree in context form (play/pause, stop, previous/next, record, jumps, speed, audio, video, subtitle, playback, tools, view, open media, play on, quit), reachable in minimal and fullscreen modes | M4 | must | built | built |
 | UI-04 | Fullscreen controller | Seek bar, transport, volume, tracks, effects, leave fullscreen; auto-hide (1.5 s), opacity, keyboard-focusable, touch-friendly | M4 | must | verified | verified |
@@ -423,3 +423,15 @@ macOS: 147 planned, 46 built, 99 verified, 1 verified-hardware, 27 post-1.0, 2 n
 | SEC-05 | Update integrity | HTTPS, owner-pinned release URL, sha256 verification; Authenticode once signing exists (§11) | M4 | must | verified | verified |
 | SYS-01 | Logging | House rotating logger (never throws, critical always written) + ETW EventSource | M1 | must | built | built |
 | SYS-02 | Settings safety | Atomic writes, cross-process lock, `.rex-backup`, schema version + migrations, Normalize() clamps (house patterns) | M4 | must | built | built |
+
+## Look
+
+| ID | Capability | Details | Milestone | Priority | Windows | macOS |
+|---|---|---|---|---|---|---|
+| LOOK-01 | Welcome screen | The idle stage: kicker, title, drop hint, the accent Open file and outlined Browse library buttons, tagline; the same controls in the same order on both shells (ShellScreens.Welcome), in the shared design colours | M4 | must | built | built |
+| LOOK-02 | Transport and seek bar | Seek row (start over, elapsed, seek bar, remaining) over an icon transport row with the round accent play button, toggles for shuffle, repeat, Up Next and library, then speed, mute and volume (ShellScreens.Transport) | M4 | must | built | built |
+| LOOK-03 | Music stage and visualisations | Cover, title and lyrics on the stage; bars, meters, oscilloscope and spectrogram drawn, scenes sized to the stage and paced to the display, not stretched | M4 | must | built | built |
+| LOOK-04 | Library | Inside the player window: navigation column, hero header with Play, Shuffle and Add to queue, search, view controls, results; album and artist pages | M4 | must | built | gap |
+| LOOK-05 | Up Next pane | A 344-wide pane at the right of the player window: count, now and next, undo, the list with drag handles and the playing row | M4 | must | built | built |
+| LOOK-06 | Settings pages | Preferences, shortcuts, subtitle style, first run, What's new and updates as pages of cards and rows in the shared design colours | M4 | must | built | built |
+| LOOK-07 | Tool windows | Tracks, effects, playback tools, media information, log console, transcript reader, transcription and caption settings as pages of cards and rows in the shared design colours | M4 | must | built | built |
