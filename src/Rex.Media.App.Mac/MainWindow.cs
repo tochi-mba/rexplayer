@@ -2,6 +2,7 @@ using System.Globalization;
 using Rex.Media.AppCore;
 using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Commands;
+using Rex.Media.AppCore.Design;
 using Rex.Media.AppCore.Platform;
 using Rex.Media.AppCore.Player;
 using Rex.Media.AppCore.Shell;
@@ -35,35 +36,44 @@ public sealed partial class MainWindow : IDisposable
     private readonly NSWindow _window;
     private readonly PlayerController _player;
     private Keymap _keymap;
-    private readonly NSTextField _title = NSTextField.CreateLabel("Drop media here, or press Cmd+O to open a file.");
-    private readonly NSTextField _artist = NSTextField.CreateLabel("");
-    private readonly NSButton _time;
-    private readonly NSTextField _statusChips = NSTextField.CreateLabel("");
-    private readonly NSTextField _message = NSTextField.CreateLabel("");
-    private readonly NSButton _playPause;
+    private readonly RexLabel _title = MacTheme.Label("", 2, DesignRole.TextPrimary, semibold: true);
+    private readonly RexLabel _artist = MacTheme.Label("", 1, DesignRole.TextSecondary);
+    private readonly RexLabel _elapsed = MacTheme.Label("--:--");
+    private readonly ClockButton _time;
+    private readonly RexLabel _statusChips = MacTheme.Label("", 1, DesignRole.TextSecondary);
+    private readonly RexLabel _message = MacTheme.Label("", 1, DesignRole.TextSecondary);
+    private readonly RexButton _playPause;
     private readonly TimelineSlider _seek;
-    private readonly NSSlider _volume;
+    private readonly RexSlider _volume;
     private readonly List<(NSMenuItem Item, string Command)> _checks = [];
-    private NSStackView? _chrome;
+
+    /// <summary>The bar's and the welcome's controls in the order they show, with the ids and kinds ui.describe reports.</summary>
+    private readonly List<(string Id, string Kind, NSView View)> _describedControls = [];
+    private NSView? _chrome;
     private NSMenu? _pictureMenu;
     private bool _minimalInterface;
     private PlayerSettings _settings;
     private NSTimer? _clearMessage;
     private PictureView? _picture;
-    private NSStackView? _welcome;
-    private NSStackView? _resumeBanner;
-    private NSTextField? _resumeNotice;
-    private NSButton? _resumeAccept;
-    private NSButton? _resumeStartOver;
+    private NSView? _welcome;
+    private NSView? _resumeBanner;
+    private NSView? _statusLine;
+    private RexLabel? _resumeNotice;
+    private RexButton? _resumeAccept;
+    private RexButton? _resumeStartOver;
+    private RexButton? _startOver;
+    private RexButton? _speedButton;
     private bool _moving;
-    private bool _remainingTime;
-    private NSButton? _fullScreenTracks;
-    private NSButton? _fullScreenEffects;
-    private NSButton? _fullScreenLeave;
-    private NSButton? _mainFullScreen;
-    private NSButton? _mainRepeat;
-    private NSButton? _mainShuffle;
-    private NSButton? _mainMute;
+
+    /// <summary>Whether the clock at the right counts down what is left (the default, as on Windows) or shows the whole length.</summary>
+    private bool _remainingTime = true;
+    private RexButton? _fullScreenTracks;
+    private RexButton? _fullScreenEffects;
+    private RexButton? _fullScreenLeave;
+    private RexButton? _mainFullScreen;
+    private RexButton? _mainRepeat;
+    private RexButton? _mainShuffle;
+    private RexButton? _mainMute;
     private NSTimer? _fullScreenHideTimer;
 
     public MainWindow(DataRoots roots, RexLog log)
@@ -89,17 +99,26 @@ public sealed partial class MainWindow : IDisposable
         };
         _window.ReleaseWhenClosed(false);
         _window.AcceptsMouseMovedEvents = true;
-        _time = NSButton.CreateButton("0:00", ToggleTimeDisplay);
-        _playPause = NSButton.CreateButton("Play", () => Run(CommandCatalog.PlayPause));
-        _seek = new TimelineSlider(new CGRect(0, 0, 400, 24), ShowSeekPreview, HideSeekPreview)
+        MacTheme.Style(_window);
+        _time = new ClockButton(ToggleTimeDisplay);
+        _playPause = MacTheme.IconButton("play.fill", "Play", () => Run(CommandCatalog.PlayPause), RexButtonLook.AccentRound);
+        _seek = new TimelineSlider(new CGRect(0, 0, 400, 32), ShowSeekPreview, HideSeekPreview)
         {
             MinValue = 0,
             MaxValue = 1,
         };
         _seek.Activated += (_, _) => SeekToSlider();
-        _volume = NSSlider.FromValue(_player.Volume, 0, _settings.MaxVolumePercent / 100.0, () => _player.SetVolume(_volume!.DoubleValue));
+        _volume = new RexSlider(new CGRect(0, 0, 120, 32))
+        {
+            MinValue = 0,
+            MaxValue = _settings.MaxVolumePercent / 100.0,
+            DoubleValue = _player.Volume,
+            Continuous = true,
+        };
+        _volume.Activated += (_, _) => _player.SetVolume(_volume.DoubleValue);
         _window.ContentView = Layout();
         _window.InitialFirstResponder = _playPause;
+        WatchFullScreen();
         StartMacKeyboardTraversal();
         RestartGlobalShortcutMonitor();
         InitializeLibrary();
@@ -361,7 +380,7 @@ public sealed partial class MainWindow : IDisposable
                 case "status":
                     break;
                 case "ui.add-folder":
-                    answered.SetResult(_libraryWindow?.IsVisible == true
+                    answered.SetResult(LibraryShown
                         ? AddLibraryFolders(request.Paths)
                         : AutomationReply.Failed("Open the library before adding watched folders."));
                     return;
@@ -384,17 +403,17 @@ public sealed partial class MainWindow : IDisposable
                     answered.SetResult(ResizeLibraryWindow(request.Value));
                     return;
                 case "ui.text" when request.Target == "LibrarySummary":
-                    answered.SetResult(_libraryWindow?.IsVisible == true
+                    answered.SetResult(LibraryShown
                         ? new AutomationReply { Ok = true, Text = _librarySummary?.StringValue }
                         : AutomationReply.Failed("Open the library to read its summary."));
                     return;
                 case "ui.text" when request.Target == "LibraryPage":
-                    answered.SetResult(_libraryWindow?.IsVisible == true
+                    answered.SetResult(LibraryShown
                         ? new AutomationReply { Ok = true, Text = _libraryPageSummary?.StringValue }
                         : AutomationReply.Failed("Open the library to read its page."));
                     return;
                 case "ui.search":
-                    if (_libraryWindow?.IsVisible != true || _librarySearch is null || request.Target is null)
+                    if (!LibraryShown || _librarySearch is null || request.Target is null)
                     {
                         answered.SetResult(AutomationReply.Failed("Open the library and supply a search query."));
                         return;
@@ -413,14 +432,17 @@ public sealed partial class MainWindow : IDisposable
 
                     try
                     {
-                        CaptureLibraryScreenshot(request.Path);
+                        CaptureWindowSnapshot(request.Path);
                         answered.SetResult(new AutomationReply { Ok = true, Text = request.Path });
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
                     {
-                        answered.SetResult(AutomationReply.Failed("Could not capture the library: " + ex.Message));
+                        answered.SetResult(AutomationReply.Failed("Could not capture the window: " + ex.Message));
                     }
 
+                    return;
+                case "ui.describe":
+                    answered.SetResult(new AutomationReply { Ok = true, Text = DescribeMainControls() });
                     return;
                 default:
                     answered.SetResult(AutomationReply.Failed($"\"{request.Command}\" is not a request on this Mac yet; try open, run or status."));
@@ -481,149 +503,307 @@ public sealed partial class MainWindow : IDisposable
         }
     }
 
+    /// <summary>
+    /// The window as Windows lays it out: the black stage with everything shown over the picture,
+    /// the Up Next pane at its right, the library over the stage when it is open, and the bar of
+    /// controls across the bottom.
+    /// </summary>
     private NSView Layout()
     {
-        _title.Font = NSFont.SystemFontOfSize(18, NSFontWeight.Semibold)!;
-        _title.LineBreakMode = NSLineBreakMode.TruncatingTail;
-        _artist.Font = NSFont.SystemFontOfSize(12, NSFontWeight.Regular)!;
-        _artist.TextColor = NSColor.SecondaryLabel;
-        _artist.LineBreakMode = NSLineBreakMode.TruncatingTail;
-        _message.TextColor = NSColor.SecondaryLabel;
-        _seek.Continuous = false;
-        _time.Font = NSFont.MonospacedDigitSystemFontOfSize(13, NSFontWeight.Regular)!;
-        _time.BezelStyle = NSBezelStyle.Inline;
-        _time.ToolTip = "Click to switch between elapsed and remaining time";
-        ((NSView)_time).AccessibilityLabel = "Elapsed and remaining playback time";
-        var previous = NSButton.CreateButton("Previous", () => Run(CommandCatalog.Previous));
-        var stop = NSButton.CreateButton("Stop", () => Run(CommandCatalog.Stop));
-        var next = NSButton.CreateButton("Next", () => Run(CommandCatalog.Next));
-        var open = NSButton.CreateButton("Open file", () => Run(CommandCatalog.OpenFile));
-        var queue = NSButton.CreateButton("Up Next", ShowQueue);
-        var library = NSButton.CreateButton("Library", ShowLibrary);
-        var fullScreen = _mainFullScreen = NSButton.CreateButton("Full screen", () => Run(CommandCatalog.ToggleFullScreen));
-        var repeat = _mainRepeat = NSButton.CreateButton("Repeat", () => Run(CommandCatalog.CycleRepeat));
-        var shuffle = _mainShuffle = NSButton.CreateButton("Shuffle", () => Run(CommandCatalog.ToggleShuffle));
-        var mute = _mainMute = NSButton.CreateButton("Mute", () => Run(CommandCatalog.Mute));
-        _fullScreenTracks = NSButton.CreateButton("Tracks", ShowTrackTools);
-        _fullScreenEffects = NSButton.CreateButton("Effects", ShowEffects);
-        _fullScreenLeave = NSButton.CreateButton("Exit full screen", () => Run(CommandCatalog.LeaveFullScreen));
-        library.ToolTip = "Browse your own local library and watched folders";
-        queue.ToolTip = "View, reorder, and manage what plays next";
-        open.ToolTip = "Open a file (Cmd+O)";
-        _playPause.BezelStyle = NSBezelStyle.Rounded;
-        _playPause.Font = NSFont.SystemFontOfSize(15, NSFontWeight.Semibold)!;
-        _playPause.WidthAnchor.ConstraintEqualTo(76).Active = true;
-        _playPause.ToolTip = "Play or pause (Space)";
-        _seek.ToolTip = "Seek through the current file";
-        _volume.ToolTip = "Volume";
-        var controls = NSStackView.FromViews([previous, _playPause, stop, next, fullScreen, open, library, queue,
-            _fullScreenTracks, _fullScreenEffects, repeat, shuffle, mute, _fullScreenLeave, _volume]);
-        controls.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-        controls.Spacing = 8;
-        foreach (var button in controls.ArrangedSubviews.OfType<NSButton>())
-        {
-            button.HeightAnchor.ConstraintGreaterThanOrEqualTo(32).Active = true;
-        }
-        _volume.WidthAnchor.ConstraintEqualTo(100).Active = true;
-        _seek.SetContentHuggingPriorityForOrientation(1, NSLayoutConstraintOrientation.Horizontal);
-        // Keep a deterministic keyboard path around every primary transport control.
-        previous.NextKeyView = _playPause;
-        _playPause.NextKeyView = stop;
-        stop.NextKeyView = next;
-        open.NextKeyView = library;
-        library.NextKeyView = queue;
-        next.NextKeyView = fullScreen;
-        fullScreen.NextKeyView = open;
-        queue.NextKeyView = _fullScreenTracks;
-        _fullScreenTracks.NextKeyView = _fullScreenEffects;
-        _fullScreenEffects.NextKeyView = repeat;
-        repeat.NextKeyView = shuffle;
-        shuffle.NextKeyView = mute;
-        mute.NextKeyView = _fullScreenLeave;
-        _fullScreenLeave.NextKeyView = _volume;
-        _volume.NextKeyView = _seek;
-        _seek.NextKeyView = previous;
-        SetMainKeyViews(previous, _playPause, stop, next, fullScreen, open, library, queue, _fullScreenTracks,
-            _fullScreenEffects, repeat, shuffle, mute, _fullScreenLeave, _volume, _seek);
-        ((NSView)_seek).AccessibilityLabel = "Playback position";
-        ((NSView)_volume).AccessibilityLabel = "Playback volume";
-        ((NSView)_playPause).AccessibilityLabel = "Play or pause playback";
-
-        var timelineLine = NSStackView.FromViews([_seek, _time]);
-        timelineLine.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-        timelineLine.Spacing = 12;
-        var timeline = NSStackView.FromViews([BuildSeekPreview(), timelineLine]);
-        timeline.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-        timeline.Spacing = 4;
-        _resumeNotice = NSTextField.CreateLabel("Continue where you stopped?");
-        _resumeNotice.TextColor = NSColor.SecondaryLabel;
-        var acceptResume = NSButton.CreateButton("Resume", () => _player.AcceptResume());
-        _resumeAccept = acceptResume;
-        var restartResume = NSButton.CreateButton("Start over", () =>
-        {
-            _player.DismissPendingResume();
-            _player.StartOver();
-        });
-        _resumeStartOver = restartResume;
-        _resumeBanner = NSStackView.FromViews([_resumeNotice, acceptResume, restartResume]);
-        _resumeBanner.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-        _resumeBanner.Spacing = 8;
-        _resumeBanner.Hidden = true;
-        _statusChips.TextColor = NSColor.SecondaryLabel;
-        _statusChips.Font = NSFont.SystemFontOfSize(11, NSFontWeight.Medium)!;
-        var stack = NSStackView.FromViews([_title, _artist, _statusChips, _message, _resumeBanner, timeline, controls]);
-        _chrome = stack;
-        stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-        stack.Alignment = NSLayoutAttribute.Leading;
-        stack.Spacing = 12;
-        stack.EdgeInsets = new NSEdgeInsets(20, 20, 20, 20);
-        stack.WantsLayer = true;
-        stack.Layer!.BackgroundColor = NSColor.WindowBackground.ColorWithAlphaComponent((System.Runtime.InteropServices.NFloat)0.88).CGColor;
-        AddCrashRecoveryBanner(stack);
-        AddConfirmationBanner(stack);
-        stack.TranslatesAutoresizingMaskIntoConstraints = false;
-        controls.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
-        timeline.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -40).Active = true;
-
         var content = new DropView((paths, enqueue) => _player.Drop(paths, enqueue), HandlePictureWheel,
             HandlePictureDrag, HandlePictureClick, HandlePictureOtherClick, RevealFullScreenController);
         _pictureMenu = BuildPictureMenu();
         content.Menu = _pictureMenu;
         _picture = new PictureView(_log) { TranslatesAutoresizingMaskIntoConstraints = false };
         content.AddSubview(_picture);
-        content.AddSubview(stack);
-        var welcomeTitle = NSTextField.CreateLabel("rexplayer");
-        welcomeTitle.TextColor = NSColor.White;
-        welcomeTitle.Font = NSFont.SystemFontOfSize(44, NSFontWeight.Semibold)!;
-        var welcomeHint = NSTextField.CreateLabel("Your music. Your films. Your space.");
-        welcomeHint.TextColor = NSColor.LightGray;
-        var welcomeOpen = NSButton.CreateButton("Open file", () => Run(CommandCatalog.OpenFile));
-        var welcomeFolder = NSButton.CreateButton("Open folder", () => Run(CommandCatalog.OpenFolder));
-        var welcomeLibrary = NSButton.CreateButton("Browse library", ShowLibrary);
-        var welcomeQueue = NSButton.CreateButton("Up Next", ShowQueue);
-        var welcomeActions = NSStackView.FromViews([welcomeOpen, welcomeFolder, welcomeLibrary, welcomeQueue]);
-        welcomeActions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-        welcomeActions.Spacing = 12;
-        _welcome = NSStackView.FromViews([welcomeTitle, welcomeHint, welcomeActions]);
-        _welcome.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-        _welcome.Alignment = NSLayoutAttribute.CenterX;
-        _welcome.Spacing = 18;
-        _welcome.TranslatesAutoresizingMaskIntoConstraints = false;
-        content.AddSubview(_welcome);
+        var welcome = BuildWelcome();
+        content.AddSubview(welcome);
         AddSubtitleOverlays(content);
         AddStatsOverlay(content);
         AddMusicPresentation(content);
         AddMacKineticLayer(content);
-        _welcome.CenterXAnchor.ConstraintEqualTo(_picture.CenterXAnchor).Active = true;
-        _welcome.CenterYAnchor.ConstraintEqualTo(_picture.CenterYAnchor).Active = true;
+
+        _libraryHost = MacTheme.Panel(DesignRole.Canvas);
+        _libraryHost.Hidden = true;
+        content.AddSubview(_libraryHost);
+        _queueHost = MacTheme.Panel(DesignRole.Surface);
+        _queueHost.Hidden = true;
+        content.AddSubview(_queueHost);
+        var queueEdge = MacTheme.Separator(vertical: true);
+        _queueHost.AddSubview(queueEdge);
+        queueEdge.TopAnchor.ConstraintEqualTo(_queueHost.TopAnchor).Active = true;
+        queueEdge.BottomAnchor.ConstraintEqualTo(_queueHost.BottomAnchor).Active = true;
+        queueEdge.LeadingAnchor.ConstraintEqualTo(_queueHost.LeadingAnchor).Active = true;
+
+        var bar = BuildBottomBar();
+        _chrome = bar;
+        content.AddSubview(bar);
+        AddSeekPreview(content);
+
         _picture.TopAnchor.ConstraintEqualTo(content.TopAnchor).Active = true;
         _picture.LeadingAnchor.ConstraintEqualTo(content.LeadingAnchor).Active = true;
-        _picture.TrailingAnchor.ConstraintEqualTo(content.TrailingAnchor).Active = true;
-        _picture.BottomAnchor.ConstraintEqualTo(stack.TopAnchor).Active = true;
-        stack.LeadingAnchor.ConstraintEqualTo(content.LeadingAnchor).Active = true;
-        stack.TrailingAnchor.ConstraintEqualTo(content.TrailingAnchor).Active = true;
-        stack.BottomAnchor.ConstraintEqualTo(content.BottomAnchor).Active = true;
+        _picture.TrailingAnchor.ConstraintEqualTo(_queueHost.LeadingAnchor).Active = true;
+        _stageToBar = _picture.BottomAnchor.ConstraintEqualTo(bar.TopAnchor);
+        _stageToBar.Active = true;
+        _stageToBottom = _picture.BottomAnchor.ConstraintEqualTo(content.BottomAnchor);
+        _queueHost.TopAnchor.ConstraintEqualTo(content.TopAnchor).Active = true;
+        _queueHost.TrailingAnchor.ConstraintEqualTo(content.TrailingAnchor).Active = true;
+        _queueHost.BottomAnchor.ConstraintEqualTo(_picture.BottomAnchor).Active = true;
+        _queueHostWidth = _queueHost.WidthAnchor.ConstraintEqualTo(0);
+        _queueHostWidth.Active = true;
+        _libraryHost.TopAnchor.ConstraintEqualTo(_picture.TopAnchor).Active = true;
+        _libraryHost.BottomAnchor.ConstraintEqualTo(_picture.BottomAnchor).Active = true;
+        _libraryHost.LeadingAnchor.ConstraintEqualTo(_picture.LeadingAnchor).Active = true;
+        _libraryHost.TrailingAnchor.ConstraintEqualTo(_picture.TrailingAnchor).Active = true;
+        welcome.CenterXAnchor.ConstraintEqualTo(_picture.CenterXAnchor).Active = true;
+        welcome.CenterYAnchor.ConstraintEqualTo(_picture.CenterYAnchor).Active = true;
+        welcome.WidthAnchor.ConstraintLessThanOrEqualTo(_picture.WidthAnchor, 1, -64).Active = true;
+        bar.LeadingAnchor.ConstraintEqualTo(content.LeadingAnchor).Active = true;
+        bar.TrailingAnchor.ConstraintEqualTo(content.TrailingAnchor).Active = true;
+        bar.BottomAnchor.ConstraintEqualTo(content.BottomAnchor).Active = true;
         return content;
+    }
+
+    /// <summary>
+    /// What the stage shows before anything is open, as Windows' idle block: the kicker, the name,
+    /// how to begin, the two ways in, and the tagline.
+    /// </summary>
+    private NSView BuildWelcome()
+    {
+        var kicker = Described(MacTheme.Kicker("WELCOME", MacTheme.Accent), "IdleKicker", "label");
+        var title = Described(MacTheme.Label("rexplayer", 5, MacTheme.OverlayText, semibold: true), "IdleTitle", "label");
+        title.Font = NSFont.SystemFontOfSize(44, NSFontWeight.Semibold)!;
+        title.Alignment = NSTextAlignment.Center;
+        var hint = Described(MacTheme.WrappingLabel("Drop media here, or press ⌘O to open a file.", 2, MacTheme.OverlaySecondaryText), "IdleHint", "label");
+        hint.Alignment = NSTextAlignment.Center;
+        hint.PreferredMaxLayoutWidth = 560;
+        var open = Described(MacTheme.TextButton("Open file", () => Run(CommandCatalog.OpenFile), RexButtonLook.Accent), "WelcomeOpen", "accent-text");
+        open.ToolTip = "Open a file (⌘O)";
+        var library = Described(MacTheme.TextButton("Browse library", ShowLibrary, RexButtonLook.Overlay), "WelcomeLibrary", "overlay-text");
+        open.WidthAnchor.ConstraintGreaterThanOrEqualTo(120).Active = true;
+        library.WidthAnchor.ConstraintGreaterThanOrEqualTo(120).Active = true;
+        var actions = MacTheme.Stack(false, 1, open, library);
+        actions.Spacing = 10;
+        var tagline = Described(MacTheme.Label("Your music. Your films. Your space.", 1, MacTheme.OverlaySecondaryText), "WelcomeTagline", "label");
+        var welcome = MacTheme.Stack(true, 0, kicker, title, hint, actions, tagline);
+        welcome.Alignment = NSLayoutAttribute.CenterX;
+        welcome.Spacing = 7;
+        welcome.SetCustomSpacing(7 + 18, hint);
+        welcome.SetCustomSpacing(14, actions);
+        welcome.AccessibilityIdentifier = "Idle";
+        _welcome = welcome;
+        return welcome;
+    }
+
+    /// <summary>
+    /// The bar across the bottom, as Windows' own: the banners that ask something, the status line,
+    /// the seek row (Start over, elapsed, the seek bar, remaining) and the transport row (the
+    /// buttons, what is playing, then speed and sound).
+    /// </summary>
+    private NSView BuildBottomBar()
+    {
+        var bar = MacTheme.Panel(DesignRole.Surface);
+        bar.AccessibilityIdentifier = "Controls";
+        var edge = MacTheme.Separator();
+        bar.AddSubview(edge);
+        edge.TopAnchor.ConstraintEqualTo(bar.TopAnchor).Active = true;
+        edge.LeadingAnchor.ConstraintEqualTo(bar.LeadingAnchor).Active = true;
+        edge.TrailingAnchor.ConstraintEqualTo(bar.TrailingAnchor).Active = true;
+
+        // The seek row.
+        _startOver = Described(MacTheme.TextButton("Start over", StartOverFromBar, label: "Start this media from the beginning"), "StartOverButton", "text");
+        _startOver.Enabled = false;
+        Described(_elapsed, "Elapsed", "label");
+        _elapsed.Font = MacTheme.DigitFont(2);
+        ((NSView)_elapsed).AccessibilityLabel = "Elapsed time";
+        Described(_seek, "SeekBar", "slider");
+        _seek.Continuous = false;
+        _seek.ToolTip = "Seek through the current file";
+        ((NSView)_seek).AccessibilityLabel = "Position";
+        _seek.HeightAnchor.ConstraintEqualTo(32).Active = true;
+        _seek.SetContentHuggingPriorityForOrientation(1, NSLayoutConstraintOrientation.Horizontal);
+        _seek.SetContentCompressionResistancePriority(250, NSLayoutConstraintOrientation.Horizontal);
+        Described(_time, "Remaining", "label");
+        var seekRow = MacTheme.Stack(false, 2, _startOver, _elapsed, _seek, _time);
+        seekRow.SetCustomSpacing(MacTheme.Space(1), _startOver);
+
+        // The transport row: the buttons at the left.
+        var previous = Described(MacTheme.IconButton("backward.end.fill", "Previous", () => Run(CommandCatalog.Previous)), "PreviousButton", "icon");
+        Described(_playPause, "PlayPauseButton", "accent-icon");
+        var stop = Described(MacTheme.IconButton("stop.fill", "Stop", () => Run(CommandCatalog.Stop)), "StopButton", "icon");
+        var next = Described(MacTheme.IconButton("forward.end.fill", "Next", () => Run(CommandCatalog.Next)), "NextButton", "icon");
+        var divider = MacTheme.Separator(vertical: true);
+        divider.HeightAnchor.ConstraintEqualTo(24).Active = true;
+        var shuffle = _mainShuffle = Described(MacTheme.IconButton("shuffle", "Shuffle", () => Run(CommandCatalog.ToggleShuffle), RexButtonLook.IconToggle), "ShuffleButton", "icon-toggle");
+        var repeat = _mainRepeat = Described(MacTheme.IconButton("repeat", "Repeat off", () => Run(CommandCatalog.CycleRepeat), RexButtonLook.IconToggle), "RepeatButton", "icon-toggle");
+        var queue = _shellQueueToggle = Described(MacTheme.IconButton("list.bullet", "Up Next", ToggleQueue, RexButtonLook.IconToggle), "PlaylistButton", "icon-toggle");
+        var library = _shellLibraryToggle = Described(MacTheme.IconButton("books.vertical", "Library", ToggleLibrary, RexButtonLook.IconToggle), "LibraryButton", "icon-toggle");
+        var fullScreen = _mainFullScreen = Described(MacTheme.IconButton("arrow.up.left.and.arrow.down.right", "Full screen", () => Run(CommandCatalog.ToggleFullScreen)), "FullScreenButton", "icon");
+        _fullScreenTracks = Described(MacTheme.IconButton("captions.bubble", "Tracks", ShowTrackTools), "FullScreenTracksButton", "icon");
+        _fullScreenEffects = Described(MacTheme.IconButton("slider.horizontal.3", "Effects", ShowEffects), "FullScreenEffectsButton", "icon");
+        _fullScreenLeave = Described(MacTheme.IconButton("arrow.down.right.and.arrow.up.left", "Exit full screen", () => Run(CommandCatalog.LeaveFullScreen)), "LeaveFullScreenButton", "icon");
+        previous.ToolTip = "Previous item";
+        _playPause.ToolTip = "Play or pause (Space)";
+        stop.ToolTip = "Stop playback";
+        next.ToolTip = "Next item";
+        shuffle.ToolTip = "Shuffle the queue";
+        repeat.ToolTip = "Change repeat mode";
+        queue.ToolTip = "View, reorder, and manage what plays next";
+        library.ToolTip = "Browse your own local library and watched folders";
+        fullScreen.ToolTip = "Toggle full screen";
+        var buttons = MacTheme.Stack(false, 0, previous, _playPause, stop, next, divider, shuffle, repeat, queue,
+            library, fullScreen, _fullScreenTracks, _fullScreenEffects, _fullScreenLeave);
+        ShowFullScreenButtons();
+
+        // What is playing, in the middle.
+        Described(_title, "NowPlaying", "label");
+        ((NSView)_artist).AccessibilityIdentifier = "NowPlayingContext";
+        foreach (var line in new[] { _title, _artist })
+        {
+            line.SetContentCompressionResistancePriority(100, NSLayoutConstraintOrientation.Horizontal);
+            line.SetContentHuggingPriorityForOrientation(1, NSLayoutConstraintOrientation.Horizontal);
+        }
+
+        var nowPlaying = MacTheme.Stack(true, 0, _title, _artist);
+        nowPlaying.Spacing = 1;
+        nowPlaying.SetContentHuggingPriorityForOrientation(1, NSLayoutConstraintOrientation.Horizontal);
+        nowPlaying.SetContentCompressionResistancePriority(100, NSLayoutConstraintOrientation.Horizontal);
+
+        // Speed and sound at the right.
+        _speedButton = Described(MacTheme.TextButton("1×", ShowSpeedMenu, label: "Playback speed, 1×"), "SpeedButton", "text");
+        _speedButton.HeightAnchor.ConstraintEqualTo((nfloat)MacTheme.ControlSize).Active = true;
+        var mute = _mainMute = Described(MacTheme.IconButton("speaker.wave.2.fill", "Mute", () => Run(CommandCatalog.Mute)), "MuteButton", "icon");
+        mute.ToolTip = "Mute or unmute";
+        Described(_volume, "VolumeBar", "slider");
+        _volume.ToolTip = "Volume";
+        ((NSView)_volume).AccessibilityLabel = "Volume";
+        _volume.WidthAnchor.ConstraintEqualTo(120).Active = true;
+        _volume.HeightAnchor.ConstraintEqualTo(32).Active = true;
+        var sound = MacTheme.Stack(false, 0, _speedButton, mute, _volume);
+        var transport = MacTheme.Stack(false, 2, buttons, nowPlaying, sound);
+
+        // The lines that come and go above the seek row.
+        _statusChips.Font = NSFont.SystemFontOfSize(MacTheme.TypeSize(1), NSFontWeight.Medium)!;
+        _statusLine = MacTheme.Stack(false, 2, _statusChips, _message);
+        _statusLine.Hidden = true;
+        _resumeNotice = MacTheme.WrappingLabel("Continue where you stopped?");
+        _resumeNotice.SetContentHuggingPriorityForOrientation(1, NSLayoutConstraintOrientation.Horizontal);
+        _resumeAccept = MacTheme.TextButton("Resume", () => _player.AcceptResume(), RexButtonLook.Accent);
+        _resumeStartOver = MacTheme.TextButton("Start over", StartOverFromBar);
+        _resumeBanner = Banner(false, _resumeNotice, _resumeAccept, _resumeStartOver);
+        var (confirmation, entry) = BuildConfirmationBanners();
+
+        var rows = MacTheme.Stack(true, 1, BuildCrashRecoveryBanner(), confirmation, entry, _resumeBanner, _statusLine, seekRow, transport);
+        rows.Alignment = NSLayoutAttribute.Width;
+        bar.AddSubview(rows);
+        rows.TopAnchor.ConstraintEqualTo(edge.BottomAnchor, MacTheme.Space(1)).Active = true;
+        rows.BottomAnchor.ConstraintEqualTo(bar.BottomAnchor, -MacTheme.Space(1)).Active = true;
+        rows.LeadingAnchor.ConstraintEqualTo(bar.LeadingAnchor, MacTheme.Space(3)).Active = true;
+        rows.TrailingAnchor.ConstraintEqualTo(bar.TrailingAnchor, -MacTheme.Space(3)).Active = true;
+
+        // Tab walks the bar as it reads, left to right and row by row; F6 jumps between regions.
+        NSView[] order = [_startOver, _seek, previous, _playPause, stop, next, shuffle, repeat, queue, library,
+            fullScreen, _fullScreenTracks, _fullScreenEffects, _fullScreenLeave, _speedButton, mute, _volume];
+        for (var index = 0; index < order.Length; index++)
+        {
+            order[index].NextKeyView = order[(index + 1) % order.Length];
+        }
+
+        SetMainKeyViews(order);
+        return bar;
+    }
+
+    /// <summary>Records <paramref name="view"/> under the Windows automation id of the same control, for ui.describe and assistive tools.</summary>
+    private T Described<T>(T view, string id, string kind) where T : NSView
+    {
+        view.AccessibilityIdentifier = id;
+        _describedControls.Add((id, kind, view));
+        return view;
+    }
+
+    /// <summary>The controls of the bar and the welcome a person can see now, as "id:kind" in the order they show.</summary>
+    private string DescribeMainControls() => string.Join(";", _describedControls
+        .Where(control => !control.View.IsHiddenOrHasHiddenAncestor
+            && !(LibraryShown && _welcome is not null && control.View.IsDescendantOf(_welcome)))
+        .Select(control => control.Id + ":" + control.Kind));
+
+    /// <summary>Saves the window's whole content (stage or library, Up Next, the bar) as a PNG at <paramref name="path"/>.</summary>
+    private void CaptureWindowSnapshot(string path)
+    {
+        if (_window.ContentView is not { } content)
+        {
+            throw new InvalidOperationException("The window has nothing to capture.");
+        }
+
+        content.LayoutSubtreeIfNeeded();
+        using var bitmap = content.BitmapImageRepForCachingDisplayInRect(content.Bounds)
+            ?? throw new InvalidOperationException("AppKit could not capture the window.");
+        content.CacheDisplay(content.Bounds, bitmap);
+        using var png = bitmap.RepresentationUsingTypeProperties(NSBitmapImageFileType.Png)
+            ?? throw new InvalidOperationException("AppKit could not encode the window's picture.");
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
+        if (!png.Save(NSUrl.FromFilename(Path.GetFullPath(path)), true))
+        {
+            throw new IOException("Could not save the window's picture.");
+        }
+    }
+
+    /// <summary>Starts the media over from its beginning, as the bar's and the resume banner's Start over both do.</summary>
+    private void StartOverFromBar()
+    {
+        _player.DismissPendingResume();
+        _player.StartOver();
+    }
+
+    /// <summary>The speed as the speed button shows it: "1×", "1.5×".</summary>
+    private static string SpeedLabel(double speed) => speed.ToString("0.##", CultureInfo.InvariantCulture) + "×";
+
+    /// <summary>Offers slower and faster speeds in one place under the speed button, as Windows does, with the full playback tools after them.</summary>
+    private void ShowSpeedMenu()
+    {
+        if (_speedButton is null)
+        {
+            return;
+        }
+
+        var menu = new NSMenu("Playback speed");
+        menu.AddItem(new NSMenuItem("Slower", (_, _) => Run(CommandCatalog.Slower)));
+        menu.AddItem(new NSMenuItem("Normal speed (1×)", (_, _) => Run(CommandCatalog.NormalSpeed)));
+        menu.AddItem(new NSMenuItem("Faster", (_, _) => Run(CommandCatalog.Faster)));
+        menu.AddItem(NSMenuItem.SeparatorItem);
+        foreach (var rate in PlayerController.SpeedSteps)
+        {
+            var chosen = rate;
+            menu.AddItem(new NSMenuItem(SpeedLabel(rate), (_, _) => _player.SetSpeed(chosen))
+            {
+                State = Math.Abs(rate - _player.Speed) < 0.005 ? NSCellStateValue.On : NSCellStateValue.Off,
+            });
+        }
+
+        menu.AddItem(NSMenuItem.SeparatorItem);
+        menu.AddItem(new NSMenuItem("Playback tools…", (_, _) => ShowPlaybackTools()));
+        menu.PopUpMenu(null, new CGPoint(0, _speedButton.Bounds.Height + 4), _speedButton);
+    }
+
+    /// <summary>Shows Tracks, Effects and Exit full screen only in full screen, where the menus are out of reach.</summary>
+    private void ShowFullScreenButtons()
+    {
+        foreach (var button in new[] { _fullScreenTracks, _fullScreenEffects, _fullScreenLeave })
+        {
+            if (button is not null)
+            {
+                button.Hidden = !IsFullScreen;
+            }
+        }
+    }
+
+    /// <summary>Shows the status line only while it has chips or a message to show.</summary>
+    private void RefreshStatusLine()
+    {
+        if (_statusLine is not null)
+        {
+            _statusLine.Hidden = _statusChips.StringValue.Length == 0 && _message.StringValue.Length == 0;
+        }
     }
 
     /// <summary>The menu bar: the app's own menu as every Mac app has it, then the menus Windows has, from the same layout.</summary>
@@ -754,7 +934,8 @@ public sealed partial class MainWindow : IDisposable
     /// <summary>Whether what an on-and-off command switches is on now, for its tick.</summary>
     private bool IsOn(string command) => command switch
     {
-        CommandCatalog.ToggleLibrary => _libraryWindow?.IsVisible == true,
+        CommandCatalog.ToggleLibrary => LibraryShown,
+        CommandCatalog.TogglePlaylist => QueueShown,
         CommandCatalog.ToggleShuffle => _player.Playlist.Shuffle,
         CommandCatalog.CycleRepeat => _player.Playlist.Repeat != RepeatMode.Off,
         CommandCatalog.Mute => _player.Muted,
@@ -783,12 +964,15 @@ public sealed partial class MainWindow : IDisposable
         {
             _welcome.Hidden = _player.Item is not null;
         }
-        _title.StringValue = _player.Item is null ? "Drop media here, or press Cmd+O to open a file." : _player.Title;
-        _artist.StringValue = _player.Item is null ? "Private, local playback" : _player.Artist ?? _player.State.ToString();
+        _title.StringValue = _player.Item is null ? "" : _player.Title;
+        _artist.StringValue = _player.Item is null ? "" : _player.Artist ?? "";
+        _artist.Hidden = _artist.StringValue.Length == 0;
         _window.Title = _player.Item is null ? "rexplayer" : _player.Title + " - rexplayer";
         ShowTitleOnPlaybackStart();
-        _playPause.Title = _player.IsPlaying ? "Pause" : "Play";
+        _playPause.Symbol = _player.IsPlaying ? "pause.fill" : "play.fill";
+        _playPause.Label = _player.IsPlaying ? "Pause" : "Play";
         _seek.Enabled = _player.CanSeek;
+        if (_startOver is not null) _startOver.Enabled = _player.CanSeek;
         if (_resumeBanner is not null && _resumeNotice is not null)
         {
             _resumeBanner.Hidden = _player.PendingResumeAt is not { } at || !_player.CanSeek;
@@ -799,15 +983,46 @@ public sealed partial class MainWindow : IDisposable
         }
 
         _volume.DoubleValue = _player.Volume;
-        if (_mainMute is not null) _mainMute.Title = _player.Muted ? "Unmute" : "Mute";
-        if (_mainShuffle is not null) _mainShuffle.Title = _player.Playlist.Shuffle ? "Shuffle: On" : "Shuffle";
-        if (_mainRepeat is not null) _mainRepeat.Title = "Repeat: " + _player.Playlist.Repeat;
-        if (_mainFullScreen is not null) _mainFullScreen.Title = IsFullScreen ? "Exit full screen" : "Full screen";
+        if (_mainMute is not null)
+        {
+            _mainMute.Symbol = _player.Muted ? "speaker.slash.fill" : "speaker.wave.2.fill";
+            _mainMute.Label = _player.Muted ? "Unmute" : "Mute";
+        }
+
+        if (_mainShuffle is not null) _mainShuffle.On = _player.Playlist.Shuffle;
+        if (_mainRepeat is not null)
+        {
+            _mainRepeat.Symbol = _player.Playlist.Repeat == RepeatMode.One ? "repeat.1" : "repeat";
+            _mainRepeat.On = _player.Playlist.Repeat != RepeatMode.Off;
+            _mainRepeat.Label = _player.Playlist.Repeat switch
+            {
+                RepeatMode.All => "Repeat all",
+                RepeatMode.One => "Repeat one",
+                _ => "Repeat off",
+            };
+        }
+
+        if (_mainFullScreen is not null)
+        {
+            _mainFullScreen.Symbol = IsFullScreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right";
+            _mainFullScreen.Label = IsFullScreen ? "Exit full screen" : "Full screen";
+        }
+
+        ShowFullScreenButtons();
+        if (_speedButton is not null)
+        {
+            var speed = SpeedLabel(_player.Speed);
+            _speedButton.Text = speed;
+            _speedButton.Label = "Playback speed, " + speed;
+        }
+
+        RefreshShellToggles();
         _statusChips.StringValue = string.Join("  •  ", new[]
         {
             _settings.HardwareVideoDecoding ? "Hardware decoding" : null,
             Math.Abs(_player.Speed - 1) > 0.001 ? $"{_player.Speed:0.##}× speed" : null,
         }.Where(chip => chip is not null));
+        RefreshStatusLine();
         ShowPosition();
         UpdateDockTile();
         UpdateSystemNowPlaying();
@@ -890,9 +1105,9 @@ public sealed partial class MainWindow : IDisposable
             ? [.. info.Chapters.Select(chapter => Math.Clamp(chapter.Start.ToTimeSpan() / duration, 0, 1))]
             : [];
         _seek.NeedsDisplay = true;
-        _time.Title = duration > TimeSpan.Zero
-            ? _remainingTime ? "−" + Clock(duration - _player.Position) : $"{Clock(_player.Position)} / {Clock(duration)}"
-            : Clock(_player.Position);
+        var (elapsed, remaining) = TimeText.Clocks(_player.Position, duration, _player.Item is null ? null : _player.State, _remainingTime);
+        _elapsed.StringValue = elapsed;
+        _time.Clock = remaining;
         UpdateSubtitleOverlays();
         UpdateSystemNowPlaying();
         RefreshMusicPosition();
@@ -915,7 +1130,7 @@ public sealed partial class MainWindow : IDisposable
         var controls = new[] { _mainFullScreen, _mainRepeat, _mainShuffle, _mainMute,
             _fullScreenTracks, _fullScreenEffects, _fullScreenLeave };
         var complete = controls.All(button => button is { Enabled: true }) && toggled && preview
-            && _seek.Buffered >= 0 && _seek.Chapters is not null && _mainKeyViews.Count == 16;
+            && _seek.Buffered >= 0 && _seek.Chapters is not null && _mainKeyViews.Count == 17;
         return complete
             ? new AutomationReply
             {
@@ -942,15 +1157,12 @@ public sealed partial class MainWindow : IDisposable
         }
     }
 
-    private static string Clock(TimeSpan time) => time.TotalHours >= 1
-        ? time.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture)
-        : time.ToString(@"m\:ss", CultureInfo.InvariantCulture);
-
     private static readonly TimeSpan MessageAtLeast = TimeSpan.FromSeconds(3);
 
     private void Say(string text)
     {
         _message.StringValue = text;
+        RefreshStatusLine();
         var showOverPicture = OnScreenMessage.Shows(text, _settings.OnScreenMessages);
         SetVideoOSD(showOverPicture ? text : "");
         _clearMessage?.Invalidate();
@@ -960,6 +1172,7 @@ public sealed partial class MainWindow : IDisposable
         _clearMessage = NSTimer.CreateScheduledTimer(readFor > MessageAtLeast ? readFor : MessageAtLeast, _ =>
         {
             _message.StringValue = "";
+            RefreshStatusLine();
             SetVideoOSD("");
         });
     }

@@ -8,21 +8,19 @@ namespace Rex.Media.App.Mac;
 public sealed partial class MainWindow
 {
     private ResumePoint? _crashRecovery;
-    private NSStackView? _crashBanner;
-    private NSTextField? _crashNotice;
+    private NSView? _crashBanner;
+    private RexLabel? _crashNotice;
     private NSTimer? _crashTimer;
 
-    private void AddCrashRecoveryBanner(NSStackView chrome)
+    /// <summary>The offer to resume after a crash, for the bar to stack above its seek row.</summary>
+    private NSView BuildCrashRecoveryBanner()
     {
-        _crashNotice = NSTextField.CreateWrappingLabel("rexplayer did not close cleanly.");
-        _crashNotice.TextColor = NSColor.SecondaryLabel;
-        var resume = NSButton.CreateButton("Resume last file", () => AnswerCrashRecovery(true));
-        var dismiss = NSButton.CreateButton("Dismiss", () => AnswerCrashRecovery(false));
-        _crashBanner = NSStackView.FromViews([_crashNotice, resume, dismiss]);
-        _crashBanner.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-        _crashBanner.Spacing = 8;
-        _crashBanner.Hidden = true;
-        chrome.InsertArrangedSubview(_crashBanner, 0);
+        _crashNotice = MacTheme.WrappingLabel("rexplayer did not close cleanly.");
+        _crashNotice.SetContentHuggingPriorityForOrientation(1, NSLayoutConstraintOrientation.Horizontal);
+        var resume = MacTheme.TextButton("Resume last file", () => AnswerCrashRecovery(true), RexButtonLook.Accent);
+        var dismiss = MacTheme.TextButton("Dismiss", () => AnswerCrashRecovery(false));
+        _crashBanner = Banner(false, _crashNotice, resume, dismiss);
+        return _crashBanner;
     }
 
     private void BeginCrashRecovery()

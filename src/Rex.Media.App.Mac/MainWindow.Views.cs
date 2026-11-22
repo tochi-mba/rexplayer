@@ -1,3 +1,4 @@
+using Rex.Media.AppCore.Design;
 using Rex.Media.Diagnostics;
 using Rex.Media.Video.Metal;
 
@@ -17,7 +18,7 @@ public sealed partial class MainWindow
         {
             WantsLayer = true;
             Layer = _layer;
-            _layer.BackgroundColor = NSColor.Black.CGColor;
+            _layer.BackgroundColor = MacTheme.Stage.CGColor;
             try
             {
                 Presenter = MetalPresenter.ForLayer(_layer);
@@ -43,6 +44,54 @@ public sealed partial class MainWindow
             Presenter?.Resize((int)(Bounds.Width * scale), (int)(Bounds.Height * scale));
             Presenter?.Redraw();
         }
+    }
+
+    /// <summary>
+    /// The clock at the right of the seek bar, as on Windows: what is left or the whole length, in
+    /// figures that keep their width, and a click switches between the two. It is a borderless
+    /// button so a pointer and assistive tools can press it; Tab passes it by, as Windows does.
+    /// </summary>
+    private sealed class ClockButton : NSButton
+    {
+        private string _clock = "--:--";
+
+        public ClockButton(Action toggle)
+        {
+            Bordered = false;
+            RefusesFirstResponder = true;
+            TranslatesAutoresizingMaskIntoConstraints = false;
+            ToolTip = "Click to switch between remaining and total time";
+            ((NSView)this).AccessibilityLabel = "Remaining time";
+            SetButtonType(NSButtonType.MomentaryChange);
+            Activated += (_, _) => toggle();
+            Render();
+        }
+
+        /// <summary>The time shown.</summary>
+        public string Clock
+        {
+            get => _clock;
+            set
+            {
+                if (_clock != value)
+                {
+                    _clock = value;
+                    Render();
+                }
+            }
+        }
+
+        public override void ViewDidChangeEffectiveAppearance()
+        {
+            base.ViewDidChangeEffectiveAppearance();
+            Render();
+        }
+
+        private void Render() => AttributedTitle = new NSAttributedString(_clock, new NSStringAttributes
+        {
+            Font = MacTheme.DigitFont(2),
+            ForegroundColor = MacTheme.Role(DesignRole.TextPrimary, EffectiveAppearance),
+        });
     }
 
     /// <summary>The window's content: takes files and folders dropped on it.</summary>

@@ -26,10 +26,10 @@ public sealed partial class MainWindow
         var controls = 0;
         var missing = 0;
         NSWindow?[] windows = [
-            _window, _libraryWindow, _playbackTools, _preferencesWindow,
+            _window, _playbackTools, _preferencesWindow,
             _mediaInformationWindow, _musicVisualizerWindow, _macCaptionSettings,
             _logWindow, _savedPlaylistsWindow, _shortcutsWindow, _firstRunWindow,
-            _whatsNewWindow, _queueWindow, _queueTimingWindow, _effectsWindow,
+            _whatsNewWindow, _queueTimingWindow, _effectsWindow,
             _historyWindow, _subtitleStyleWindow, _tracksWindow, _macSpeechWindow,
             _updatesWindow,
         ];

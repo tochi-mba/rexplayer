@@ -32,8 +32,10 @@ public sealed partial class MainWindow
         if (_minimalInterface)
         {
             _minimalInterface = false;
-            if (_chrome is not null) _chrome.Hidden = false;
+            PlaceChrome();
         }
+
+        RevealFullScreenController();
 
         // F6 moves between the three principal player regions, while Tab continues
         // through controls within a region. The first F6 focuses transport.
