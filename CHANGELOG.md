@@ -2,6 +2,20 @@
 
 Every version of rexplayer that reaches users, newest first. CI publishes a version when its number reaches `main`.
 
+## 0.36.0 - 2026-11-22
+
+### Changed
+
+- **The Mac app looks like rexplayer.** It was drawn with plain system buttons on a grey window; it now has the design the Windows app has: a black stage, the same colours in light and dark, and icons in place of worded buttons.
+- **A new player bar on the Mac.** The timeline sits on its own line with the time played at the left and the time left at the right (click it for the whole length). Under it are Previous, a round Play button, Stop and Next, then Shuffle, Repeat, Up Next, Library and Full screen, with the title in the middle and speed, mute and volume at the right. Open file moved to the menu and the welcome screen.
+- **The Mac library and Up Next open inside the player window**, as on Windows, not in windows of their own. The library takes the stage's place, with its sections down the left, a banner with Play, Shuffle and Add to queue, and sorting and grouping; Up Next is a pane at the right whose rows you can drag, with Undo for a reorder or a removal. Escape closes either.
+- **Mac settings and tool windows are laid out as pages.** Preferences, shortcuts, subtitle appearance, updates, tracks, effects, playback tools, media information, the log, the transcript reader and caption settings group their controls in cards, with the wording Windows uses where both have the setting. The equaliser shows each band's frequency and gain, and subtitle appearance has a live preview.
+
+### Fixed
+
+- **Mac visualisations are drawn properly.** Bars and meters were rows of text characters, and scenes were a small picture stretched to the window and redrawn about eight times a second. Bars, meters and the oscilloscope are now drawn, and scenes are made at the size of the stage and redrawn 30 to 60 times a second.
+- On the Mac, "Files opened that way join the playlist" can only be ticked while "Use one window" is on, as on Windows.
+
 ## 0.35.0 - 2026-11-18
 
 ### Added
