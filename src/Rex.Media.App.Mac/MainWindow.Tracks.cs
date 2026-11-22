@@ -1,5 +1,6 @@
 using System.Globalization;
 using Rex.Media.AppCore.Automation;
+using Rex.Media.AppCore.Design;
 using Rex.Media.Primitives;
 
 namespace Rex.Media.App.Mac;
@@ -53,20 +54,7 @@ public sealed partial class MainWindow
     {
         if (_tracksWindow is null)
         {
-            _tracksWindow = new NSWindow(new CGRect(0, 0, 600, 490),
-                NSWindowStyle.Titled | NSWindowStyle.Closable | NSWindowStyle.Resizable,
-                NSBackingStore.Buffered, false)
-            {
-                Title = "Tracks & subtitle synchronisation - rexplayer",
-                MinSize = new CGSize(520, 410),
-            };
-            _tracksWindow.ReleaseWhenClosed(false);
-            var heading = NSTextField.CreateLabel("Tracks & subtitles");
-            heading.Font = NSFont.SystemFontOfSize(23, NSFontWeight.Semibold)!;
-            var info = NSTextField.CreateWrappingLabel(
-                "Select an audio track and up to two simultaneous subtitle tracks. " +
-                "Move subtitles earlier or later to match the soundtrack.");
-            info.TextColor = NSColor.SecondaryLabel;
+            _tracksWindow = MacToolViews.ToolWindow("Tracks & subtitle synchronisation - rexplayer", 600, 600, 520, 420);
             _tracksAudio = new NSPopUpButton(new CGRect(0, 0, 310, 28), false);
             _tracksPrimary = new NSPopUpButton(new CGRect(0, 0, 310, 28), false);
             _tracksSecondary = new NSPopUpButton(new CGRect(0, 0, 310, 28), false);
@@ -96,68 +84,57 @@ public sealed partial class MainWindow
                         ? _player.SubtitleTracks[index] : null);
                 }
             };
-            var add = NSButton.CreateButton("Add subtitle file…", () =>
+            var add = MacTheme.TextButton("Add subtitle file…", () =>
             {
                 AddSubtitleWithPanel();
                 RefreshTrackTools();
-            });
-            _tracksDelay = NSTextField.CreateLabel("Subtitles in sync");
-            _tracksDelay.Font = NSFont.MonospacedDigitSystemFontOfSize(13, NSFontWeight.Regular)!;
+            }, RexButtonLook.Accent, "plus");
+            _tracksDelay = MacTheme.Label("Subtitles in sync");
+            _tracksDelay.Font = MacTheme.DigitFont(2);
             _tracksExactDelay = new NSTextField(new CGRect(0, 0, 140, 26))
             {
                 PlaceholderString = "Milliseconds",
                 ToolTip = "An exact subtitle offset between -10000 and 10000 milliseconds",
             };
-            var earlier = NSButton.CreateButton("Earlier 50 ms", () =>
+            _tracksExactDelay.WidthAnchor.ConstraintEqualTo(120).Active = true;
+            ((NSView)_tracksExactDelay).AccessibilityLabel = "Exact subtitle delay in milliseconds";
+            var earlier = MacTheme.TextButton("Earlier 50 ms", () =>
                 _player.SetSubtitleDelay(_player.SubtitleDelay - TimeSpan.FromMilliseconds(50)));
-            var later = NSButton.CreateButton("Later 50 ms", () =>
+            var later = MacTheme.TextButton("Later 50 ms", () =>
                 _player.SetSubtitleDelay(_player.SubtitleDelay + TimeSpan.FromMilliseconds(50)));
-            var reset = NSButton.CreateButton("Reset delay", () => _player.SetSubtitleDelay(TimeSpan.Zero));
-            var set = NSButton.CreateButton("Set exact delay", ApplyExactSubtitleDelay);
-            _tracksSyncMarks = NSTextField.CreateWrappingLabel(
-                "Mark the audio and subtitle events you want aligned, then apply their difference.");
-            _tracksSyncMarks.TextColor = NSColor.SecondaryLabel;
-            var markAudio = NSButton.CreateButton("Mark audio event", () =>
+            var reset = MacTheme.TextButton("Reset delay", () => _player.SetSubtitleDelay(TimeSpan.Zero));
+            var set = MacTheme.TextButton("Set exact delay", ApplyExactSubtitleDelay);
+            _tracksSyncMarks = MacTheme.WrappingLabel(
+                "Mark the audio and subtitle events you want aligned, then apply their difference.", 1, DesignRole.TextSecondary);
+            var markAudio = MacTheme.TextButton("Mark audio event", () =>
             {
                 _audioSyncMark = _player.Position;
                 ShowSubtitleSyncMarks();
             });
-            var markSubtitle = NSButton.CreateButton("Mark subtitle event", () =>
+            var markSubtitle = MacTheme.TextButton("Mark subtitle event", () =>
             {
                 _subtitleSyncMark = _player.Position;
                 ShowSubtitleSyncMarks();
             });
-            var sync = NSButton.CreateButton("Align marked events", AlignSubtitleMarks);
-            var delayButtons = NSStackView.FromViews([earlier, later, reset]);
-            delayButtons.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            delayButtons.Spacing = 8;
-            var exact = NSStackView.FromViews([_tracksExactDelay, set]);
-            exact.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            exact.Spacing = 8;
-            var marks = NSStackView.FromViews([markAudio, markSubtitle, sync]);
-            marks.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            marks.Spacing = 8;
-            var stack = NSStackView.FromViews([
-                heading, info, EffectChoiceRow("Audio", _tracksAudio),
-                EffectChoiceRow("Subtitles", _tracksPrimary),
-                EffectChoiceRow("Second subtitle", _tracksSecondary),
-                add, EffectsHeading("Subtitle synchronisation"),
-                _tracksDelay, delayButtons, exact, _tracksSyncMarks, marks,
-            ]);
-            stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-            stack.Alignment = NSLayoutAttribute.Leading;
-            stack.Spacing = 11;
-            stack.EdgeInsets = new NSEdgeInsets(20, 24, 20, 24);
-            stack.TranslatesAutoresizingMaskIntoConstraints = false;
-            var root = new NSView(new CGRect(0, 0, 600, 490));
-            root.AddSubview(stack);
-            stack.TopAnchor.ConstraintEqualTo(root.TopAnchor).Active = true;
-            stack.BottomAnchor.ConstraintEqualTo(root.BottomAnchor).Active = true;
-            stack.LeadingAnchor.ConstraintEqualTo(root.LeadingAnchor).Active = true;
-            stack.TrailingAnchor.ConstraintEqualTo(root.TrailingAnchor).Active = true;
-            info.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            _tracksSyncMarks.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            _tracksWindow.ContentView = root;
+            var sync = MacTheme.TextButton("Align marked events", AlignSubtitleMarks);
+            var page = MacToolViews.ToolPage("Tracks & subtitles",
+                "Select an audio track and up to two simultaneous subtitle tracks. " +
+                "Move subtitles earlier or later to match the soundtrack.",
+                MacToolViews.ToolCard("Audio",
+                    MacToolViews.ToolRow("Audio track", null, _tracksAudio)),
+                MacToolViews.ToolCard("Subtitles",
+                    MacToolViews.ToolRow("Subtitles", null, _tracksPrimary),
+                    MacToolViews.ToolRow("Second subtitle", null, _tracksSecondary),
+                    MacToolViews.ToolButtons(add)),
+                MacToolViews.ToolCard("Subtitle synchronisation",
+                    _tracksDelay,
+                    MacToolViews.ToolButtons(earlier, later, reset),
+                    MacToolViews.ToolRow("Exact delay", "Between -10000 and 10000 milliseconds",
+                        MacToolViews.ToolButtons(_tracksExactDelay, set)),
+                    MacTheme.Separator(),
+                    _tracksSyncMarks,
+                    MacToolViews.ToolButtons(markAudio, markSubtitle, sync)));
+            MacToolViews.Host(_tracksWindow, page, scrolls: true);
             _tracksWindow.Center();
         }
 

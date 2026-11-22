@@ -1,6 +1,7 @@
 using Rex.Media.AppCore;
 using Rex.Media.AppCore.Automation;
 using Rex.Media.AppCore.Captions;
+using Rex.Media.AppCore.Design;
 using Rex.Media.AppCore.Transcription;
 using Rex.Media.Codecs.Apple;
 using Rex.Media.Settings;
@@ -23,6 +24,7 @@ public sealed partial class MainWindow
     private string? _macAsked;
     private NSWindow? _macSpeechWindow;
     private NSTextField? _macSpeechStatus;
+    private NSProgressIndicator? _macSpeechProgress;
     private NSPopUpButton? _macSpeechQuality;
     private NSButton? _macSpeechLibrary;
     private NSButton? _macSpeechPlaying;
@@ -55,51 +57,49 @@ public sealed partial class MainWindow
     {
         if (_macSpeechWindow is null)
         {
-            _macSpeechWindow = new NSWindow(new CGRect(0, 0, 620, 450),
-                NSWindowStyle.Titled | NSWindowStyle.Closable,
-                NSBackingStore.Buffered, false) { Title = "Speech transcription - rexplayer" };
-            _macSpeechWindow.ReleaseWhenClosed(false);
-            var title = NSTextField.CreateLabel("Transcribe speech offline");
-            title.Font = NSFont.SystemFontOfSize(23, NSFontWeight.Semibold)!;
-            var intro = NSTextField.CreateWrappingLabel(
-                "Speech stays on this Mac. The open speech model is downloaded only on your request, " +
-                "with a pinned SHA-256 check. Playback has priority over library jobs.");
-            intro.TextColor = NSColor.SecondaryLabel;
+            _macSpeechWindow = MacToolViews.ToolWindow("Speech transcription - rexplayer", 640, 640, 560, 440);
             _macSpeechQuality = EffectChoices([.. SpeechModels.QualityChoices]);
             _macSpeechQuality.Activated += (_, _) => SaveMacSpeechOptions();
             _macSpeechLibrary = NSButton.CreateCheckbox("Transcribe watched videos in the background", SaveMacSpeechOptions);
             _macSpeechPlaying = NSButton.CreateCheckbox("Transcribe what plays from its playhead", SaveMacSpeechOptions);
             _macSpeechPaused = NSButton.CreateCheckbox("Pause background transcription", SaveMacSpeechOptions);
             _macSpeechSrt = NSButton.CreateCheckbox("Keep original and edited SRT files beside transcribed media", SaveMacSpeechOptions);
-            _macSpeechStatus = NSTextField.CreateWrappingLabel("");
-            _macSpeechStatus.TextColor = NSColor.SecondaryLabel;
-            var download = NSButton.CreateButton("Download model", DownloadMacModel);
-            var current = NSButton.CreateButton("Transcribe this file", AskMacSpeech);
-            var export = NSButton.CreateButton("Export captions…", ExportMacSpeech);
-            var read = NSButton.CreateButton(MacReaderMenuTitle, ShowMacReader);
-            var clean = NSButton.CreateButton("Remove SRT copies", CleanMacGeneratedTranscriptSrts);
-            clean.ToolTip = "Remove the generated SRT copies beside known media; authored subtitles stay";
-            var controls = NSStackView.FromViews([download, current, export, read, clean]);
-            controls.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            controls.Spacing = 9;
-            var stack = NSStackView.FromViews([
-                title, intro, EffectChoiceRow("Model", _macSpeechQuality),
-                _macSpeechLibrary, _macSpeechPlaying, _macSpeechPaused, _macSpeechSrt, _macSpeechStatus, controls,
-            ]);
-            stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-            stack.Alignment = NSLayoutAttribute.Leading;
-            stack.Spacing = 16;
-            stack.EdgeInsets = new NSEdgeInsets(22, 24, 22, 24);
-            stack.TranslatesAutoresizingMaskIntoConstraints = false;
-            var root = new NSView(new CGRect(0, 0, 620, 450));
-            root.AddSubview(stack);
-            stack.TopAnchor.ConstraintEqualTo(root.TopAnchor).Active = true;
-            stack.BottomAnchor.ConstraintEqualTo(root.BottomAnchor).Active = true;
-            stack.LeadingAnchor.ConstraintEqualTo(root.LeadingAnchor).Active = true;
-            stack.TrailingAnchor.ConstraintEqualTo(root.TrailingAnchor).Active = true;
-            intro.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            _macSpeechStatus.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            _macSpeechWindow.ContentView = root;
+            _macSpeechStatus = MacTheme.WrappingLabel("", 2, DesignRole.TextSecondary);
+            _macSpeechProgress = new NSProgressIndicator
+            {
+                Style = NSProgressIndicatorStyle.Bar,
+                Indeterminate = false,
+                MinValue = 0,
+                MaxValue = 100,
+                Hidden = _macDownloadingModel is null,
+                TranslatesAutoresizingMaskIntoConstraints = false,
+            };
+            ((NSView)_macSpeechProgress).AccessibilityLabel = "Speech model download progress";
+            _macSpeechProgress.WidthAnchor.ConstraintEqualTo(320).Active = true;
+            var download = MacTheme.TextButton("Download model", DownloadMacModel, RexButtonLook.Accent, "square.and.arrow.down");
+            var current = MacTheme.TextButton("Transcribe this file", AskMacSpeech, symbol: "waveform");
+            var export = MacTheme.TextButton("Export captions…", ExportMacSpeech);
+            var read = MacTheme.TextButton(MacReaderMenuTitle, ShowMacReader, symbol: "text.quote");
+            var clean = MacTheme.TextButton("Remove SRT copies", CleanMacGeneratedTranscriptSrts, symbol: "trash",
+                label: "Remove the generated SRT copies beside known media; authored subtitles stay");
+            var page = MacToolViews.ToolPage("Transcribe speech offline",
+                "Speech stays on this Mac. The open speech model is downloaded only on your request, " +
+                "with a pinned SHA-256 check. Playback has priority over library jobs.",
+                MacToolViews.ToolCard("Speech model",
+                    MacToolViews.ToolRow("Model", null, _macSpeechQuality),
+                    _macSpeechStatus,
+                    // The bar sits in a row of its own, which stays while the bar hides.
+                    MacToolViews.ToolButtons(_macSpeechProgress),
+                    MacToolViews.ToolButtons(download)),
+                MacToolViews.ToolCard("Transcription",
+                    MacToolViews.ToolCheck(_macSpeechPlaying),
+                    MacToolViews.ToolCheck(_macSpeechLibrary),
+                    MacToolViews.ToolCheck(_macSpeechPaused),
+                    MacToolViews.ToolButtons(current, read)),
+                MacToolViews.ToolCard("Captions",
+                    MacToolViews.ToolCheck(_macSpeechSrt),
+                    MacToolViews.ToolButtons(export, clean)));
+            MacToolViews.Host(_macSpeechWindow, page, scrolls: true);
             _macSpeechWindow.Center();
         }
 
@@ -180,6 +180,7 @@ public sealed partial class MainWindow
             {
                 _macSpeechStatus.StringValue = model.Name + ": " +
                     Math.Round(share * 100) + "% downloaded";
+                ShowMacModelProgress(share);
             }
         }));
         _ = Task.Run(async () =>
@@ -191,6 +192,7 @@ public sealed partial class MainWindow
                 {
                     _macDownloadingModel = null;
                     cancellation.Dispose();
+                    ShowMacModelProgress(null);
                     Say("Speech model verified and ready.");
                     MacSpeechTick();
                     ShowMacSpeechStatus();
@@ -204,11 +206,20 @@ public sealed partial class MainWindow
                 {
                     _macDownloadingModel = null;
                     cancellation.Dispose();
+                    ShowMacModelProgress(null);
                     if (_macSpeechStatus is not null) _macSpeechStatus.StringValue =
                         "Speech model download failed: " + ex.Message;
                 });
             }
         });
+    }
+
+    /// <summary>Shows how much of the model has arrived, or hides the bar when nothing is downloading.</summary>
+    private void ShowMacModelProgress(double? share)
+    {
+        if (_macSpeechProgress is null) return;
+        _macSpeechProgress.Hidden = share is null;
+        _macSpeechProgress.DoubleValue = Math.Clamp((share ?? 0) * 100, 0, 100);
     }
 
     private void AskMacSpeech()

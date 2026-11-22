@@ -1,6 +1,7 @@
 using System.Globalization;
 using Rex.Media.Audio;
 using Rex.Media.AppCore.Automation;
+using Rex.Media.AppCore.Design;
 using Rex.Media.Settings;
 
 namespace Rex.Media.App.Mac;
@@ -21,29 +22,17 @@ public sealed partial class MainWindow
     private NSButton? _effectsDoublePass;
     private NSTextField? _effectsPresetName;
     private readonly List<NSSlider> _effectsBands = [];
+    private readonly List<Action> _effectsReadouts = [];
     private bool _effectsLoading;
 
     private void ShowEffects()
     {
         if (_effectsWindow is null)
         {
-            _effectsWindow = new NSWindow(new CGRect(0, 0, 650, 620),
-                NSWindowStyle.Titled | NSWindowStyle.Closable | NSWindowStyle.Resizable,
-                NSBackingStore.Buffered, false)
-            {
-                Title = "Effects & filters - rexplayer",
-                MinSize = new CGSize(520, 480),
-            };
-            _effectsWindow.ReleaseWhenClosed(false);
-
-            var heading = NSTextField.CreateLabel("Effects & filters");
-            heading.Font = NSFont.SystemFontOfSize(24, NSFontWeight.Semibold)!;
-            var hint = NSTextField.CreateWrappingLabel(
-                "Change your sound as it plays. The equalizer, channels and loudness policy " +
-                "apply to subsequent tracks too.");
-            hint.TextColor = NSColor.SecondaryLabel;
-            _effectsEnabled = NSButton.CreateCheckbox("Enable 10-band equalizer", () => ApplyEffects());
-            _effectsPreset = new NSPopUpButton(new CGRect(0, 0, 240, 28), false);
+            _effectsWindow = MacToolViews.ToolWindow("Effects & filters - rexplayer", 700, 680, 600, 480);
+            _effectsEnabled = NSButton.CreateCheckbox("Equaliser", () => ApplyEffects());
+            ((NSView)_effectsEnabled).AccessibilityLabel = "Enable 10-band equaliser";
+            _effectsPreset = new NSPopUpButton(new CGRect(0, 0, 220, 28), false);
             _effectsPreset.AddItem("Custom");
             foreach (var preset in EqualizerSettings.Presets)
             {
@@ -52,47 +41,20 @@ public sealed partial class MainWindow
             foreach (var name in MacUserPresetNames) _effectsPreset.AddItem(name);
 
             _effectsPreset.Activated += (_, _) => ApplyEffectPreset();
-            _effectsPreamp = EffectSlider(0);
+            ((NSView)_effectsPreset).AccessibilityLabel = "Equaliser preset";
+            _effectsPreamp = EffectSlider(0, vertical: true);
             _effectsDoublePass = NSButton.CreateCheckbox("Double-pass equalizer", ApplyEffects);
             _effectsPresetName = new NSTextField(new CGRect(0, 0, 220, 24))
             {
                 PlaceholderString = "My preset",
             };
+            _effectsPresetName.WidthAnchor.ConstraintEqualTo(180).Active = true;
             ((NSView)_effectsPresetName).AccessibilityLabel = "Equalizer preset name";
-            var savePreset = NSButton.CreateButton("Save user preset", SaveMacEqualizerPreset);
-            var presetEditor = NSStackView.FromViews([_effectsPresetName, savePreset]);
-            presetEditor.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            presetEditor.Spacing = 8;
+            var savePreset = MacTheme.TextButton("Save user preset", SaveMacEqualizerPreset);
             _effectsLoudnessPreamp = EffectSlider(0);
             _effectsLoudnessUntagged = EffectSlider(0);
             _effectsLoudnessPeak = NSButton.CreateCheckbox("Prevent clipping at tagged peak", ApplyEffects);
-            var rows = new List<NSView>
-            {
-                heading, hint, _effectsEnabled,
-                EffectChoiceRow("Equalizer preset", _effectsPreset),
-                EffectsHeading("10-band graphic equalizer"),
-                EffectGainRow("Preamp", _effectsPreamp),
-                _effectsDoublePass,
-                presetEditor,
-            };
-            for (var i = 0; i < MacBandNames.Length; i++)
-            {
-                var band = EffectSlider(0);
-                _effectsBands.Add(band);
-                rows.Add(EffectGainRow(MacBandNames[i] + " Hz", band));
-            }
-
-            _effectsStereo = EffectChoices(["Stereo", "Mono", "Left only", "Right only", "Reversed",
-                "Headphone cross-feed", "Matrix-surround decode"]);
-            _effectsLoudness = EffectChoices(["Off", "Per track", "Per album"]);
-            rows.Add(EffectsHeading("Channel mixing"));
-            rows.Add(EffectChoiceRow("Stereo mode", _effectsStereo));
-            rows.Add(EffectsHeading("ReplayGain / R128"));
-            rows.Add(EffectChoiceRow("Loudness tags", _effectsLoudness));
-            rows.Add(EffectGainRow("Loudness preamp", _effectsLoudnessPreamp));
-            rows.Add(EffectGainRow("Untagged fallback gain", _effectsLoudnessUntagged));
-            rows.Add(_effectsLoudnessPeak);
-            var reset = NSButton.CreateButton("Reset equalizer to flat", () =>
+            var reset = MacTheme.TextButton("Reset", () =>
             {
                 _effectsLoading = true;
                 _effectsPreset!.SelectItem(0);
@@ -103,34 +65,43 @@ public sealed partial class MainWindow
                 }
 
                 _effectsLoading = false;
+                ShowEffectReadouts();
                 ApplyEffects();
-            });
-            rows.Add(reset);
-            var content = NSStackView.FromViews([.. rows]);
-            content.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-            content.Alignment = NSLayoutAttribute.Leading;
-            content.Spacing = 12;
-            content.EdgeInsets = new NSEdgeInsets(16, 24, 16, 24);
-            content.Frame = new CGRect(0, 0, 590, 1120);
-            var scroll = new NSScrollView(new CGRect(0, 0, 650, 620))
+            }, label: "Reset equalizer to flat");
+            var strip = new List<NSView> { EffectBand("Preamp", _effectsPreamp) };
+            for (var i = 0; i < MacBandNames.Length; i++)
             {
-                HasVerticalScroller = true,
-                AutohidesScrollers = true,
-            };
-            scroll.DocumentView = content;
-            _effectsWindow.ContentView = scroll;
+                var band = EffectSlider(0, vertical: true);
+                _effectsBands.Add(band);
+                strip.Add(EffectBand(MacBandNames[i] + " Hz", band));
+            }
+
+            var bands = MacTheme.Stack(false, 1, [.. strip]);
+            bands.Alignment = NSLayoutAttribute.Top;
+            _effectsStereo = EffectChoices(["Stereo", "Mono", "Left only", "Right only", "Left and right swapped",
+                "Headphone cross-feed", "Matrix-surround decode"]);
+            _effectsLoudness = EffectChoices(["Off", "Each track alike", "Each album alike"]);
+            var page = MacToolViews.ToolPage("Effects & filters",
+                "Change your sound as it plays. The equalizer, channels and loudness policy " +
+                "apply to subsequent tracks too.",
+                MacToolViews.ToolCard("10-band graphic equalizer",
+                    MacToolViews.ToolRow("Preset", null, MacToolViews.ToolButtons(_effectsEnabled, _effectsPreset, reset)),
+                    bands,
+                    MacToolViews.ToolCheck(_effectsDoublePass),
+                    MacToolViews.ToolRow("User preset", null, MacToolViews.ToolButtons(_effectsPresetName, savePreset))),
+                MacToolViews.ToolCard("Channel mixing",
+                    MacToolViews.ToolRow("Stereo mode", null, _effectsStereo)),
+                MacToolViews.ToolCard("ReplayGain / R128",
+                    MacToolViews.ToolRow("Even out loudness with the media's tags", null, _effectsLoudness),
+                    EffectGainRow("Loudness preamp", _effectsLoudnessPreamp),
+                    EffectGainRow("Untagged fallback gain", _effectsLoudnessUntagged),
+                    MacToolViews.ToolCheck(_effectsLoudnessPeak)));
+            MacToolViews.Host(_effectsWindow, page, scrolls: true);
             _effectsWindow.Center();
         }
 
         LoadEffects();
         _effectsWindow.MakeKeyAndOrderFront(null);
-    }
-
-    private static NSTextField EffectsHeading(string title)
-    {
-        var label = NSTextField.CreateLabel(title);
-        label.Font = NSFont.SystemFontOfSize(14, NSFontWeight.Semibold)!;
-        return label;
     }
 
     private static NSPopUpButton EffectChoices(string[] titles)
@@ -144,39 +115,67 @@ public sealed partial class MainWindow
         return popup;
     }
 
-    private NSSlider EffectSlider(double initial)
+    private NSSlider EffectSlider(double initial, bool vertical = false)
     {
         var slider = NSSlider.FromValue(initial, -EqualizerSettings.Limit, EqualizerSettings.Limit, ApplyEffects);
         slider.Continuous = true;
-        slider.WidthAnchor.ConstraintGreaterThanOrEqualTo(300).Active = true;
+        if (vertical)
+        {
+            slider.IsVertical = true;
+            slider.TickMarksCount = 5;
+            slider.HeightAnchor.ConstraintEqualTo(180).Active = true;
+        }
+        else
+        {
+            slider.WidthAnchor.ConstraintGreaterThanOrEqualTo(220).Active = true;
+        }
+
         return slider;
     }
 
-    private static NSStackView EffectChoiceRow(string name, NSPopUpButton choices)
+    /// <summary>A gain in decibels as a row: the slider and, beside it, its value in figures that keep their width.</summary>
+    private NSStackView EffectGainRow(string name, NSSlider slider)
     {
-        var title = NSTextField.CreateLabel(name);
-        title.WidthAnchor.ConstraintEqualTo(160).Active = true;
-        var row = NSStackView.FromViews([title, choices]);
-        row.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-        row.Spacing = 12;
-        return row;
-    }
-
-    private static NSStackView EffectGainRow(string name, NSSlider slider)
-    {
-        var title = NSTextField.CreateLabel(name);
-        title.WidthAnchor.ConstraintEqualTo(160).Active = true;
-        var value = NSTextField.CreateLabel("");
-        value.Font = NSFont.MonospacedDigitSystemFontOfSize(12, NSFontWeight.Regular)!;
-        value.WidthAnchor.ConstraintEqualTo(74).Active = true;
+        var value = MacTheme.Label("", 1, DesignRole.TextSecondary);
+        value.Font = MacTheme.DigitFont(1);
+        value.Alignment = NSTextAlignment.Right;
+        value.WidthAnchor.ConstraintEqualTo(64).Active = true;
         void Show() => value.StringValue =
             slider.DoubleValue.ToString("+0.0;-0.0;0.0", CultureInfo.InvariantCulture) + " dB";
         slider.Activated += (_, _) => Show();
+        _effectsReadouts.Add(Show);
         Show();
-        var row = NSStackView.FromViews([title, slider, value]);
-        row.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-        row.Spacing = 12;
-        return row;
+        ((NSView)slider).AccessibilityLabel = name;
+        return MacToolViews.ToolRow(name, null, MacToolViews.ToolButtons(slider, value));
+    }
+
+    /// <summary>
+    /// One band of the equaliser as Windows draws it: its frequency above a vertical slider and the
+    /// gain under it, which follows the slider whether a person or a preset moves it.
+    /// </summary>
+    private NSStackView EffectBand(string name, NSSlider slider)
+    {
+        var title = MacTheme.Label(name.Replace(" Hz", "", StringComparison.Ordinal), 1, DesignRole.TextSecondary);
+        var value = MacTheme.Label("", 1, DesignRole.TextPrimary);
+        value.Font = MacTheme.DigitFont(1);
+        void Show() => value.StringValue = slider.DoubleValue.ToString("+0.#;-0.#;0", CultureInfo.InvariantCulture);
+        slider.Activated += (_, _) => Show();
+        _effectsReadouts.Add(Show);
+        Show();
+        ((NSView)slider).AccessibilityLabel = name + " gain";
+        var band = MacTheme.Stack(true, 0, title, slider, value);
+        band.Alignment = NSLayoutAttribute.CenterX;
+        band.WidthAnchor.ConstraintEqualTo(44).Active = true;
+        return band;
+    }
+
+    /// <summary>Shows each slider's value again after code, not a person, moved it: a preset, Reset, the saved settings.</summary>
+    private void ShowEffectReadouts()
+    {
+        foreach (var show in _effectsReadouts)
+        {
+            show();
+        }
     }
 
     private void LoadEffects()
@@ -205,6 +204,7 @@ public sealed partial class MainWindow
         _effectsLoudnessUntagged!.DoubleValue = _settings.LoudnessUntaggedGain;
         _effectsLoudnessPeak!.State = State(_settings.LoudnessPreventClipping);
         _effectsLoading = false;
+        ShowEffectReadouts();
     }
 
     private void ApplyEffectPreset()
@@ -230,6 +230,7 @@ public sealed partial class MainWindow
             }
 
             _effectsLoading = false;
+            ShowEffectReadouts();
         }
 
         ApplyEffects();
@@ -305,6 +306,7 @@ public sealed partial class MainWindow
             _effectsLoudnessPreamp!.DoubleValue = 3.5;
             _effectsLoudnessUntagged!.DoubleValue = -7.0;
             _effectsLoudnessPeak!.State = NSCellStateValue.On;
+            ShowEffectReadouts();
             ApplyEffects();
         }
         else if (action != "status")
