@@ -4243,8 +4243,10 @@
       "oracles": "UIA PIX",
       "status": {
         "windows": "built",
-        "macos": "built"
-      }
+        "macos": "gap"
+      },
+      "parityNote": "The Mac library has the navigation column, banner, search, sorting, grouping and list of Windows, but not yet its Music home, Albums, Artists, Genres, Movies, TV Shows, Podcasts, Audiobooks and Playlists pages, the grid view, descending sort or the filters by progress and folder; its list is paged where Windows scrolls.",
+      "parityIssue": 626
     },
     {
       "id": "LOOK-05",

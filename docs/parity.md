@@ -6,7 +6,19 @@ platform while the other catches up; under *locked* every must row is verified o
 applicable with a reason, and CI blocks a release otherwise (ADR-0020). A **gap** is a difference someone has
 accepted for now: its note says why and its issue says who closes it.
 
-Totals: 2 rows differ (1 must), 2 not applicable, 0 gaps.
+Totals: 5 rows differ (3 must), 2 not applicable, 1 gaps.
+
+## Audio
+
+| ID | Capability | Priority | Windows | macOS | Note |
+|---|---|---|---|---|---|
+| AU-18 | Visualisations | should | verified | built |  |
+
+## UI surface
+
+| ID | Capability | Priority | Windows | macOS | Note |
+|---|---|---|---|---|---|
+| UI-01 | Main window | must | verified | built |  |
 
 ## Platform integration
 
@@ -14,3 +26,9 @@ Totals: 2 rows differ (1 must), 2 not applicable, 0 gaps.
 |---|---|---|---|---|---|
 | WIN-03 | Explorer verbs | must | planned | not-applicable | Explorer verbs are Windows' own; on macOS the Finder's Open With comes from the file associations (WIN-02). |
 | WIN-04 | AutoPlay handlers | should | planned | not-applicable | AutoPlay has no macOS equivalent. |
+
+## Look
+
+| ID | Capability | Priority | Windows | macOS | Note |
+|---|---|---|---|---|---|
+| LOOK-04 | Library | must | built | gap | The Mac library has the navigation column, banner, search, sorting, grouping and list of Windows, but not yet its Music home, Albums, Artists, Genres, Movies, TV Shows, Podcasts, Audiobooks and Playlists pages, the grid view, descending sort or the filters by progress and folder; its list is paged where Windows scrolls. (#626) |

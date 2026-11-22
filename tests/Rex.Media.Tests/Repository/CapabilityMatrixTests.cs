@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using Rex.Media.AppCore.Design;
 using Rex.Media.TestKit;
 
 namespace Rex.Media.Tests.Repository;
@@ -14,7 +15,8 @@ namespace Rex.Media.Tests.Repository;
 /// set REXPLAYER_WRITE_DOCS=1 to rewrite them. The ledger is what ADR-0020 calls the one list of
 /// differences between the platforms: under the "preview" policy a row may be further along on one
 /// platform, under "locked" every must row is done on both or explained, and a release is blocked
-/// otherwise.
+/// otherwise. A test proves a few rows, not a platform, so it also limits how many rows one test method
+/// may claim, and it holds each Look row to its screen's one description in ShellScreens.
 /// </summary>
 public sealed partial class CapabilityMatrixTests
 {
@@ -46,7 +48,20 @@ public sealed partial class CapabilityMatrixTests
 
     private sealed record Matrix(string Policy, IReadOnlyList<string> Platforms, List<Row> Rows);
 
-    private sealed record Claim(string Test, string Id, CapabilityPlatform Platform, CapabilityPlatform Project);
+    private sealed record Claim(string Test, string Id, CapabilityPlatform Platform, CapabilityPlatform Project, string Source);
+
+    /// <summary>The most rows one test method may claim for one platform: a test that claims more proves less of each.</summary>
+    private const int MostRowsOneTestMayClaim = 3;
+
+    /// <summary>
+    /// The test methods that claim more than <see cref="MostRowsOneTestMayClaim"/> rows, and how many
+    /// they claim. This list may only shrink: a test here must be split into tests that each prove what
+    /// they claim, and its number lowered as it is. Adding to it is never the fix.
+    /// </summary>
+    private static readonly Dictionary<string, int> KnownOverClaims = new(StringComparer.Ordinal)
+    {
+        ["MacAppSmokeTests.TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks"] = 49,
+    };
 
     private static Matrix Load()
     {
@@ -85,7 +100,8 @@ public sealed partial class CapabilityMatrixTests
                     $"{Path.GetFileNameWithoutExtension(path)}.{match.Groups["test"].Value}",
                     match.Groups["id"].Value,
                     match.Groups["platform"].Success ? Enum.Parse<CapabilityPlatform>(match.Groups["platform"].Value) : project,
-                    project));
+                    project,
+                    path));
             })
             .ToList();
     }
@@ -223,6 +239,118 @@ public sealed partial class CapabilityMatrixTests
 
         Assert.True(missing.Count == 0, "Record a hardware run in docs/hardware-runs for: " + string.Join(", ", missing));
     }
+
+    /// <summary>How many distinct rows each test method claims, per platform it names or runs on.</summary>
+    private static List<(string Test, CapabilityPlatform Platform, int Rows)> RowsClaimedPerTest(List<Claim> claims) =>
+        claims
+            .GroupBy(claim => (claim.Test, claim.Platform))
+            .Select(group => (group.Key.Test, group.Key.Platform, group.Select(claim => claim.Id).Distinct(StringComparer.Ordinal).Count()))
+            .ToList();
+
+    [Fact]
+    public void ATestClaimsOnlyAFewRows()
+    {
+        var overClaiming = RowsClaimedPerTest(Claims())
+            .Where(test => test.Rows > MostRowsOneTestMayClaim && !(KnownOverClaims.TryGetValue(test.Test, out var allowed) && test.Rows <= allowed))
+            .Select(test => $"{test.Test} claims {test.Rows} rows for {test.Platform}; split it into tests that each prove at most {MostRowsOneTestMayClaim}")
+            .ToList();
+
+        Assert.True(overClaiming.Count == 0, string.Join(Environment.NewLine, overClaiming));
+    }
+
+    [Fact]
+    public void TheOverClaimListOnlyShrinks()
+    {
+        var counts = RowsClaimedPerTest(Claims());
+
+        var stale = new List<string>();
+        foreach (var (test, allowed) in KnownOverClaims)
+        {
+            var claimed = counts.Where(count => count.Test == test).Select(count => count.Rows).DefaultIfEmpty(0).Max();
+            if (claimed == 0)
+            {
+                stale.Add($"{test} claims no rows any more; remove it from KnownOverClaims");
+            }
+            else if (claimed < allowed)
+            {
+                stale.Add($"{test} now claims {claimed} rows; lower its allowance from {allowed} to {claimed}");
+            }
+            else if (claimed > allowed)
+            {
+                stale.Add($"{test} claims {claimed} rows, more than its allowance of {allowed}; split it instead");
+            }
+        }
+
+        Assert.True(stale.Count == 0, string.Join(Environment.NewLine, stale));
+    }
+
+    [Fact]
+    public void TheSameRowIsNotClaimedTwiceByOneTest()
+    {
+        var repeated = Claims()
+            .GroupBy(claim => (claim.Test, claim.Id, claim.Platform))
+            .Where(group => group.Count() > 1)
+            .Select(group => $"{group.Key.Test} claims {group.Key.Id} for {group.Key.Platform} {group.Count()} times")
+            .ToList();
+
+        Assert.True(repeated.Count == 0, string.Join(Environment.NewLine, repeated));
+    }
+
+    /// <summary>
+    /// A Look row is verified on a platform only while a test there compares the running shell's
+    /// structure with the screen's description in ShellScreens; a test that never mentions ShellScreens
+    /// cannot be that comparison, however it is labelled.
+    /// </summary>
+    [Fact]
+    public void EveryLookRowThatIsVerifiedIsProvedByItsScreen()
+    {
+        var matrix = Load();
+        var claims = Claims();
+        var sources = new Dictionary<string, string>(StringComparer.Ordinal);
+        bool ComparesStructure(Claim claim)
+        {
+            if (!sources.TryGetValue(claim.Source, out var text))
+            {
+                text = File.ReadAllText(RepoPaths.Combine(claim.Source));
+                sources[claim.Source] = text;
+            }
+
+            return text.Contains("ShellScreens.", StringComparison.Ordinal);
+        }
+
+        var problems = new List<string>();
+        foreach (var row in matrix.Rows.Where(row => row.Area == "Look"))
+        {
+            if (!LookRowId().IsMatch(row.Id))
+            {
+                problems.Add($"{row.Id} is a Look row; its id must be LOOK-nn");
+                continue;
+            }
+
+            if (ShellScreens.ForLookRow(row.Id) is null)
+            {
+                continue;
+            }
+
+            foreach (var platform in matrix.Platforms.Where(platform => row.On(platform) == "verified"))
+            {
+                var proving = claims.Where(claim => claim.Id == row.Id && Proves(claim, platform)).ToList();
+                if (proving.Count == 0)
+                {
+                    problems.Add($"{row.Id} is verified on {platform} without a [Capability] test there");
+                }
+                else if (!proving.Any(ComparesStructure))
+                {
+                    problems.Add($"{row.Id} is verified on {platform} by {string.Join(", ", proving.Select(claim => claim.Test))}, none of which compares the screen with ShellScreens");
+                }
+            }
+        }
+
+        Assert.True(problems.Count == 0, string.Join(Environment.NewLine, problems));
+    }
+
+    [GeneratedRegex(@"^LOOK-\d{2}$")]
+    private static partial Regex LookRowId();
 
     [Fact]
     public void TheReadableMatrixIsCurrent() => AssertCurrent("capability-matrix.md", Markdown(Load()));
