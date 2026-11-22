@@ -1836,7 +1836,7 @@
       "oracles": "PIX",
       "status": {
         "windows": "verified",
-        "macos": "verified"
+        "macos": "built"
       }
     },
     {
@@ -3305,7 +3305,7 @@
       "oracles": "UIA PIX",
       "status": {
         "windows": "verified",
-        "macos": "verified"
+        "macos": "built"
       }
     },
     {
@@ -4189,6 +4189,97 @@
       "milestone": "M4",
       "priority": "must",
       "oracles": "STORE",
+      "status": {
+        "windows": "built",
+        "macos": "built"
+      }
+    },
+    {
+      "id": "LOOK-01",
+      "area": "Look",
+      "name": "Welcome screen",
+      "details": "The idle stage: kicker, title, drop hint, the accent Open file and outlined Browse library buttons, tagline; the same controls in the same order on both shells (ShellScreens.Welcome), in the shared design colours",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "UIA PIX",
+      "status": {
+        "windows": "built",
+        "macos": "built"
+      }
+    },
+    {
+      "id": "LOOK-02",
+      "area": "Look",
+      "name": "Transport and seek bar",
+      "details": "Seek row (start over, elapsed, seek bar, remaining) over an icon transport row with the round accent play button, toggles for shuffle, repeat, Up Next and library, then speed, mute and volume (ShellScreens.Transport)",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "UIA PIX",
+      "status": {
+        "windows": "built",
+        "macos": "built"
+      }
+    },
+    {
+      "id": "LOOK-03",
+      "area": "Look",
+      "name": "Music stage and visualisations",
+      "details": "Cover, title and lyrics on the stage; bars, meters, oscilloscope and spectrogram drawn, scenes sized to the stage and paced to the display, not stretched",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "UIA PIX",
+      "status": {
+        "windows": "built",
+        "macos": "built"
+      }
+    },
+    {
+      "id": "LOOK-04",
+      "area": "Look",
+      "name": "Library",
+      "details": "Inside the player window: navigation column, hero header with Play, Shuffle and Add to queue, search, view controls, results; album and artist pages",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "UIA PIX",
+      "status": {
+        "windows": "built",
+        "macos": "built"
+      }
+    },
+    {
+      "id": "LOOK-05",
+      "area": "Look",
+      "name": "Up Next pane",
+      "details": "A 344-wide pane at the right of the player window: count, now and next, undo, the list with drag handles and the playing row",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "UIA PIX",
+      "status": {
+        "windows": "built",
+        "macos": "built"
+      }
+    },
+    {
+      "id": "LOOK-06",
+      "area": "Look",
+      "name": "Settings pages",
+      "details": "Preferences, shortcuts, subtitle style, first run, What's new and updates as pages of cards and rows in the shared design colours",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "UIA PIX",
+      "status": {
+        "windows": "built",
+        "macos": "built"
+      }
+    },
+    {
+      "id": "LOOK-07",
+      "area": "Look",
+      "name": "Tool windows",
+      "details": "Tracks, effects, playback tools, media information, log console, transcript reader, transcription and caption settings as pages of cards and rows in the shared design colours",
+      "milestone": "M4",
+      "priority": "must",
+      "oracles": "UIA PIX",
       "status": {
         "windows": "built",
         "macos": "built"

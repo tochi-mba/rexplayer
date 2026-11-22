@@ -6,5 +6,6 @@
 - [ ] New pure files are in `tests/coverage-required.txt`
 - [ ] New parsers start with a `// Spec:` line and have fixtures
 - [ ] Capability rows changed only together with `[Capability]` tests
+- [ ] A screen changed on one shell is changed on the other, or its Look row says why not
 - [ ] The CHANGELOG says what a user would notice
 - [ ] The text of this pull request describes rexplayer only in its own terms
