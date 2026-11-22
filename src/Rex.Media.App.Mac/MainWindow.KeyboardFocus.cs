@@ -38,11 +38,24 @@ public sealed partial class MainWindow
         RevealFullScreenController();
 
         // F6 moves between the three principal player regions, while Tab continues
-        // through controls within a region. The first F6 focuses transport.
-        NSView[] regions = [_playPause, _seek, _volume];
-        var active = Array.FindIndex(regions, view => ReferenceEquals(view, _window.FirstResponder));
-        var next = active < 0 ? (reverse ? regions.Length - 1 : 0)
-            : (active + (reverse ? regions.Length - 1 : 1)) % regions.Length;
+        // through controls within a region. The first F6 focuses transport. The library and
+        // Up Next keep a Tab loop of their own inside the window, so while either shows it is
+        // a region too: otherwise the keyboard could never reach it.
+        List<NSView> regions = [_playPause, _seek, _volume];
+        if (LibraryShown && _librarySearch is not null)
+        {
+            regions.Insert(0, _librarySearch);
+        }
+
+        if (QueueShown && _queueTable is not null)
+        {
+            regions.Add(_queueTable);
+        }
+
+        var focused = _window.FirstResponder as NSView;
+        var active = regions.FindIndex(view => focused is not null && (ReferenceEquals(view, focused) || focused.IsDescendantOf(view)));
+        var next = active < 0 ? (reverse ? regions.Count - 1 : 0)
+            : (active + (reverse ? regions.Count - 1 : 1)) % regions.Count;
         _window.MakeFirstResponder(regions[next]);
     }
 
