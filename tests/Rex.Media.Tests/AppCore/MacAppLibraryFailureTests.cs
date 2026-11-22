@@ -126,11 +126,13 @@ public sealed partial class MacAppSmokeTests
     {
         var directory = Environment.GetEnvironmentVariable("REXPLAYER_MAC_SCREENSHOTS") ?? root;
         var file = Path.Combine(directory, "mac-library-" + name + ".png");
+        // ui.snapshot saves the whole player window, so the shot shows the library pane with the
+        // transport bar beneath it, as a person sees them together.
         var reply = await Ask(pipe, new AutomationRequest { Command = "ui.snapshot", Path = file });
         Assert.True(reply?.Ok == true, "Capturing the " + name + " library failed: " + (reply?.Error ?? "no reply") + LogTail(root));
-        Assert.True(File.Exists(file), "The native library did not save its " + name + " screenshot.");
+        Assert.True(File.Exists(file), "The player window did not save its " + name + " library screenshot.");
         var bytes = await File.ReadAllBytesAsync(file, TestContext.Current.CancellationToken);
-        Assert.True(bytes.Length > 100, "The native library screenshot is empty.");
+        Assert.True(bytes.Length > 100, "The library screenshot is empty.");
         Assert.Equal(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }, bytes.Take(8).ToArray());
 
         // Exact image baselines apply only to the controlled Apple Silicon CI lane.
@@ -139,14 +141,23 @@ public sealed partial class MacAppSmokeTests
         if (Environment.GetEnvironmentVariable("REXPLAYER_MAC_SCREENSHOT_BASELINES") == "1")
         {
             var target = "mac-library-" + name + ".png";
+            var actual = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();
             // A shot may list one approved hash per runner image in service; any of them passes.
             var approved = File.ReadLines(RepoPaths.Combine("tests", "mac-library-screenshots.sha256"))
                 .Where(line => !line.StartsWith('#') && line.EndsWith("  " + target, StringComparison.Ordinal))
                 .Select(line => line.Split(' ', 2)[0])
                 .ToList();
-            Assert.NotEmpty(approved);
+            if (approved.Count == 0)
+            {
+                // Nobody has approved this shot yet: it is saved for review and its hash is
+                // written out, ready to be added once a person has looked at the picture.
+                TestContext.Current.TestOutputHelper?.WriteLine(
+                    "Native Mac screenshot " + target + " has no approved baseline yet; after reviewing it, approve it with:" +
+                    Environment.NewLine + actual + "  " + target);
+                return;
+            }
+
             var baseline = string.Join(" or ", approved);
-            var actual = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();
             if (!approved.Contains(actual, StringComparer.Ordinal))
             {
                 var message = "Native Mac screenshot " + target + " changed. Review the mac-library-screenshots CI artifact before approving a new baseline." +

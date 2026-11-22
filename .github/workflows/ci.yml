@@ -223,6 +223,9 @@ jobs:
           app=$(find src/Rex.Media.App.Mac/bin/Release/net10.0-macos/osx-arm64 -maxdepth 1 -name '*.app' | head -1)
           export REXPLAYER_MAC_APP="$PWD/$app"
           export REXPLAYER_MAC_SCREENSHOTS="$PWD/artifacts/mac-library-screenshots"
+          # The welcome, the transport bar, the music stage, the library and Up Next, for review.
+          export REXPLAYER_MAC_LOOK_SCREENSHOTS="$PWD/artifacts/mac-look-screenshots"
+          mkdir -p "$REXPLAYER_MAC_LOOK_SCREENSHOTS"
           # This controlled runner must match the visually reviewed macOS PNG baselines.
           export REXPLAYER_MAC_SCREENSHOT_BASELINES=1
           dotnet test --project tests/Rex.Media.Tests/Rex.Media.Tests.csproj -c Release -- --filter-class Rex.Media.Tests.AppCore.MacAppSmokeTests
@@ -233,6 +236,15 @@ jobs:
         with:
           name: mac-library-screenshots
           path: artifacts/mac-library-screenshots/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Keep the Mac look screenshots
+        if: matrix.rid == 'osx-arm64' && always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mac-look-screenshots
+          path: artifacts/mac-look-screenshots/
           if-no-files-found: warn
           retention-days: 14
 
@@ -485,6 +497,19 @@ jobs:
         with:
           name: screenshots
           path: artifacts/screenshots/
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # The welcome screen and the paused video under the names the Mac job keeps in
+      # mac-look-screenshots, so the two shells' pictures can be laid side by side.
+      - name: Keep the Windows look screenshots
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-look-screenshots
+          path: |
+            artifacts/screenshots/ci-windows/actual/welcome.png
+            artifacts/screenshots/ci-windows/actual/player-video.png
           if-no-files-found: ignore
           retention-days: 30
 
