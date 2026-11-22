@@ -1,6 +1,7 @@
 using System.Globalization;
 using Rex.Media.AppCore;
 using Rex.Media.AppCore.Automation;
+using Rex.Media.AppCore.Design;
 using Rex.Media.AppCore.Shell;
 using Rex.Media.Settings;
 
@@ -14,13 +15,17 @@ namespace Rex.Media.App.Mac;
 /// </summary>
 public sealed partial class MainWindow
 {
+    /// <summary>The height of a section in the rail, as Windows' navigation items are.</summary>
+    private const double PreferencesRailRowHeight = 44;
+
     private NSWindow? _preferencesWindow;
-    private LazySections<NSStackView, PlayerSettings>? _preferencesSections;
+    private LazySections<NSView, PlayerSettings>? _preferencesSections;
     private NSSearchField? _preferencesSearch;
     private NSTableView? _preferencesRail;
     private PreferenceSectionRows? _preferencesRailRows;
     private NSScrollView? _preferencesPage;
-    private NSTextField? _preferencesSearchEmpty;
+    private NSView? _preferencesSearchEmptyArea;
+    private RexLabel? _preferencesSearchEmpty;
     private int _preferencesShown;
     private bool _preferencesRailUpdating;
     private NSButton? _preferencesHistory;
@@ -62,102 +67,113 @@ public sealed partial class MainWindow
     {
         if (_preferencesWindow is null)
         {
-            _preferencesWindow = new NSWindow(new CGRect(0, 0, 832, 600),
+            _preferencesWindow = new NSWindow(new CGRect(0, 0, PreferencesLayout.WideWidth + 2 * MacTheme.Space(4), 640),
                 NSWindowStyle.Titled | NSWindowStyle.Closable, NSBackingStore.Buffered, false)
             {
                 Title = "Preferences - rexplayer",
+                AutorecalculatesKeyViewLoop = true,
             };
             _preferencesWindow.ReleaseWhenClosed(false);
+            MacTheme.Style(_preferencesWindow);
             _preferencesWindow.Center();
         }
 
-        _preferencesSections = new LazySections<NSStackView, PlayerSettings>
-        {
-            // Every page keeps the shared width, so its rows line up across sections.
-            Built = page => page.Frame = new CGRect(0, 0, PreferencesLayout.PageWidth, page.FittingSize.Height),
-        };
+        _preferencesSections = new LazySections<NSView, PlayerSettings>();
         AddMacPreferenceSections(_preferencesSections);
         _preferencesShown = 0;
 
-        var heading = NSTextField.CreateLabel("Preferences");
-        heading.Font = NSFont.SystemFontOfSize(24, NSFontWeight.Semibold)!;
-        var explanation = NSTextField.CreateWrappingLabel(
-            "These choices are shared with the player and saved for the next launch. Changes in every section apply when you select Save.");
-        explanation.TextColor = NSColor.SecondaryLabel;
-
-        _preferencesSearch = new NSSearchField(new CGRect(0, 0, PreferencesLayout.RailWidth, 28))
+        _preferencesSearch = new NSSearchField
         {
-            PlaceholderString = "Search preferences",
+            PlaceholderString = "Search Preferences",
+            TranslatesAutoresizingMaskIntoConstraints = false,
         };
         _preferencesSearch.Changed += (_, _) => SearchPreferences();
         _preferencesSearch.ToolTip = "Type to find a setting; the rail keeps the sections that match.";
-        _preferencesSearch.AccessibilityLabel = "Search preferences";
+        _preferencesSearch.AccessibilityLabel = "Search Preferences";
 
         _preferencesRailRows = new PreferenceSectionRows(this);
         _preferencesRailRows.Rows.AddRange(_preferencesSections.Names);
-        _preferencesRail = new NSTableView(new CGRect(0, 0, PreferencesLayout.RailWidth, 400))
+        _preferencesRail = new NSTableView
         {
             HeaderView = null,
-            RowHeight = 26,
+            RowHeight = (nfloat)PreferencesRailRowHeight,
             AllowsMultipleSelection = false,
+            IntercellSpacing = new CGSize(0, MacTheme.Space(0) / 2),
+            FocusRingType = NSFocusRingType.None,
+            SelectionHighlightStyle = NSTableViewSelectionHighlightStyle.None,
         };
-        _preferencesRail.AddColumn(new NSTableColumn("section") { Width = (nfloat)(PreferencesLayout.RailWidth - 24) });
+        _preferencesRail.AddColumn(new NSTableColumn("section") { Width = (nfloat)PreferencesLayout.RailWidth });
         _preferencesRail.Source = _preferencesRailRows;
         ((NSView)_preferencesRail).AccessibilityLabel = "Preferences sections";
-        var railScroll = new NSScrollView(new CGRect(0, 0, PreferencesLayout.RailWidth, 400))
+        var railScroll = new NSScrollView
         {
             HasVerticalScroller = true,
+            AutohidesScrollers = true,
             DocumentView = _preferencesRail,
+            TranslatesAutoresizingMaskIntoConstraints = false,
         };
-        railScroll.WidthAnchor.ConstraintEqualTo((nfloat)PreferencesLayout.RailWidth).Active = true;
-        railScroll.HeightAnchor.ConstraintGreaterThanOrEqualTo(380).Active = true;
+        MacTheme.Style(_preferencesRail, railScroll);
 
         // Nothing found: said in the page's place, with the way back.
-        _preferencesSearchEmpty = NSTextField.CreateWrappingLabel("");
-        _preferencesSearchEmpty.Hidden = true;
-        _preferencesPage = new NSScrollView(new CGRect(0, 0, PreferencesLayout.PageWidth, 420))
+        _preferencesSearchEmpty = MacTheme.WrappingLabel("", 3, semibold: true);
+        var emptyIcon = new NSImageView
         {
-            HasVerticalScroller = true,
+            Image = NSImage.GetSystemSymbol("magnifyingglass", null),
+            SymbolConfiguration = NSImageSymbolConfiguration.Create(32, NSFontWeight.Regular),
+            TranslatesAutoresizingMaskIntoConstraints = false,
         };
-        _preferencesPage.WidthAnchor.ConstraintEqualTo((nfloat)PreferencesLayout.PageWidth).Active = true;
-        _preferencesPage.HeightAnchor.ConstraintGreaterThanOrEqualTo(380).Active = true;
-        var pageArea = NSStackView.FromViews([_preferencesSearchEmpty, _preferencesPage]);
-        pageArea.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-        pageArea.Alignment = NSLayoutAttribute.Leading;
-        pageArea.Spacing = 8;
-        _preferencesSearchEmpty.WidthAnchor.ConstraintEqualTo((nfloat)PreferencesLayout.PageWidth).Active = true;
+        emptyIcon.AccessibilityElement = false;
+        var clearSearch = MacTheme.TextButton("Clear search", () =>
+        {
+            _preferencesSearch.StringValue = "";
+            SearchPreferences();
+        });
+        var empty = MacTheme.Stack(true, 2, emptyIcon, _preferencesSearchEmpty,
+            MacTheme.WrappingLabel("Try another word, or clear the search to see every section.", 1, DesignRole.TextSecondary),
+            clearSearch);
+        _preferencesSearchEmptyArea = new NSView { TranslatesAutoresizingMaskIntoConstraints = false, Hidden = true };
+        _preferencesSearchEmptyArea.AddSubview(empty);
+        empty.TopAnchor.ConstraintEqualTo(_preferencesSearchEmptyArea.TopAnchor, MacTheme.Space(4)).Active = true;
+        empty.LeadingAnchor.ConstraintEqualTo(_preferencesSearchEmptyArea.LeadingAnchor, MacTheme.Space(4)).Active = true;
+        empty.TrailingAnchor.ConstraintEqualTo(_preferencesSearchEmptyArea.TrailingAnchor, -MacTheme.Space(4)).Active = true;
+        _preferencesSearchEmpty.WidthAnchor.ConstraintEqualTo(empty.WidthAnchor).Active = true;
 
-        var rail = NSStackView.FromViews([_preferencesSearch, railScroll]);
-        rail.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-        rail.Alignment = NSLayoutAttribute.Leading;
-        rail.Spacing = 8;
-        _preferencesSearch.WidthAnchor.ConstraintEqualTo((nfloat)PreferencesLayout.RailWidth).Active = true;
+        _preferencesPage = MacSettings.Scroller();
+        var pageArea = new NSView { TranslatesAutoresizingMaskIntoConstraints = false };
+        MacTheme.Fill(pageArea, _preferencesPage);
+        MacTheme.Fill(pageArea, _preferencesSearchEmptyArea);
 
-        var columns = NSStackView.FromViews([rail, pageArea]);
-        columns.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-        columns.Alignment = NSLayoutAttribute.Top;
-        columns.Spacing = (nfloat)PreferencesLayout.Gap;
-
-        var cancel = NSButton.CreateButton("Cancel", () => _preferencesWindow.OrderOut(null));
-        var save = NSButton.CreateButton("Save", SavePreferences);
+        // One line under the page about Save, which every section shares.
+        var saveHint = MacTheme.Label("Changes in all sections apply when you select Save.", 1, DesignRole.TextSecondary);
+        var cancel = MacTheme.TextButton("Cancel", () => _preferencesWindow.OrderOut(null));
+        var save = MacTheme.TextButton("Save", SavePreferences, RexButtonLook.Accent);
         save.KeyEquivalent = "\r";
-        var actions = NSStackView.FromViews([cancel, save]);
-        actions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-        actions.Spacing = 10;
+        var actions = MacSettings.Buttons(cancel, save);
 
-        var stack = NSStackView.FromViews([heading, explanation, columns, actions]);
-        stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-        stack.Alignment = NSLayoutAttribute.Leading;
-        stack.Spacing = 14;
-        stack.EdgeInsets = new NSEdgeInsets(24, 24, 24, 24);
-        stack.TranslatesAutoresizingMaskIntoConstraints = false;
-        var root = new NSView(new CGRect(0, 0, 832, 600));
-        root.AddSubview(stack);
-        stack.TopAnchor.ConstraintEqualTo(root.TopAnchor).Active = true;
-        stack.BottomAnchor.ConstraintEqualTo(root.BottomAnchor).Active = true;
-        stack.LeadingAnchor.ConstraintEqualTo(root.LeadingAnchor).Active = true;
-        stack.TrailingAnchor.ConstraintEqualTo(root.TrailingAnchor).Active = true;
-        explanation.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
+        var root = new NSView();
+        foreach (var view in new NSView[] { _preferencesSearch, railScroll, pageArea, saveHint, actions })
+        {
+            root.AddSubview(view);
+        }
+
+        var pad = MacTheme.Space(4);
+        var rail = (nfloat)PreferencesLayout.RailWidth;
+        _preferencesSearch.TopAnchor.ConstraintEqualTo(root.TopAnchor, pad + 12).Active = true;
+        _preferencesSearch.LeadingAnchor.ConstraintEqualTo(root.LeadingAnchor, pad).Active = true;
+        _preferencesSearch.WidthAnchor.ConstraintEqualTo(rail).Active = true;
+        railScroll.TopAnchor.ConstraintEqualTo(_preferencesSearch.BottomAnchor, MacTheme.Space(2)).Active = true;
+        railScroll.LeadingAnchor.ConstraintEqualTo(root.LeadingAnchor, pad).Active = true;
+        railScroll.WidthAnchor.ConstraintEqualTo(rail).Active = true;
+        railScroll.BottomAnchor.ConstraintEqualTo(actions.TopAnchor, -MacTheme.Space(3)).Active = true;
+        pageArea.TopAnchor.ConstraintEqualTo(root.TopAnchor, 12).Active = true;
+        pageArea.LeadingAnchor.ConstraintEqualTo(railScroll.TrailingAnchor, (nfloat)PreferencesLayout.Gap - pad).Active = true;
+        pageArea.TrailingAnchor.ConstraintEqualTo(root.TrailingAnchor).Active = true;
+        pageArea.BottomAnchor.ConstraintEqualTo(actions.TopAnchor, -MacTheme.Space(3)).Active = true;
+        actions.TrailingAnchor.ConstraintEqualTo(root.TrailingAnchor, -pad).Active = true;
+        actions.BottomAnchor.ConstraintEqualTo(root.BottomAnchor, -pad).Active = true;
+        saveHint.LeadingAnchor.ConstraintEqualTo(root.LeadingAnchor, pad).Active = true;
+        saveHint.CenterYAnchor.ConstraintEqualTo(actions.CenterYAnchor).Active = true;
+        saveHint.TrailingAnchor.ConstraintLessThanOrEqualTo(actions.LeadingAnchor, -MacTheme.Space(3)).Active = true;
         _preferencesWindow.ContentView = root;
         ShowPreferenceSection(0);
     }
@@ -181,11 +197,17 @@ public sealed partial class MainWindow
 
         var page = _preferencesSections.Page(index);
         _preferencesPage.Hidden = false;
-        _preferencesSearchEmpty!.Hidden = true;
-        _preferencesPage.DocumentView = page;
-        // AppKit's origin is the bottom, so the top of a page taller than the view is at its far end.
-        _preferencesPage.ContentView.ScrollToPoint(new CGPoint(0, Math.Max(0, page.Frame.Height - _preferencesPage.ContentSize.Height)));
-        _preferencesPage.ReflectScrolledClipView(_preferencesPage.ContentView);
+        _preferencesSearchEmptyArea!.Hidden = true;
+        if (_preferencesPage.DocumentView != page)
+        {
+            MacSettings.Show(_preferencesPage, page);
+        }
+        else
+        {
+            _preferencesPage.ContentView.ScrollToPoint(CGPoint.Empty);
+            _preferencesPage.ReflectScrolledClipView(_preferencesPage.ContentView);
+        }
+
         SelectPreferenceRailRow();
     }
 
@@ -209,6 +231,24 @@ public sealed partial class MainWindow
         }
 
         _preferencesRailUpdating = false;
+        MarkPreferenceRailSelection();
+    }
+
+    /// <summary>Lights the rail item of the section shown, and only that one.</summary>
+    private void MarkPreferenceRailSelection()
+    {
+        if (_preferencesRail is null)
+        {
+            return;
+        }
+
+        for (nint row = 0; row < _preferencesRail.RowCount; row++)
+        {
+            if (_preferencesRail.GetView(0, row, makeIfNecessary: false) is PreferenceRailCell cell)
+            {
+                cell.Selected = row == _preferencesRail.SelectedRow;
+            }
+        }
     }
 
     /// <summary>The rail's answer to a click or an arrow key: show the section of the row chosen.</summary>
@@ -254,11 +294,11 @@ public sealed partial class MainWindow
         var chosen = SettingsSearch.Section(names, matching, names[_preferencesShown], query);
         if (chosen is null)
         {
-            _preferencesSearchEmpty!.StringValue =
-                $"Nothing in Preferences matches \"{query}\". Clear the search to see every section.";
-            _preferencesSearchEmpty.Hidden = false;
+            _preferencesSearchEmpty!.StringValue = $"Nothing in Preferences matches \"{query}\".";
+            _preferencesSearchEmptyArea!.Hidden = false;
             _preferencesPage!.Hidden = true;
             _preferencesRail.DeselectAll(null);
+            MarkPreferenceRailSelection();
             return matching;
         }
 
@@ -278,25 +318,11 @@ public sealed partial class MainWindow
         || SettingsSearch.Says(view.ToolTip, query)
         || view.Subviews.Any(child => SectionSays(child, query));
 
-    private static NSButton CheckBox(string title) => NSButton.CreateCheckbox(title, () => { });
-
     private static NSSlider Slider(double minimum, double maximum, Action changed)
     {
         var slider = NSSlider.FromValue(minimum, minimum, maximum, changed);
         slider.Continuous = true;
-        slider.WidthAnchor.ConstraintGreaterThanOrEqualTo(250).Active = true;
         return slider;
-    }
-
-    private static NSStackView PreferenceRow(string title, NSSlider slider, NSTextField value)
-    {
-        var label = NSTextField.CreateLabel(title);
-        label.WidthAnchor.ConstraintEqualTo(150).Active = true;
-        value.WidthAnchor.ConstraintEqualTo(74).Active = true;
-        var row = NSStackView.FromViews([label, slider, value]);
-        row.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-        row.Spacing = 10;
-        return row;
     }
 
     /// <summary>Each slider built says its value beside it; a section not yet built has nothing to say.</summary>
@@ -349,6 +375,10 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// Sets the whole app's appearance from the theme setting. Every window follows at once: their
+    /// panels, labels and buttons resolve their roles again when the appearance changes.
+    /// </summary>
     private void ApplyMacTheme()
     {
         NSApplication.SharedApplication.Appearance = _settings.Theme switch
@@ -436,7 +466,20 @@ public sealed partial class MainWindow
         _preferencesSections = null;
     }
 
-    /// <summary>The rail's rows: the section names a search leaves, each drawn as a plain label.</summary>
+    /// <summary>The SF Symbol beside a section's name in the rail.</summary>
+    private static string PreferenceSectionSymbol(string section) => section switch
+    {
+        "Playback" => "play.circle",
+        "Video and pictures" => "photo",
+        "Snapshots" => "camera",
+        "Window" => "macwindow",
+        "History and resume" => "clock",
+        "Opening files" => "folder",
+        "Diagnostics" => "stethoscope",
+        _ => "gearshape",
+    };
+
+    /// <summary>The rail's rows: the section names a search leaves, each an icon and its name.</summary>
     private sealed class PreferenceSectionRows : NSTableViewSource
     {
         private readonly MainWindow _owner;
@@ -448,8 +491,60 @@ public sealed partial class MainWindow
         public override nint GetRowCount(NSTableView tableView) => Rows.Count;
 
         public override NSView GetViewForItem(NSTableView tableView, NSTableColumn tableColumn, nint row) =>
-            NSTextField.CreateLabel(Rows[(int)row]);
+            new PreferenceRailCell(PreferenceSectionSymbol(Rows[(int)row]), Rows[(int)row]) { Selected = tableView.SelectedRow == row };
 
-        public override void SelectionDidChange(NSNotification notification) => _owner.PreferencesRailSelected();
+        public override void SelectionDidChange(NSNotification notification)
+        {
+            _owner.PreferencesRailSelected();
+            _owner.MarkPreferenceRailSelection();
+        }
+    }
+
+    /// <summary>
+    /// A rail item: the section's symbol and name in primary text whatever the theme becomes; the
+    /// selected one sits on the raised colour with small rounded corners, as on Windows.
+    /// </summary>
+    private sealed class PreferenceRailCell : NSView
+    {
+        private readonly NSImageView _icon;
+        private readonly RexPanel _back = MacTheme.Panel(DesignRole.Raised, 0);
+
+        public PreferenceRailCell(string symbol, string title)
+        {
+            _back.Hidden = true;
+            MacTheme.Fill(this, _back);
+            _icon = new NSImageView
+            {
+                Image = NSImage.GetSystemSymbol(symbol, null),
+                SymbolConfiguration = NSImageSymbolConfiguration.Create(15, NSFontWeight.Regular),
+                TranslatesAutoresizingMaskIntoConstraints = false,
+            };
+            _icon.AccessibilityElement = false;
+            var label = MacTheme.Label(title, 2);
+            AddSubview(_icon);
+            AddSubview(label);
+            _icon.LeadingAnchor.ConstraintEqualTo(LeadingAnchor, MacTheme.Space(2)).Active = true;
+            _icon.CenterYAnchor.ConstraintEqualTo(CenterYAnchor).Active = true;
+            _icon.WidthAnchor.ConstraintEqualTo(20).Active = true;
+            label.LeadingAnchor.ConstraintEqualTo(_icon.TrailingAnchor, MacTheme.Space(2)).Active = true;
+            label.TrailingAnchor.ConstraintLessThanOrEqualTo(TrailingAnchor, -MacTheme.Space(1)).Active = true;
+            label.CenterYAnchor.ConstraintEqualTo(CenterYAnchor).Active = true;
+            Tint();
+        }
+
+        /// <summary>Whether this is the section shown.</summary>
+        public bool Selected
+        {
+            get => !_back.Hidden;
+            set => _back.Hidden = !value;
+        }
+
+        public override void ViewDidChangeEffectiveAppearance()
+        {
+            base.ViewDidChangeEffectiveAppearance();
+            Tint();
+        }
+
+        private void Tint() => _icon.ContentTintColor = MacTheme.Role(DesignRole.TextPrimary, EffectiveAppearance);
     }
 }

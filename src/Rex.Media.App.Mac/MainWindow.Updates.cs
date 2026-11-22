@@ -1,4 +1,5 @@
 using Rex.Media.AppCore.Automation;
+using Rex.Media.AppCore.Design;
 using Rex.Media.AppCore.Updates;
 using Rex.Media.Settings;
 
@@ -22,16 +23,19 @@ public sealed partial class MainWindow
         Uri.TryCreate(Environment.GetEnvironmentVariable("REXPLAYER_UPDATE_FEED"), UriKind.Absolute, out var feed)
             ? feed : null;
     private NSWindow? _updatesWindow;
-    private NSTextField? _updatesStatus;
+    private RexLabel? _updatesStatus;
+    private NSProgressIndicator? _updatesProgress;
+    private RexPanel? _updatesOfferCard;
+    private RexLabel? _updatesOfferTitle;
     private NSPopUpButton? _updatesCadence;
     private NSPopUpButton? _updatesMode;
-    private NSTextView? _updatesNotes;
-    private NSButton? _updatesDownload;
-    private NSButton? _updatesInstallNow;
-    private NSButton? _updatesInstallOnClose;
-    private NSButton? _updatesInstallTonight;
-    private NSButton? _updatesRemind;
-    private NSButton? _updatesSkip;
+    private RexTextView? _updatesNotes;
+    private RexButton? _updatesDownload;
+    private RexButton? _updatesInstallNow;
+    private RexButton? _updatesInstallOnClose;
+    private RexButton? _updatesInstallTonight;
+    private RexButton? _updatesRemind;
+    private RexButton? _updatesSkip;
     private CancellationTokenSource? _updateCancellation;
     private readonly HttpClient _updateHttp = new() { Timeout = TimeSpan.FromMinutes(60) };
     private UpdateOffer? _macUpdateOffer;
@@ -73,43 +77,59 @@ public sealed partial class MainWindow
         });
     }
 
+    /// <summary>
+    /// The software-updates window as a settings page, in the Windows Updates section's and update
+    /// card's words: a card with the version running, the state and a progress bar while a
+    /// download runs; a card for the version on offer with its notes and what to do about it; then
+    /// how often to look and what to do when a version is found.
+    /// </summary>
     private void ShowMacUpdates()
     {
         if (_updatesWindow is null)
         {
-            _updatesWindow = new NSWindow(new CGRect(0, 0, 650, 590),
-                NSWindowStyle.Titled | NSWindowStyle.Closable,
+            _updatesWindow = new NSWindow(new CGRect(0, 0, 680, 680),
+                NSWindowStyle.Titled | NSWindowStyle.Closable | NSWindowStyle.Resizable,
                 NSBackingStore.Buffered, false)
             {
                 Title = "Software updates - rexplayer",
+                MinSize = new CGSize(560, 460),
+                AutorecalculatesKeyViewLoop = true,
             };
             _updatesWindow.ReleaseWhenClosed(false);
-            var heading = NSTextField.CreateLabel("Software updates");
-            heading.Font = NSFont.SystemFontOfSize(23, NSFontWeight.Semibold)!;
-            var intro = NSTextField.CreateWrappingLabel(
+            MacTheme.Style(_updatesWindow);
+            var page = new SettingsPage("Software updates",
                 "Only releases from the rexplayer GitHub repository are accepted. A ZIP " +
                 "is kept only when its download matches the published SHA-256 checksum.");
-            intro.TextColor = NSColor.SecondaryLabel;
-            _updatesStatus = NSTextField.CreateWrappingLabel("Check for a newer version.");
-            _updatesStatus.TextColor = NSColor.SecondaryLabel;
-            _updatesCadence = EffectChoices(["Off", "Daily", "Weekly"]);
+            _updatesStatus = MacTheme.WrappingLabel("Check for a newer version.", 2, DesignRole.TextSecondary);
+            _updatesProgress = new NSProgressIndicator
+            {
+                Style = NSProgressIndicatorStyle.Bar,
+                Indeterminate = false,
+                MinValue = 0,
+                MaxValue = 100,
+                Hidden = true,
+                TranslatesAutoresizingMaskIntoConstraints = false,
+            };
+            ((NSView)_updatesProgress).AccessibilityLabel = "Download progress";
+            _updatesCadence = MacSettings.Choices(["Never", "Daily", "Weekly"]);
             _updatesCadence.Activated += (_, _) =>
             {
                 var candidate = _settings with { UpdateChecks = (UpdateCadence)
                     (int)_updatesCadence.IndexOfSelectedItem };
                 SaveMacUpdatePreferences(candidate);
             };
-            _updatesMode = EffectChoices(["Install automatically", "Download, then ask", "Notify only"]);
+            _updatesMode = MacSettings.Choices(["Install it by itself when rexplayer is closed or not in use",
+                "Download it, then ask me when to install", "Only tell me about it"]);
             _updatesMode.Activated += (_, _) => SaveMacUpdatePreferences(_settings with
             {
                 UpdateMode = (UpdateMode)(int)_updatesMode.IndexOfSelectedItem,
             });
-            var check = NSButton.CreateButton("Check now", CheckForMacUpdates);
-            _updatesDownload = NSButton.CreateButton("Download & verify", DownloadMacUpdate);
-            _updatesInstallNow = NSButton.CreateButton("Install now", () => InstallMacUpdate(relaunch: true));
-            _updatesInstallOnClose = NSButton.CreateButton("Install when rexplayer closes", ScheduleMacUpdateOnClose);
-            _updatesInstallTonight = NSButton.CreateButton("Install tonight", ScheduleMacUpdateTonight);
-            _updatesRemind = NSButton.CreateButton("Remind me later", () =>
+            var check = MacTheme.TextButton("Check for updates now", CheckForMacUpdates);
+            _updatesDownload = MacTheme.TextButton("Download", DownloadMacUpdate, RexButtonLook.Accent, label: "Download and verify the update");
+            _updatesInstallNow = MacTheme.TextButton("Restart and install now", () => InstallMacUpdate(relaunch: true), RexButtonLook.Accent);
+            _updatesInstallOnClose = MacTheme.TextButton("Install when I close rexplayer", ScheduleMacUpdateOnClose);
+            _updatesInstallTonight = MacTheme.TextButton("Install tonight", ScheduleMacUpdateTonight);
+            _updatesRemind = MacTheme.TextButton("Remind me tomorrow", () =>
             {
                 if (_macPending is { } pending)
                 {
@@ -120,7 +140,7 @@ public sealed partial class MainWindow
                     _updatesStatus.StringValue = "We'll check again on the next scheduled interval.";
                 RefreshMacUpdateControls();
             });
-            _updatesSkip = NSButton.CreateButton("Skip this version", () =>
+            _updatesSkip = MacTheme.TextButton("Skip this version", () =>
             {
                 if (_macPending is not { } skipped) return;
                 SaveMacUpdatePreferences(_settings with { SkippedUpdateVersion = skipped.Version });
@@ -130,53 +150,38 @@ public sealed partial class MainWindow
                     _updatesStatus.StringValue = "Skipped version " + skipped.Version + ".";
                 RefreshMacUpdateControls();
             });
-            _updatesNotes = new NSTextView(new CGRect(0, 0, 590, 180))
-            {
-                Editable = false,
-                Selectable = true,
-                Font = NSFont.SystemFontOfSize(12, NSFontWeight.Regular)!,
-                Value = "Release notes appear here when an update is available.",
-            };
-            var notesScroll = new NSScrollView(new CGRect(0, 0, 590, 180))
-            {
-                HasVerticalScroller = true,
-                DocumentView = _updatesNotes,
-            };
-            notesScroll.HeightAnchor.ConstraintGreaterThanOrEqualTo(140).Active = true;
-            var controls = NSStackView.FromViews([check, _updatesDownload]);
-            controls.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            controls.Spacing = 9;
-            var install = NSStackView.FromViews([_updatesInstallNow, _updatesInstallOnClose, _updatesInstallTonight]);
-            install.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            install.Spacing = 9;
-            var stack = NSStackView.FromViews([
-                heading, intro, EffectChoiceRow("Automatic checks", _updatesCadence),
-                EffectChoiceRow("When an update is found", _updatesMode),
-                _updatesStatus, controls, notesScroll, install,
-                PlaybackToolsRow(_updatesRemind, _updatesSkip),
-            ]);
-            stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-            stack.Alignment = NSLayoutAttribute.Leading;
-            stack.Spacing = 17;
-            stack.EdgeInsets = new NSEdgeInsets(22, 24, 22, 24);
-            stack.TranslatesAutoresizingMaskIntoConstraints = false;
-            var root = new NSView(new CGRect(0, 0, 650, 590));
-            root.AddSubview(stack);
-            stack.TopAnchor.ConstraintEqualTo(root.TopAnchor).Active = true;
-            stack.BottomAnchor.ConstraintEqualTo(root.BottomAnchor).Active = true;
-            stack.LeadingAnchor.ConstraintEqualTo(root.LeadingAnchor).Active = true;
-            stack.TrailingAnchor.ConstraintEqualTo(root.TrailingAnchor).Active = true;
-            intro.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            _updatesStatus.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            notesScroll.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            _updatesWindow.ContentView = root;
+            _updatesNotes = new RexTextView { Text = "Release notes appear here when an update is available." };
+            ((NSView)_updatesNotes).AccessibilityLabel = "What's new";
+            var status = MacTheme.Stack(true, 1, _updatesStatus, _updatesProgress);
+            status.EdgeInsets = new NSEdgeInsets(0, 0, MacTheme.Space(3), 0);
+            _updatesStatus.WidthAnchor.ConstraintEqualTo(status.WidthAnchor).Active = true;
+            _updatesProgress.WidthAnchor.ConstraintEqualTo(status.WidthAnchor).Active = true;
+            _updatesOfferTitle = MacTheme.Label("", 3, semibold: true);
+            var notes = _updatesNotes.InScroller(160);
+            var offer = MacTheme.Stack(true, 2, _updatesOfferTitle, notes,
+                MacSettings.Buttons(_updatesDownload, _updatesInstallNow, _updatesInstallOnClose, _updatesInstallTonight),
+                MacSettings.Buttons(_updatesRemind, _updatesSkip));
+            notes.WidthAnchor.ConstraintEqualTo(offer.WidthAnchor).Active = true;
+            _updatesOfferCard = MacTheme.Panel(DesignRole.Surface, 2, hairline: true);
+            MacTheme.Fill(_updatesOfferCard, offer, (double)MacTheme.Space(3));
+            page.Add(
+                MacSettings.Card(null,
+                    MacSettings.Row("rexplayer " + RunningVersion, "The version on this Mac.", check),
+                    status),
+                _updatesOfferCard,
+                MacSettings.Card(null,
+                    MacSettings.Row("Look for new versions", null, _updatesCadence),
+                    MacSettings.Row("When a new version is found", null, _updatesMode)));
+            var scroll = MacSettings.Scroller();
+            _updatesWindow.ContentView = scroll;
+            MacSettings.Show(scroll, page);
             _updatesWindow.Center();
         }
 
         _updatesCadence!.SelectItem((int)_settings.UpdateChecks);
         _updatesMode!.SelectItem((int)_settings.UpdateMode);
         if (_updatesNotes is not null && _macPending is { } pending)
-            _updatesNotes.Value = pending.Notes;
+            _updatesNotes.Text = pending.Notes;
         RefreshMacUpdateControls();
         _updatesWindow.MakeKeyAndOrderFront(null);
     }
@@ -243,7 +248,7 @@ public sealed partial class MainWindow
 
                 if (_updatesNotes is not null)
                 {
-                    _updatesNotes.Value = _macUpdateOffer?.Notes is { Length: > 0 } notes
+                    _updatesNotes.Text = _macUpdateOffer?.Notes is { Length: > 0 } notes
                         ? notes : "This release did not include notes.";
                 }
 
@@ -308,6 +313,11 @@ public sealed partial class MainWindow
                                 _updatesStatus.StringValue =
                                     "Downloaded " + (completed * 100 / total) + "%; verifying SHA-256 before offering the ZIP.";
                             }
+
+                            if (_updatesProgress is not null)
+                            {
+                                _updatesProgress.DoubleValue = completed * 100.0 / total;
+                            }
                         });
                     }
                 }, cancellation.Token);
@@ -351,6 +361,47 @@ public sealed partial class MainWindow
         if (_updatesInstallTonight is not null) _updatesInstallTonight.Enabled = ready;
         if (_updatesRemind is not null) _updatesRemind.Enabled = _macPending is not null;
         if (_updatesSkip is not null) _updatesSkip.Enabled = _macPending is not null;
+        ShowMacUpdateCards(ready);
+    }
+
+    /// <summary>
+    /// Shows the offer card only while there is a version to decide about, titled by that version,
+    /// with only the actions that apply now, and the progress bar only while a download runs.
+    /// </summary>
+    private void ShowMacUpdateCards(bool ready)
+    {
+        if (_updatesProgress is not null)
+        {
+            _updatesProgress.Hidden = _updateCancellation is null;
+            if (_updateCancellation is null)
+            {
+                _updatesProgress.DoubleValue = 0;
+            }
+        }
+
+        var version = _macPending?.Version ?? _macUpdateOffer?.Version.ToString();
+        if (_updatesOfferCard is not null)
+        {
+            _updatesOfferCard.Hidden = version is null;
+        }
+
+        if (_updatesOfferTitle is not null && version is not null)
+        {
+            _updatesOfferTitle.StringValue = ready ? $"rexplayer {version} is ready" : $"rexplayer {version} is available";
+        }
+
+        if (_updatesDownload is not null)
+        {
+            _updatesDownload.Hidden = ready;
+        }
+
+        foreach (var install in new[] { _updatesInstallNow, _updatesInstallOnClose, _updatesInstallTonight })
+        {
+            if (install is not null)
+            {
+                install.Hidden = !ready;
+            }
+        }
     }
 
     private void SaveMacPending(PendingUpdate? pending)
@@ -415,9 +466,9 @@ public sealed partial class MainWindow
             var staged = MacUpdateInstaller.Stage(archive, _roots.UpdateFolder);
             if (relaunch)
             {
-                _player.SaveForUpdate("Home", _libraryWindow?.IsVisible == true,
+                _player.SaveForUpdate("Home", LibraryShown,
                     _librarySearch?.StringValue ?? "", null, null, null,
-                    _queueWindow?.IsVisible == true, targetVersion: pending.Version, resumePaused: true);
+                    QueueShown, targetVersion: pending.Version, resumePaused: true);
                 saved = true;
             }
 

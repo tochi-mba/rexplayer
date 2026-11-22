@@ -1,15 +1,28 @@
 using Rex.Media.AppCore.Commands;
+using Rex.Media.AppCore.Design;
 using Rex.Media.Settings;
 
 namespace Rex.Media.App.Mac;
 
-/// <summary>Native editor for the shared command bindings.</summary>
+/// <summary>
+/// Native editor for the shared command bindings, laid out as the Windows keyboard and mouse
+/// editor is: a search over a table of every command with its shortcut and whether it works
+/// everywhere, the chosen command's shortcut below it, then what the mouse does. Changes save as
+/// they are made.
+/// </summary>
 public sealed partial class MainWindow
 {
     private NSWindow? _shortcutsWindow;
-    private NSPopUpButton? _shortcutCommand;
+    private NSTableView? _shortcutTable;
+    private ShortcutEditorSource? _shortcutSource;
+    private NSSearchField? _shortcutSearch;
+    private string _shortcutSelectedId = CommandCatalog.All[0].Id;
+    private bool _shortcutTableUpdating;
+    private RexLabel? _shortcutCaptureTitle;
+    private NSStackView? _shortcutCurrentKeys;
+    private RexLabel? _shortcutConflict;
     private NSTextField? _shortcutChord;
-    private NSTextField? _shortcutStatus;
+    private RexLabel? _shortcutStatus;
     private NSButton? _shortcutGlobal;
     private NSObject? _globalShortcutMonitor;
     private NSPopUpButton? _shortcutWheel;
@@ -18,105 +31,200 @@ public sealed partial class MainWindow
     private NSPopUpButton? _shortcutSideButtons;
     private NSPopUpButton? _shortcutCtrlWheel;
     private NSButton? _shortcutPanWhenZoomed;
-    private readonly IReadOnlyList<Command> _shortcutCommands = CommandCatalog.All
-        .OrderBy(command => command.Group, StringComparer.Ordinal)
-        .ThenBy(command => command.Title, StringComparer.Ordinal).ToArray();
+    private IReadOnlyList<ShortcutEditorLine> _shortcutLines = [];
+
+    /// <summary>A line of the editor's table: a group's heading, or a command under it.</summary>
+    private readonly record struct ShortcutEditorLine(string Group, Command? Command);
 
     private void ShowShortcutEditor()
     {
         if (_shortcutsWindow is null)
         {
-            _shortcutsWindow = new NSWindow(new CGRect(0, 0, 650, 580),
+            _shortcutsWindow = new NSWindow(new CGRect(0, 0, 720, 720),
                 NSWindowStyle.Titled | NSWindowStyle.Closable | NSWindowStyle.Resizable,
                 NSBackingStore.Buffered, false)
             {
                 Title = "Keyboard shortcuts - rexplayer",
-                MinSize = new CGSize(540, 480),
+                MinSize = new CGSize(600, 520),
+                AutorecalculatesKeyViewLoop = true,
             };
             _shortcutsWindow.ReleaseWhenClosed(false);
-            var heading = NSTextField.CreateLabel("Keyboard shortcuts");
-            heading.Font = NSFont.SystemFontOfSize(24, NSFontWeight.Semibold)!;
-            var explanation = NSTextField.CreateWrappingLabel(
+            MacTheme.Style(_shortcutsWindow);
+            var page = new SettingsPage("Keyboard and mouse",
                 "Choose a command and enter a shortcut such as Cmd+Shift+P. " +
-                "A duplicate binding is moved instead of activating two commands.");
-            explanation.TextColor = NSColor.SecondaryLabel;
-            _shortcutCommand = new NSPopUpButton(new CGRect(0, 0, 560, 28), false);
-            ((NSView)_shortcutCommand).AccessibilityLabel = "Command to bind";
-            foreach (var command in _shortcutCommands)
-            {
-                _shortcutCommand.AddItem(command.Group + " - " + command.Title);
-            }
+                "A duplicate binding is moved instead of activating two commands. Changes save immediately.");
 
-            _shortcutCommand.Activated += (_, _) => ShowSelectedShortcut();
-            _shortcutChord = new NSTextField(new CGRect(0, 0, 300, 26))
+            _shortcutConflict = MacTheme.WrappingLabel("", 2, MacTheme.Attention);
+            _shortcutConflict.Hidden = true;
+            _shortcutSearch = new NSSearchField
+            {
+                PlaceholderString = "Find a command or a shortcut",
+                TranslatesAutoresizingMaskIntoConstraints = false,
+            };
+            _shortcutSearch.AccessibilityLabel = "Find a command or a shortcut";
+            _shortcutSearch.Changed += (_, _) => ShowShortcutLines();
+
+            _shortcutTable = new NSTableView
+            {
+                AllowsColumnReordering = false,
+                AllowsEmptySelection = true,
+                AllowsMultipleSelection = false,
+                RowHeight = 32,
+                ColumnAutoresizingStyle = NSTableViewColumnAutoresizingStyle.FirstColumnOnly,
+            };
+            _shortcutTable.AddColumn(new NSTableColumn("command") { Title = "Command", Width = 300 });
+            _shortcutTable.AddColumn(new NSTableColumn("shortcut") { Title = "Shortcut", Width = 190 });
+            _shortcutTable.AddColumn(new NSTableColumn("global") { Title = "Everywhere", Width = 90 });
+            _shortcutSource = new ShortcutEditorSource(this);
+            _shortcutTable.Source = _shortcutSource;
+            ((NSView)_shortcutTable).AccessibilityLabel = "Commands and their shortcuts";
+            var tableScroll = new NSScrollView
+            {
+                HasVerticalScroller = true,
+                AutohidesScrollers = true,
+                DocumentView = _shortcutTable,
+                TranslatesAutoresizingMaskIntoConstraints = false,
+            };
+            MacTheme.Style(_shortcutTable, tableScroll);
+            tableScroll.HeightAnchor.ConstraintEqualTo(300).Active = true;
+            var tableCard = MacTheme.Panel(DesignRole.Surface, 2, hairline: true);
+            MacTheme.Fill(tableCard, tableScroll, (double)MacTheme.Space(1));
+
+            // The chosen command's shortcut: what it is now, the box to type a new one, and the way back.
+            _shortcutCurrentKeys = MacTheme.Stack(false, 1);
+            var clear = MacTheme.TextButton("No shortcut", () => ChangeShortcut(
+                ShortcutEditing.Clear(_settings.Shortcuts, SelectedShortcutId()), "Binding removed."), label: "Remove the shortcut");
+            var reset = MacTheme.TextButton("Its own shortcut", () => ChangeShortcut(
+                ShortcutEditing.Reset(_settings.Shortcuts, SelectedShortcutId()), "Default restored."), label: "Restore the default shortcut");
+            _shortcutChord = new NSTextField
             {
                 PlaceholderString = "Cmd+Shift+P",
                 ToolTip = "Enter Cmd, Option and Shift with a letter, number, function or named key",
+                TranslatesAutoresizingMaskIntoConstraints = false,
             };
-            ((NSView)_shortcutChord).AccessibilityLabel = "Shortcut keys";
-            _shortcutStatus = NSTextField.CreateWrappingLabel("");
-            _shortcutStatus.TextColor = NSColor.SecondaryLabel;
-            _shortcutGlobal = NSButton.CreateCheckbox(
-                "Works while another app is active", ToggleSelectedGlobalShortcut);
-            var apply = NSButton.CreateButton("Apply binding", ApplyShortcut);
-            var clear = NSButton.CreateButton("Remove binding", () => ChangeShortcut(
-                ShortcutEditing.Clear(_settings.Shortcuts, SelectedShortcutId()), "Binding removed."));
-            var reset = NSButton.CreateButton("Restore default", () => ChangeShortcut(
-                ShortcutEditing.Reset(_settings.Shortcuts, SelectedShortcutId()), "Default restored."));
-            var import = NSButton.CreateButton("Import…", ImportShortcuts);
-            var export = NSButton.CreateButton("Export…", ExportShortcuts);
-            var actions = NSStackView.FromViews([apply, clear, reset]);
-            actions.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            actions.Spacing = 8;
-            _shortcutWheel = EffectChoices(ShortcutEditing.WheelChoiceTitles(_settings));
-            _shortcutSidewaysWheel = EffectChoices(ShortcutEditing.WheelChoiceTitles(_settings));
-            _shortcutMiddle = EffectChoices(["Play / pause", "Fullscreen", "Mute", "Do nothing"]);
-            _shortcutSideButtons = EffectChoices(ShortcutEditing.SideButtonChoiceTitles(_settings));
-            _shortcutCtrlWheel = EffectChoices(["Zoom", "Subtitle size"]);
-            _shortcutPanWhenZoomed = NSButton.CreateCheckbox(
-                "Wheel pans instead of seeking when zoomed", ApplyMouseSettings);
+            _shortcutChord.WidthAnchor.ConstraintEqualTo(180).Active = true;
+            _shortcutChord.Activated += (_, _) => ApplyShortcut();
+            var apply = MacTheme.TextButton("Use it", ApplyShortcut, RexButtonLook.Accent, label: "Use the new shortcut");
+            _shortcutGlobal = MacSettings.Check(false);
+            _shortcutGlobal.Activated += (_, _) => ToggleSelectedGlobalShortcut();
+            _shortcutStatus = MacTheme.WrappingLabel("", 1, DesignRole.TextSecondary);
+            _shortcutCaptureTitle = MacTheme.Label("", 3, semibold: true);
+            var capture = MacSettings.Card(null,
+                _shortcutCaptureTitle,
+                MacSettings.Row("Now", null, MacSettings.Buttons(_shortcutCurrentKeys, clear, reset)),
+                MacSettings.Row("New shortcut", "Type it, such as Cmd+Shift+P, then press Return.", MacSettings.Buttons(_shortcutChord, apply)),
+                MacSettings.Row("Everywhere", "Works while another app is in front.", _shortcutGlobal),
+                _shortcutStatus);
+            ((NSView)_shortcutChord).AccessibilityLabel = "New shortcut";
+
+            var named = _settings;
+            _shortcutWheel = MacSettings.Choices(ShortcutEditing.WheelChoiceTitles(named));
+            _shortcutSidewaysWheel = MacSettings.Choices(ShortcutEditing.WheelChoiceTitles(named));
+            _shortcutMiddle = MacSettings.Choices(["Plays or pauses", "Goes full screen", "Mutes", "Does nothing"]);
+            _shortcutSideButtons = MacSettings.Choices(ShortcutEditing.SideButtonChoiceTitles(named));
+            _shortcutCtrlWheel = MacSettings.Choices(["Zooms the picture", "Sizes the subtitles"]);
+            _shortcutPanWhenZoomed = MacSettings.Check(false);
+            _shortcutPanWhenZoomed.Activated += (_, _) => ApplyMouseSettings();
             foreach (var menu in new[] { _shortcutWheel, _shortcutSidewaysWheel, _shortcutMiddle,
                 _shortcutSideButtons, _shortcutCtrlWheel })
             {
                 menu.Activated += (_, _) => ApplyMouseSettings();
             }
 
-            var files = NSStackView.FromViews([import, export]);
-            files.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
-            files.Spacing = 8;
-            var stack = NSStackView.FromViews([
-                heading, explanation, _shortcutCommand, _shortcutChord, _shortcutGlobal, actions,
-                _shortcutStatus, files,
-                EffectsHeading("Mouse & trackpad"),
-                EffectChoiceRow("Vertical wheel", _shortcutWheel),
-                EffectChoiceRow("Sideways wheel", _shortcutSidewaysWheel),
-                EffectChoiceRow("Middle-click", _shortcutMiddle),
-                EffectChoiceRow("Back / forward", _shortcutSideButtons),
-                EffectChoiceRow("Cmd + wheel", _shortcutCtrlWheel),
-                _shortcutPanWhenZoomed,
-            ]);
-            stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-            stack.Alignment = NSLayoutAttribute.Leading;
-            stack.Spacing = 12;
-            stack.EdgeInsets = new NSEdgeInsets(20, 24, 20, 24);
-            stack.TranslatesAutoresizingMaskIntoConstraints = false;
-            var container = new NSView(new CGRect(0, 0, 650, 580));
-            container.AddSubview(stack);
-            stack.TopAnchor.ConstraintEqualTo(container.TopAnchor).Active = true;
-            stack.BottomAnchor.ConstraintEqualTo(container.BottomAnchor).Active = true;
-            stack.LeadingAnchor.ConstraintEqualTo(container.LeadingAnchor).Active = true;
-            stack.TrailingAnchor.ConstraintEqualTo(container.TrailingAnchor).Active = true;
-            explanation.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            _shortcutCommand.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            _shortcutChord.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            _shortcutStatus.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            _shortcutsWindow.ContentView = container;
+            var mouse = MacSettings.Card("Mouse",
+                MacSettings.Row("Turning the wheel over the picture", null, _shortcutWheel),
+                MacSettings.Row("Tilting the wheel", null, _shortcutSidewaysWheel),
+                MacSettings.Row("Cmd with the wheel, and pinching a trackpad", null, _shortcutCtrlWheel),
+                MacSettings.Row("Zoomed in, the wheel and two-finger scrolling move about the picture", null, _shortcutPanWhenZoomed),
+                MacSettings.Row("The middle button", null, _shortcutMiddle),
+                MacSettings.Row("The back and forward buttons", null, _shortcutSideButtons));
+            var import = MacTheme.TextButton("Load from a file…", ImportShortcuts, label: "Import keyboard and mouse settings");
+            var export = MacTheme.TextButton("Save to a file…", ExportShortcuts, label: "Export keyboard and mouse settings");
+            page.Add(_shortcutConflict, _shortcutSearch, tableCard, capture, mouse);
+            page.AddFitted(MacSettings.Buttons(import, export));
+            var scroll = MacSettings.Scroller();
+            _shortcutsWindow.ContentView = scroll;
+            MacSettings.Show(scroll, page);
             _shortcutsWindow.Center();
         }
 
         LoadMouseSettings();
+        ShowShortcutLines();
         ShowSelectedShortcut();
         _shortcutsWindow.MakeKeyAndOrderFront(null);
+    }
+
+    /// <summary>
+    /// Fills the table with the commands the search leaves, under their groups, as Windows lists
+    /// them: a command matches by its name or by one of its shortcuts. The chosen command stays chosen.
+    /// </summary>
+    private void ShowShortcutLines()
+    {
+        if (_shortcutTable is null)
+        {
+            return;
+        }
+
+        var filter = _shortcutSearch?.StringValue.Trim() ?? "";
+        var lines = new List<ShortcutEditorLine>();
+        foreach (var group in CommandCatalog.All.GroupBy(command => command.Group))
+        {
+            var shown = group.Where(command => filter.Length == 0
+                || CommandCatalog.TitleOf(command, _settings).Contains(filter, StringComparison.CurrentCultureIgnoreCase)
+                || _keymap.ShortcutsFor(command.Id).Any(chord =>
+                    chord.Display(ShortcutStyle.Mac).Contains(filter, StringComparison.OrdinalIgnoreCase)
+                    || chord.ToString().Contains(filter, StringComparison.OrdinalIgnoreCase))).ToList();
+            if (shown.Count == 0)
+            {
+                continue;
+            }
+
+            lines.Add(new ShortcutEditorLine(group.Key, null));
+            lines.AddRange(shown.Select(command => new ShortcutEditorLine(group.Key, command)));
+        }
+
+        _shortcutLines = lines;
+        _shortcutTableUpdating = true;
+        _shortcutTable.ReloadData();
+        var row = lines.FindIndex(line => line.Command?.Id == _shortcutSelectedId);
+        if (row >= 0)
+        {
+            _shortcutTable.SelectRow(row, byExtendingSelection: false);
+        }
+
+        _shortcutTableUpdating = false;
+        if (_shortcutConflict is not null)
+        {
+            _shortcutConflict.StringValue = _keymap.Conflicts is [var first, ..]
+                ? $"{first.Chord.Display(ShortcutStyle.Mac)} is both {CommandCatalog.TitleOf(CommandCatalog.Find(first.First)!, _settings)} and " +
+                    $"{CommandCatalog.TitleOf(CommandCatalog.Find(first.Second)!, _settings)}; it does the first. Give one of them another shortcut."
+                : "";
+            _shortcutConflict.Hidden = _keymap.Conflicts.Count == 0;
+        }
+    }
+
+    /// <summary>The table's answer to a click or an arrow key: the command of the row chosen becomes the one edited.</summary>
+    private void ShortcutLineSelected()
+    {
+        if (_shortcutTableUpdating || _shortcutTable is null)
+        {
+            return;
+        }
+
+        var row = (int)_shortcutTable.SelectedRow;
+        if (row >= 0 && row < _shortcutLines.Count && _shortcutLines[row].Command is { } command)
+        {
+            _shortcutSelectedId = command.Id;
+            ShowSelectedShortcut();
+        }
+    }
+
+    /// <summary>Makes <paramref name="id"/> the command edited, choosing its row when the search shows it.</summary>
+    private void SelectShortcutCommand(string id)
+    {
+        _shortcutSelectedId = id;
+        ShowShortcutLines();
+        ShowSelectedShortcut();
     }
 
     private void LoadMouseSettings()
@@ -147,12 +255,9 @@ public sealed partial class MainWindow
         SaveShortcutSettings(settings, "Mouse preferences saved.");
     }
 
-    private string SelectedShortcutId()
-    {
-        var index = (int)(_shortcutCommand?.IndexOfSelectedItem ?? 0);
-        return _shortcutCommands[Math.Clamp(index, 0, _shortcutCommands.Count - 1)].Id;
-    }
+    private string SelectedShortcutId() => _shortcutSelectedId;
 
+    /// <summary>The chosen command's name, its keys as key caps, and whether it is custom.</summary>
     private void ShowSelectedShortcut()
     {
         if (_shortcutChord is null || _shortcutStatus is null)
@@ -161,11 +266,38 @@ public sealed partial class MainWindow
         }
 
         var id = SelectedShortcutId();
+        var keys = _keymap.ShortcutsFor(id);
+        if (_shortcutCaptureTitle is not null && CommandCatalog.Find(id) is { } command)
+        {
+            _shortcutCaptureTitle.StringValue = CommandCatalog.TitleOf(command, _settings);
+        }
+
+        if (_shortcutCurrentKeys is not null)
+        {
+            foreach (var old in _shortcutCurrentKeys.ArrangedSubviews)
+            {
+                _shortcutCurrentKeys.RemoveArrangedSubview(old);
+                old.RemoveFromSuperview();
+            }
+
+            if (keys.Count == 0)
+            {
+                _shortcutCurrentKeys.AddArrangedSubview(MacTheme.Label("None", 2, DesignRole.TextSecondary));
+            }
+
+            foreach (var chord in keys)
+            {
+                _shortcutCurrentKeys.AddArrangedSubview(MacSettings.KeyCaps(chord));
+            }
+
+            _shortcutCurrentKeys.AccessibilityLabel = keys.Count == 0 ? "No shortcut" : KeyNames.Spoken(keys, ShortcutStyle.Mac);
+        }
+
         _shortcutChord.StringValue = _keymap.Label(id, ShortcutStyle.Mac);
         if (_shortcutGlobal is not null)
         {
             _shortcutGlobal.State = State(_settings.GlobalShortcuts.Contains(id, StringComparer.Ordinal));
-            _shortcutGlobal.Enabled = _keymap.ShortcutsFor(id).Count > 0;
+            _shortcutGlobal.Enabled = keys.Count > 0;
         }
         _shortcutStatus.StringValue = ShortcutEditing.IsChanged(_settings.Shortcuts, id)
             ? "Custom binding; changes save immediately." : "Default binding; changes save immediately.";
@@ -230,6 +362,7 @@ public sealed partial class MainWindow
             content.Menu = _pictureMenu;
         }
 
+        ShowShortcutLines();
         ShowSelectedShortcut();
         _shortcutStatus!.StringValue = message;
     }
@@ -267,6 +400,7 @@ public sealed partial class MainWindow
             {
                 SaveShortcutSettings(ShortcutEditing.Import(_settings, File.ReadAllText(path)),
                     "Keyboard and mouse settings imported.");
+                LoadMouseSettings();
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException)
             {
@@ -285,7 +419,7 @@ public sealed partial class MainWindow
         if (action == "show")
         {
             ShowShortcutEditor();
-            return _shortcutsWindow?.IsVisible == true && _shortcutCommand is not null;
+            return _shortcutsWindow?.IsVisible == true && _shortcutTable is not null;
         }
 
         // The read-only sheet: proved open with grouped lines, then closed the way Esc closes it.
@@ -301,19 +435,13 @@ public sealed partial class MainWindow
             return _shortcutSheetWindow?.IsVisible != true;
         }
 
-        if (_shortcutCommand is null || _shortcutChord is null)
+        if (_shortcutTable is null || _shortcutChord is null
+            || CommandCatalog.Find(CommandCatalog.GoToTime) is null)
         {
             return false;
         }
 
-        var index = _shortcutCommands.ToList().FindIndex(command => command.Id == CommandCatalog.GoToTime);
-        if (index < 0)
-        {
-            return false;
-        }
-
-        _shortcutCommand.SelectItem(index);
-        ShowSelectedShortcut();
+        SelectShortcutCommand(CommandCatalog.GoToTime);
         if (action == "bind")
         {
             _shortcutChord.StringValue = "Cmd+Shift+P";
@@ -385,5 +513,75 @@ public sealed partial class MainWindow
         NSEvent.RemoveMonitor(_globalShortcutMonitor);
         _globalShortcutMonitor.Dispose();
         _globalShortcutMonitor = null;
+    }
+
+    /// <summary>
+    /// The editor's table: each group's name as a kicker across the row, then a command a line with
+    /// its keys as key caps and, for those that work while another app is in front, "Everywhere".
+    /// </summary>
+    private sealed class ShortcutEditorSource : NSTableViewSource
+    {
+        private readonly MainWindow _owner;
+
+        public ShortcutEditorSource(MainWindow owner) => _owner = owner;
+
+        public override nint GetRowCount(NSTableView tableView) => _owner._shortcutLines.Count;
+
+        public override bool IsGroupRow(NSTableView tableView, nint row) => _owner._shortcutLines[(int)row].Command is null;
+
+        public override bool ShouldSelectRow(NSTableView tableView, nint row) => _owner._shortcutLines[(int)row].Command is not null;
+
+        public override void SelectionDidChange(NSNotification notification) => _owner.ShortcutLineSelected();
+
+        public override NSView GetViewForItem(NSTableView tableView, NSTableColumn tableColumn, nint row)
+        {
+            var line = _owner._shortcutLines[(int)row];
+            if (line.Command is not { } command)
+            {
+                var kicker = MacTheme.Kicker(line.Group);
+                ((NSView)kicker).AccessibilityLabel = line.Group + " shortcuts";
+                return Cell(kicker);
+            }
+
+            var keys = _owner._keymap.ShortcutsFor(command.Id);
+            var title = CommandCatalog.TitleOf(command, _owner._settings);
+            switch (tableColumn?.Identifier)
+            {
+                case "shortcut":
+                    var caps = MacTheme.Stack(false, 1);
+                    foreach (var chord in keys)
+                    {
+                        caps.AddArrangedSubview(MacSettings.KeyCaps(chord));
+                    }
+
+                    if (keys.Count == 0)
+                    {
+                        caps.AddArrangedSubview(MacTheme.Label("None", 1, DesignRole.TextTertiary));
+                    }
+
+                    return Cell(caps);
+                case "global":
+                    var everywhere = _owner._settings.GlobalShortcuts.Contains(command.Id, StringComparer.Ordinal);
+                    return Cell(MacTheme.Label(everywhere ? "Everywhere" : "", 1, DesignRole.TextSecondary));
+                default:
+                    var name = MacTheme.Label(title, 2);
+                    // A screen reader hears the line as one sentence: the command, then its keys.
+                    ((NSView)name).AccessibilityLabel = title + ": " +
+                        (keys.Count == 0 ? "no shortcut" : KeyNames.Spoken(keys, ShortcutStyle.Mac));
+                    return Cell(name);
+            }
+        }
+
+        /// <summary>A table cell holding <paramref name="content"/> at its leading edge, centred down.</summary>
+        private static NSView Cell(NSView content)
+        {
+            var cell = new NSView();
+            content.TranslatesAutoresizingMaskIntoConstraints = false;
+            cell.AddSubview(content);
+            content.LeadingAnchor.ConstraintEqualTo(cell.LeadingAnchor, MacTheme.Space(0)).Active = true;
+            content.TrailingAnchor.ConstraintLessThanOrEqualTo(cell.TrailingAnchor).Active = true;
+            content.CenterYAnchor.ConstraintEqualTo(cell.CenterYAnchor).Active = true;
+            return cell;
+        }
     }
 }

@@ -1,11 +1,13 @@
 using Rex.Media.AppCore.Commands;
+using Rex.Media.AppCore.Design;
 
 namespace Rex.Media.App.Mac;
 
 /// <summary>
 /// The read-only shortcut sheet (A11Y-02): every command with a shortcut, a line each under its
-/// group, read from the same shared <see cref="Keymap"/> the menus and the editor use. It only
-/// shows; changing a binding stays the shortcut editor's job.
+/// group, read from the same shared <see cref="Keymap"/> the menus and the editor use. As on
+/// Windows, each group's name heads its lines and each line gives what the command does and its
+/// keys as key caps. It only shows; changing a binding stays the shortcut editor's job.
 /// </summary>
 public sealed partial class MainWindow
 {
@@ -15,35 +17,37 @@ public sealed partial class MainWindow
     private IReadOnlyList<ShortcutSheetRow> _shortcutSheetRows = [];
 
     /// <summary>A heading for a group, or a command with its keys and how a screen reader says them.</summary>
-    private readonly record struct ShortcutSheetRow(string Name, string Keys, string Spoken, bool Heading);
+    private readonly record struct ShortcutSheetRow(string Name, IReadOnlyList<KeyChord> Keys, string Spoken, bool Heading);
 
     private void ShowShortcutSheet()
     {
         _shortcutSheetRows = ShortcutSheetRows();
         if (_shortcutSheetWindow is null)
         {
-            _shortcutSheetWindow = new NSWindow(new CGRect(0, 0, 560, 620),
+            _shortcutSheetWindow = new NSWindow(new CGRect(0, 0, 620, 660),
                 NSWindowStyle.Titled | NSWindowStyle.Closable | NSWindowStyle.Resizable,
                 NSBackingStore.Buffered, false)
             {
                 Title = "Keyboard shortcut reference - rexplayer",
-                MinSize = new CGSize(440, 360),
+                MinSize = new CGSize(460, 380),
+                AutorecalculatesKeyViewLoop = true,
             };
             _shortcutSheetWindow.ReleaseWhenClosed(false);
-            var heading = NSTextField.CreateLabel("Keyboard shortcuts");
-            heading.Font = NSFont.SystemFontOfSize(24, NSFontWeight.Semibold)!;
-            var hint = NSTextField.CreateWrappingLabel(
+            MacTheme.Style(_shortcutSheetWindow);
+            var heading = MacTheme.Label("Keyboard shortcuts", 5, semibold: true);
+            var hint = MacTheme.WrappingLabel(
                 "Every command with a shortcut, under its group. " +
-                "Change a binding in Keyboard shortcuts; Esc closes this sheet.");
-            hint.TextColor = NSColor.SecondaryLabel;
-            var nameColumn = new NSTableColumn("command") { Title = "Command", Width = 320 };
-            var keysColumn = new NSTableColumn("shortcut") { Title = "Shortcut", Width = 170 };
-            _shortcutSheetTable = new NSTableView(new CGRect(0, 0, 512, 460))
+                "Change a binding in Keyboard shortcuts; Esc closes this sheet.", 2, DesignRole.TextSecondary);
+            var nameColumn = new NSTableColumn("command") { Title = "Command", Width = 300 };
+            var keysColumn = new NSTableColumn("shortcut") { Title = "Shortcut", Width = 220 };
+            _shortcutSheetTable = new NSTableView
             {
                 AllowsColumnReordering = false,
                 AllowsEmptySelection = true,
                 AllowsMultipleSelection = false,
-                UsesAlternatingRowBackgroundColors = true,
+                HeaderView = null,
+                RowHeight = 32,
+                ColumnAutoresizingStyle = NSTableViewColumnAutoresizingStyle.FirstColumnOnly,
             };
             _shortcutSheetTable.AddColumn(nameColumn);
             _shortcutSheetTable.AddColumn(keysColumn);
@@ -53,25 +57,32 @@ public sealed partial class MainWindow
             var scroll = new NSScrollView
             {
                 HasVerticalScroller = true,
+                AutohidesScrollers = true,
                 DocumentView = _shortcutSheetTable,
+                TranslatesAutoresizingMaskIntoConstraints = false,
             };
-            scroll.HeightAnchor.ConstraintGreaterThanOrEqualTo(260).Active = true;
-            var close = NSButton.CreateButton("Close", () => _shortcutSheetWindow?.Close());
-            close.ToolTip = "Close the shortcut sheet (Esc)";
-            var stack = NSStackView.FromViews([heading, hint, scroll, close]);
-            stack.Orientation = NSUserInterfaceLayoutOrientation.Vertical;
-            stack.Alignment = NSLayoutAttribute.Leading;
-            stack.Spacing = 12;
-            stack.EdgeInsets = new NSEdgeInsets(20, 24, 20, 24);
-            stack.TranslatesAutoresizingMaskIntoConstraints = false;
-            var container = new ShortcutSheetView(new CGRect(0, 0, 560, 620));
-            container.AddSubview(stack);
-            stack.TopAnchor.ConstraintEqualTo(container.TopAnchor).Active = true;
-            stack.BottomAnchor.ConstraintEqualTo(container.BottomAnchor).Active = true;
-            stack.LeadingAnchor.ConstraintEqualTo(container.LeadingAnchor).Active = true;
-            stack.TrailingAnchor.ConstraintEqualTo(container.TrailingAnchor).Active = true;
-            hint.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
-            scroll.WidthAnchor.ConstraintEqualTo(stack.WidthAnchor, 1, -48).Active = true;
+            MacTheme.Style(_shortcutSheetTable, scroll);
+            var card = MacTheme.Panel(DesignRole.Surface, 2, hairline: true);
+            MacTheme.Fill(card, scroll, (double)MacTheme.Space(1));
+            var close = MacTheme.TextButton("Close", () => _shortcutSheetWindow?.Close(), label: "Close the shortcut sheet (Esc)");
+            var container = new ShortcutSheetView(new CGRect(0, 0, 620, 660));
+            foreach (var view in new NSView[] { heading, hint, card, close })
+            {
+                container.AddSubview(view);
+            }
+
+            var pad = MacTheme.Space(4);
+            heading.TopAnchor.ConstraintEqualTo(container.TopAnchor, pad + 12).Active = true;
+            heading.LeadingAnchor.ConstraintEqualTo(container.LeadingAnchor, pad).Active = true;
+            hint.TopAnchor.ConstraintEqualTo(heading.BottomAnchor, MacTheme.Space(1)).Active = true;
+            hint.LeadingAnchor.ConstraintEqualTo(container.LeadingAnchor, pad).Active = true;
+            hint.TrailingAnchor.ConstraintEqualTo(container.TrailingAnchor, -pad).Active = true;
+            card.TopAnchor.ConstraintEqualTo(hint.BottomAnchor, MacTheme.Space(3)).Active = true;
+            card.LeadingAnchor.ConstraintEqualTo(container.LeadingAnchor, pad).Active = true;
+            card.TrailingAnchor.ConstraintEqualTo(container.TrailingAnchor, -pad).Active = true;
+            card.BottomAnchor.ConstraintEqualTo(close.TopAnchor, -MacTheme.Space(3)).Active = true;
+            close.TrailingAnchor.ConstraintEqualTo(container.TrailingAnchor, -pad).Active = true;
+            close.BottomAnchor.ConstraintEqualTo(container.BottomAnchor, -pad).Active = true;
             _shortcutSheetWindow.ContentView = container;
             _shortcutSheetWindow.Center();
         }
@@ -94,12 +105,11 @@ public sealed partial class MainWindow
                 continue;
             }
 
-            rows.Add(new ShortcutSheetRow(group.Key, "", group.Key + " shortcuts", Heading: true));
+            rows.Add(new ShortcutSheetRow(group.Key, [], group.Key + " shortcuts", Heading: true));
             foreach (var (command, keys) in lines)
             {
                 var title = CommandCatalog.TitleOf(command, _settings);
-                rows.Add(new ShortcutSheetRow(title,
-                    string.Join(" or ", keys.Select(chord => chord.Display(ShortcutStyle.Mac))),
+                rows.Add(new ShortcutSheetRow(title, keys,
                     title + ": " + KeyNames.Spoken(keys, ShortcutStyle.Mac), Heading: false));
             }
         }
@@ -127,7 +137,7 @@ public sealed partial class MainWindow
         public void CloseOnCancel(NSObject? _) => Window?.Close();
     }
 
-    /// <summary>Rows for the sheet's table: full-width group headings, then command and keys.</summary>
+    /// <summary>Rows for the sheet's table: group names as kickers across the row, then command and key caps.</summary>
     private sealed class ShortcutSheetSource : NSTableViewSource
     {
         private readonly MainWindow _owner;
@@ -143,24 +153,45 @@ public sealed partial class MainWindow
         public override NSView GetViewForItem(NSTableView tableView, NSTableColumn tableColumn, nint row)
         {
             var line = _owner._shortcutSheetRows[(int)row];
+            NSView content;
             if (line.Heading)
             {
-                var headingLabel = NSTextField.CreateLabel(line.Name);
-                headingLabel.Font = NSFont.SystemFontOfSize(13, NSFontWeight.Semibold)!;
-                ((NSView)headingLabel).AccessibilityLabel = line.Spoken;
-                return headingLabel;
+                var kicker = MacTheme.Kicker(line.Name);
+                ((NSView)kicker).AccessibilityLabel = line.Spoken;
+                content = kicker;
             }
-
-            var shortcut = tableColumn?.Identifier == "shortcut";
-            var label = NSTextField.CreateLabel(shortcut ? line.Keys : line.Name);
-            label.LineBreakMode = NSLineBreakMode.TruncatingTail;
-            if (!shortcut)
+            else if (tableColumn?.Identifier == "shortcut")
             {
+                var caps = MacTheme.Stack(false, 1);
+                for (var i = 0; i < line.Keys.Count; i++)
+                {
+                    if (i > 0)
+                    {
+                        var either = MacTheme.Label("or", 1, DesignRole.TextSecondary);
+                        either.AccessibilityElement = false;
+                        caps.AddArrangedSubview(either);
+                    }
+
+                    caps.AddArrangedSubview(MacSettings.KeyCaps(line.Keys[i]));
+                }
+
+                content = caps;
+            }
+            else
+            {
+                var name = MacTheme.Label(line.Name, 2);
                 // A screen reader hears the line as one sentence, as on Windows (A11Y-02).
-                ((NSView)label).AccessibilityLabel = line.Spoken;
+                ((NSView)name).AccessibilityLabel = line.Spoken;
+                content = name;
             }
 
-            return label;
+            var cell = new NSView();
+            content.TranslatesAutoresizingMaskIntoConstraints = false;
+            cell.AddSubview(content);
+            content.LeadingAnchor.ConstraintEqualTo(cell.LeadingAnchor, MacTheme.Space(0)).Active = true;
+            content.TrailingAnchor.ConstraintLessThanOrEqualTo(cell.TrailingAnchor).Active = true;
+            content.CenterYAnchor.ConstraintEqualTo(cell.CenterYAnchor).Active = true;
+            return cell;
         }
     }
 }
