@@ -1,18 +1,7 @@
 # SHA-256 baselines for CI-generated native macOS library screenshots.
-# A shot may list one approved hash per macos-26-arm64 runner image GitHub has in service;
-# any listed hash passes. An image update can change the bytes with no visible change.
-# A changed shot fails only in this CI lane. Review artifacts/mac-library-screenshots in
-# the failing run before adding or replacing a baseline.
-#
-# Runner image 20261102.0473, approved from runs 44404880922 and 44409155674.
-bc1bf5293d4ff39a77738727c95663320ac7f5ffa56e68b779ff9763686a60c3  mac-library-empty.png
-84cfdddbd57b53be593000df7cf962b10f887ac72dc483a0ea9f899c1503347a  mac-library-minimum-width.png
-64b43eb562b210a3879e849da4f723cfaf10bbeeb26cd4d37310f5e35a3c9f7e  mac-library-no-matches.png
-fd09793f141afb662f9e20acf99e627c1522a1d7a850ffb873d1ec1d73a272b3  mac-library-populated.png
-539af7545a3dd072a21a1d57c730673906ccc17ab27ad3a7b6940ae7a3fba126  mac-library-searched.png
-# Runner image 20261112.0504, approved from run 44429416417.
-f63975c4d161871aa68ad2f6511be555ffbadf95b9865756daf48fb8003f53ec  mac-library-empty.png
-0bab8d0388c85dca579c20c5f89f2eeaa77e53dad7f1415f9e6390377fc91b0b  mac-library-minimum-width.png
-b86612c4b92541e50146c87a1e9683015c7c11c7574750a82b2abee78f75bb39  mac-library-no-matches.png
-7de3dc75cac4c9d0bb2fca9f8932aea815ed65fea1ccc088951de71e6f82349e  mac-library-populated.png
-179d1bb900cf5d958e95df5cda52d388eb9fc6715b1663a7b66cb679e21aefeb  mac-library-searched.png
+# The library was redrawn inside the player window in this change, so no earlier hash applies.
+# CI saves the shots as the mac-library-screenshots artifact. A hash is added here only after
+# a person has looked at the picture from a CI run and approved it; until then the shot is
+# saved and its hash written to the test output, and it does not fail the build.
+# Once a shot has a line here it must match one of its lines: one per macos-26-arm64 runner
+# image in service, since an image update can change the bytes with no visible change.

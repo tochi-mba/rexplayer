@@ -52,7 +52,6 @@ public sealed partial class MacAppSmokeTests
     [Capability("UI-11", CapabilityPlatform.MacOS)]
     [Capability("LIB-03", CapabilityPlatform.MacOS)]
     [Capability("LIB-10", CapabilityPlatform.MacOS)]
-    [Capability("LIB-04", CapabilityPlatform.MacOS)]
     [Capability("PB-12", CapabilityPlatform.MacOS)]
     [Capability("VID-03", CapabilityPlatform.MacOS)]
     [Capability("VID-27", CapabilityPlatform.MacOS)]
@@ -75,8 +74,6 @@ public sealed partial class MacAppSmokeTests
     [Capability("LIB-05", CapabilityPlatform.MacOS)]
     [Capability("LIB-02", CapabilityPlatform.MacOS)]
     [Capability("UI-04", CapabilityPlatform.MacOS)]
-    [Capability("UI-01", CapabilityPlatform.MacOS)]
-    [Capability("AU-18", CapabilityPlatform.MacOS)]
     [Capability("UI-16", CapabilityPlatform.MacOS)]
     public async Task TheMacAppComesUpPlaysAVideoAndQuitsWhenAScriptAsks()
     {
@@ -180,7 +177,9 @@ public sealed partial class MacAppSmokeTests
             var mainKeyboard = await Ask(pipe, new AutomationRequest { Command = "mac-keyboard" });
             Assert.True(mainKeyboard?.Ok == true, "The Mac main-window keyboard loop failed: " +
                 (mainKeyboard?.Error ?? "no reply") + LogTail(root));
-            Assert.Equal("tab=16;regions=3", mainKeyboard!.Text);
+            // The bar's seventeen controls: the seek row's four and the transport row's thirteen,
+            // the three full-screen buttons among them.
+            Assert.Equal("tab=17;regions=3", mainKeyboard!.Text);
             var logShown = await Ask(pipe, new AutomationRequest { Command = "mac-diagnostics", Id = "show" });
             Assert.True(logShown?.Ok == true, "The Mac log console did not open.");
             var logControls = await Ask(pipe, new AutomationRequest { Command = "mac-diagnostics", Id = "verify-controls" });
@@ -235,8 +234,8 @@ public sealed partial class MacAppSmokeTests
             var emptyLibrary = await Library(pipe, "show");
             Assert.Contains("0 items", emptyLibrary.Title, StringComparison.Ordinal);
             await Library(pipe, "capture-empty");
-            // The reviewed "empty" baseline must be taken now, before adding
-            // a watched folder or resizing the AppKit library to minimum width.
+            // The "empty" shot must be taken now, before adding a watched folder
+            // or narrowing the player window to the library's minimum width.
             await CaptureLibraryScreenshot(pipe, "empty", root);
             await Library(pipe, "add-folder", libraryFixture);
             var populated = await Until(
@@ -280,12 +279,12 @@ public sealed partial class MacAppSmokeTests
             await Queue(pipe, "verify-list-drop");
             await Queue(pipe, "capture-empty");
 
-            // Exercise closing and reopening the real AppKit library through the
-            // shared View command. The catalogue is populated at this point.
-            // Library smoke actions have already shown the AppKit window.
-            // Close it first so this shared toggle really tests opening it.
+            // Exercise hiding and showing the library pane through the shared View
+            // command. The catalogue is populated at this point. The library smoke
+            // actions above have already shown the pane in the player window, so it
+            // is hidden first and this shared toggle really tests showing it.
             var closePreviouslyOpenLibrary = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
-            Assert.True(closePreviouslyOpenLibrary?.Ok == true, "Could not close the previously opened native library.");
+            Assert.True(closePreviouslyOpenLibrary?.Ok == true, "Could not hide the library pane shown by the smoke actions.");
             var library = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
             Assert.True(library?.Ok == true, "The Mac library command did not open: " + (library?.Error ?? "no reply") + LogTail(root));
             Assert.True((await Ask(pipe, new AutomationRequest { Command = "status" }))?.Ok == true, "The app stopped answering with its library open." + LogTail(root));
@@ -682,7 +681,7 @@ public sealed partial class MacAppSmokeTests
     }
 
     [Fact(Skip = MacAppRequired, SkipUnless = nameof(CanDriveMacApp))]
-    public async Task TheMacAppShowsASavedLibraryEntryInItsNativeWindow()
+    public async Task TheMacAppShowsASavedLibraryEntryInThePlayerWindow()
     {
         var bundle = Environment.GetEnvironmentVariable("REXPLAYER_MAC_APP");
         var root = Path.Combine(Path.GetTempPath(), "rexplayer-mac-library-" + Guid.NewGuid().ToString("N")[..8]);
@@ -716,7 +715,7 @@ public sealed partial class MacAppSmokeTests
         try
         {
             await Until(() => Ask(pipe, new AutomationRequest { Command = "status" }), reply => reply is { Ok: true }, app, root);
-            // The library window constructs its result rows from the persisted catalogue.
+            // The library pane constructs its result rows from the persisted catalogue.
             var opened = await Ask(pipe, new AutomationRequest { Command = "run", Id = CommandCatalog.ToggleLibrary });
             Assert.True(opened?.Ok == true, "Opening the populated Mac library failed: " + (opened?.Error ?? "no reply") + LogTail(root));
             Assert.True((await Ask(pipe, new AutomationRequest { Command = "status" }))?.Ok == true, "The populated Mac library stopped responding." + LogTail(root));
@@ -761,7 +760,8 @@ public sealed partial class MacAppSmokeTests
             Assert.True(videos?.Ok == true && videos.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
                 "The Videos category did not restore after switching all six categories.");
             var small = await Ask(pipe, new AutomationRequest { Command = "ui.set", Target = "LibraryWidth", Value = 590 });
-            Assert.True(small?.Ok == true, "The native library could not use its minimum window size: " + (small?.Error ?? "no reply"));
+            // LibraryWidth names the page's width; the player window is resized to give it that.
+            Assert.True(small?.Ok == true, "The player window could not narrow the library page to its minimum width: " + (small?.Error ?? "no reply"));
             await CaptureLibraryScreenshot(pipe, "minimum-width", root, changedShots);
             var searched = await Ask(pipe, new AutomationRequest { Command = "ui.search", Target = "known-video" });
             Assert.True(searched?.Ok == true && searched.Text?.Contains("1 matching", StringComparison.Ordinal) == true,
