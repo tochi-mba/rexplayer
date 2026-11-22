@@ -4,18 +4,17 @@ using Rex.Media.Library;
 namespace Rex.Media.App.Mac;
 
 /// <summary>
-/// The library window's scripted checks: the "mac-library" actions native fixture tests drive, the
-/// line each one answers with, and the list page's screenshot. None of it runs in a release session.
+/// The library's scripted checks: the "mac-library" actions native fixture tests drive, the line
+/// each one answers with, and the library's screenshot. None of it runs in a release session.
 /// </summary>
 public sealed partial class MainWindow
 {
     /// <summary>
-    /// Capture the native library list page for scripted macOS UI checks. The page, not the whole
-    /// window, is captured so the reviewed baselines taken before the sidebar existed still match.
+    /// Capture the native library pane, navigation and page together, for scripted macOS UI checks.
     /// </summary>
     private void CaptureLibraryScreenshot(string path)
     {
-        if (_libraryWindow?.IsVisible != true || _libraryListPage is not { } content)
+        if (!LibraryShown || _libraryRoot is not { } content)
         {
             throw new InvalidOperationException("Open the library before capturing its screenshot.");
         }
@@ -47,7 +46,7 @@ public sealed partial class MainWindow
             return true;
         }
 
-        if (action == "status" && _libraryWindow is not null)
+        if (action == "status" && _libraryRoot is not null)
         {
             RefreshLibrary(force: true);
             return true;
@@ -58,7 +57,7 @@ public sealed partial class MainWindow
             return AddLibraryFolders(paths.ToList()).Ok;
         }
 
-        if (_libraryWindow?.IsVisible != true || _libraryCategory is null || _librarySearch is null)
+        if (!LibraryShown || _libraryCategory is null || _librarySearch is null)
         {
             return false;
         }
@@ -169,7 +168,7 @@ public sealed partial class MainWindow
 
             Directory.CreateDirectory(output);
             File.WriteAllText(Path.Combine(output, "provenance.txt"),
-                "Capture origin: native AppKit library page view" + Environment.NewLine
+                "Capture origin: native AppKit library pane view" + Environment.NewLine
                 + "Platform: native macOS AppKit" + Environment.NewLine
                 + "Application version: " + typeof(MainWindow).Assembly.GetName().Version + Environment.NewLine
                 + "Source: automated smoke test, synthetic local media fixtures" + Environment.NewLine

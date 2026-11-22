@@ -1,101 +1,179 @@
+using Rex.Media.AppCore.Design;
 using Rex.Media.AppCore.Library;
 
 namespace Rex.Media.App.Mac;
 
 /// <summary>
-/// The library window's native sidebar: an NSTableView of sections in the fixed split-view column.
-/// Which sections are listed is decided by the portable <see cref="LibrarySections"/> rules from the
+/// The library's navigation column, as the Windows one: the brand over "YOUR LIBRARY", a toggle
+/// that narrows it to an icon rail, the views with their symbols, and Add folder at the foot. Which
+/// views are listed is decided by the portable <see cref="LibrarySections"/> rules from the
 /// catalogue's <see cref="LibraryFacts"/>: Home always, every other view only while it has something
 /// in it, and a change during a scan waits until it settles. Only the views the Mac can draw today
 /// are listed; later pages add their sections to the catalogue below.
 /// </summary>
 public sealed partial class MainWindow
 {
-    private const double LibrarySidebarWidth = 200;
+    /// <summary>The column's width, and its width as an icon rail, as on Windows.</summary>
+    private const double LibraryNavigationExpandedWidth = 200;
+    private const double LibraryNavigationCompactWidth = 64;
 
-    /// <summary>The Mac has no listening shelves yet, so those sections stay off its sidebar.</summary>
+    /// <summary>Below this width the pane shows the navigation as its icon rail.</summary>
+    private const double LibraryNavigationBreakpoint = 760;
+
+    /// <summary>The Mac has no listening shelves yet, so those sections stay off its navigation.</summary>
     private static readonly ListeningShelves NoListeningShelves = new([], [], [], []);
 
     /// <summary>
-    /// Every section the Mac shell can draw, in <see cref="SidebarView"/> order, each mapped to the
-    /// media category that renders it on the shared list page.
+    /// Every section the Mac shell can draw, in <see cref="SidebarView"/> order, with the name and
+    /// symbol Windows gives it, each mapped to the media category that renders it on the list page.
     /// </summary>
-    private static readonly (SidebarView Section, string Title, int Category)[] LibrarySidebarCatalog =
+    private static readonly (SidebarView Section, string Title, string Symbol, int Category)[] LibrarySidebarCatalog =
     [
-        (SidebarView.Home, "Home", 0),
-        (SidebarView.Songs, "Songs", 1),
-        (SidebarView.Videos, "Videos", 2),
-        (SidebarView.Pictures, "Pictures", 3),
-        (SidebarView.ContinueWatching, "Continue watching", 6),
-        (SidebarView.RecentlyPlayed, "Recently played", 5),
-        (SidebarView.RecentlyAdded, "Recently added", 4),
-        (SidebarView.Folders, "Folders", 7),
+        (SidebarView.Home, "Home", "house", 0),
+        (SidebarView.Songs, "Songs", "music.note", 1),
+        (SidebarView.Videos, "All videos", "film", 2),
+        (SidebarView.Pictures, "Pictures", "photo", 3),
+        (SidebarView.ContinueWatching, "Continue watching", "play.circle", 6),
+        (SidebarView.RecentlyPlayed, "Recently played", "clock.arrow.circlepath", 5),
+        (SidebarView.RecentlyAdded, "Recently added", "calendar.badge.plus", 4),
+        (SidebarView.Folders, "Folders", "folder", 7),
     ];
 
     private readonly LibrarySections _librarySections = new();
-    private NSSplitView? _librarySplit;
-    private NSTableView? _librarySidebar;
+    private readonly List<(SidebarView Section, LibraryNavItem Item)> _libraryNavItems = [];
+    private NSStackView? _libraryNavList;
     private NSScrollView? _librarySidebarScroll;
-    private LibrarySidebarSource? _librarySidebarSource;
+    private NSLayoutConstraint? _libraryNavWidth;
+    private RexButton? _libraryNavToggle;
+    private NSView? _libraryBrand;
     private NSTimer? _librarySidebarSettle;
-    private IReadOnlyList<(SidebarView Section, string Title, int Category)> _librarySidebarRows = [];
+    private IReadOnlyList<(SidebarView Section, string Title, string Symbol, int Category)> _librarySidebarRows = [];
     private int _librarySidebarFolderCount = -1;
-    private bool _librarySidebarSyncing;
+    private bool _libraryNavCollapsed;
+    private bool _libraryNavNarrow;
 
-    /// <summary>The width the sidebar column and its divider take from the library window.</summary>
-    private double LibrarySidebarTotalWidth => LibrarySidebarWidth + (double)(_librarySplit?.DividerThickness ?? 1);
+    /// <summary>Whether the navigation shows as its icon rail: chosen, or because the pane is narrow.</summary>
+    private bool LibraryNavCompact => _libraryNavCollapsed || _libraryNavNarrow;
 
-    /// <summary>The sidebar column: the navigation Back button above the native section list.</summary>
+    /// <summary>The navigation column: brand and toggle, the scrolling list of views, Add folder at the foot.</summary>
     private NSView BuildLibrarySidebar()
     {
-        var table = new NSTableView
+        var column = new NSView { TranslatesAutoresizingMaskIntoConstraints = false };
+        var brandName = MacTheme.Label("rexplayer", 4, DesignRole.TextPrimary, semibold: true);
+        var brand = MacTheme.Stack(true, 0, brandName, MacTheme.Kicker("Your library"));
+        brand.Spacing = 2;
+        _libraryBrand = brand;
+        ((NSView)brand).AccessibilityElement = false;
+
+        _libraryNavToggle = MacTheme.IconButton("chevron.left", "Collapse library navigation", () =>
         {
-            HeaderView = null,
-            AllowsEmptySelection = true,
-            AllowsMultipleSelection = false,
-            RowHeight = 26,
-        };
-        table.AddColumn(new NSTableColumn("library-section") { Editable = false, Width = 172 });
-        ((NSView)table).AccessibilityLabel = "Library sections";
-        _librarySidebarSource = new LibrarySidebarSource(this);
-        table.Source = _librarySidebarSource;
-        _librarySidebar = table;
+            _libraryNavCollapsed = !_libraryNavCollapsed;
+            ApplyLibraryNavCompact();
+        });
+
+        _libraryNavList = MacTheme.Stack(true, 0);
+        _libraryNavList.Alignment = NSLayoutAttribute.Width;
+        _libraryNavList.Spacing = 4;
+        _libraryNavList.EdgeInsets = new NSEdgeInsets(MacTheme.Space(1), MacTheme.Space(2), MacTheme.Space(2), MacTheme.Space(2));
+        var document = new TopAlignedLibraryDocument { TranslatesAutoresizingMaskIntoConstraints = false };
+        document.AddSubview(_libraryNavList);
+        _libraryNavList.TopAnchor.ConstraintEqualTo(document.TopAnchor).Active = true;
+        _libraryNavList.LeadingAnchor.ConstraintEqualTo(document.LeadingAnchor).Active = true;
+        _libraryNavList.TrailingAnchor.ConstraintEqualTo(document.TrailingAnchor).Active = true;
+        _libraryNavList.BottomAnchor.ConstraintEqualTo(document.BottomAnchor).Active = true;
         _librarySidebarScroll = new NSScrollView
         {
             HasVerticalScroller = true,
-            DocumentView = table,
+            AutohidesScrollers = true,
+            DrawsBackground = false,
+            BorderType = NSBorderType.NoBorder,
+            DocumentView = document,
+            TranslatesAutoresizingMaskIntoConstraints = false,
         };
+        document.TopAnchor.ConstraintEqualTo(_librarySidebarScroll.ContentView.TopAnchor).Active = true;
+        document.LeadingAnchor.ConstraintEqualTo(_librarySidebarScroll.ContentView.LeadingAnchor).Active = true;
+        document.WidthAnchor.ConstraintEqualTo(_librarySidebarScroll.ContentView.WidthAnchor).Active = true;
         _librarySidebarScroll.AccessibilityLabel = "Library sections";
 
-        var back = NSButton.CreateButton("Back", () => NavigateLibraryBack());
-        back.Enabled = false;
-        back.ToolTip = "Return to the previous library view";
-        ((NSView)back).AccessibilityLabel = "Back to the previous library view";
-        _libraryNavigationBack = back;
+        _libraryAddButton = MacTheme.TextButton("Add folder", AddLibraryFolder, RexButtonLook.Standard, "plus", "Add a folder to the library");
+        var edge = MacTheme.Separator(vertical: true);
 
-        var column = new NSView();
-        back.TranslatesAutoresizingMaskIntoConstraints = false;
-        _librarySidebarScroll.TranslatesAutoresizingMaskIntoConstraints = false;
-        column.AddSubview(back);
+        column.AddSubview(brand);
+        column.AddSubview(_libraryNavToggle);
         column.AddSubview(_librarySidebarScroll);
-        back.TopAnchor.ConstraintEqualTo(column.TopAnchor, 14).Active = true;
-        back.LeadingAnchor.ConstraintEqualTo(column.LeadingAnchor, 12).Active = true;
-        _librarySidebarScroll.TopAnchor.ConstraintEqualTo(back.BottomAnchor, 10).Active = true;
-        _librarySidebarScroll.LeadingAnchor.ConstraintEqualTo(column.LeadingAnchor, 8).Active = true;
-        _librarySidebarScroll.TrailingAnchor.ConstraintEqualTo(column.TrailingAnchor, -4).Active = true;
-        _librarySidebarScroll.BottomAnchor.ConstraintEqualTo(column.BottomAnchor, -10).Active = true;
-        column.WidthAnchor.ConstraintEqualTo((nfloat)LibrarySidebarWidth).Active = true;
+        column.AddSubview(_libraryAddButton);
+        column.AddSubview(edge);
+        brand.TopAnchor.ConstraintEqualTo(column.TopAnchor, 18).Active = true;
+        brand.LeadingAnchor.ConstraintEqualTo(column.LeadingAnchor, 20).Active = true;
+        brand.TrailingAnchor.ConstraintLessThanOrEqualTo(_libraryNavToggle.LeadingAnchor, -MacTheme.Space(0)).Active = true;
+        _libraryNavToggle.TopAnchor.ConstraintEqualTo(column.TopAnchor, MacTheme.Space(1)).Active = true;
+        _libraryNavToggle.TrailingAnchor.ConstraintEqualTo(column.TrailingAnchor, -10).Active = true;
+        _librarySidebarScroll.TopAnchor.ConstraintEqualTo(_libraryNavToggle.BottomAnchor, MacTheme.Space(2)).Active = true;
+        _librarySidebarScroll.LeadingAnchor.ConstraintEqualTo(column.LeadingAnchor).Active = true;
+        _librarySidebarScroll.TrailingAnchor.ConstraintEqualTo(edge.LeadingAnchor).Active = true;
+        _librarySidebarScroll.BottomAnchor.ConstraintEqualTo(_libraryAddButton.TopAnchor, -MacTheme.Space(1)).Active = true;
+        _libraryAddButton.LeadingAnchor.ConstraintEqualTo(column.LeadingAnchor, MacTheme.Space(2)).Active = true;
+        _libraryAddButton.TrailingAnchor.ConstraintEqualTo(edge.LeadingAnchor, -MacTheme.Space(2)).Active = true;
+        _libraryAddButton.BottomAnchor.ConstraintEqualTo(column.BottomAnchor, -MacTheme.Space(2)).Active = true;
+        edge.TopAnchor.ConstraintEqualTo(column.TopAnchor).Active = true;
+        edge.BottomAnchor.ConstraintEqualTo(column.BottomAnchor).Active = true;
+        edge.TrailingAnchor.ConstraintEqualTo(column.TrailingAnchor).Active = true;
+        _libraryNavWidth = column.WidthAnchor.ConstraintEqualTo((nfloat)LibraryNavigationExpandedWidth);
+        _libraryNavWidth.Active = true;
         return column;
     }
 
+    /// <summary>The pane's width changed: below the breakpoint the navigation narrows to its icon rail.</summary>
+    private void OnLibraryPaneResized(double width)
+    {
+        var narrow = width > 0 && width < LibraryNavigationBreakpoint;
+        if (narrow != _libraryNavNarrow)
+        {
+            _libraryNavNarrow = narrow;
+            // The column's width is a constraint; change it after this layout pass, not inside it.
+            OnWindowThread(ApplyLibraryNavCompact);
+        }
+    }
+
+    /// <summary>Shows the navigation full width with its words, or as the icon rail.</summary>
+    private void ApplyLibraryNavCompact()
+    {
+        var compact = LibraryNavCompact;
+        if (_libraryNavWidth is not null)
+        {
+            _libraryNavWidth.Constant = (nfloat)(compact ? LibraryNavigationCompactWidth : LibraryNavigationExpandedWidth);
+        }
+
+        if (_libraryBrand is not null)
+        {
+            _libraryBrand.Hidden = compact;
+        }
+
+        if (_libraryNavToggle is not null)
+        {
+            _libraryNavToggle.Symbol = compact ? "chevron.right" : "chevron.left";
+            _libraryNavToggle.Label = compact ? "Expand library navigation" : "Collapse library navigation";
+        }
+
+        if (_libraryAddButton is not null)
+        {
+            _libraryAddButton.Text = compact ? null : "Add folder";
+        }
+
+        foreach (var (_, item) in _libraryNavItems)
+        {
+            item.Compact = compact;
+        }
+    }
+
     /// <summary>
-    /// Brings the sidebar in line with what the catalogue holds. The facts come from the same
+    /// Brings the navigation in line with what the catalogue holds. The facts come from the same
     /// snapshot the list renders; a folder added or given up is the person's own doing and shows at
     /// once, while scan results wait for the portable settle rule.
     /// </summary>
     private void RefreshLibrarySidebar(bool immediate = false)
     {
-        if (_closingLibrary || _mediaLibrary is null || _librarySidebar is null)
+        if (_closingLibrary || _mediaLibrary is null || _libraryNavList is null)
         {
             return;
         }
@@ -125,59 +203,57 @@ public sealed partial class MainWindow
         if (changed || _librarySidebarRows.Count == 0)
         {
             _librarySidebarRows = [.. LibrarySidebarCatalog.Where(item => _librarySections.IsShown(item.Section))];
-            _librarySidebar.ReloadData();
+            RebuildLibraryNavItems();
         }
 
         SyncLibrarySidebarSelection();
     }
 
+    /// <summary>Replaces the listed views with those the rules now show, and relinks the focus loop.</summary>
+    private void RebuildLibraryNavItems()
+    {
+        if (_libraryNavList is null)
+        {
+            return;
+        }
+
+        foreach (var (_, item) in _libraryNavItems)
+        {
+            item.RemoveFromSuperview();
+        }
+
+        _libraryNavItems.Clear();
+        foreach (var row in _librarySidebarRows)
+        {
+            var section = row.Section;
+            var item = new LibraryNavItem(row.Symbol, row.Title, "Library section: " + row.Title, () => SelectLibrarySection(section))
+            {
+                Compact = LibraryNavCompact,
+            };
+            _libraryNavList.AddArrangedSubview(item);
+            _libraryNavItems.Add((section, item));
+        }
+
+        WireLibraryKeyViews();
+    }
+
     /// <summary>
-    /// Keeps the highlighted sidebar row matching the media category, however the category was
-    /// chosen; a category whose section is not listed leaves no row highlighted.
+    /// Keeps the marked view matching the media category, however the category was chosen; a
+    /// category whose section is not listed leaves no view marked.
     /// </summary>
     private void SyncLibrarySidebarSelection()
     {
-        if (_librarySidebar is null || _libraryCategory is null)
+        if (_libraryCategory is null)
         {
             return;
         }
 
         var category = (int)_libraryCategory.IndexOfSelectedItem;
-        var row = -1;
-        for (var index = 0; index < _librarySidebarRows.Count; index++)
+        var showingList = _libraryCurrentPage is null || ReferenceEquals(_libraryCurrentPage, _libraryListPage);
+        foreach (var (section, item) in _libraryNavItems)
         {
-            if (_librarySidebarRows[index].Category == category)
-            {
-                row = index;
-                break;
-            }
-        }
-
-        _librarySidebarSyncing = true;
-        if (row < 0)
-        {
-            _librarySidebar.DeselectAll(null);
-        }
-        else
-        {
-            _librarySidebar.SelectRows(NSIndexSet.FromIndex((nint)row), byExtendingSelection: false);
-        }
-
-        _librarySidebarSyncing = false;
-    }
-
-    /// <summary>A person's click on a sidebar row; programmatic syncing never re-enters here.</summary>
-    private void OnLibrarySidebarSelectionChanged()
-    {
-        if (_librarySidebarSyncing || _librarySidebar is null)
-        {
-            return;
-        }
-
-        var row = (int)_librarySidebar.SelectedRow;
-        if (row >= 0 && row < _librarySidebarRows.Count)
-        {
-            SelectLibrarySection(_librarySidebarRows[row].Section);
+            var entry = Array.Find(LibrarySidebarCatalog, candidate => candidate.Section == section);
+            item.Selected = showingList && entry.Category == category;
         }
     }
 
@@ -187,7 +263,7 @@ public sealed partial class MainWindow
     /// </summary>
     private bool SelectLibrarySection(SidebarView section)
     {
-        if (_libraryWindow?.IsVisible != true || _libraryCategory is null)
+        if (!LibraryShown || _libraryCategory is null)
         {
             return false;
         }
@@ -256,31 +332,11 @@ public sealed partial class MainWindow
         _librarySidebarSettle = null;
         _librarySidebarRows = [];
         _librarySidebarFolderCount = -1;
-        _librarySidebar = null;
+        _libraryNavItems.Clear();
+        _libraryNavList = null;
         _librarySidebarScroll = null;
-        _librarySidebarSource = null;
-        _librarySplit = null;
-    }
-
-    /// <summary>Feeds the section rows to the native table and answers its selection changes.</summary>
-    private sealed class LibrarySidebarSource : NSTableViewSource
-    {
-        private readonly MainWindow _window;
-
-        public LibrarySidebarSource(MainWindow window) => _window = window;
-
-        public override nint GetRowCount(NSTableView tableView) => _window._librarySidebarRows.Count;
-
-        public override NSView GetViewForItem(NSTableView tableView, NSTableColumn tableColumn, nint row)
-        {
-            var item = _window._librarySidebarRows[(int)row];
-            var label = NSTextField.CreateLabel(item.Title);
-            label.LineBreakMode = NSLineBreakMode.TruncatingTail;
-            label.AccessibilityLabel = "Library section: " + item.Title;
-            return label;
-        }
-
-        public override void SelectionDidChange(NSNotification notification) =>
-            _window.OnLibrarySidebarSelectionChanged();
+        _libraryNavWidth = null;
+        _libraryNavToggle = null;
+        _libraryBrand = null;
     }
 }
